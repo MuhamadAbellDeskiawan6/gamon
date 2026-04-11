@@ -182,7 +182,9 @@
 <body>
 
   <h1>💔 Gamon Tawing</h1>
-  <button onclick="goToSubmit()">Sampaikan Gamonmu</button>
+  <button onclick="location.href='submit.html'">
+  Sampaikan Gamonmu
+</button>
 
   <div id="container"></div>
 
@@ -190,34 +192,87 @@
     © 2026 <a href="#">Fullmoon</a> - Gamon Tawing
   </footer>
 
-<script>
-function goToSubmit() {
-  window.location.href = "submit.html";
-}
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getFirestore, collection, onSnapshot, query, orderBy, limit } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-function loadMessages() {
-  let data = JSON.parse(localStorage.getItem("gamonData")) || [];
-  let container = document.getElementById("container");
+const firebaseConfig = {
+  apiKey: "AIzaSyC247K8yyL67aWV95KNQy8CkMZsjgGCudQ",
+  authDomain: "gamon-tawing.firebaseapp.com",
+  projectId: "gamon-tawing",
+  storageBucket: "gamon-tawing.appspot.com",
+  messagingSenderId: "370162915989",
+  appId: "1:370162915989:web:76779062da83aa0c5c999c"
+};
 
-  data.forEach(item => {
-    let div = document.createElement("div");
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+const container = document.getElementById("container");
+
+// Query Firestore for the latest 30 messages
+const q = query(
+  collection(db, "gamon"),
+  orderBy("waktu", "desc"),
+  limit(30)
+);
+
+onSnapshot(q, (snapshot) => {
+  container.innerHTML = "";
+
+  // For collision avoidance, but allow more density
+  let usedPositions = [];
+  const minTop = 0; // allow popups to fill from the very top of container
+  const maxTop = 90; // percent
+  const minLeft = 0;
+  const maxLeft = 90;
+
+  snapshot.forEach(doc => {
+    const data = doc.data();
+    if (!data.pesan || data.pesan.length > 200) return;
+
+    const div = document.createElement("div");
     div.className = "floating";
 
-    // Posisi top antara 0% sampai 100% dari container
-    div.style.top = Math.random() * 80 + "%";
-    div.style.left = Math.random() * 85 + "%";
-    div.style.animationDuration = (5 + Math.random() * 10) + "s";
+    // Try to avoid overlapping popups, but allow more density
+    let top, left, tries = 0;
+    do {
+      top = Math.random() * (maxTop - minTop) + minTop;
+      left = Math.random() * (maxLeft - minLeft) + minLeft;
+      tries++;
+    } while (
+      usedPositions.some(pos =>
+        Math.abs(pos.top - top) < 12 &&
+        Math.abs(pos.left - left) < 12
+      ) && tries < 30
+    );
+    usedPositions.push({ top, left });
+
+    div.style.top = top + "%";
+    div.style.left = left + "%";
 
     div.innerHTML = `
-      <strong>${item.nama}</strong> ke <strong>${item.tujuan}</strong><br>
-      "${item.pesan}"
+      <strong>${data.nama ? escapeHtml(data.nama) : "Seseorang 💔"}</strong> ke <strong>${data.tujuan ? escapeHtml(data.tujuan) : "-"}</strong><br>
+      "${escapeHtml(data.pesan)}"
     `;
 
     container.appendChild(div);
   });
+});
+
+// Simple HTML escape to prevent XSS
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }
 
-loadMessages();
+function goToSubmit() {
+  window.location.href = "submit.html";
+}
 </script>
 
 </body>

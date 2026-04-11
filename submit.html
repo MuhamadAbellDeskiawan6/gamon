@@ -176,38 +176,48 @@
   <a href="index.html" class="back-link">Kembali ke Gamon Wall</a>
 </div>
 
-<script>
-function submitData() {
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyC247K8yyL67aWV95KNQy8CkMZsjgGCudQ",
+  authDomain: "gamon-tawing.firebaseapp.com",
+  projectId: "gamon-tawing",
+  storageBucket: "gamon-tawing.firebasestorage.app",
+  messagingSenderId: "370162915989",
+  appId: "1:370162915989:web:76779062da83aa0c5c999c"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+window.submitData = async function () {
   let nama = document.getElementById("nama").value.trim();
   let tujuan = document.getElementById("tujuan").value.trim();
   let pesan = document.getElementById("pesan").value.trim();
   let messageDiv = document.getElementById("message");
 
   if (!nama || !tujuan || !pesan) {
-    messageDiv.textContent = "Isi semua dulu ya 😢";
+    messageDiv.textContent = "Isi semua dulu 😢";
     messageDiv.style.color = "#ef4444";
     return;
   }
 
-  let data = JSON.parse(localStorage.getItem("gamonData")) || [];
+  await addDoc(collection(db, "gamon"), {
+    nama,
+    tujuan,
+    pesan,
+    waktu: Date.now()
+  });
 
-  data.push({ nama, tujuan, pesan });
-
-  localStorage.setItem("gamonData", JSON.stringify(data));
-
-  messageDiv.textContent = "Gamon kamu sudah terkirim 💔";
+  messageDiv.textContent = "Terkirim 💔";
   messageDiv.style.color = "#22c55e";
 
-  // Clear form
-  document.getElementById("nama").value = "";
-  document.getElementById("tujuan").value = "";
-  document.getElementById("pesan").value = "";
-
-  // Redirect after 2 seconds
   setTimeout(() => {
     window.location.href = "index.html";
-  }, 2000);
-}
+  }, 1500);
+};
 </script>
 
 </body>
