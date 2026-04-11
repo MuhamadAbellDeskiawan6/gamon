@@ -8,10 +8,10 @@
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     text-align: center;
     background: linear-gradient(180deg, #060811 0%, #0f172a 15%, #1e293b 55%, #334155 100%);
-    overflow: hidden;
+    overflow-x: hidden;
     margin: 0;
-    padding: 0;
-    height: 100vh;
+    padding: 0 0 140px;
+    min-height: 100vh;
     position: relative;
     display: flex;
     flex-direction: column;
@@ -105,7 +105,8 @@
     padding: 12px 16px;
     border-radius: 12px;
     backdrop-filter: blur(12px);
-    width: 220px;
+    width: min(220px, calc(100% - 32px));
+    box-sizing: border-box;
     box-shadow: 0 2px 15px rgba(0,0,0,0.2);
     border: 1px solid rgba(255,255,255,0.15);
     color: white;
@@ -121,16 +122,17 @@
 
   #container {
     position: absolute;
-    top: 400px;
+    top: 320px;
     left: 0;
     right: 0;
     width: 100%;
-    height: calc(100vh - 400px);
+    bottom: 120px;
+    overflow: hidden;
   }
 
   footer {
     position: absolute;
-    bottom: 20px;
+    bottom: 18px;
     width: 100%;
     text-align: center;
     z-index: 10;
@@ -177,6 +179,147 @@
       transform: translate(0px, 0px);
     }
   }
+  .music-player {
+    position: fixed;
+    bottom: 84px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center; /* Menjaga vertikal tetap di tengah */
+    justify-content: space-between;
+    gap: 14px;
+    padding: 10px 18px; /* Sedikit diperlebar agar lebih lega */
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(255,255,255,0.18);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.25);
+    color: white;
+    font-size: 13px;
+    z-index: 999;
+    animation: floatMusic 5.5s ease-in-out infinite;
+    min-width: 240px;
+    max-width: 300px;
+  }
+
+  .music-info {
+    opacity: 0.85;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 1;
+    text-align: left;
+    margin: 0;
+    max-width: 190px;
+  }
+
+  #musicToggle {
+    margin: 0;
+    min-width: 42px;
+    min-height: 42px;
+    width: 42px;
+    height: 42px;
+    padding: 0;
+    border-radius: 50%;
+    border: 1px solid rgba(255,255,255,0.22);
+    background: rgba(255,255,255,0.12);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    position: relative;
+    transition: transform 0.25s ease, background 0.25s ease, box-shadow 0.25s ease;
+  }
+
+  #musicToggle:hover {
+    transform: scale(1.07);
+    background: rgba(255,255,255,0.18);
+    box-shadow: 0 0 14px rgba(255,255,255,0.18);
+  }
+
+  .music-icon {
+    width: 0;
+    height: 0;
+    border-style: solid;
+    border-width: 8px 0 8px 13px;
+    border-color: transparent transparent transparent white;
+    transition: all 0.2s ease;
+  }
+
+  #musicToggle.playing .music-icon {
+    width: 12px;
+    height: 16px;
+    border: none;
+    position: relative;
+  }
+
+  #musicToggle.playing .music-icon::before,
+  #musicToggle.playing .music-icon::after {
+    content: '';
+    position: absolute;
+    width: 3px;
+    height: 16px;
+    background: white;
+    border-radius: 1px;
+  }
+
+  #musicToggle.playing .music-icon::before {
+    left: 0;
+  }
+
+  #musicToggle.playing .music-icon::after {
+    right: 0;
+  }
+
+  @keyframes floatMusic {
+    0% { transform: translateX(-50%) translateY(0px); }
+    50% { transform: translateX(-50%) translateY(-4px); }
+    100% { transform: translateX(-50%) translateY(0px); }
+  }
+
+  @media (max-width: 700px) {
+    body {
+      padding-bottom: 180px;
+    }
+
+    h1 {
+      margin-top: 50px;
+      font-size: 2.2rem;
+    }
+
+    button {
+      padding: 12px 22px;
+      font-size: 16px;
+      margin-top: 24px;
+    }
+
+    .floating {
+      width: 180px;
+      padding: 10px 14px;
+    }
+
+    #container {
+      top: 260px;
+      bottom: 140px;
+    }
+
+    .music-player {
+      bottom: 120px;
+      min-width: 200px;
+      max-width: 92%;
+      padding: 10px 12px;
+    }
+
+    .music-info {
+      max-width: 140px;
+      font-size: 12px;
+    }
+
+    footer {
+      bottom: 12px;
+      font-size: 12px;
+    }
+  }
 </style>
 </head>
 <body>
@@ -192,7 +335,48 @@
     © 2026 <a href="#">Fullmoon</a> - Gamon Tawing
   </footer>
 
+  <div class="music-player">
+    <div class="music-info">
+      Terbuang Dalam Waktu - Barasuara
+    </div>
+
+    <button id="musicToggle" aria-label="Toggle music">
+      <span class="music-icon"></span>
+    </button>
+
+    <audio id="bgMusic" loop>
+      <source src="music.mp3" type="audio/mpeg">
+  </audio>
+</div>
+
 <script type="module">
+//music
+const music = document.getElementById("bgMusic");
+const btn = document.getElementById("musicToggle");
+
+let isPlaying = false;
+
+btn.addEventListener("click", () => {
+  if (isPlaying) {
+    music.pause();
+    btn.classList.remove("playing");
+  } else {
+    music.play();
+    btn.classList.add("playing");
+  }
+  isPlaying = !isPlaying;
+});
+
+// Auto play setelah interaksi pertama
+document.addEventListener("click", () => {
+  if (!isPlaying) {
+    music.play();
+    btn.classList.add("playing");
+    isPlaying = true;
+  }
+}, { once: true });
+//music
+
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getFirestore, collection, onSnapshot, query, orderBy, limit } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
@@ -222,10 +406,6 @@ onSnapshot(q, (snapshot) => {
 
   // For collision avoidance, but allow more density
   let usedPositions = [];
-  const minTop = 0; // allow popups to fill from the very top of container
-  const maxTop = 90; // percent
-  const minLeft = 0;
-  const maxLeft = 90;
 
   snapshot.forEach(doc => {
     const data = doc.data();
@@ -233,30 +413,33 @@ onSnapshot(q, (snapshot) => {
 
     const div = document.createElement("div");
     div.className = "floating";
-
-    // Try to avoid overlapping popups, but allow more density
-    let top, left, tries = 0;
-    do {
-      top = Math.random() * (maxTop - minTop) + minTop;
-      left = Math.random() * (maxLeft - minLeft) + minLeft;
-      tries++;
-    } while (
-      usedPositions.some(pos =>
-        Math.abs(pos.top - top) < 12 &&
-        Math.abs(pos.left - left) < 12
-      ) && tries < 30
-    );
-    usedPositions.push({ top, left });
-
-    div.style.top = top + "%";
-    div.style.left = left + "%";
-
     div.innerHTML = `
       <strong>${data.nama ? escapeHtml(data.nama) : "Seseorang 💔"}</strong> ke <strong>${data.tujuan ? escapeHtml(data.tujuan) : "-"}</strong><br>
       "${escapeHtml(data.pesan)}"
     `;
 
     container.appendChild(div);
+
+    const containerRect = container.getBoundingClientRect();
+    const popupRect = div.getBoundingClientRect();
+    const maxLeftPx = Math.max(containerRect.width - popupRect.width - 16, 0);
+    const maxTopPx = Math.max(containerRect.height - popupRect.height - 16, 0);
+
+    let topPx, leftPx, tries = 0;
+    do {
+      topPx = Math.random() * maxTopPx;
+      leftPx = Math.random() * maxLeftPx;
+      tries++;
+    } while (
+      usedPositions.some(pos =>
+        Math.abs(pos.top - topPx) < 100 &&
+        Math.abs(pos.left - leftPx) < 100
+      ) && tries < 30
+    );
+
+    usedPositions.push({ top: topPx, left: leftPx });
+    div.style.top = topPx + "px";
+    div.style.left = leftPx + "px";
   });
 });
 
