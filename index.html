@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <title>Gamon Tawing</title>
+ <style>
+  body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    text-align: center;
+    background: linear-gradient(180deg, #060811 0%, #0f172a 15%, #1e293b 55%, #334155 100%);
+    overflow: hidden;
+    margin: 0;
+    padding: 0;
+    height: 100vh;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: center;
+  }
+  body::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(circle at 2% 2%, rgba(255,255,255,0.95) 1.6px, transparent 0),
+      radial-gradient(circle at 15% 3%, rgba(255,255,255,0.8) 1px, transparent 0),
+      radial-gradient(circle at 5% 10%, rgba(255,255,255,0.95) 1.6px, transparent 0),
+      radial-gradient(circle at 15% 20%, rgba(255,255,255,0.8) 1px, transparent 0),
+      radial-gradient(circle at 25% 5%, rgba(255,255,255,0.9) 1.3px, transparent 0),
+      radial-gradient(circle at 35% 18%, rgba(255,255,255,0.75) 1px, transparent 0),
+      radial-gradient(circle at 50% 8%, rgba(255,255,255,0.85) 1.4px, transparent 0),
+      radial-gradient(circle at 68% 12%, rgba(255,255,255,0.9) 1.5px, transparent 0),
+      radial-gradient(circle at 82% 5%, rgba(255,255,255,0.65) 1px, transparent 0),
+      radial-gradient(circle at 12% 8%, rgba(255,255,255,0.85) 1px, transparent 0),
+      radial-gradient(circle at 28% 12%, rgba(255,255,255,0.8) 1px, transparent 0),
+      radial-gradient(circle at 45% 7%, rgba(255,255,255,0.9) 1.2px, transparent 0),
+      radial-gradient(circle at 58% 10%, rgba(255,255,255,0.8) 1px, transparent 0),
+      radial-gradient(circle at 72% 6%, rgba(255,255,255,0.9) 1.1px, transparent 0),
+      radial-gradient(circle at 92% 9%, rgba(255,255,255,0.7) 1px, transparent 0),
+      radial-gradient(circle at 30% 2%, rgba(255,255,255,0.9) 1.2px, transparent 0),
+      radial-gradient(circle at 60% 4%, rgba(255,255,255,0.85) 1.3px, transparent 0),
+      radial-gradient(circle at 85% 1%, rgba(255,255,255,0.7) 1px, transparent 0),
+      radial-gradient(circle at 10% 40%, rgba(255,255,255,0.9) 1.3px, transparent 0),
+      radial-gradient(circle at 22% 55%, rgba(255,255,255,0.7) 1px, transparent 0),
+      radial-gradient(circle at 42% 32%, rgba(255,255,255,0.95) 1.3px, transparent 0),
+      radial-gradient(circle at 60% 45%, rgba(255,255,255,0.75) 1px, transparent 0),
+      radial-gradient(circle at 77% 28%, rgba(255,255,255,0.85) 1.2px, transparent 0),
+      radial-gradient(circle at 90% 18%, rgba(255,255,255,0.65) 0.9px, transparent 0),
+      radial-gradient(circle at 5% 70%, rgba(255,255,255,0.8) 1px, transparent 0),
+      radial-gradient(circle at 20% 85%, rgba(255,255,255,0.5) 0.8px, transparent 0),
+      radial-gradient(circle at 40% 80%, rgba(255,255,255,0.6) 1px, transparent 0),
+      radial-gradient(circle at 65% 88%, rgba(255,255,255,0.65) 1px, transparent 0),
+      radial-gradient(circle at 85% 75%, rgba(255,255,255,0.85) 1.3px, transparent 0),
+      radial-gradient(circle at 50% 50%, rgba(255,255,255,0.95) 1.5px, transparent 0);
+    opacity: 0.96;
+    pointer-events: none;
+    z-index: 2;
+  }
+
+  body::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at 20% 30%, rgba(89, 107, 255, 0.18) 0%, transparent 28%),
+                radial-gradient(circle at 70% 25%, rgba(190, 78, 255, 0.14) 0%, transparent 26%),
+                radial-gradient(circle at 40% 70%, rgba(56, 189, 248, 0.12) 0%, transparent 30%);
+    z-index: 1;
+    pointer-events: none;
+  }
+
+  h1 {
+    margin-top: 80px;
+    margin-bottom: 0;
+    font-size: 3em;
+    color: white;
+    text-shadow: 0 0 20px rgba(255,255,255,0.5);
+    z-index: 10;
+    position: relative;
+  }
+
+  button {
+    padding: 15px 25px;
+    font-size: 18px;
+    border: none;
+    border-radius: 10px;
+    background: linear-gradient(45deg, #8b5cf6, #6366f1);
+    color: white;
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(139, 92, 246, 0.4);
+    transition: all 0.3s ease;
+    z-index: 10;
+    position: relative;
+    margin: 30px 0 0 0;
+  }
+
+  button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 25px rgba(139, 92, 246, 0.6);
+  }
+
+  .floating {
+    position: absolute;
+    background: rgba(255,255,255,0.08);
+    padding: 12px 16px;
+    border-radius: 12px;
+    backdrop-filter: blur(12px);
+    width: 220px;
+    box-shadow: 0 2px 15px rgba(0,0,0,0.2);
+    border: 1px solid rgba(255,255,255,0.15);
+    color: white;
+
+    animation: fadeIn 0.8s ease, floatSoft 6s ease-in-out infinite;
+    transition: transform 0.3s, box-shadow 0.3s;
+  }
+
+  .floating:hover {
+    transform: scale(1.05);
+    box-shadow: 0 0 25px rgba(255,255,255,0.2);
+  }
+
+  #container {
+    position: absolute;
+    top: 400px;
+    left: 0;
+    right: 0;
+    width: 100%;
+    height: calc(100vh - 400px);
+  }
+
+  footer {
+    position: absolute;
+    bottom: 20px;
+    width: 100%;
+    text-align: center;
+    z-index: 10;
+    font-size: 14px;
+    color: rgba(255,255,255,0.6);
+  }
+
+  footer a {
+    color: rgba(255,255,255,0.8);
+    text-decoration: none;
+    transition: color 0.3s ease;
+  }
+
+  footer a:hover {
+    color: rgba(255,255,255,1);
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: scale(0.85);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  /* ✨ INI YANG BIKIN "MELAYANG HALUS" */
+  @keyframes floatSoft {
+    0% {
+      transform: translate(0px, 0px);
+    }
+    25% {
+      transform: translate(3px, -4px);
+    }
+    50% {
+      transform: translate(-3px, 2px);
+    }
+    75% {
+      transform: translate(2px, 3px);
+    }
+    100% {
+      transform: translate(0px, 0px);
+    }
+  }
+</style>
+</head>
+<body>
+
+  <h1>💔 Gamon Tawing</h1>
+  <button onclick="goToSubmit()">Sampaikan Gamonmu</button>
+
+  <div id="container"></div>
+
+  <footer>
+    © 2026 <a href="#">Fullmoon</a> - Gamon Tawing
+  </footer>
+
+<script>
+function goToSubmit() {
+  window.location.href = "submit.html";
+}
+
+function loadMessages() {
+  let data = JSON.parse(localStorage.getItem("gamonData")) || [];
+  let container = document.getElementById("container");
+
+  data.forEach(item => {
+    let div = document.createElement("div");
+    div.className = "floating";
+
+    // Posisi top antara 0% sampai 100% dari container
+    div.style.top = Math.random() * 80 + "%";
+    div.style.left = Math.random() * 85 + "%";
+    div.style.animationDuration = (5 + Math.random() * 10) + "s";
+
+    div.innerHTML = `
+      <strong>${item.nama}</strong> ke <strong>${item.tujuan}</strong><br>
+      "${item.pesan}"
+    `;
+
+    container.appendChild(div);
+  });
+}
+
+loadMessages();
+</script>
+
+</body>
+</html>

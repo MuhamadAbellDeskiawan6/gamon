@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <title>Kirim Gamon</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(180deg, #060811 0%, #0f172a 15%, #1e293b 55%, #334155 100%);
+      color: white;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      padding: 0;
+      position: relative;
+      overflow: hidden;
+    }
+
+    body::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(circle at 2% 2%, rgba(255,255,255,0.95) 1.6px, transparent 0),
+        radial-gradient(circle at 15% 3%, rgba(255,255,255,0.8) 1px, transparent 0),
+        radial-gradient(circle at 5% 10%, rgba(255,255,255,0.95) 1.6px, transparent 0),
+        radial-gradient(circle at 15% 20%, rgba(255,255,255,0.8) 1px, transparent 0),
+        radial-gradient(circle at 25% 5%, rgba(255,255,255,0.9) 1.3px, transparent 0),
+        radial-gradient(circle at 35% 18%, rgba(255,255,255,0.75) 1px, transparent 0),
+        radial-gradient(circle at 50% 8%, rgba(255,255,255,0.85) 1.4px, transparent 0),
+        radial-gradient(circle at 68% 12%, rgba(255,255,255,0.9) 1.5px, transparent 0),
+        radial-gradient(circle at 82% 5%, rgba(255,255,255,0.65) 1px, transparent 0),
+        radial-gradient(circle at 12% 8%, rgba(255,255,255,0.85) 1px, transparent 0),
+        radial-gradient(circle at 28% 12%, rgba(255,255,255,0.8) 1px, transparent 0),
+        radial-gradient(circle at 45% 7%, rgba(255,255,255,0.9) 1.2px, transparent 0),
+        radial-gradient(circle at 58% 10%, rgba(255,255,255,0.8) 1px, transparent 0),
+        radial-gradient(circle at 72% 6%, rgba(255,255,255,0.9) 1.1px, transparent 0),
+        radial-gradient(circle at 92% 9%, rgba(255,255,255,0.7) 1px, transparent 0),
+        radial-gradient(circle at 30% 2%, rgba(255,255,255,0.9) 1.2px, transparent 0),
+        radial-gradient(circle at 60% 4%, rgba(255,255,255,0.85) 1.3px, transparent 0),
+        radial-gradient(circle at 85% 1%, rgba(255,255,255,0.7) 1px, transparent 0),
+        radial-gradient(circle at 10% 40%, rgba(255,255,255,0.9) 1.3px, transparent 0),
+        radial-gradient(circle at 22% 55%, rgba(255,255,255,0.7) 1px, transparent 0),
+        radial-gradient(circle at 42% 32%, rgba(255,255,255,0.95) 1.3px, transparent 0),
+        radial-gradient(circle at 60% 45%, rgba(255,255,255,0.75) 1px, transparent 0),
+        radial-gradient(circle at 77% 28%, rgba(255,255,255,0.85) 1.2px, transparent 0),
+        radial-gradient(circle at 90% 18%, rgba(255,255,255,0.65) 0.9px, transparent 0),
+        radial-gradient(circle at 5% 70%, rgba(255,255,255,0.8) 1px, transparent 0),
+        radial-gradient(circle at 20% 85%, rgba(255,255,255,0.5) 0.8px, transparent 0),
+        radial-gradient(circle at 40% 80%, rgba(255,255,255,0.6) 1px, transparent 0),
+        radial-gradient(circle at 65% 88%, rgba(255,255,255,0.65) 1px, transparent 0),
+        radial-gradient(circle at 85% 75%, rgba(255,255,255,0.85) 1.3px, transparent 0),
+        radial-gradient(circle at 50% 50%, rgba(255,255,255,0.95) 1.5px, transparent 0);
+      opacity: 0.96;
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    body::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at 20% 30%, rgba(89, 107, 255, 0.18) 0%, transparent 28%),
+                  radial-gradient(circle at 70% 25%, rgba(190, 78, 255, 0.14) 0%, transparent 26%),
+                  radial-gradient(circle at 40% 70%, rgba(56, 189, 248, 0.12) 0%, transparent 30%);
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    .form {
+      background: rgba(255,255,255,0.08);
+      padding: 40px;
+      border-radius: 15px;
+      width: 100%;
+      max-width: 400px;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+      border: 1px solid rgba(255,255,255,0.15);
+      z-index: 10;
+      position: relative;
+    }
+
+    h2 {
+      text-align: center;
+      margin: 0 0 30px 0;
+      font-size: 1.8em;
+      color: white;
+      text-shadow: 0 0 10px rgba(255,255,255,0.5);
+    }
+
+    input, textarea {
+      width: 100%;
+      margin: 12px 0;
+      padding: 12px;
+      border-radius: 8px;
+      border: none;
+      background: rgba(255,255,255,0.08);
+      color: white;
+      font-size: 16px;
+      transition: all 0.3s ease;
+      box-sizing: border-box;
+    }
+
+    input::placeholder, textarea::placeholder {
+      color: rgba(255,255,255,0.7);
+    }
+
+    input:focus, textarea:focus {
+      outline: none;
+      background: rgba(255,255,255,0.15);
+      box-shadow: 0 0 10px rgba(139, 92, 246, 0.5);
+    }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      background: linear-gradient(45deg, #8b5cf6, #6366f1);
+      border: none;
+      border-radius: 8px;
+      color: white;
+      cursor: pointer;
+      font-size: 16px;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 15px rgba(139, 92, 246, 0.4);
+      box-sizing: border-box;
+      margin-top: 8px;
+    }
+
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(139, 92, 246, 0.6);
+    }
+
+    .back-link {
+      display: block;
+      text-align: center;
+      margin-top: 20px;
+      color: rgba(255,255,255,0.7);
+      text-decoration: none;
+      transition: color 0.3s ease;
+      font-size: 14px;
+    }
+
+    .back-link:hover {
+      color: rgba(255,255,255,1);
+    }
+
+    .message {
+      text-align: center;
+      margin-top: 15px;
+      color: #22c55e;
+      font-weight: bold;
+      font-size: 14px;
+    }
+
+    .message.error {
+      color: #ef4444;
+    }
+  </style>
+</head>
+<body>
+
+<div class="form">
+  <h2>Sampaikan Gamonmu 💔</h2>
+
+  <input type="text" id="nama" placeholder="Nama kamu">
+  <input type="text" id="tujuan" placeholder="Untuk siapa">
+  <textarea id="pesan" placeholder="Pesan kamu..." rows="4"></textarea>
+
+  <button onclick="submitData()">Kirim</button>
+
+  <div id="message" class="message"></div>
+
+  <a href="index.html" class="back-link">Kembali ke Gamon Wall</a>
+</div>
+
+<script>
+function submitData() {
+  let nama = document.getElementById("nama").value.trim();
+  let tujuan = document.getElementById("tujuan").value.trim();
+  let pesan = document.getElementById("pesan").value.trim();
+  let messageDiv = document.getElementById("message");
+
+  if (!nama || !tujuan || !pesan) {
+    messageDiv.textContent = "Isi semua dulu ya 😢";
+    messageDiv.style.color = "#ef4444";
+    return;
+  }
+
+  let data = JSON.parse(localStorage.getItem("gamonData")) || [];
+
+  data.push({ nama, tujuan, pesan });
+
+  localStorage.setItem("gamonData", JSON.stringify(data));
+
+  messageDiv.textContent = "Gamon kamu sudah terkirim 💔";
+  messageDiv.style.color = "#22c55e";
+
+  // Clear form
+  document.getElementById("nama").value = "";
+  document.getElementById("tujuan").value = "";
+  document.getElementById("pesan").value = "";
+
+  // Redirect after 2 seconds
+  setTimeout(() => {
+    window.location.href = "index.html";
+  }, 2000);
+}
+</script>
+
+</body>
+</html>
