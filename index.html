@@ -100,50 +100,80 @@
   }
 
   .floating {
-  position: absolute;
-  background: rgba(255,255,255,0.08);
-  padding: 10px 14px;
-  border-radius: 12px;
-  backdrop-filter: blur(12px);
-  
-  /* --- PERUBAHAN DI SINI --- */
-  width: auto;             /* Biar lebarnya ngikutin isi */
-  min-width: 140px;        /* Lebar minimal biar gak terlalu gepeng */
-  max-width: 250px;        /* Batas lebar maksimal */
-  height: auto;            /* Tinggi otomatis ngikutin isi */
-  max-height: 180px;       /* Batas tinggi maksimal */
-  overflow-y: auto;        /* Kalau lewat batas tinggi, muncul scrollbar */
-  /* ------------------------- */
+    position: absolute;
+    background: rgba(255, 255, 255, 0.1);
+    padding: 12px 16px;
+    border-radius: 16px;
+    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px);
+    
+    width: auto;
+    min-width: 150px;
+    max-width: 220px;
+    
+    /* --- FITUR SCROLL --- */
+    max-height: 200px;    /* Batas tinggi kartu */
+    overflow-y: auto;     /* Munculkan scroll jika teks kepanjangan */
+    /* -------------------- */
+    
+    box-sizing: border-box;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: white;
+    
+    text-align: center; 
+    display: flex;
+    flex-direction: column;
+    /* Hilangkan justify-content: center agar scroll mulai dari atas */
+    align-items: center;
+    gap: 6px;
 
-  box-sizing: border-box;
-  box-shadow: 0 2px 15px rgba(0,0,0,0.2);
-  border: 1px solid rgba(255,255,255,0.15);
-  color: white;
-  white-space: pre-wrap;
-  word-break: break-word;
-  resize: both;
-  cursor: grab;
-  animation: fadeIn 0.8s ease, floatSoft 6s ease-in-out infinite;
-  transition: transform 0.3s, box-shadow 0.3s;
-}
+    white-space: pre-wrap;
+    word-break: break-word;
+    cursor: grab;
+    animation: fadeIn 0.8s ease, floatSoft 6s ease-in-out infinite;
+    transition: transform 0.3s, box-shadow 0.3s;
+    user-select: none;
+    touch-action: pan-y; /* Izinkan scroll vertikal dengan sentuhan */
+  user-select: none;
+  }
 
-/* Kustomisasi scrollbar agar lebih estetik di dalam popup */
-.floating::-webkit-scrollbar {
-  width: 4px;
-}
-.floating::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 10px;
-}
+  /* Bikin scrollbar-nya jadi tipis dan estetik */
+  .floating::-webkit-scrollbar {
+    width: 4px;
+  }
+  .floating::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
+  }
+
+  /* Gaya untuk Nama/Tujuan agar lebih rapi */
+.floating .meta {
+    font-size: 13px; /* Ukuran sedikit lebih besar agar bold enak dilihat */
+    opacity: 0.9;
+    margin-bottom: 4px;
+    line-height: 1.2;
+  }
+
+  .floating .message {
+    font-size: 14px;
+    line-height: 1.5;
+    font-weight: 400;
+    font-style: italic; /* Memberi kesan kutipan/pesan */
+    color: rgba(255, 255, 255, 0.95);
+  }
+
   .floating:hover {
-    transform: scale(1.03);
-    box-shadow: 0 0 18px rgba(255,255,255,0.2);
+    transform: scale(1.05);
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.4);
   }
 
   .floating.dragging {
     animation: none;
     cursor: grabbing;
     opacity: 0.98;
+    touch-action: none;
   }
 
   #container {
@@ -442,9 +472,15 @@ onSnapshot(q, (snapshot) => {
 
     const div = document.createElement("div");
     div.className = "floating";
+    // Ganti bagian div.innerHTML dengan ini:
+  const nama = data.nama ? escapeHtml(data.nama) : "Seseorang";
+    const tujuan = data.tujuan ? escapeHtml(data.tujuan) : "-";
+    const pesan = data.pesan ? escapeHtml(data.pesan) : "";
+
+    // Nama & Tujuan Bold, dipisah dengan kata "ke"
     div.innerHTML = `
-      <strong>${data.nama ? escapeHtml(data.nama) : "Seseorang 💔"}</strong> ke <strong>${data.tujuan ? escapeHtml(data.tujuan) : "-"}</strong><br>
-      "${escapeHtml(data.pesan)}"
+      <div class="meta"><strong>${nama}</strong> ke <strong>${tujuan}</strong></div>
+      <div class="message">"${pesan}"</div>
     `;
 
     // 1. Append dulu ke container supaya punya dimensi (width/height)
