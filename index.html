@@ -100,24 +100,50 @@
   }
 
   .floating {
-    position: absolute;
-    background: rgba(255,255,255,0.08);
-    padding: 12px 16px;
-    border-radius: 12px;
-    backdrop-filter: blur(12px);
-    width: min(220px, calc(100% - 32px));
-    box-sizing: border-box;
-    box-shadow: 0 2px 15px rgba(0,0,0,0.2);
-    border: 1px solid rgba(255,255,255,0.15);
-    color: white;
+  position: absolute;
+  background: rgba(255,255,255,0.08);
+  padding: 10px 14px;
+  border-radius: 12px;
+  backdrop-filter: blur(12px);
+  
+  /* --- PERUBAHAN DI SINI --- */
+  width: auto;             /* Biar lebarnya ngikutin isi */
+  min-width: 140px;        /* Lebar minimal biar gak terlalu gepeng */
+  max-width: 250px;        /* Batas lebar maksimal */
+  height: auto;            /* Tinggi otomatis ngikutin isi */
+  max-height: 180px;       /* Batas tinggi maksimal */
+  overflow-y: auto;        /* Kalau lewat batas tinggi, muncul scrollbar */
+  /* ------------------------- */
 
-    animation: fadeIn 0.8s ease, floatSoft 6s ease-in-out infinite;
-    transition: transform 0.3s, box-shadow 0.3s;
+  box-sizing: border-box;
+  box-shadow: 0 2px 15px rgba(0,0,0,0.2);
+  border: 1px solid rgba(255,255,255,0.15);
+  color: white;
+  white-space: pre-wrap;
+  word-break: break-word;
+  resize: both;
+  cursor: grab;
+  animation: fadeIn 0.8s ease, floatSoft 6s ease-in-out infinite;
+  transition: transform 0.3s, box-shadow 0.3s;
+}
+
+/* Kustomisasi scrollbar agar lebih estetik di dalam popup */
+.floating::-webkit-scrollbar {
+  width: 4px;
+}
+.floating::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+}
+  .floating:hover {
+    transform: scale(1.03);
+    box-shadow: 0 0 18px rgba(255,255,255,0.2);
   }
 
-  .floating:hover {
-    transform: scale(1.05);
-    box-shadow: 0 0 25px rgba(255,255,255,0.2);
+  .floating.dragging {
+    animation: none;
+    cursor: grabbing;
+    opacity: 0.98;
   }
 
   #container {
@@ -293,8 +319,10 @@
       margin-top: 24px;
     }
 
-    .floating {
-      width: 180px;
+  .floating {
+      width: auto;         /* Kembalikan ke otomatis */
+      min-width: 120px;    /* Minimal lebar di HP */
+      max-width: 180px;    /* Maksimal lebar di HP */
       padding: 10px 14px;
     }
 
@@ -406,10 +434,11 @@ onSnapshot(q, (snapshot) => {
 
   // For collision avoidance, but allow more density
   let usedPositions = [];
+  let currentZIndex = 1;
 
-  snapshot.forEach(doc => {
+ snapshot.forEach(doc => {
     const data = doc.data();
-    if (!data.pesan || data.pesan.length > 200) return;
+    if (!data.pesan) return;
 
     const div = document.createElement("div");
     div.className = "floating";
@@ -418,12 +447,18 @@ onSnapshot(q, (snapshot) => {
       "${escapeHtml(data.pesan)}"
     `;
 
+    // 1. Append dulu ke container supaya punya dimensi (width/height)
     container.appendChild(div);
 
-    const containerRect = container.getBoundingClientRect();
-    const popupRect = div.getBoundingClientRect();
-    const maxLeftPx = Math.max(containerRect.width - popupRect.width - 16, 0);
-    const maxTopPx = Math.max(containerRect.height - popupRect.height - 16, 0);
+    // 2. Ambil ukuran container dan popup yang baru saja dibuat
+    const containerWidth = container.offsetWidth;
+    const containerHeight = container.offsetHeight;
+    const popupWidth = div.offsetWidth;
+    const popupHeight = div.offsetHeight;
+
+    // 3. Hitung batas maksimal agar tidak keluar tembok
+    const maxLeftPx = Math.max(containerWidth - popupWidth - 20, 0);
+    const maxTopPx = Math.max(containerHeight - popupHeight - 20, 0);
 
     let topPx, leftPx, tries = 0;
     do {
@@ -432,14 +467,62 @@ onSnapshot(q, (snapshot) => {
       tries++;
     } while (
       usedPositions.some(pos =>
-        Math.abs(pos.top - topPx) < 100 &&
-        Math.abs(pos.left - leftPx) < 100
+        Math.abs(pos.top - topPx) < 80 && // Jarak antar popup vertikal
+        Math.abs(pos.left - leftPx) < 80  // Jarak antar popup horizontal
       ) && tries < 30
     );
 
     usedPositions.push({ top: topPx, left: leftPx });
     div.style.top = topPx + "px";
     div.style.left = leftPx + "px";
+
+    // --- Bagian event listener pointerdown tetap sama di bawahnya ---
+    div.addEventListener("pointerdown", (e) => {
+      const rect = div.getBoundingClientRect();
+      const clickX = e.clientX - rect.left;
+      const clickY = e.clientY - rect.top;
+      const resizeZone = 20;
+
+      // Jika pengguna sedang menarik dari sudut resize, biarkan fungsi resize native bekerja.
+      if (clickX > rect.width - resizeZone && clickY > rect.height - resizeZone) {
+        return;
+      }
+
+      e.preventDefault();
+      div.classList.add("dragging");
+      div.style.zIndex = ++currentZIndex;
+      div.setPointerCapture(e.pointerId);
+
+      const startX = e.clientX;
+      const startY = e.clientY;
+      const startLeft = parseFloat(div.style.left) || 0;
+      const startTop = parseFloat(div.style.top) || 0;
+
+      const onMove = (moveEvent) => {
+        const dx = moveEvent.clientX - startX;
+        const dy = moveEvent.clientY - startY;
+        const containerRect = container.getBoundingClientRect();
+        const maxLeft = Math.max(containerRect.width - div.offsetWidth, 0);
+        const maxTop = Math.max(containerRect.height - div.offsetHeight, 0);
+        const newLeft = Math.min(Math.max(startLeft + dx, 0), maxLeft);
+        const newTop = Math.min(Math.max(startTop + dy, 0), maxTop);
+
+        div.style.left = newLeft + "px";
+        div.style.top = newTop + "px";
+      };
+
+      const endDrag = (event) => {
+        div.classList.remove("dragging");
+        div.releasePointerCapture(e.pointerId);
+        window.removeEventListener("pointermove", onMove);
+        window.removeEventListener("pointerup", endDrag);
+        window.removeEventListener("pointercancel", endDrag);
+      };
+
+      window.addEventListener("pointermove", onMove);
+      window.addEventListener("pointerup", endDrag);
+      window.addEventListener("pointercancel", endDrag);
+    });
   });
 });
 
