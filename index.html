@@ -528,18 +528,32 @@ div.innerHTML = `
     div.style.left = leftPx + "px";
 
     // --- Bagian event listener pointerdown tetap sama di bawahnya ---
-    div.addEventListener("pointerdown", (e) => {
-      const rect = div.getBoundingClientRect();
-      const clickX = e.clientX - rect.left;
-      const clickY = e.clientY - rect.top;
-      const resizeZone = 20;
+   // --- Bagian event listener pointerdown yang diperbaiki ---
+div.addEventListener("pointerdown", (e) => {
+  // CEK: Jika yang diklik adalah elemen audio atau kontrolnya, JANGAN preventDefault
+  if (e.target.closest("audio")) {
+    return; // Keluar dari fungsi, biarkan audio bekerja normal
+  }
 
-      // Jika pengguna sedang menarik dari sudut resize, biarkan fungsi resize native bekerja.
-      if (clickX > rect.width - resizeZone && clickY > rect.height - resizeZone) {
-        return;
-      }
+  const rect = div.getBoundingClientRect();
+  const clickX = e.clientX - rect.left;
+  const clickY = e.clientY - rect.top;
+  const resizeZone = 20;
 
-      e.preventDefault();
+  if (clickX > rect.width - resizeZone && clickY > rect.height - resizeZone) {
+    return;
+  }
+
+  // Penting: Jangan gunakan e.preventDefault() secara global jika ingin 
+  // elemen di dalamnya tetap interaktif secara normal.
+  // Tapi untuk drag, kita butuh ini agar tidak terjadi scroll saat narik kartu.
+  e.preventDefault(); 
+  
+  div.classList.add("dragging");
+  div.style.zIndex = ++currentZIndex;
+  div.setPointerCapture(e.pointerId);
+
+  // ... (Sisa kode drag lainnya tetap sama)
       div.classList.add("dragging");
       div.style.zIndex = ++currentZIndex;
       div.setPointerCapture(e.pointerId);
