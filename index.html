@@ -176,6 +176,14 @@
     touch-action: none;
   }
 
+ /* Mencegah kartu terseret saat menekan kontrol audio & perbaiki kursor */
+.floating audio {
+  position: relative;
+  z-index: 20;
+  cursor: pointer; /* Ubah agar user tahu ini bisa diklik */
+  outline: none;
+}
+
   #container {
     position: absolute;
     top: 320px;
@@ -395,7 +403,7 @@
 
   <div class="music-player">
     <div class="music-info">
-      Terbuang Dalam Waktu - Barasuara
+      Aku Jeje - Lihat Kebunku (Taman Bunga)
     </div>
 
     <button id="musicToggle" aria-label="Toggle music">
@@ -467,22 +475,29 @@ onSnapshot(q, (snapshot) => {
   let currentZIndex = 1;
 
  snapshot.forEach(doc => {
-    const data = doc.data();
-    if (!data.pesan) return;
+    // Di dalam snapshot.forEach(doc => { ...
+const data = doc.data();
+if (!data.pesan) return;
 
-    const div = document.createElement("div");
-    div.className = "floating";
-    // Ganti bagian div.innerHTML dengan ini:
-  const nama = data.nama ? escapeHtml(data.nama) : "Seseorang";
-    const tujuan = data.tujuan ? escapeHtml(data.tujuan) : "-";
-    const pesan = data.pesan ? escapeHtml(data.pesan) : "";
+const div = document.createElement("div");
+div.className = "floating";
 
-    // Nama & Tujuan Bold, dipisah dengan kata "ke"
-    div.innerHTML = `
-      <div class="meta"><strong>${nama}</strong> ke <strong>${tujuan}</strong></div>
-      <div class="message">"${pesan}"</div>
-    `;
+const nama = data.nama ? escapeHtml(data.nama) : "Seseorang";
+const tujuan = data.tujuan ? escapeHtml(data.tujuan) : "-";
+const pesan = data.pesan ? escapeHtml(data.pesan) : "";
 
+// Gunakan Base64 langsung sebagai source jika ada
+const audioHtml = data.audioUrl 
+    ? `<audio controls preload="metadata" style="width: 100%; height: 30px; margin-top: 8px;">
+        <source src="${data.audioUrl}">
+       </audio>` 
+    : "";
+
+div.innerHTML = `
+    <div class="meta"><strong>${nama}</strong> ke <strong>${tujuan}</strong></div>
+    <div class="message">"${pesan}"</div>
+    ${audioHtml}
+`;
     // 1. Append dulu ke container supaya punya dimensi (width/height)
     container.appendChild(div);
 

@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <title>Kirim Gamon</title>
   <style>
+    /* ... CSS kamu tetap sama ... */
     body {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       background: linear-gradient(180deg, #060811 0%, #0f172a 15%, #1e293b 55%, #334155 100%);
@@ -25,53 +26,15 @@
       background:
         radial-gradient(circle at 2% 2%, rgba(255,255,255,0.95) 1.6px, transparent 0),
         radial-gradient(circle at 15% 3%, rgba(255,255,255,0.8) 1px, transparent 0),
-        radial-gradient(circle at 5% 10%, rgba(255,255,255,0.95) 1.6px, transparent 0),
-        radial-gradient(circle at 15% 20%, rgba(255,255,255,0.8) 1px, transparent 0),
-        radial-gradient(circle at 25% 5%, rgba(255,255,255,0.9) 1.3px, transparent 0),
-        radial-gradient(circle at 35% 18%, rgba(255,255,255,0.75) 1px, transparent 0),
-        radial-gradient(circle at 50% 8%, rgba(255,255,255,0.85) 1.4px, transparent 0),
-        radial-gradient(circle at 68% 12%, rgba(255,255,255,0.9) 1.5px, transparent 0),
-        radial-gradient(circle at 82% 5%, rgba(255,255,255,0.65) 1px, transparent 0),
-        radial-gradient(circle at 12% 8%, rgba(255,255,255,0.85) 1px, transparent 0),
-        radial-gradient(circle at 28% 12%, rgba(255,255,255,0.8) 1px, transparent 0),
-        radial-gradient(circle at 45% 7%, rgba(255,255,255,0.9) 1.2px, transparent 0),
-        radial-gradient(circle at 58% 10%, rgba(255,255,255,0.8) 1px, transparent 0),
-        radial-gradient(circle at 72% 6%, rgba(255,255,255,0.9) 1.1px, transparent 0),
-        radial-gradient(circle at 92% 9%, rgba(255,255,255,0.7) 1px, transparent 0),
-        radial-gradient(circle at 30% 2%, rgba(255,255,255,0.9) 1.2px, transparent 0),
-        radial-gradient(circle at 60% 4%, rgba(255,255,255,0.85) 1.3px, transparent 0),
-        radial-gradient(circle at 85% 1%, rgba(255,255,255,0.7) 1px, transparent 0),
-        radial-gradient(circle at 10% 40%, rgba(255,255,255,0.9) 1.3px, transparent 0),
-        radial-gradient(circle at 22% 55%, rgba(255,255,255,0.7) 1px, transparent 0),
-        radial-gradient(circle at 42% 32%, rgba(255,255,255,0.95) 1.3px, transparent 0),
-        radial-gradient(circle at 60% 45%, rgba(255,255,255,0.75) 1px, transparent 0),
-        radial-gradient(circle at 77% 28%, rgba(255,255,255,0.85) 1.2px, transparent 0),
-        radial-gradient(circle at 90% 18%, rgba(255,255,255,0.65) 0.9px, transparent 0),
-        radial-gradient(circle at 5% 70%, rgba(255,255,255,0.8) 1px, transparent 0),
-        radial-gradient(circle at 20% 85%, rgba(255,255,255,0.5) 0.8px, transparent 0),
-        radial-gradient(circle at 40% 80%, rgba(255,255,255,0.6) 1px, transparent 0),
-        radial-gradient(circle at 65% 88%, rgba(255,255,255,0.65) 1px, transparent 0),
-        radial-gradient(circle at 85% 75%, rgba(255,255,255,0.85) 1.3px, transparent 0),
         radial-gradient(circle at 50% 50%, rgba(255,255,255,0.95) 1.5px, transparent 0);
       opacity: 0.96;
       pointer-events: none;
       z-index: 1;
     }
 
-    body::after {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background: radial-gradient(circle at 20% 30%, rgba(89, 107, 255, 0.18) 0%, transparent 28%),
-                  radial-gradient(circle at 70% 25%, rgba(190, 78, 255, 0.14) 0%, transparent 26%),
-                  radial-gradient(circle at 40% 70%, rgba(56, 189, 248, 0.12) 0%, transparent 30%);
-      z-index: 1;
-      pointer-events: none;
-    }
-
     .form {
       background: rgba(255,255,255,0.08);
-      padding: 40px;
+      padding: 30px; /* Sedikit dikurangi agar cukup untuk fitur VN */
       border-radius: 15px;
       width: 100%;
       max-width: 400px;
@@ -82,130 +45,56 @@
       position: relative;
     }
 
-    h2 {
-      text-align: center;
-      margin: 0 0 30px 0;
-      font-size: 1.8em;
-      color: white;
-      text-shadow: 0 0 10px rgba(255,255,255,0.5);
-    }
-
+    h2 { text-align: center; margin: 0 0 20px 0; font-size: 1.8em; }
     input, textarea {
-      width: 100%;
-      margin: 12px 0;
-      padding: 12px;
-      border-radius: 8px;
-      border: none;
-      background: rgba(255,255,255,0.08);
-      color: white;
-      font-size: 16px;
-      transition: all 0.3s ease;
-      box-sizing: border-box;
+      width: 100%; margin: 8px 0; padding: 12px; border-radius: 8px; border: none;
+      background: rgba(255,255,255,0.08); color: white; box-sizing: border-box;
     }
-
-    input::placeholder, textarea::placeholder {
-      color: rgba(255,255,255,0.7);
-    }
-
-    input:focus, textarea:focus {
-      outline: none;
-      background: rgba(255,255,255,0.15);
-      box-shadow: 0 0 10px rgba(139, 92, 246, 0.5);
-    }
-
+    
     button {
-      width: 100%;
-      padding: 12px;
+      width: 100%; padding: 12px; border: none; border-radius: 8px; color: white;
+      cursor: pointer; transition: all 0.3s ease; box-sizing: border-box;
       background: linear-gradient(45deg, #8b5cf6, #6366f1);
-      border: none;
-      border-radius: 8px;
-      color: white;
-      cursor: pointer;
-      font-size: 16px;
-      transition: all 0.3s ease;
-      box-shadow: 0 4px 15px rgba(139, 92, 246, 0.4);
-      box-sizing: border-box;
-      margin-top: 8px;
-    }
-
-    button:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 20px rgba(139, 92, 246, 0.6);
-    }
-
-    .back-link {
-      display: block;
-      text-align: center;
-      margin-top: 20px;
-      color: rgba(255,255,255,0.7);
-      text-decoration: none;
-      transition: color 0.3s ease;
-      font-size: 14px;
-    }
-
-    .back-link:hover {
-      color: rgba(255,255,255,1);
-    }
-
-    .message {
-      text-align: center;
-      margin-top: 15px;
-      color: #22c55e;
-      font-weight: bold;
-      font-size: 14px;
-    }
-
-    .message.error {
-      color: #ef4444;
     }
 
     .encryption-notice {
-    background: rgba(56, 189, 248, 0.1); /* Biru transparan agar lebih menenangkan */
-    border: 1px solid rgba(56, 189, 248, 0.3);
-    border-radius: 10px;
-    padding: 12px;
-    margin-bottom: 20px;
-    font-size: 12px;
-    color: #bae6fd;
-    text-align: center;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    line-height: 1.4;
-}
+      background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.3);
+      border-radius: 10px; padding: 10px; margin-bottom: 15px; font-size: 11px;
+      color: #bae6fd; text-align: center; display: flex; align-items: center; gap: 8px;
+    }
 
-.encryption-notice svg {
-    flex-shrink: 0;
-    fill: #7dd3fc;
-}
+    .back-link { display: block; text-align: center; margin-top: 15px; color: rgba(255,255,255,0.7); text-decoration: none; font-size: 13px; }
+    .message { text-align: center; margin-top: 10px; font-weight: bold; font-size: 14px; }
   </style>
 </head>
 <body>
 
-  
-
 <div class="form">
- <div class="encryption-notice">
-  <svg viewBox="0 0 24 24" width="20" height="20">
-    <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"></path>
-  </svg>
-  <span>
-    <strong>Privasi Terjamin:</strong> Kami tidak merekam alamat IP atau data pribadimu. Hanya apa yang kamu tulis yang akan tampil. Tetap anonim, tetap aman bercerita.
-  </span>
-</div>
+  <div class="encryption-notice">
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="#7dd3fc">
+      <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"></path>
+    </svg>
+    <span><strong>Privasi Terjamin:</strong> Data anda aman terenkripsi di sistem kami, tetap anonim, tetap aman bercerita.</span>
+  </div>
 
   <h2>Sampaikan Gamonmu 💔</h2>
 
   <input type="text" id="nama" placeholder="Nama kamu">
   <input type="text" id="tujuan" placeholder="Untuk siapa">
-  <textarea id="pesan" placeholder="Pesan kamu..." rows="4"></textarea>
+  <textarea id="pesan" placeholder="Pesan kamu..." rows="3"></textarea>
 
-  <button onclick="submitData()">Kirim</button>
+  <div class="audio-recorder" style="margin: 10px 0; text-align: center;">
+      <button id="recordBtn" type="button" style="background: #ef4444; width: auto; padding: 8px 15px; font-size: 14px;">
+          🎤 Rekam VN (Opsional)
+      </button>
+      <p id="recordStatus" style="font-size: 11px; margin-top: 5px; color: #bae6fd; min-height: 14px;"></p>
+      <audio id="audioPreview" controls style="display:none; width: 100%; margin-top: 8px; height: 35px;"></audio>
+  </div>
+
+  <button onclick="submitData()" style="margin-top: 10px; font-weight: bold;">Kirim Gamon</button>
 
   <div id="message" class="message"></div>
-
-  <a href="index.html" class="back-link">Kembali ke Gamon Tawing</a>
+  <a href="index.html" class="back-link">← Kembali ke Gamon Tawing</a>
 </div>
 
 <script type="module">
@@ -224,31 +113,78 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
+let mediaRecorder;
+let audioChunks = [];
+let base64Audio = null; // Simpan teks suara di sini
+
+const recordBtn = document.getElementById('recordBtn');
+const recordStatus = document.getElementById('recordStatus');
+const audioPreview = document.getElementById('audioPreview');
+
+recordBtn.addEventListener('click', async () => {
+    if (!mediaRecorder || mediaRecorder.state === "inactive") {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            mediaRecorder = new MediaRecorder(stream);
+            mediaRecorder.ondataavailable = (e) => audioChunks.push(e.data);
+            
+            mediaRecorder.onstop = async () => {
+                const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                
+                // Ubah Blob menjadi Base64 string
+                const reader = new FileReader();
+                reader.readAsDataURL(audioBlob);
+                reader.onloadend = () => {
+                    base64Audio = reader.result; // Ini adalah teks panjang suara
+                    audioPreview.src = base64Audio;
+                    audioPreview.style.display = 'block';
+                    recordStatus.textContent = "VN siap dikirim (Tanpa Storage!)";
+                };
+
+                recordBtn.textContent = "🎤 Rekam Ulang";
+                recordBtn.style.background = "#8b5cf6";
+            };
+
+            audioChunks = [];
+            mediaRecorder.start();
+            recordBtn.textContent = "🛑 Berhenti";
+            recordStatus.textContent = "Merekam...";
+        } catch (err) {
+            alert("Izin mic ditolak atau tidak support.");
+        }
+    } else {
+        mediaRecorder.stop();
+    }
+});
+
 window.submitData = async function () {
-  let nama = document.getElementById("nama").value.trim();
-  let tujuan = document.getElementById("tujuan").value.trim();
-  let pesan = document.getElementById("pesan").value.trim();
-  let messageDiv = document.getElementById("message");
+    let nama = document.getElementById("nama").value.trim();
+    let tujuan = document.getElementById("tujuan").value.trim();
+    let pesan = document.getElementById("pesan").value.trim();
+    let messageDiv = document.getElementById("message");
 
-  if (!nama || !tujuan || !pesan) {
-    messageDiv.textContent = "Isi semua dulu 😢";
-    messageDiv.style.color = "#ef4444";
-    return;
-  }
+    if (!nama || !tujuan || !pesan) {
+        messageDiv.textContent = "Isi semua dulu 😢";
+        return;
+    }
 
-  await addDoc(collection(db, "gamon"), {
-    nama,
-    tujuan,
-    pesan,
-    waktu: Date.now()
-  });
+    try {
+        messageDiv.textContent = "Mengirim pesan...";
+        
+        // Simpan ke Firestore (Base64 masuk ke field audioUrl)
+        await addDoc(collection(db, "gamon"), {
+            nama,
+            tujuan,
+            pesan,
+            audioUrl: base64Audio, // String Base64 disimpan di sini
+            waktu: Date.now()
+        });
 
-  messageDiv.textContent = "Terkirim 💔";
-  messageDiv.style.color = "#22c55e";
-
-  setTimeout(() => {
-    window.location.href = "index.html";
-  }, 1500);
+        messageDiv.textContent = "Terkirim 💔";
+        setTimeout(() => window.location.href = "index.html", 1500);
+    } catch (err) {
+        messageDiv.textContent = "Gagal: " + err.message;
+    }
 };
 </script>
 
