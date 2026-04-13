@@ -4,68 +4,123 @@
   <meta charset="UTF-8">
   <title>Kirim Gamon</title>
   <style>
-    /* ... CSS kamu tetap sama ... */
-    body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: linear-gradient(180deg, #060811 0%, #0f172a 15%, #1e293b 55%, #334155 100%);
-      color: white;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-      margin: 0;
-      padding: 0;
-      position: relative;
-      overflow: hidden;
-    }
+  body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    /* 1. Samakan Gradasi Dasar */
+    background: linear-gradient(180deg, #060811 0%, #0f172a 15%, #1e293b 55%, #334155 100%);
+    color: white;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+    padding: 0;
+    position: relative;
+    overflow: hidden;
+  }
 
-    body::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background:
-        radial-gradient(circle at 2% 2%, rgba(255,255,255,0.95) 1.6px, transparent 0),
-        radial-gradient(circle at 15% 3%, rgba(255,255,255,0.8) 1px, transparent 0),
-        radial-gradient(circle at 50% 50%, rgba(255,255,255,0.95) 1.5px, transparent 0);
-      opacity: 0.96;
-      pointer-events: none;
-      z-index: 1;
-    }
+  /* 2. Samakan Efek Bintang (Stars) */
+  body::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(circle at 2% 2%, rgba(255,255,255,0.95) 1.6px, transparent 0),
+      radial-gradient(circle at 15% 3%, rgba(255,255,255,0.8) 1px, transparent 0),
+      radial-gradient(circle at 5% 10%, rgba(255,255,255,0.95) 1.6px, transparent 0),
+      radial-gradient(circle at 15% 20%, rgba(255,255,255,0.8) 1px, transparent 0),
+      radial-gradient(circle at 25% 5%, rgba(255,255,255,0.9) 1.3px, transparent 0),
+      radial-gradient(circle at 35% 18%, rgba(255,255,255,0.75) 1px, transparent 0),
+      radial-gradient(circle at 50% 8%, rgba(255,255,255,0.85) 1.4px, transparent 0),
+      radial-gradient(circle at 68% 12%, rgba(255,255,255,0.9) 1.5px, transparent 0),
+      radial-gradient(circle at 82% 5%, rgba(255,255,255,0.65) 1px, transparent 0),
+      radial-gradient(circle at 12% 8%, rgba(255,255,255,0.85) 1px, transparent 0),
+      radial-gradient(circle at 28% 12%, rgba(255,255,255,0.8) 1px, transparent 0),
+      radial-gradient(circle at 45% 7%, rgba(255,255,255,0.9) 1.2px, transparent 0),
+      radial-gradient(circle at 58% 10%, rgba(255,255,255,0.8) 1px, transparent 0),
+      radial-gradient(circle at 72% 6%, rgba(255,255,255,0.9) 1.1px, transparent 0),
+      radial-gradient(circle at 92% 9%, rgba(255,255,255,0.7) 1px, transparent 0),
+      radial-gradient(circle at 30% 2%, rgba(255,255,255,0.9) 1.2px, transparent 0),
+      radial-gradient(circle at 60% 4%, rgba(255,255,255,0.85) 1.3px, transparent 0),
+      radial-gradient(circle at 85% 1%, rgba(255,255,255,0.7) 1px, transparent 0),
+      radial-gradient(circle at 10% 40%, rgba(255,255,255,0.9) 1.3px, transparent 0),
+      radial-gradient(circle at 22% 55%, rgba(255,255,255,0.7) 1px, transparent 0),
+      radial-gradient(circle at 42% 32%, rgba(255,255,255,0.95) 1.3px, transparent 0),
+      radial-gradient(circle at 60% 45%, rgba(255,255,255,0.75) 1px, transparent 0),
+      radial-gradient(circle at 77% 28%, rgba(255,255,255,0.85) 1.2px, transparent 0),
+      radial-gradient(circle at 90% 18%, rgba(255,255,255,0.65) 0.9px, transparent 0),
+      radial-gradient(circle at 5% 70%, rgba(255,255,255,0.8) 1px, transparent 0),
+      radial-gradient(circle at 20% 85%, rgba(255,255,255,0.5) 0.8px, transparent 0),
+      radial-gradient(circle at 40% 80%, rgba(255,255,255,0.6) 1px, transparent 0),
+      radial-gradient(circle at 65% 88%, rgba(255,255,255,0.65) 1px, transparent 0),
+      radial-gradient(circle at 85% 75%, rgba(255,255,255,0.85) 1.3px, transparent 0),
+      radial-gradient(circle at 50% 50%, rgba(255,255,255,0.95) 1.5px, transparent 0);
+    opacity: 0.96;
+    pointer-events: none;
+    z-index: 2;
+  }
 
-    .form {
-      background: rgba(255,255,255,0.08);
-      padding: 30px; /* Sedikit dikurangi agar cukup untuk fitur VN */
-      border-radius: 15px;
-      width: 100%;
-      max-width: 400px;
-      backdrop-filter: blur(10px);
-      box-shadow: 0 8px 32px rgba(0,0,0,0.3);
-      border: 1px solid rgba(255,255,255,0.15);
-      z-index: 10;
-      position: relative;
-    }
+  /* 3. Samakan Gradasi Cahaya (Glow) */
+  body::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at 20% 30%, rgba(89, 107, 255, 0.18) 0%, transparent 28%),
+                radial-gradient(circle at 70% 25%, rgba(190, 78, 255, 0.14) 0%, transparent 26%),
+                radial-gradient(circle at 40% 70%, rgba(56, 189, 248, 0.12) 0%, transparent 30%);
+    z-index: 1;
+    pointer-events: none;
+  }
 
-    h2 { text-align: center; margin: 0 0 20px 0; font-size: 1.8em; }
-    input, textarea {
-      width: 100%; margin: 8px 0; padding: 12px; border-radius: 8px; border: none;
-      background: rgba(255,255,255,0.08); color: white; box-sizing: border-box;
-    }
-    
-    button {
-      width: 100%; padding: 12px; border: none; border-radius: 8px; color: white;
-      cursor: pointer; transition: all 0.3s ease; box-sizing: border-box;
-      background: linear-gradient(45deg, #8b5cf6, #6366f1);
-    }
+  /* 4. Sesuaikan Form agar di atas background */
+  .form {
+    background: rgba(255, 255, 255, 0.1); /* Sedikit lebih transparan agar blur terasa */
+    padding: 30px;
+    border-radius: 15px;
+    width: 100%;
+    max-width: 400px;
+    backdrop-filter: blur(15px); /* Samakan dengan index */
+    -webkit-backdrop-filter: blur(15px);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    z-index: 10;
+    position: relative;
+  }
 
-    .encryption-notice {
-      background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.3);
-      border-radius: 10px; padding: 10px; margin-bottom: 15px; font-size: 11px;
-      color: #bae6fd; text-align: center; display: flex; align-items: center; gap: 8px;
-    }
+  h2 { text-align: center; margin: 0 0 20px 0; font-size: 1.8em; }
+  
+  input, textarea {
+    width: 100%; margin: 8px 0; padding: 12px; border-radius: 8px; border: none;
+    background: rgba(255, 255, 255, 0.08); color: white; box-sizing: border-box;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+  
+  input::placeholder, textarea::placeholder {
+    color: rgba(255, 255, 255, 0.5);
+  }
 
-    .back-link { display: block; text-align: center; margin-top: 15px; color: rgba(255,255,255,0.7); text-decoration: none; font-size: 13px; }
-    .message { text-align: center; margin-top: 10px; font-weight: bold; font-size: 14px; }
-  </style>
+  button {
+    width: 100%; padding: 12px; border: none; border-radius: 8px; color: white;
+    cursor: pointer; transition: all 0.3s ease; box-sizing: border-box;
+    background: linear-gradient(45deg, #8b5cf6, #6366f1);
+    font-weight: bold;
+    box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3);
+  }
+
+  button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(139, 92, 246, 0.5);
+  }
+
+  .encryption-notice {
+    background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.3);
+    border-radius: 10px; padding: 10px; margin-bottom: 15px; font-size: 11px;
+    color: #bae6fd; text-align: center; display: flex; align-items: center; gap: 8px;
+  }
+
+  .back-link { display: block; text-align: center; margin-top: 15px; color: rgba(255,255,255,0.7); text-decoration: none; font-size: 13px; }
+  .message { text-align: center; margin-top: 10px; font-weight: bold; font-size: 14px; }
+</style>
 </head>
 <body>
 
