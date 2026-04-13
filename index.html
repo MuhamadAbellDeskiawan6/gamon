@@ -488,7 +488,7 @@ const pesan = data.pesan ? escapeHtml(data.pesan) : "";
 
 // Gunakan Base64 langsung sebagai source jika ada
 const audioHtml = data.audioUrl 
-    ? `<audio controls preload="metadata" style="width: 100%; height: 30px; margin-top: 8px;">
+    ? `<audio controls playsinline preload="metadata" style="width: 100%; height: 30px; margin-top: 8px;">
         <source src="${data.audioUrl}">
        </audio>` 
     : "";

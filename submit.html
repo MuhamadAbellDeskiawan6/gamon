@@ -125,20 +125,28 @@ recordBtn.addEventListener('click', async () => {
     if (!mediaRecorder || mediaRecorder.state === "inactive") {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            mediaRecorder = new MediaRecorder(stream);
-            mediaRecorder.ondataavailable = (e) => audioChunks.push(e.data);
+            
+            // Cek format yang didukung perangkat
+            const types = ['audio/webm', 'audio/mp4', 'audio/ogg', 'audio/wav'];
+            const supportedType = types.find(type => MediaRecorder.isTypeSupported(type));
+
+            mediaRecorder = new MediaRecorder(stream, { mimeType: supportedType });
+            
+            mediaRecorder.ondataavailable = (e) => {
+                if (e.data.size > 0) audioChunks.push(e.data);
+            };
             
             mediaRecorder.onstop = async () => {
-                const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-                
-                // Ubah Blob menjadi Base64 string
+                const audioBlob = new Blob(audioChunks, { type: supportedType });
                 const reader = new FileReader();
                 reader.readAsDataURL(audioBlob);
                 reader.onloadend = () => {
-                    base64Audio = reader.result; // Ini adalah teks panjang suara
+                    base64Audio = reader.result;
                     audioPreview.src = base64Audio;
                     audioPreview.style.display = 'block';
-                    recordStatus.textContent = "VN siap dikirim (Tanpa Storage!)";
+                    // Paksa load agar iOS mengenali source baru
+                    audioPreview.load(); 
+                    recordStatus.textContent = "VN siap dikirim!";
                 };
 
                 recordBtn.textContent = "🎤 Rekam Ulang";
@@ -150,7 +158,8 @@ recordBtn.addEventListener('click', async () => {
             recordBtn.textContent = "🛑 Berhenti";
             recordStatus.textContent = "Merekam...";
         } catch (err) {
-            alert("Izin mic ditolak atau tidak support.");
+            console.error(err);
+            alert("Izin mic ditolak atau browser tidak mendukung fitur ini.");
         }
     } else {
         mediaRecorder.stop();
