@@ -416,36 +416,10 @@
 </div>
 
 <script type="module">
-//music
-const music = document.getElementById("bgMusic");
-const btn = document.getElementById("musicToggle");
-
-let isPlaying = false;
-
-btn.addEventListener("click", () => {
-  if (isPlaying) {
-    music.pause();
-    btn.classList.remove("playing");
-  } else {
-    music.play();
-    btn.classList.add("playing");
-  }
-  isPlaying = !isPlaying;
-});
-
-// Auto play setelah interaksi pertama
-document.addEventListener("click", () => {
-  if (!isPlaying) {
-    music.play();
-    btn.classList.add("playing");
-    isPlaying = true;
-  }
-}, { once: true });
-//music
-
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getFirestore, collection, onSnapshot, query, orderBy, limit } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
+// 1. Inisialisasi Firebase
 const firebaseConfig = {
   apiKey: "AIzaSyC247K8yyL67aWV95KNQy8CkMZsjgGCudQ",
   authDomain: "gamon-tawing.firebaseapp.com",
@@ -458,151 +432,142 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-const container = document.getElementById("container");
+// 2. Logika Musik Latar (PENTING: Definisikan variabel di sini)
+const bgMusic = document.getElementById("bgMusic");
+const musicBtn = document.getElementById("musicToggle");
+let isPlaying = false;
 
-// Query Firestore for the latest 30 messages
-const q = query(
-  collection(db, "gamon"),
-  orderBy("waktu", "desc"),
-  limit(30)
-);
-
-onSnapshot(q, (snapshot) => {
-  container.innerHTML = "";
-
-  // For collision avoidance, but allow more density
-  let usedPositions = [];
-  let currentZIndex = 1;
-
- snapshot.forEach(doc => {
-    // Di dalam snapshot.forEach(doc => { ...
-const data = doc.data();
-if (!data.pesan) return;
-
-const div = document.createElement("div");
-div.className = "floating";
-
-const nama = data.nama ? escapeHtml(data.nama) : "Seseorang";
-const tujuan = data.tujuan ? escapeHtml(data.tujuan) : "-";
-const pesan = data.pesan ? escapeHtml(data.pesan) : "";
-
-// Gunakan Base64 langsung sebagai source jika ada
-const audioHtml = data.audioUrl 
-    ? `<audio controls playsinline preload="metadata" style="width: 100%; height: 30px; margin-top: 8px;">
-        <source src="${data.audioUrl}">
-       </audio>` 
-    : "";
-
-div.innerHTML = `
-    <div class="meta"><strong>${nama}</strong> ke <strong>${tujuan}</strong></div>
-    <div class="message">"${pesan}"</div>
-    ${audioHtml}
-`;
-    // 1. Append dulu ke container supaya punya dimensi (width/height)
-    container.appendChild(div);
-
-    // 2. Ambil ukuran container dan popup yang baru saja dibuat
-    const containerWidth = container.offsetWidth;
-    const containerHeight = container.offsetHeight;
-    const popupWidth = div.offsetWidth;
-    const popupHeight = div.offsetHeight;
-
-    // 3. Hitung batas maksimal agar tidak keluar tembok
-    const maxLeftPx = Math.max(containerWidth - popupWidth - 20, 0);
-    const maxTopPx = Math.max(containerHeight - popupHeight - 20, 0);
-
-    let topPx, leftPx, tries = 0;
-    do {
-      topPx = Math.random() * maxTopPx;
-      leftPx = Math.random() * maxLeftPx;
-      tries++;
-    } while (
-      usedPositions.some(pos =>
-        Math.abs(pos.top - topPx) < 80 && // Jarak antar popup vertikal
-        Math.abs(pos.left - leftPx) < 80  // Jarak antar popup horizontal
-      ) && tries < 30
-    );
-
-    usedPositions.push({ top: topPx, left: leftPx });
-    div.style.top = topPx + "px";
-    div.style.left = leftPx + "px";
-
-    // --- Bagian event listener pointerdown tetap sama di bawahnya ---
-   // --- Bagian event listener pointerdown yang diperbaiki ---
-div.addEventListener("pointerdown", (e) => {
-  // CEK: Jika yang diklik adalah elemen audio atau kontrolnya, JANGAN preventDefault
-  if (e.target.closest("audio")) {
-    return; // Keluar dari fungsi, biarkan audio bekerja normal
-  }
-
-  const rect = div.getBoundingClientRect();
-  const clickX = e.clientX - rect.left;
-  const clickY = e.clientY - rect.top;
-  const resizeZone = 20;
-
-  if (clickX > rect.width - resizeZone && clickY > rect.height - resizeZone) {
-    return;
-  }
-
-  // Penting: Jangan gunakan e.preventDefault() secara global jika ingin 
-  // elemen di dalamnya tetap interaktif secara normal.
-  // Tapi untuk drag, kita butuh ini agar tidak terjadi scroll saat narik kartu.
-  e.preventDefault(); 
-  
-  div.classList.add("dragging");
-  div.style.zIndex = ++currentZIndex;
-  div.setPointerCapture(e.pointerId);
-
-  // ... (Sisa kode drag lainnya tetap sama)
-      div.classList.add("dragging");
-      div.style.zIndex = ++currentZIndex;
-      div.setPointerCapture(e.pointerId);
-
-      const startX = e.clientX;
-      const startY = e.clientY;
-      const startLeft = parseFloat(div.style.left) || 0;
-      const startTop = parseFloat(div.style.top) || 0;
-
-      const onMove = (moveEvent) => {
-        const dx = moveEvent.clientX - startX;
-        const dy = moveEvent.clientY - startY;
-        const containerRect = container.getBoundingClientRect();
-        const maxLeft = Math.max(containerRect.width - div.offsetWidth, 0);
-        const maxTop = Math.max(containerRect.height - div.offsetHeight, 0);
-        const newLeft = Math.min(Math.max(startLeft + dx, 0), maxLeft);
-        const newTop = Math.min(Math.max(startTop + dy, 0), maxTop);
-
-        div.style.left = newLeft + "px";
-        div.style.top = newTop + "px";
-      };
-
-      const endDrag = (event) => {
-        div.classList.remove("dragging");
-        div.releasePointerCapture(e.pointerId);
-        window.removeEventListener("pointermove", onMove);
-        window.removeEventListener("pointerup", endDrag);
-        window.removeEventListener("pointercancel", endDrag);
-      };
-
-      window.addEventListener("pointermove", onMove);
-      window.addEventListener("pointerup", endDrag);
-      window.addEventListener("pointercancel", endDrag);
-    });
-  });
+// Fungsi Toggle Musik
+musicBtn.addEventListener("click", () => {
+    if (isPlaying) {
+        bgMusic.pause();
+        musicBtn.classList.remove("playing");
+    } else {
+        bgMusic.play().catch(e => console.log("Play blocked by browser"));
+        musicBtn.classList.add("playing");
+    }
+    isPlaying = !isPlaying;
 });
 
-// Simple HTML escape to prevent XSS
-function escapeHtml(str) {
-  return String(str)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-}
+// Auto-play musik latar setelah interaksi pertama (Solusi Browser Policy)
+document.addEventListener("click", () => {
+    if (!isPlaying) {
+        bgMusic.play().catch(e => console.log("Silent play blocked"));
+        musicBtn.classList.add("playing");
+        isPlaying = true;
+    }
+}, { once: true });
 
-function goToSubmit() {
-  window.location.href = "submit.html";
+// 3. Logika Penanganan VN vs Musik (Khusus iPhone/Safari)
+document.addEventListener('play', (e) => {
+    if (e.target.tagName === 'AUDIO' && e.target.id !== 'bgMusic') {
+        // Jika VN dimainkan, kecilkan volume musik latar
+        bgMusic.volume = 0.1; 
+        
+        // Khusus iOS: Jika musik latar mengganggu session, boleh di-pause
+        // bgMusic.pause(); 
+    }
+}, true);
+
+document.addEventListener('ended', (e) => {
+    if (e.target.tagName === 'AUDIO' && e.target.id !== 'bgMusic') {
+        // Jika VN selesai, normalkan volume musik latar
+        bgMusic.volume = 1.0;
+        // if (isPlaying) bgMusic.play(); // Play lagi jika tadi di-pause
+    }
+}, true);
+
+// 4. Load Data dari Firestore
+const container = document.getElementById("container");
+const q = query(collection(db, "gamon"), orderBy("waktu", "desc"), limit(30));
+
+onSnapshot(q, (snapshot) => {
+    container.innerHTML = "";
+    let usedPositions = [];
+    let currentZIndex = 1;
+
+    snapshot.forEach(doc => {
+        const data = doc.data();
+        if (!data.pesan) return;
+
+        const div = document.createElement("div");
+        div.className = "floating";
+
+        const nama = data.nama ? escapeHtml(data.nama) : "Seseorang";
+        const tujuan = data.tujuan ? escapeHtml(data.tujuan) : "-";
+        const pesan = data.pesan ? escapeHtml(data.pesan) : "";
+
+        // Tambahkan playsinline dan preload="auto" untuk iPhone
+        const audioHtml = data.audioUrl 
+            ? `<audio controls playsinline preload="auto" style="width: 100%; height: 30px; margin-top: 8px;">
+                <source src="${data.audioUrl}" type="audio/mpeg">
+               </audio>` 
+            : "";
+
+        div.innerHTML = `
+            <div class="meta"><strong>${nama}</strong> ke <strong>${tujuan}</strong></div>
+            <div class="message">"${pesan}"</div>
+            ${audioHtml}
+        `;
+        
+        container.appendChild(div);
+
+        // --- Logika Posisi Random & Drag ---
+        const containerWidth = container.offsetWidth;
+        const containerHeight = container.offsetHeight;
+        const popupWidth = div.offsetWidth;
+        const popupHeight = div.offsetHeight;
+        const maxLeftPx = Math.max(containerWidth - popupWidth - 20, 0);
+        const maxTopPx = Math.max(containerHeight - popupHeight - 20, 0);
+
+        let topPx, leftPx, tries = 0;
+        do {
+          topPx = Math.random() * maxTopPx;
+          leftPx = Math.random() * maxLeftPx;
+          tries++;
+        } while (
+          usedPositions.some(pos =>
+            Math.abs(pos.top - topPx) < 80 && 
+            Math.abs(pos.left - leftPx) < 80
+          ) && tries < 30
+        );
+
+        usedPositions.push({ top: topPx, left: leftPx });
+        div.style.top = topPx + "px";
+        div.style.left = leftPx + "px";
+
+        div.addEventListener("pointerdown", (e) => {
+            if (e.target.closest("audio")) return;
+            e.preventDefault(); 
+            div.classList.add("dragging");
+            div.style.zIndex = ++currentZIndex;
+            div.setPointerCapture(e.pointerId);
+
+            const startX = e.clientX;
+            const startY = e.clientY;
+            const startLeft = parseFloat(div.style.left) || 0;
+            const startTop = parseFloat(div.style.top) || 0;
+
+            const onMove = (moveEvent) => {
+                const dx = moveEvent.clientX - startX;
+                const dy = moveEvent.clientY - startY;
+                div.style.left = Math.min(Math.max(startLeft + dx, 0), containerWidth - div.offsetWidth) + "px";
+                div.style.top = Math.min(Math.max(startTop + dy, 0), containerHeight - div.offsetHeight) + "px";
+            };
+
+            const endDrag = () => {
+                div.classList.remove("dragging");
+                window.removeEventListener("pointermove", onMove);
+                window.removeEventListener("pointerup", endDrag);
+            };
+            window.addEventListener("pointermove", onMove);
+            window.addEventListener("pointerup", endDrag);
+        });
+    });
+});
+
+function escapeHtml(str) {
+    return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
 }
 </script>
 
