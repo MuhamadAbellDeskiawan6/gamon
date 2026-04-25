@@ -182,6 +182,9 @@
   z-index: 20;
   cursor: pointer; /* Ubah agar user tahu ini bisa diklik */
   outline: none;
+  width: 100%;
+  height: auto;
+  min-height: 30px;
 }
 
   #container {
@@ -386,6 +389,27 @@
       font-size: 12px;
     }
   }
+  .love-section {
+  margin-top: 8px;
+}
+
+.love-btn {
+  background: rgba(255,255,255,0.1);
+  border: none;
+  padding: 6px 10px;
+  border-radius: 10px;
+  color: white;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.love-btn:hover {
+  background: rgba(255,255,255,0.2);
+}
+
+.love-btn.liked {
+  background: rgba(239, 68, 68, 0.3);
+}
 </style>
 </head>
 <body>
@@ -433,18 +457,21 @@ btn.addEventListener("click", () => {
   isPlaying = !isPlaying;
 });
 
-// Auto play setelah interaksi pertama
-document.addEventListener("click", () => {
-  if (!isPlaying) {
-    music.play();
-    btn.classList.add("playing");
-    isPlaying = true;
-  }
-}, { once: true });
+// Hapus auto play global agar klik kartu tidak memicu musik.
 //music
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getFirestore, collection, onSnapshot, query, orderBy, limit } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { 
+  getFirestore, 
+  collection, 
+  onSnapshot, 
+  query, 
+  orderBy, 
+  limit,
+  doc,
+  updateDoc,
+  increment
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyC247K8yyL67aWV95KNQy8CkMZsjgGCudQ",
@@ -474,9 +501,12 @@ onSnapshot(q, (snapshot) => {
   let usedPositions = [];
   let currentZIndex = 1;
 
- snapshot.forEach(doc => {
+  // Ambil data dari localStorage
+let likedPosts = JSON.parse(localStorage.getItem("likedPosts")) || [];
+
+snapshot.forEach(item => {
     // Di dalam snapshot.forEach(doc => { ...
-const data = doc.data();
+const data = item.data();
 if (!data.pesan) return;
 
 const div = document.createElement("div");
@@ -488,8 +518,7 @@ const pesan = data.pesan ? escapeHtml(data.pesan) : "";
 
 // Gunakan Base64 langsung sebagai source jika ada
 const audioHtml = data.audioUrl 
-    ? `<audio controls playsinline preload="metadata" style="width: 100%; height: 30px; margin-top: 8px;">
-        <source src="${data.audioUrl}">
+    ? `<audio controls playsinline preload="metadata" src="${data.audioUrl}" style="width: 100%; margin-top: 8px;">
        </audio>` 
     : "";
 
@@ -497,9 +526,76 @@ div.innerHTML = `
     <div class="meta"><strong>${nama}</strong> ke <strong>${tujuan}</strong></div>
     <div class="message">"${pesan}"</div>
     ${audioHtml}
+
+    <div class="love-section">
+        <button class="love-btn" data-id="${item.id}">
+            ❤️ <span class="love-count">${data.likes || 0}</span>
+        </button>
+    </div>
 `;
     // 1. Append dulu ke container supaya punya dimensi (width/height)
     container.appendChild(div);
+
+    const loveBtn = div.querySelector(".love-btn");
+    const vnAudio = div.querySelector("audio");
+    const postId = item.id;
+
+    if (vnAudio) {
+      vnAudio.addEventListener("play", () => {
+        if (isPlaying) {
+          music.pause();
+          btn.classList.remove("playing");
+          isPlaying = false;
+        }
+      });
+      vnAudio.addEventListener("pointerdown", (event) => {
+        event.stopPropagation();
+      });
+      vnAudio.addEventListener("click", (event) => {
+        event.stopPropagation();
+      });
+    }
+
+
+
+if (likedPosts.includes(postId)) {
+  loveBtn.classList.add("liked");
+  loveBtn.disabled = true;
+  
+}
+
+loveBtn.addEventListener("click", async () => {
+  if (likedPosts.includes(postId)) {
+    alert("Kamu sudah kasih love 💔");
+    return;
+  }
+
+  try {
+    const postRef = doc(db, "gamon", postId);
+
+    await updateDoc(postRef, {
+      likes: increment(1)
+    });
+
+    likedPosts.push(postId);
+    localStorage.setItem("likedPosts", JSON.stringify(likedPosts));
+
+    loveBtn.classList.add("liked");
+
+    // ✅ animasi di sini
+    loveBtn.style.transform = "scale(1.2)";
+    setTimeout(() => {
+      loveBtn.style.transform = "scale(1)";
+    }, 150);
+
+    const count = loveBtn.querySelector(".love-count");
+    count.textContent = parseInt(count.textContent) + 1;
+
+  } catch (err) {
+    console.error(err);
+    alert("Gagal like 😢");
+  }
+});
 
     // 2. Ambil ukuran container dan popup yang baru saja dibuat
     const containerWidth = container.offsetWidth;
@@ -530,9 +626,9 @@ div.innerHTML = `
     // --- Bagian event listener pointerdown tetap sama di bawahnya ---
    // --- Bagian event listener pointerdown yang diperbaiki ---
 div.addEventListener("pointerdown", (e) => {
-  // CEK: Jika yang diklik adalah elemen audio atau kontrolnya, JANGAN preventDefault
-  if (e.target.closest("audio")) {
-    return; // Keluar dari fungsi, biarkan audio bekerja normal
+  // CEK: Jika yang diklik adalah elemen interaktif di dalam kartu, biarkan event normal berjalan
+  if (e.target.closest("audio") || e.target.closest("button") || e.target.closest("a") || e.target.closest("input") || e.target.closest("textarea")) {
+    return; // Keluar dari fungsi, biarkan kontrol tersebut bekerja normal
   }
 
   const rect = div.getBoundingClientRect();
@@ -544,14 +640,8 @@ div.addEventListener("pointerdown", (e) => {
     return;
   }
 
-  // Penting: Jangan gunakan e.preventDefault() secara global jika ingin 
-  // elemen di dalamnya tetap interaktif secara normal.
-  // Tapi untuk drag, kita butuh ini agar tidak terjadi scroll saat narik kartu.
-  e.preventDefault(); 
-  
-  div.classList.add("dragging");
-  div.style.zIndex = ++currentZIndex;
-  div.setPointerCapture(e.pointerId);
+  // Hanya preventDefault saat mulai drag kartu, bukan saat klik audio atau tombol
+  e.preventDefault();
 
   // ... (Sisa kode drag lainnya tetap sama)
       div.classList.add("dragging");
