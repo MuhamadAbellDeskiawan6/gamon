@@ -2,7 +2,7 @@
 <html class="light" lang="id">
 <head>
 <meta charset="utf-8"/>
-<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<meta content="width=1024" name="viewport"/>
 <title>Gamon Tawing - Celestial Reflection</title>
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&amp;display=swap" rel="stylesheet"/>
@@ -100,6 +100,7 @@
             background: linear-gradient(135deg, #fff5f8 0%, #f3e8ff 50%, #ffffff 100%);
             overflow-x: hidden;
             min-height: 100vh;
+            overflow-x: hidden;
         }
         .star-particle {
             position: absolute;
@@ -123,12 +124,14 @@
         .audio-custom::-webkit-media-controls-time-remaining-display {
             filter: grayscale(1) contrast(0.5);
         }
-        .floating-container {
-            position: relative;
-            width: 100%;
-            height: 60vh;
-            perspective: 1000px;
-        }
+       .floating-container {
+    position: relative;
+    width: 100vw; /* Memastikan lebar container 100% viewport */
+    left: 50%;
+    right: 50%;
+    margin-left: -50vw;
+    margin-right: -50vw;
+}
         .draggable {
             position: absolute;
             cursor: grab;
@@ -176,7 +179,7 @@
 <body class="text-on-surface selection:bg-primary-container">
 <!-- Star Particles Background Layer -->
 <div class="fixed inset-0 pointer-events-none z-0" id="stars"></div>
-<main class="relative z-10 pt-24 pb-32 px-margin-mobile md:px-container-padding max-w-7xl mx-auto">
+<main class="relative z-10 pt-24 pb-32 w-full">
 <!-- Hero Section -->
 <header class="text-center mb-section-gap">
 <h1 class="font-display-lg text-display-lg text-primary mb-4 tracking-tight">
@@ -191,7 +194,7 @@
             </button>
 </header>
 <!-- Floating Cards Container -->
-<div class="floating-container mb-section-gap" id="container">
+<div class="floating-container w-full h-[70vh]" id="container">
 <!-- Cards will be injected here by script -->
 </div>
 </main>
@@ -354,12 +357,26 @@ const q = query(
 // Ambil likedPosts dari localStorage
 let likedPosts = JSON.parse(localStorage.getItem("likedPosts")) || [];
 
-// Function to create message card
 function createCard(data, id) {
     const card = document.createElement('div');
     card.className = 'draggable glass-card p-gutter rounded-xl w-72';
-    card.style.left = `${Math.random() * (window.innerWidth - 320)}px`;
-    card.style.top = `${Math.random() * (window.innerHeight - 400)}px`;
+    
+    // Gunakan lebar jendela (viewport) agar menyebar ke ujung kanan-kiri
+    const screenWidth = window.innerWidth;
+    const screenHeight = window.innerHeight * 0.7; // Sesuaikan dengan tinggi kontainer (70vh)
+
+    // Hitung posisi acak
+    // 300 adalah estimasi lebar kartu + sedikit margin agar tidak terpotong di kanan
+    const randomX = Math.random() * (screenWidth - 320);
+    // 250 adalah estimasi tinggi kartu agar tidak terlalu ke bawah
+    const randomY = Math.random() * (screenHeight - 250);
+
+    // Set posisi
+    card.style.position = 'absolute';
+    card.style.left = `${randomX}px`;
+    card.style.top = `${randomY}px`;
+    
+    // ... sisa kode kamu (rotation, innerHTML, dll)
     card.style.transform = `rotate(${Math.random() * 6 - 3}deg)`;
     card.style.zIndex = window.currentCardZ;
     window.currentCardZ += 1;
