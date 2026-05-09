@@ -1,257 +1,295 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-  <meta charset="UTF-8">
-  <title>Kirim Gamon</title>
-  <style>
-  body {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    /* 1. Samakan Gradasi Dasar */
-    background: linear-gradient(180deg, #060811 0%, #0f172a 15%, #1e293b 55%, #334155 100%);
-    color: white;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100vh;
-    margin: 0;
-    padding: 0;
-    position: relative;
-    overflow: hidden;
-  }
-
-  /* 2. Samakan Efek Bintang (Stars) */
-  body::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background:
-      radial-gradient(circle at 2% 2%, rgba(255,255,255,0.95) 1.6px, transparent 0),
-      radial-gradient(circle at 15% 3%, rgba(255,255,255,0.8) 1px, transparent 0),
-      radial-gradient(circle at 5% 10%, rgba(255,255,255,0.95) 1.6px, transparent 0),
-      radial-gradient(circle at 15% 20%, rgba(255,255,255,0.8) 1px, transparent 0),
-      radial-gradient(circle at 25% 5%, rgba(255,255,255,0.9) 1.3px, transparent 0),
-      radial-gradient(circle at 35% 18%, rgba(255,255,255,0.75) 1px, transparent 0),
-      radial-gradient(circle at 50% 8%, rgba(255,255,255,0.85) 1.4px, transparent 0),
-      radial-gradient(circle at 68% 12%, rgba(255,255,255,0.9) 1.5px, transparent 0),
-      radial-gradient(circle at 82% 5%, rgba(255,255,255,0.65) 1px, transparent 0),
-      radial-gradient(circle at 12% 8%, rgba(255,255,255,0.85) 1px, transparent 0),
-      radial-gradient(circle at 28% 12%, rgba(255,255,255,0.8) 1px, transparent 0),
-      radial-gradient(circle at 45% 7%, rgba(255,255,255,0.9) 1.2px, transparent 0),
-      radial-gradient(circle at 58% 10%, rgba(255,255,255,0.8) 1px, transparent 0),
-      radial-gradient(circle at 72% 6%, rgba(255,255,255,0.9) 1.1px, transparent 0),
-      radial-gradient(circle at 92% 9%, rgba(255,255,255,0.7) 1px, transparent 0),
-      radial-gradient(circle at 30% 2%, rgba(255,255,255,0.9) 1.2px, transparent 0),
-      radial-gradient(circle at 60% 4%, rgba(255,255,255,0.85) 1.3px, transparent 0),
-      radial-gradient(circle at 85% 1%, rgba(255,255,255,0.7) 1px, transparent 0),
-      radial-gradient(circle at 10% 40%, rgba(255,255,255,0.9) 1.3px, transparent 0),
-      radial-gradient(circle at 22% 55%, rgba(255,255,255,0.7) 1px, transparent 0),
-      radial-gradient(circle at 42% 32%, rgba(255,255,255,0.95) 1.3px, transparent 0),
-      radial-gradient(circle at 60% 45%, rgba(255,255,255,0.75) 1px, transparent 0),
-      radial-gradient(circle at 77% 28%, rgba(255,255,255,0.85) 1.2px, transparent 0),
-      radial-gradient(circle at 90% 18%, rgba(255,255,255,0.65) 0.9px, transparent 0),
-      radial-gradient(circle at 5% 70%, rgba(255,255,255,0.8) 1px, transparent 0),
-      radial-gradient(circle at 20% 85%, rgba(255,255,255,0.5) 0.8px, transparent 0),
-      radial-gradient(circle at 40% 80%, rgba(255,255,255,0.6) 1px, transparent 0),
-      radial-gradient(circle at 65% 88%, rgba(255,255,255,0.65) 1px, transparent 0),
-      radial-gradient(circle at 85% 75%, rgba(255,255,255,0.85) 1.3px, transparent 0),
-      radial-gradient(circle at 50% 50%, rgba(255,255,255,0.95) 1.5px, transparent 0);
-    opacity: 0.96;
-    pointer-events: none;
-    z-index: 2;
-  }
-
-  /* 3. Samakan Gradasi Cahaya (Glow) */
-  body::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: radial-gradient(circle at 20% 30%, rgba(89, 107, 255, 0.18) 0%, transparent 28%),
-                radial-gradient(circle at 70% 25%, rgba(190, 78, 255, 0.14) 0%, transparent 26%),
-                radial-gradient(circle at 40% 70%, rgba(56, 189, 248, 0.12) 0%, transparent 30%);
-    z-index: 1;
-    pointer-events: none;
-  }
-
-  /* 4. Sesuaikan Form agar di atas background */
-  .form {
-    background: rgba(255, 255, 255, 0.1); /* Sedikit lebih transparan agar blur terasa */
-    padding: 30px;
-    border-radius: 15px;
-    width: 100%;
-    max-width: 400px;
-    backdrop-filter: blur(15px); /* Samakan dengan index */
-    -webkit-backdrop-filter: blur(15px);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    z-index: 10;
-    position: relative;
-  }
-
-  h2 { text-align: center; margin: 0 0 20px 0; font-size: 1.8em; }
-  
-  input, textarea {
-    width: 100%; margin: 8px 0; padding: 12px; border-radius: 8px; border: none;
-    background: rgba(255, 255, 255, 0.08); color: white; box-sizing: border-box;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-  }
-  
-  input::placeholder, textarea::placeholder {
-    color: rgba(255, 255, 255, 0.5);
-  }
-
-  button {
-    width: 100%; padding: 12px; border: none; border-radius: 8px; color: white;
-    cursor: pointer; transition: all 0.3s ease; box-sizing: border-box;
-    background: linear-gradient(45deg, #8b5cf6, #6366f1);
-    font-weight: bold;
-    box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3);
-  }
-
-  button:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(139, 92, 246, 0.5);
-  }
-
-  .encryption-notice {
-    background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.3);
-    border-radius: 10px; padding: 10px; margin-bottom: 15px; font-size: 11px;
-    color: #bae6fd; text-align: center; display: flex; align-items: center; gap: 8px;
-  }
-
-  .back-link { display: block; text-align: center; margin-top: 15px; color: rgba(255,255,255,0.7); text-decoration: none; font-size: 13px; }
-  .message { text-align: center; margin-top: 10px; font-weight: bold; font-size: 14px; }
-</style>
-</head>
-<body>
-
-<div class="form">
-  <div class="encryption-notice">
-    <svg viewBox="0 0 24 24" width="20" height="20" fill="#7dd3fc">
-      <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"></path>
-    </svg>
-    <span><strong>Privasi Terjamin:</strong> Data anda aman terenkripsi di sistem kami, tetap anonim, tetap aman bercerita.</span>
-  </div>
-
-  <h2>Sampaikan Gamonmu 💔</h2>
-
-  <input type="text" id="nama" placeholder="Nama kamu">
-  <input type="text" id="tujuan" placeholder="Untuk siapa">
-  <textarea id="pesan" placeholder="Pesan kamu..." rows="3"></textarea>
-
-  <div class="audio-recorder" style="margin: 10px 0; text-align: center;">
-      <button id="recordBtn" type="button" style="background: #ef4444; width: auto; padding: 8px 15px; font-size: 14px;">
-          🎤 Rekam VN (Opsional)
-      </button>
-      <p id="recordStatus" style="font-size: 11px; margin-top: 5px; color: #bae6fd; min-height: 14px;"></p>
-      <audio id="audioPreview" controls style="display:none; width: 100%; margin-top: 8px; height: 35px;"></audio>
-  </div>
-
-  <button onclick="submitData()" style="margin-top: 10px; font-weight: bold;">Kirim Gamon</button>
-
-  <div id="message" class="message"></div>
-  <a href="index.html" class="back-link">← Kembali ke Gamon Tawing</a>
-</div>
-
-<script type="module">
-  
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-
-const firebaseConfig = {
-  apiKey: "AIzaSyC247K8yyL67aWV95KNQy8CkMZsjgGCudQ",
-  authDomain: "gamon-tawing.firebaseapp.com",
-  projectId: "gamon-tawing",
-  storageBucket: "gamon-tawing.firebasestorage.app",
-  messagingSenderId: "370162915989",
-  appId: "1:370162915989:web:76779062da83aa0c5c999c"
-};
-
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
-
-let mediaRecorder;
-let audioChunks = [];
-let base64Audio = null; // Simpan teks suara di sini
-
-const recordBtn = document.getElementById('recordBtn');
-const recordStatus = document.getElementById('recordStatus');
-const audioPreview = document.getElementById('audioPreview');
-
-recordBtn.addEventListener('click', async () => {
-    if (!mediaRecorder || mediaRecorder.state === "inactive") {
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            
-            // Cek format yang didukung perangkat
-            const types = ['audio/webm', 'audio/mp4', 'audio/ogg', 'audio/wav'];
-            const supportedType = types.find(type => MediaRecorder.isTypeSupported(type));
-
-            mediaRecorder = new MediaRecorder(stream, { mimeType: supportedType });
-            
-            mediaRecorder.ondataavailable = (e) => {
-                if (e.data.size > 0) audioChunks.push(e.data);
-            };
-            
-            mediaRecorder.onstop = async () => {
-                const audioBlob = new Blob(audioChunks, { type: supportedType });
-                const reader = new FileReader();
-                reader.readAsDataURL(audioBlob);
-                reader.onloadend = () => {
-                    base64Audio = reader.result;
-                    audioPreview.src = base64Audio;
-                    audioPreview.style.display = 'block';
-                    // Paksa load agar iOS mengenali source baru
-                    audioPreview.load(); 
-                    recordStatus.textContent = "VN siap dikirim!";
-                };
-
-                recordBtn.textContent = "🎤 Rekam Ulang";
-                recordBtn.style.background = "#8b5cf6";
-            };
-
-            audioChunks = [];
-            mediaRecorder.start();
-            recordBtn.textContent = "🛑 Berhenti";
-            recordStatus.textContent = "Merekam...";
-        } catch (err) {
-            console.error(err);
-            alert("Izin mic ditolak atau browser tidak mendukung fitur ini.");
+﻿<!DOCTYPE html>
+<html lang="id"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Sampaikan Gamonmu - Gamon Tawing</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "outline": "#7f7478",
+                        "inverse-on-surface": "#f5eff1",
+                        "secondary-fixed": "#ecdeee",
+                        "primary-fixed": "#f4dce4",
+                        "on-primary": "#ffffff",
+                        "secondary": "#655b68",
+                        "on-surface-variant": "#4d4447",
+                        "on-error-container": "#93000a",
+                        "surface-dim": "#ded9db",
+                        "on-secondary": "#ffffff",
+                        "on-surface": "#1d1b1d",
+                        "surface-container-highest": "#e7e1e3",
+                        "surface-container-high": "#ece7e9",
+                        "on-primary-fixed-variant": "#524249",
+                        "outline-variant": "#d0c3c7",
+                        "background": "#fef8fa",
+                        "on-secondary-fixed-variant": "#4d4450",
+                        "tertiary-container": "#d9edf6",
+                        "error-container": "#ffdad6",
+                        "tertiary": "#4f6169",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-container": "#f2ecee",
+                        "secondary-container": "#ecdeee",
+                        "tertiary-fixed-dim": "#b6cad2",
+                        "on-primary-container": "#76646b",
+                        "surface-bright": "#fef8fa",
+                        "primary-fixed-dim": "#d7c1c8",
+                        "primary": "#6b5a60",
+                        "inverse-surface": "#323031",
+                        "on-primary-fixed": "#25181e",
+                        "on-secondary-container": "#6b616e",
+                        "on-tertiary-container": "#596c73",
+                        "on-tertiary-fixed": "#0b1e24",
+                        "inverse-primary": "#d7c1c8",
+                        "on-tertiary": "#ffffff",
+                        "tertiary-fixed": "#d2e6ef",
+                        "secondary-fixed-dim": "#cfc2d2",
+                        "surface": "#fef8fa",
+                        "on-error": "#ffffff",
+                        "primary-container": "#fce4ec",
+                        "surface-variant": "#e7e1e3",
+                        "error": "#ba1a1a",
+                        "on-tertiary-fixed-variant": "#374951",
+                        "on-background": "#1d1b1d",
+                        "surface-tint": "#6b5a60",
+                        "on-secondary-fixed": "#201924",
+                        "surface-container-low": "#f8f2f4"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "unit": "8px",
+                        "section-gap": "80px",
+                        "gutter": "24px",
+                        "container-padding": "40px",
+                        "margin-mobile": "20px"
+                    },
+                    "fontFamily": {
+                        "body-lg": ["Inter"],
+                        "body-md": ["Inter"],
+                        "display-lg": ["Playfair Display"],
+                        "label-md": ["Inter"],
+                        "headline-sm": ["Playfair Display"],
+                        "headline-md": ["Playfair Display"]
+                    },
+                    "fontSize": {
+                        "body-lg": ["18px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                        "body-md": ["16px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                        "display-lg": ["48px", {"lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                        "label-md": ["14px", {"lineHeight": "1", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                        "headline-sm": ["24px", {"lineHeight": "1.4", "fontWeight": "500"}],
+                        "headline-md": ["32px", {"lineHeight": "1.3", "fontWeight": "500"}]
+                    }
+                }
+            }
         }
-    } else {
-        mediaRecorder.stop();
-    }
-});
+    </script>
+<style>
+        body {
+            background: linear-gradient(135deg, #fef8fa 0%, #fce4ec 50%, #f2ecee 100%);
+            min-height: 100vh;
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            box-shadow: 0 8px 32px 0 rgba(107, 90, 96, 0.08);
+        }
+        .input-focus:focus {
+            box-shadow: 0 0 0 4px rgba(252, 228, 236, 0.5);
+            border-color: #d7c1c8;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+</head>
+<body class="font-body-md text-on-surface selection:bg-primary-container selection:text-on-primary-container">
+<main class="relative z-10 flex flex-col items-center justify-center min-h-screen px-margin-mobile md:px-container-padding py-section-gap">
+<!-- Back Link -->
+<a class="self-start mb-unit flex items-center gap-2 text-on-surface-variant hover:text-primary transition-colors duration-200 group" href="index.html">
+<span class="material-symbols-outlined transition-transform group-hover:-translate-x-1">arrow_back</span>
+<span class="font-label-md text-label-md">Kembali ke Beranda</span>
+</a>
+<!-- Form Card -->
+<section class="glass-card w-full max-w-2xl p-gutter md:p-container-padding rounded-xl">
+<div class="mb-gutter text-center">
+<h1 class="font-display-lg text-headline-md md:text-display-lg text-primary mb-2">Sampaikan Gamonmu 💔</h1>
+<p class="font-body-md text-on-surface-variant">Bagikan perasaan yang masih tertinggal di kedalaman hati.</p>
+</div>
+<!-- Privacy Notice -->
+<div class="bg-primary-container/30 border border-primary-container/50 rounded-lg p-unit mb-gutter flex items-center gap-3">
+<span class="material-symbols-outlined text-primary-fixed-variant" style="font-variation-settings: 'FILL' 1;">encrypted</span>
+<p class="font-label-md text-label-md text-on-primary-container">Privasi Terjamin: Pesan anda aman terenkripsi di sistem kami.</p>
+</div>
+<form class="space-y-gutter" id="submitForm">
+<!-- Inputs -->
+<div class="space-y-unit">
+<div>
+<label class="block font-label-md text-label-md text-on-surface-variant mb-1" for="senderName">Nama kamu</label>
+<input class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-gutter py-2 text-on-surface focus:outline-none input-focus transition-all" id="senderName" placeholder="Siapa yang menyimpan rasa ini?" required="" type="text"/>
+</div>
+<div>
+<label class="block font-label-md text-label-md text-on-surface-variant mb-1" for="receiverName">Untuk siapa</label>
+<input class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-gutter py-2 text-on-surface focus:outline-none input-focus transition-all" id="receiverName" placeholder="Kepada siapa pesan ini tertuju?" required="" type="text"/>
+</div>
+<div>
+<label class="block font-label-md text-label-md text-on-surface-variant mb-1" for="messageContent">Pesan kamu</label>
+<textarea class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-gutter py-2 text-on-surface focus:outline-none input-focus transition-all resize-none" id="messageContent" placeholder="Tuliskan semua kata yang tak sempat terucap..." required="" rows="5"></textarea>
+</div>
+</div>
+<!-- Audio Recorder Section -->
+<div class="space-y-unit">
+<label class="block font-label-md text-label-md text-on-surface-variant mb-1">Rekam VN (Opsional)</label>
+<div class="flex flex-col items-center gap-unit bg-surface-container-low rounded-xl p-gutter border border-dashed border-outline-variant" id="recorderContainer">
+<button class="flex items-center gap-2 px-gutter py-2 rounded-full bg-secondary-container text-on-secondary-container border border-secondary-fixed-dim hover:brightness-95 transition-all duration-200 active:scale-95" id="recordBtn" type="button">
+<span class="material-symbols-outlined" id="recordIcon">mic</span>
+<span class="font-label-md" id="recordText">Rekam VN (Opsional)</span>
+</button>
+<div class="hidden flex flex-col items-center animate-pulse" id="recordingStatus">
+<div class="w-3 h-3 bg-error rounded-full mb-1"></div>
+<span class="text-error font-label-md">Sedang merekam...</span>
+</div>
+<div class="hidden w-full space-y-2" id="audioPreview">
+<div class="flex items-center gap-2 text-primary">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+<span class="font-label-md">VN siap dikirim!</span>
+</div>
+<audio class="w-full h-10" controls="" id="player"></audio>
+</div>
+</div>
+</div>
+<!-- Submit Button -->
+<div class="pt-unit">
+<button class="w-full py-gutter rounded-xl bg-primary text-on-primary font-headline-sm hover:brightness-110 shadow-lg shadow-primary/20 transition-all duration-300 active:scale-95 flex justify-center items-center gap-3" id="submitBtn" type="submit">
+<span id="btnText">Kirim Gamon</span>
+<span class="hidden animate-spin material-symbols-outlined" id="loader">progress_activity</span>
+</button>
+</div>
+</form>
+</section>
+</main>
+<!-- Scripts -->
+<script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-window.submitData = async function () {
-    let nama = document.getElementById("nama").value.trim();
-    let tujuan = document.getElementById("tujuan").value.trim();
-    let pesan = document.getElementById("pesan").value.trim();
-    let messageDiv = document.getElementById("message");
+        const firebaseConfig = {
+          apiKey: "AIzaSyC247K8yyL67aWV95KNQy8CkMZsjgGCudQ",
+          authDomain: "gamon-tawing.firebaseapp.com",
+          projectId: "gamon-tawing",
+          storageBucket: "gamon-tawing.appspot.com",
+          messagingSenderId: "370162915989",
+          appId: "1:370162915989:web:76779062da83aa0c5c999c"
+        };
 
-    if (!nama || !tujuan || !pesan) {
-        messageDiv.textContent = "Isi semua dulu 😢";
-        return;
-    }
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
 
-    try {
-        messageDiv.textContent = "Mengirim pesan...";
-        
-        // Simpan ke Firestore (Base64 masuk ke field audioUrl)
-        await addDoc(collection(db, "gamon"), {
-            nama,
-            tujuan,
-            pesan,
-            audioUrl: base64Audio, // String Base64 disimpan di sini
-            waktu: Date.now()
+        // Logic for Audio Recording
+        let mediaRecorder;
+        let audioChunks = [];
+        let audioBase64 = null;
+        const recordBtn = document.getElementById('recordBtn');
+        const recordText = document.getElementById('recordText');
+        const recordIcon = document.getElementById('recordIcon');
+        const audioPreview = document.getElementById('audioPreview');
+        const player = document.getElementById('player');
+        const recordingStatus = document.getElementById('recordingStatus');
+
+        recordBtn.addEventListener('click', async () => {
+            if (!mediaRecorder || mediaRecorder.state === 'inactive') {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    mediaRecorder = new MediaRecorder(stream);
+                    audioChunks = [];
+
+                    mediaRecorder.ondataavailable = event => {
+                        if (event.data.size > 0) audioChunks.push(event.data);
+                    };
+
+                    mediaRecorder.onstop = async () => {
+                        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                        const audioUrl = URL.createObjectURL(audioBlob);
+                        player.src = audioUrl;
+                        audioPreview.classList.remove('hidden');
+                        
+                        const reader = new FileReader();
+                        reader.readAsDataURL(audioBlob);
+                        reader.onloadend = () => {
+                            audioBase64 = reader.result;
+                        };
+                    };
+
+                    audioChunks = [];
+                    mediaRecorder.start();
+                    recordText.innerText = 'Berhenti';
+                    recordIcon.innerText = 'stop';
+                    recordingStatus.classList.remove('hidden');
+                    recordBtn.classList.add('bg-error', 'text-white');
+                    recordBtn.classList.remove('bg-secondary-container', 'text-on-secondary-container');
+                } catch (err) {
+                    console.error('Microphone access denied', err);
+                    alert('Akses mikrofon ditolak.');
+                }
+            } else {
+                mediaRecorder.stop();
+                recordText.innerText = 'Rekam Ulang';
+                recordIcon.innerText = 'refresh';
+                recordingStatus.classList.add('hidden');
+                recordBtn.classList.remove('bg-error', 'text-white');
+                recordBtn.classList.add('bg-secondary-container', 'text-on-secondary-container');
+            }
         });
 
-        messageDiv.textContent = "Terkirim 💔";
-        setTimeout(() => window.location.href = "index.html", 1500);
-    } catch (err) {
-        messageDiv.textContent = "Gagal: " + err.message;
-    }
-};
-</script>
+        const form = document.getElementById('submitForm');
+        const submitBtn = document.getElementById('submitBtn');
+        const btnText = document.getElementById('btnText');
+        const loader = document.getElementById('loader');
 
-</body>
-</html>
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            submitBtn.disabled = true;
+            btnText.innerText = 'Mengirim...';
+            loader.classList.remove('hidden');
+
+            const formData = {
+                sender: document.getElementById('senderName').value,
+                receiver: document.getElementById('receiverName').value,
+                content: document.getElementById('messageContent').value,
+                audio: audioBase64,
+                timestamp: Date.now()
+            };
+
+            try {
+                await addDoc(collection(db, 'gamon'), {
+                    nama: formData.sender,
+                    tujuan: formData.receiver,
+                    pesan: formData.content,
+                    audioUrl: formData.audio,
+                    waktu: Date.now()
+                });
+
+                alert('Gamonmu telah terkirim ke bintang-bintang.');
+                window.location.href = 'index.html';
+            } catch (err) {
+                console.error(err);
+                alert('Gagal mengirim pesan.');
+            } finally {
+                submitBtn.disabled = false;
+                btnText.innerText = 'Kirim Gamon';
+                loader.classList.add('hidden');
+            }
+        });
+    </script>
+</body></html>

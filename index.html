@@ -1,465 +1,324 @@
 <!DOCTYPE html>
-<html lang="id">
+<html class="light" lang="id">
 <head>
-  <meta charset="UTF-8">
-  <title>Gamon Tawing</title>
- <style>
-  body {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    text-align: center;
-    background: linear-gradient(180deg, #060811 0%, #0f172a 15%, #1e293b 55%, #334155 100%);
-    overflow-x: hidden;
-    margin: 0;
-    padding: 0 0 140px;
-    min-height: 100vh;
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-start;
-    align-items: center;
-  }
-  body::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background:
-      radial-gradient(circle at 2% 2%, rgba(255,255,255,0.95) 1.6px, transparent 0),
-      radial-gradient(circle at 15% 3%, rgba(255,255,255,0.8) 1px, transparent 0),
-      radial-gradient(circle at 5% 10%, rgba(255,255,255,0.95) 1.6px, transparent 0),
-      radial-gradient(circle at 15% 20%, rgba(255,255,255,0.8) 1px, transparent 0),
-      radial-gradient(circle at 25% 5%, rgba(255,255,255,0.9) 1.3px, transparent 0),
-      radial-gradient(circle at 35% 18%, rgba(255,255,255,0.75) 1px, transparent 0),
-      radial-gradient(circle at 50% 8%, rgba(255,255,255,0.85) 1.4px, transparent 0),
-      radial-gradient(circle at 68% 12%, rgba(255,255,255,0.9) 1.5px, transparent 0),
-      radial-gradient(circle at 82% 5%, rgba(255,255,255,0.65) 1px, transparent 0),
-      radial-gradient(circle at 12% 8%, rgba(255,255,255,0.85) 1px, transparent 0),
-      radial-gradient(circle at 28% 12%, rgba(255,255,255,0.8) 1px, transparent 0),
-      radial-gradient(circle at 45% 7%, rgba(255,255,255,0.9) 1.2px, transparent 0),
-      radial-gradient(circle at 58% 10%, rgba(255,255,255,0.8) 1px, transparent 0),
-      radial-gradient(circle at 72% 6%, rgba(255,255,255,0.9) 1.1px, transparent 0),
-      radial-gradient(circle at 92% 9%, rgba(255,255,255,0.7) 1px, transparent 0),
-      radial-gradient(circle at 30% 2%, rgba(255,255,255,0.9) 1.2px, transparent 0),
-      radial-gradient(circle at 60% 4%, rgba(255,255,255,0.85) 1.3px, transparent 0),
-      radial-gradient(circle at 85% 1%, rgba(255,255,255,0.7) 1px, transparent 0),
-      radial-gradient(circle at 10% 40%, rgba(255,255,255,0.9) 1.3px, transparent 0),
-      radial-gradient(circle at 22% 55%, rgba(255,255,255,0.7) 1px, transparent 0),
-      radial-gradient(circle at 42% 32%, rgba(255,255,255,0.95) 1.3px, transparent 0),
-      radial-gradient(circle at 60% 45%, rgba(255,255,255,0.75) 1px, transparent 0),
-      radial-gradient(circle at 77% 28%, rgba(255,255,255,0.85) 1.2px, transparent 0),
-      radial-gradient(circle at 90% 18%, rgba(255,255,255,0.65) 0.9px, transparent 0),
-      radial-gradient(circle at 5% 70%, rgba(255,255,255,0.8) 1px, transparent 0),
-      radial-gradient(circle at 20% 85%, rgba(255,255,255,0.5) 0.8px, transparent 0),
-      radial-gradient(circle at 40% 80%, rgba(255,255,255,0.6) 1px, transparent 0),
-      radial-gradient(circle at 65% 88%, rgba(255,255,255,0.65) 1px, transparent 0),
-      radial-gradient(circle at 85% 75%, rgba(255,255,255,0.85) 1.3px, transparent 0),
-      radial-gradient(circle at 50% 50%, rgba(255,255,255,0.95) 1.5px, transparent 0);
-    opacity: 0.96;
-    pointer-events: none;
-    z-index: 2;
-  }
-
-  body::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: radial-gradient(circle at 20% 30%, rgba(89, 107, 255, 0.18) 0%, transparent 28%),
-                radial-gradient(circle at 70% 25%, rgba(190, 78, 255, 0.14) 0%, transparent 26%),
-                radial-gradient(circle at 40% 70%, rgba(56, 189, 248, 0.12) 0%, transparent 30%);
-    z-index: 1;
-    pointer-events: none;
-  }
-
-  h1 {
-    margin-top: 80px;
-    margin-bottom: 0;
-    font-size: 3em;
-    color: white;
-    text-shadow: 0 0 20px rgba(255,255,255,0.5);
-    z-index: 10;
-    position: relative;
-  }
-
-  button {
-    padding: 15px 25px;
-    font-size: 18px;
-    border: none;
-    border-radius: 10px;
-    background: linear-gradient(45deg, #8b5cf6, #6366f1);
-    color: white;
-    cursor: pointer;
-    box-shadow: 0 4px 15px rgba(139, 92, 246, 0.4);
-    transition: all 0.3s ease;
-    z-index: 10;
-    position: relative;
-    margin: 30px 0 0 0;
-  }
-
-  button:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 25px rgba(139, 92, 246, 0.6);
-  }
-
-  .floating {
-    position: absolute;
-    background: rgba(255, 255, 255, 0.1);
-    padding: 12px 16px;
-    border-radius: 16px;
-    backdrop-filter: blur(15px);
-    -webkit-backdrop-filter: blur(15px);
-    
-    width: auto;
-    min-width: 150px;
-    max-width: 220px;
-    
-    /* --- FITUR SCROLL --- */
-    max-height: 200px;    /* Batas tinggi kartu */
-    overflow-y: auto;     /* Munculkan scroll jika teks kepanjangan */
-    /* -------------------- */
-    
-    box-sizing: border-box;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    color: white;
-    
-    text-align: center; 
-    display: flex;
-    flex-direction: column;
-    /* Hilangkan justify-content: center agar scroll mulai dari atas */
-    align-items: center;
-    gap: 6px;
-
-    white-space: pre-wrap;
-    word-break: break-word;
-    cursor: grab;
-    animation: fadeIn 0.8s ease, floatSoft 6s ease-in-out infinite;
-    transition: transform 0.3s, box-shadow 0.3s;
-    user-select: none;
-    touch-action: pan-y; /* Izinkan scroll vertikal dengan sentuhan */
-  user-select: none;
-  }
-
-  /* Bikin scrollbar-nya jadi tipis dan estetik */
-  .floating::-webkit-scrollbar {
-    width: 4px;
-  }
-  .floating::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.2);
-    border-radius: 10px;
-  }
-
-  /* Gaya untuk Nama/Tujuan agar lebih rapi */
-.floating .meta {
-    font-size: 13px; /* Ukuran sedikit lebih besar agar bold enak dilihat */
-    opacity: 0.9;
-    margin-bottom: 4px;
-    line-height: 1.2;
-  }
-
-  .floating .message {
-    font-size: 14px;
-    line-height: 1.5;
-    font-weight: 400;
-    font-style: italic; /* Memberi kesan kutipan/pesan */
-    color: rgba(255, 255, 255, 0.95);
-  }
-
-  .floating:hover {
-    transform: scale(1.05);
-    background: rgba(255, 255, 255, 0.15);
-    border-color: rgba(255, 255, 255, 0.4);
-  }
-
-  .floating.dragging {
-    animation: none;
-    cursor: grabbing;
-    opacity: 0.98;
-    touch-action: none;
-  }
-
- /* Mencegah kartu terseret saat menekan kontrol audio & perbaiki kursor */
-.floating audio {
-  position: relative;
-  z-index: 20;
-  cursor: pointer; /* Ubah agar user tahu ini bisa diklik */
-  outline: none;
-  width: 100%;
-  height: auto;
-  min-height: 30px;
-}
-
-  #container {
-    position: absolute;
-    top: 320px;
-    left: 0;
-    right: 0;
-    width: 100%;
-    bottom: 120px;
-    overflow: hidden;
-  }
-
-  footer {
-    position: absolute;
-    bottom: 18px;
-    width: 100%;
-    text-align: center;
-    z-index: 10;
-    font-size: 14px;
-    color: rgba(255,255,255,0.6);
-  }
-
-  footer a {
-    color: rgba(255,255,255,0.8);
-    text-decoration: none;
-    transition: color 0.3s ease;
-  }
-
-  footer a:hover {
-    color: rgba(255,255,255,1);
-  }
-
-  @keyframes fadeIn {
-    from {
-      opacity: 0;
-      transform: scale(0.85);
-    }
-    to {
-      opacity: 1;
-      transform: scale(1);
-    }
-  }
-
-  /* ✨ INI YANG BIKIN "MELAYANG HALUS" */
-  @keyframes floatSoft {
-    0% {
-      transform: translate(0px, 0px);
-    }
-    25% {
-      transform: translate(3px, -4px);
-    }
-    50% {
-      transform: translate(-3px, 2px);
-    }
-    75% {
-      transform: translate(2px, 3px);
-    }
-    100% {
-      transform: translate(0px, 0px);
-    }
-  }
-  .music-player {
-    position: fixed;
-    bottom: 84px;
-    left: 50%;
-    transform: translateX(-50%);
-    display: flex;
-    align-items: center; /* Menjaga vertikal tetap di tengah */
-    justify-content: space-between;
-    gap: 14px;
-    padding: 10px 18px; /* Sedikit diperlebar agar lebih lega */
-    border-radius: 999px;
-    background: rgba(255, 255, 255, 0.08);
-    backdrop-filter: blur(16px);
-    border: 1px solid rgba(255,255,255,0.18);
-    box-shadow: 0 10px 25px rgba(0,0,0,0.25);
-    color: white;
-    font-size: 13px;
-    z-index: 999;
-    animation: floatMusic 5.5s ease-in-out infinite;
-    min-width: 240px;
-    max-width: 300px;
-  }
-
-  .music-info {
-    opacity: 0.85;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    flex: 1;
-    text-align: left;
-    margin: 0;
-    max-width: 190px;
-  }
-
-  #musicToggle {
-    margin: 0;
-    min-width: 42px;
-    min-height: 42px;
-    width: 42px;
-    height: 42px;
-    padding: 0;
-    border-radius: 50%;
-    border: 1px solid rgba(255,255,255,0.22);
-    background: rgba(255,255,255,0.12);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    position: relative;
-    transition: transform 0.25s ease, background 0.25s ease, box-shadow 0.25s ease;
-  }
-
-  #musicToggle:hover {
-    transform: scale(1.07);
-    background: rgba(255,255,255,0.18);
-    box-shadow: 0 0 14px rgba(255,255,255,0.18);
-  }
-
-  .music-icon {
-    width: 0;
-    height: 0;
-    border-style: solid;
-    border-width: 8px 0 8px 13px;
-    border-color: transparent transparent transparent white;
-    transition: all 0.2s ease;
-  }
-
-  #musicToggle.playing .music-icon {
-    width: 12px;
-    height: 16px;
-    border: none;
-    position: relative;
-  }
-
-  #musicToggle.playing .music-icon::before,
-  #musicToggle.playing .music-icon::after {
-    content: '';
-    position: absolute;
-    width: 3px;
-    height: 16px;
-    background: white;
-    border-radius: 1px;
-  }
-
-  #musicToggle.playing .music-icon::before {
-    left: 0;
-  }
-
-  #musicToggle.playing .music-icon::after {
-    right: 0;
-  }
-
-  @keyframes floatMusic {
-    0% { transform: translateX(-50%) translateY(0px); }
-    50% { transform: translateX(-50%) translateY(-4px); }
-    100% { transform: translateX(-50%) translateY(0px); }
-  }
-
-  @media (max-width: 700px) {
-    body {
-      padding-bottom: 180px;
-    }
-
-    h1 {
-      margin-top: 50px;
-      font-size: 2.2rem;
-    }
-
-    button {
-      padding: 12px 22px;
-      font-size: 16px;
-      margin-top: 24px;
-    }
-
-  .floating {
-      width: auto;         /* Kembalikan ke otomatis */
-      min-width: 120px;    /* Minimal lebar di HP */
-      max-width: 180px;    /* Maksimal lebar di HP */
-      padding: 10px 14px;
-    }
-
-    #container {
-      top: 260px;
-      bottom: 140px;
-    }
-
-    .music-player {
-      bottom: 120px;
-      min-width: 200px;
-      max-width: 92%;
-      padding: 10px 12px;
-    }
-
-    .music-info {
-      max-width: 140px;
-      font-size: 12px;
-    }
-
-    footer {
-      bottom: 12px;
-      font-size: 12px;
-    }
-  }
-  .love-section {
-  margin-top: 8px;
-}
-
-.love-btn {
-  background: rgba(255,255,255,0.1);
-  border: none;
-  padding: 6px 10px;
-  border-radius: 10px;
-  color: white;
-  cursor: pointer;
-  font-size: 13px;
-}
-
-.love-btn:hover {
-  background: rgba(255,255,255,0.2);
-}
-
-.love-btn.liked {
-  background: rgba(239, 68, 68, 0.3);
-}
-</style>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Gamon Tawing - Celestial Reflection</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400..900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "outline": "#7f7478",
+                        "inverse-on-surface": "#f5eff1",
+                        "secondary-fixed": "#ecdeee",
+                        "primary-fixed": "#f4dce4",
+                        "on-primary": "#ffffff",
+                        "secondary": "#655b68",
+                        "on-surface-variant": "#4d4447",
+                        "on-error-container": "#93000a",
+                        "surface-dim": "#ded9db",
+                        "on-secondary": "#ffffff",
+                        "on-surface": "#1d1b1d",
+                        "surface-container-highest": "#e7e1e3",
+                        "surface-container-high": "#ece7e9",
+                        "on-primary-fixed-variant": "#524249",
+                        "outline-variant": "#d0c3c7",
+                        "background": "#fef8fa",
+                        "on-secondary-fixed-variant": "#4d4450",
+                        "tertiary-container": "#d9edf6",
+                        "error-container": "#ffdad6",
+                        "tertiary": "#4f6169",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-container": "#f2ecee",
+                        "secondary-container": "#ecdeee",
+                        "tertiary-fixed-dim": "#b6cad2",
+                        "on-primary-container": "#76646b",
+                        "surface-bright": "#fef8fa",
+                        "primary-fixed-dim": "#d7c1c8",
+                        "primary": "#6b5a60",
+                        "inverse-surface": "#323031",
+                        "on-primary-fixed": "#25181e",
+                        "on-secondary-container": "#6b616e",
+                        "on-tertiary-container": "#596c73",
+                        "on-tertiary-fixed": "#0b1e24",
+                        "inverse-primary": "#d7c1c8",
+                        "on-tertiary": "#ffffff",
+                        "tertiary-fixed": "#d2e6ef",
+                        "secondary-fixed-dim": "#cfc2d2",
+                        "surface": "#fef8fa",
+                        "on-error": "#ffffff",
+                        "primary-container": "#fce4ec",
+                        "surface-variant": "#e7e1e3",
+                        "error": "#ba1a1a",
+                        "on-tertiary-fixed-variant": "#374951",
+                        "on-background": "#1d1b1d",
+                        "surface-tint": "#6b5a60",
+                        "on-secondary-fixed": "#201924",
+                        "surface-container-low": "#f8f2f4"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "unit": "8px",
+                        "section-gap": "80px",
+                        "gutter": "24px",
+                        "container-padding": "40px",
+                        "margin-mobile": "20px"
+                    },
+                    "fontFamily": {
+                        "body-lg": ["Inter"],
+                        "body-md": ["Inter"],
+                        "display-lg": ["Playfair Display"],
+                        "label-md": ["Inter"],
+                        "headline-sm": ["Playfair Display"],
+                        "headline-md": ["Playfair Display"]
+                    },
+                    "fontSize": {
+                        "body-lg": ["18px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                        "body-md": ["16px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                        "display-lg": ["48px", {"lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                        "label-md": ["14px", {"lineHeight": "1", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                        "headline-sm": ["24px", {"lineHeight": "1.4", "fontWeight": "500"}],
+                        "headline-md": ["32px", {"lineHeight": "1.3", "fontWeight": "500"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            background: linear-gradient(135deg, #fff5f8 0%, #f3e8ff 50%, #ffffff 100%);
+            overflow-x: hidden;
+            min-height: 100vh;
+        }
+        .star-particle {
+            position: absolute;
+            background: #b794f4;
+            border-radius: 50%;
+            opacity: 0.4;
+            pointer-events: none;
+            box-shadow: 0 0 5px rgba(183, 148, 244, 0.5);
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.5);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            box-shadow: 0 10px 30px -10px rgba(107, 90, 96, 0.1);
+        }
+        .audio-custom::-webkit-media-controls-panel {
+            background-color: #f2ecee;
+        }
+        .audio-custom::-webkit-media-controls-play-button,
+        .audio-custom::-webkit-media-controls-current-time-display,
+        .audio-custom::-webkit-media-controls-time-remaining-display {
+            filter: grayscale(1) contrast(0.5);
+        }
+        .floating-container {
+            position: relative;
+            width: 100%;
+            height: 60vh;
+            perspective: 1000px;
+        }
+        .draggable {
+            position: absolute;
+            cursor: grab;
+            user-select: none;
+            touch-action: none;
+            transition: box-shadow 0.3s ease;
+        }
+        .draggable:active {
+            cursor: grabbing;
+            box-shadow: 0 20px 40px -15px rgba(107, 90, 96, 0.2);
+        }
+        @keyframes pulse-soft {
+            0%, 100% { transform: scale(1); opacity: 0.4; }
+            50% { transform: scale(1.5); opacity: 0.7; }
+        }
+        .love-btn[disabled] {
+            opacity: 0.55;
+            cursor: not-allowed;
+        }
+        .draggable.collapsed {
+            max-height: 96px;
+            overflow: hidden;
+        }
+        .draggable.collapsed .message-box,
+        .draggable.collapsed audio {
+            display: none;
+        }
+        .toggle-detail-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 2rem;
+            height: 2rem;
+            border-radius: 9999px;
+            background: rgba(255,255,255,0.7);
+            color: #6b5a60;
+            transition: transform 0.2s ease, background-color 0.2s ease;
+        }
+        .toggle-detail-btn:hover {
+            background: rgba(255,255,255,0.9);
+            transform: scale(1.05);
+        }
+    </style>
 </head>
-<body>
-
-  <h1>💔 Gamon Tawing</h1>
-  <button onclick="location.href='submit.html'">
-  Sampaikan Gamonmu
-</button>
-
-  <div id="container"></div>
-
-  <footer>
-    © 2026 <a href="#">Fullmoon</a> - Gamon Tawing
-  </footer>
-
-  <div class="music-player">
-    <div class="music-info">
-      Aku Jeje - Lihat Kebunku (Taman Bunga)
-    </div>
-
-    <button id="musicToggle" aria-label="Toggle music">
-      <span class="music-icon"></span>
-    </button>
-
-    <audio id="bgMusic" loop>
-      <source src="music.mp3" type="audio/mpeg">
-  </audio>
+<body class="text-on-surface selection:bg-primary-container">
+<!-- Star Particles Background Layer -->
+<div class="fixed inset-0 pointer-events-none z-0" id="stars"></div>
+<main class="relative z-10 pt-24 pb-32 px-margin-mobile md:px-container-padding max-w-7xl mx-auto">
+<!-- Hero Section -->
+<header class="text-center mb-section-gap">
+<h1 class="font-display-lg text-display-lg text-primary mb-4 tracking-tight">
+                💔 Gamon Tawing
+            </h1>
+<p class="font-body-lg text-on-surface-variant max-w-2xl mx-auto mb-8 italic">
+                "Di sini, segala rindu yang tak tersampaikan dan luka yang masih basah menemukan tempat untuk melayang di antara bintang-bintang."
+            </p>
+<button onclick="location.href='submit.html'" class="inline-flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-[#f4dce4] to-[#e1d2f5] text-on-primary-fixed-variant font-semibold rounded-full shadow-[0_4px_15px_rgba(107,90,96,0.15)] hover:shadow-[0_6px_20px_rgba(107,90,96,0.2)] hover:scale-105 transition-all active:scale-95 border border-white/50">
+<span class="material-symbols-outlined">edit_note</span>
+                Sampaikan Gamonmu
+            </button>
+</header>
+<!-- Floating Cards Container -->
+<div class="floating-container mb-section-gap" id="container">
+<!-- Cards will be injected here by script -->
 </div>
+</main>
+<!-- Global Music Player Floating Bar -->
+<div class="fixed bottom-24 left-1/2 -translate-x-1/2 w-[calc(100%-32px)] md:w-[480px] z-50 glass-card rounded-full p-2 flex items-center gap-3 border border-primary/10 shadow-xl">
+<div class="w-12 h-12 rounded-full overflow-hidden bg-surface-container flex-shrink-0 relative">
+<img alt="Track art" data-alt="A moody vinyl record spinning on a turntable under soft lighting." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDWnxhOulVUE5SbSSuUfq7T133nOIx1PEeyGWLwt4qhu4zDxj_36axd-l6hza_0AKipCm3szwszyPdIjDrzWPjGTdSU34XKzuUatnooWOtOb-xb8_WWweb5wQUgddpCGK4StLan-HcIozBZa-VpPr-0LyU2s_dVt5c14tQ4UGapiF1EKA9coSHV5riVj7-eVSbAUEM1q3uUTQhs-3wABwrHCGybCY3ZUU9AKFnoGB6xgfUHTYvfP3dGkp_stkjwNS3FHojGDnKs7YX4"/>
+<div class="absolute inset-0 flex items-center justify-center bg-black/5">
+<span class="material-symbols-outlined text-primary text-xl animate-pulse">music_note</span>
+</div>
+</div>
+<div class="flex-grow min-w-0">
+<div class="font-semibold text-sm truncate text-on-surface">Lihat Kebunku</div>
+<div class="text-xs truncate text-on-surface-variant">Aku Jeje</div>
+</div>
+<div class="flex items-center gap-2 pr-4">
+<button class="material-symbols-outlined text-on-surface-variant hover:text-primary transition-colors">skip_previous</button>
+<button id="musicToggle" class="material-symbols-outlined text-primary text-3xl hover:scale-110 transition-transform" style="font-variation-settings: 'FILL' 1;">play_circle</button>
+<button class="material-symbols-outlined text-on-surface-variant hover:text-primary transition-colors">skip_next</button>
+</div>
+</div>
+<!-- "The Star" FAB -->
+<button onclick="location.href='submit.html'" class="fixed right-6 bottom-28 w-14 h-14 rounded-full bg-gradient-to-tr from-primary to-secondary flex items-center justify-center shadow-lg z-40 hover:scale-110 active:scale-95 transition-all group">
+<span class="material-symbols-outlined text-white text-3xl group-hover:rotate-12 transition-transform">send</span>
+</button>
+<audio id="bgMusic" loop>
+<source src="music.mp3" type="audio/mpeg">
+</audio>
+
+<script>
+        // Soft Sparkle Particle Generator
+        const starsContainer = document.getElementById('stars');
+        const starCount = 60;
+
+        for (let i = 0; i < starCount; i++) {
+            const star = document.createElement('div');
+            star.className = 'star-particle';
+            const size = 2 + Math.random() * 4;
+            star.style.width = `${size}px`;
+            star.style.height = `${size}px`;
+            star.style.left = `${Math.random() * 100}%`;
+            star.style.top = `${Math.random() * 100}%`;
+            star.style.animation = `pulse-soft ${3 + Math.random() * 6}s infinite ease-in-out`;
+            star.style.animationDelay = `${Math.random() * 5}s`;
+            starsContainer.appendChild(star);
+        }
+
+        // Music Toggle
+        window.music = document.getElementById("bgMusic");
+        window.btn = document.getElementById("musicToggle");
+
+        window.isPlaying = false;
+
+        window.btn.addEventListener("click", () => {
+          if (window.isPlaying) {
+            window.music.pause();
+            window.btn.textContent = 'play_circle';
+          } else {
+            window.music.play();
+            window.btn.textContent = 'pause_circle';
+          }
+          window.isPlaying = !window.isPlaying;
+        });
+
+        // Draggable Floating Cards Logic
+        window.container = document.getElementById('container');
+        let activeItem = null;
+        let currentX;
+        let currentY;
+        let initialX;
+        let initialY;
+        let xOffset = 0;
+        let yOffset = 0;
+        window.currentCardZ = 20;
+
+        window.container.addEventListener("pointerdown", dragStart, false);
+        window.container.addEventListener("pointerup", dragEnd, false);
+        window.container.addEventListener("pointermove", drag, false);
+
+        function bringToFront(el) {
+            if (!el) return;
+            window.currentCardZ += 1;
+            el.style.zIndex = window.currentCardZ;
+            el.classList.add('active-card');
+            setTimeout(() => el.classList.remove('active-card'), 220);
+        }
+
+        function dragStart(e) {
+            if (e.target.closest('button, audio, a, input, textarea')) {
+                return;
+            }
+            if (e.target.closest('.draggable')) {
+                activeItem = e.target.closest('.draggable');
+                bringToFront(activeItem);
+
+                const style = window.getComputedStyle(activeItem);
+                const matrix = new WebKitCSSMatrix(style.transform);
+                xOffset = matrix.m41;
+                yOffset = matrix.m42;
+
+                initialX = e.clientX - xOffset;
+                initialY = e.clientY - yOffset;
+            }
+        }
+
+        function dragEnd() {
+            initialX = currentX;
+            initialY = currentY;
+            activeItem = null;
+        }
+
+        function drag(e) {
+            if (activeItem) {
+                e.preventDefault();
+                currentX = e.clientX - initialX;
+                currentY = e.clientY - initialY;
+                setTranslate(currentX, currentY, activeItem);
+            }
+        }
+
+        function setTranslate(xPos, yPos, el) {
+            const rotation = el.style.transform.match(/rotate\([^)]+\)/) || '';
+            el.style.transform = `translate3d(${xPos}px, ${yPos}px, 0) ${rotation}`;
+        }
+    </script>
 
 <script type="module">
-//music
-const music = document.getElementById("bgMusic");
-const btn = document.getElementById("musicToggle");
-
-let isPlaying = false;
-
-btn.addEventListener("click", () => {
-  if (isPlaying) {
-    music.pause();
-    btn.classList.remove("playing");
-  } else {
-    music.play();
-    btn.classList.add("playing");
-  }
-  isPlaying = !isPlaying;
-});
-
-// Hapus auto play global agar klik kartu tidak memicu musik.
-//music
-
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { 
   getFirestore, 
@@ -485,8 +344,6 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-const container = document.getElementById("container");
-
 // Query Firestore for the latest 30 messages
 const q = query(
   collection(db, "gamon"),
@@ -494,194 +351,140 @@ const q = query(
   limit(30)
 );
 
-onSnapshot(q, (snapshot) => {
-  container.innerHTML = "";
-
-  // For collision avoidance, but allow more density
-  let usedPositions = [];
-  let currentZIndex = 1;
-
-  // Ambil data dari localStorage
+// Ambil likedPosts dari localStorage
 let likedPosts = JSON.parse(localStorage.getItem("likedPosts")) || [];
 
-snapshot.forEach(item => {
-    // Di dalam snapshot.forEach(doc => { ...
-const data = item.data();
-if (!data.pesan) return;
+// Function to create message card
+function createCard(data, id) {
+    const card = document.createElement('div');
+    card.className = 'draggable glass-card p-gutter rounded-xl w-72';
+    card.style.left = `${Math.random() * (window.innerWidth - 320)}px`;
+    card.style.top = `${Math.random() * (window.innerHeight - 400)}px`;
+    card.style.transform = `rotate(${Math.random() * 6 - 3}deg)`;
+    card.style.zIndex = window.currentCardZ;
+    window.currentCardZ += 1;
 
-const div = document.createElement("div");
-div.className = "floating";
+    const nama = data.nama ? escapeHtml(data.nama) : "Anonim";
+    const tujuan = data.tujuan ? escapeHtml(data.tujuan) : "Seseorang";
+    const pesan = data.pesan ? escapeHtml(data.pesan) : "";
+    const likes = data.likes || 0;
+    const waktu = data.waktu ? 
+        (data.waktu.toDate ? new Date(data.waktu.toDate()).toLocaleDateString('id-ID') : 
+         typeof data.waktu === 'string' ? new Date(data.waktu).toLocaleDateString('id-ID') : 
+         new Date(data.waktu).toLocaleDateString('id-ID')) : 
+        "Hari ini";
 
-const nama = data.nama ? escapeHtml(data.nama) : "Seseorang";
-const tujuan = data.tujuan ? escapeHtml(data.tujuan) : "-";
-const pesan = data.pesan ? escapeHtml(data.pesan) : "";
+    const audioHtml = data.audioUrl ? `
+        <audio class="audio-custom w-full h-8 mb-4 rounded-full" controls playsinline preload="metadata" src="${data.audioUrl}">
+        </audio>
+    ` : '';
 
-// Gunakan Base64 langsung sebagai source jika ada
-const audioHtml = data.audioUrl 
-    ? `<audio controls playsinline preload="metadata" src="${data.audioUrl}" style="width: 100%; margin-top: 8px;">
-       </audio>` 
-    : "";
+    card.innerHTML = `
+        <div class="flex items-center justify-between mb-4 border-b border-black/5 pb-2 gap-3">
+            <span class="font-label-md text-primary">${nama} <span class="text-on-surface-variant/60">ke</span> ${tujuan}</span>
+            <div class="flex items-center gap-2">
+                ${data.audioUrl ? `<span class="material-symbols-outlined text-sm text-on-surface-variant">volume_up</span>` : ''}
+                <button type="button" class="toggle-detail-btn" aria-expanded="true" title="Toggle detail">
+                    <span class="material-symbols-outlined">arrow_drop_down</span>
+                </button>
+            </div>
+        </div>
+        <div class="message-box font-body-md italic text-on-surface mb-4 leading-relaxed max-h-40 overflow-y-auto whitespace-pre-wrap">
+            "${pesan}"
+        </div>
+        ${audioHtml}
+        <div class="flex items-center justify-between">
+            <button class="love-btn flex items-center gap-1 group" type="button">
+                <span class="material-symbols-outlined text-error group-hover:scale-110 transition-transform" style="font-variation-settings: 'FILL' 1;">favorite</span>
+                <span class="font-label-md text-on-surface-variant">${likes}</span>
+            </button>
+            <span class="font-label-md text-outline/60 text-xs">${waktu}</span>
+        </div>
+    `;
 
-div.innerHTML = `
-    <div class="meta"><strong>${nama}</strong> ke <strong>${tujuan}</strong></div>
-    <div class="message">"${pesan}"</div>
-    ${audioHtml}
+    // Append first to get dimensions
+    window.container.appendChild(card);
 
-    <div class="love-section">
-        <button class="love-btn" data-id="${item.id}">
-            ❤️ <span class="love-count">${data.likes || 0}</span>
-        </button>
-    </div>
-`;
-    // 1. Append dulu ke container supaya punya dimensi (width/height)
-    container.appendChild(div);
-
-    const loveBtn = div.querySelector(".love-btn");
-    const vnAudio = div.querySelector("audio");
-    const postId = item.id;
+    const loveBtn = card.querySelector('.love-btn');
+    const vnAudio = card.querySelector('audio');
+    const postId = id;
 
     if (vnAudio) {
-      vnAudio.addEventListener("play", () => {
-        if (isPlaying) {
-          music.pause();
-          btn.classList.remove("playing");
-          isPlaying = false;
-        }
-      });
-      vnAudio.addEventListener("pointerdown", (event) => {
-        event.stopPropagation();
-      });
-      vnAudio.addEventListener("click", (event) => {
-        event.stopPropagation();
-      });
+        vnAudio.addEventListener("play", () => {
+            if (window.isPlaying) {
+                window.music.pause();
+                window.btn.textContent = 'play_circle';
+                window.isPlaying = false;
+            }
+        });
     }
 
+    const toggleBtn = card.querySelector('.toggle-detail-btn');
+    const detailSection = card.querySelector('.message-box');
+    const audioElement = card.querySelector('audio');
 
+    if (likedPosts.includes(postId)) {
+        loveBtn.classList.add('liked');
+        loveBtn.disabled = true;
+    }
 
-if (likedPosts.includes(postId)) {
-  loveBtn.classList.add("liked");
-  loveBtn.disabled = true;
-  
+    toggleBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isCollapsed = card.classList.toggle('collapsed');
+        toggleBtn.setAttribute('aria-expanded', String(!isCollapsed));
+        toggleBtn.innerHTML = `<span class="material-symbols-outlined">${isCollapsed ? 'arrow_drop_up' : 'arrow_drop_down'}</span>`;
+    });
+
+    loveBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        if (likedPosts.includes(postId)) {
+            alert("Kamu sudah kasih love 💔");
+            return;
+        }
+
+        try {
+            const postRef = doc(db, "gamon", postId);
+            await updateDoc(postRef, {
+                likes: increment(1)
+            });
+
+            likedPosts.push(postId);
+            localStorage.setItem("likedPosts", JSON.stringify(likedPosts));
+
+            loveBtn.classList.add('liked');
+            loveBtn.disabled = true;
+
+            // Animasi
+            loveBtn.style.transform = "scale(1.2)";
+            setTimeout(() => {
+                loveBtn.style.transform = "scale(1)";
+            }, 150);
+
+            const count = loveBtn.querySelector('span:last-child');
+            count.textContent = parseInt(count.textContent) + 1;
+
+        } catch (err) {
+            console.error(err);
+            alert("Gagal like 😢");
+        }
+    });
+
+    return card;
 }
 
-loveBtn.addEventListener("click", async () => {
-  if (likedPosts.includes(postId)) {
-    alert("Kamu sudah kasih love 💔");
-    return;
-  }
-
-  try {
-    const postRef = doc(db, "gamon", postId);
-
-    await updateDoc(postRef, {
-      likes: increment(1)
+// Firestore Listener
+onSnapshot(q, (snapshot) => {
+    window.container.innerHTML = ""; // Clear existing
+    snapshot.forEach((doc) => {
+        const data = doc.data();
+        if (!data.pesan) return;
+        createCard(data, doc.id);
     });
-
-    likedPosts.push(postId);
-    localStorage.setItem("likedPosts", JSON.stringify(likedPosts));
-
-    loveBtn.classList.add("liked");
-
-    // ✅ animasi di sini
-    loveBtn.style.transform = "scale(1.2)";
-    setTimeout(() => {
-      loveBtn.style.transform = "scale(1)";
-    }, 150);
-
-    const count = loveBtn.querySelector(".love-count");
-    count.textContent = parseInt(count.textContent) + 1;
-
-  } catch (err) {
-    console.error(err);
-    alert("Gagal like 😢");
-  }
+}, (error) => {
+    console.error('Error in onSnapshot:', error);
 });
 
-    // 2. Ambil ukuran container dan popup yang baru saja dibuat
-    const containerWidth = container.offsetWidth;
-    const containerHeight = container.offsetHeight;
-    const popupWidth = div.offsetWidth;
-    const popupHeight = div.offsetHeight;
-
-    // 3. Hitung batas maksimal agar tidak keluar tembok
-    const maxLeftPx = Math.max(containerWidth - popupWidth - 20, 0);
-    const maxTopPx = Math.max(containerHeight - popupHeight - 20, 0);
-
-    let topPx, leftPx, tries = 0;
-    do {
-      topPx = Math.random() * maxTopPx;
-      leftPx = Math.random() * maxLeftPx;
-      tries++;
-    } while (
-      usedPositions.some(pos =>
-        Math.abs(pos.top - topPx) < 80 && // Jarak antar popup vertikal
-        Math.abs(pos.left - leftPx) < 80  // Jarak antar popup horizontal
-      ) && tries < 30
-    );
-
-    usedPositions.push({ top: topPx, left: leftPx });
-    div.style.top = topPx + "px";
-    div.style.left = leftPx + "px";
-
-    // --- Bagian event listener pointerdown tetap sama di bawahnya ---
-   // --- Bagian event listener pointerdown yang diperbaiki ---
-div.addEventListener("pointerdown", (e) => {
-  // CEK: Jika yang diklik adalah elemen interaktif di dalam kartu, biarkan event normal berjalan
-  if (e.target.closest("audio") || e.target.closest("button") || e.target.closest("a") || e.target.closest("input") || e.target.closest("textarea")) {
-    return; // Keluar dari fungsi, biarkan kontrol tersebut bekerja normal
-  }
-
-  const rect = div.getBoundingClientRect();
-  const clickX = e.clientX - rect.left;
-  const clickY = e.clientY - rect.top;
-  const resizeZone = 20;
-
-  if (clickX > rect.width - resizeZone && clickY > rect.height - resizeZone) {
-    return;
-  }
-
-  // Hanya preventDefault saat mulai drag kartu, bukan saat klik audio atau tombol
-  e.preventDefault();
-
-  // ... (Sisa kode drag lainnya tetap sama)
-      div.classList.add("dragging");
-      div.style.zIndex = ++currentZIndex;
-      div.setPointerCapture(e.pointerId);
-
-      const startX = e.clientX;
-      const startY = e.clientY;
-      const startLeft = parseFloat(div.style.left) || 0;
-      const startTop = parseFloat(div.style.top) || 0;
-
-      const onMove = (moveEvent) => {
-        const dx = moveEvent.clientX - startX;
-        const dy = moveEvent.clientY - startY;
-        const containerRect = container.getBoundingClientRect();
-        const maxLeft = Math.max(containerRect.width - div.offsetWidth, 0);
-        const maxTop = Math.max(containerRect.height - div.offsetHeight, 0);
-        const newLeft = Math.min(Math.max(startLeft + dx, 0), maxLeft);
-        const newTop = Math.min(Math.max(startTop + dy, 0), maxTop);
-
-        div.style.left = newLeft + "px";
-        div.style.top = newTop + "px";
-      };
-
-      const endDrag = (event) => {
-        div.classList.remove("dragging");
-        div.releasePointerCapture(e.pointerId);
-        window.removeEventListener("pointermove", onMove);
-        window.removeEventListener("pointerup", endDrag);
-        window.removeEventListener("pointercancel", endDrag);
-      };
-
-      window.addEventListener("pointermove", onMove);
-      window.addEventListener("pointerup", endDrag);
-      window.addEventListener("pointercancel", endDrag);
-    });
-  });
-});
-
-// Simple HTML escape to prevent XSS
+// Simple HTML escape
 function escapeHtml(str) {
   return String(str)
     .replace(/&/g, "&amp;")
@@ -689,10 +492,6 @@ function escapeHtml(str) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
-}
-
-function goToSubmit() {
-  window.location.href = "submit.html";
 }
 </script>
 
