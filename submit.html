@@ -207,19 +207,58 @@
         const player = document.getElementById('player');
         const recordingStatus = document.getElementById('recordingStatus');
 
+        const getSupportedAudioMimeType = () => {
+            const types = [
+                'audio/webm;codecs=opus',
+                'audio/webm',
+                'audio/mp4',
+                'audio/x-m4a',
+                'audio/mpeg',
+                'audio/wav'
+            ];
+
+            if (!window.MediaRecorder || typeof MediaRecorder.isTypeSupported !== 'function') {
+                return '';
+            }
+
+            for (const type of types) {
+                if (MediaRecorder.isTypeSupported(type)) {
+                    return type;
+                }
+            }
+            return '';
+        };
+
+        const isRecordingSupported = () => {
+            return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder);
+        };
+
+        if (!isRecordingSupported()) {
+            recordBtn.disabled = true;
+            recordBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            recordText.innerText = 'Rekam VN tidak tersedia di perangkat ini';
+        }
+
         recordBtn.addEventListener('click', async () => {
+            if (!isRecordingSupported()) {
+                alert('Rekaman suara tidak didukung di peramban ini. Silakan gunakan perangkat lain atau kirim tanpa VN.');
+                return;
+            }
+
             if (!mediaRecorder || mediaRecorder.state === 'inactive') {
                 try {
                     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                    mediaRecorder = new MediaRecorder(stream);
+                    const mimeType = getSupportedAudioMimeType();
+                    mediaRecorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
                     audioChunks = [];
 
                     mediaRecorder.ondataavailable = event => {
-                        if (event.data.size > 0) audioChunks.push(event.data);
+                        if (event.data && event.data.size > 0) audioChunks.push(event.data);
                     };
 
                     mediaRecorder.onstop = async () => {
-                        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                        const type = audioChunks[0]?.type || mediaRecorder.mimeType || 'audio/webm';
+                        const audioBlob = new Blob(audioChunks, { type });
                         const audioUrl = URL.createObjectURL(audioBlob);
                         player.src = audioUrl;
                         audioPreview.classList.remove('hidden');
@@ -240,7 +279,7 @@
                     recordBtn.classList.remove('bg-secondary-container', 'text-on-secondary-container');
                 } catch (err) {
                     console.error('Microphone access denied', err);
-                    alert('Akses mikrofon ditolak.');
+                    alert('Akses mikrofon ditolak atau tidak tersedia.');
                 }
             } else {
                 mediaRecorder.stop();
