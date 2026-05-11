@@ -4,51 +4,181 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>AI Curhat - Gamon Tawing</title>
-
-<script src="https://cdn.tailwindcss.com"></script>
-
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400..900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "outline": "#7f7478",
+                        "inverse-on-surface": "#f5eff1",
+                        "secondary-fixed": "#ecdeee",
+                        "primary-fixed": "#f4dce4",
+                        "on-primary": "#ffffff",
+                        "secondary": "#655b68",
+                        "on-surface-variant": "#4d4447",
+                        "on-error-container": "#93000a",
+                        "surface-dim": "#ded9db",
+                        "on-secondary": "#ffffff",
+                        "on-surface": "#1d1b1d",
+                        "surface-container-highest": "#e7e1e3",
+                        "surface-container-high": "#ece7e9",
+                        "on-primary-fixed-variant": "#524249",
+                        "outline-variant": "#d0c3c7",
+                        "background": "#fef8fa",
+                        "on-secondary-fixed-variant": "#4d4450",
+                        "tertiary-container": "#d9edf6",
+                        "error-container": "#ffdad6",
+                        "tertiary": "#4f6169",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-container": "#f2ecee",
+                        "secondary-container": "#ecdeee",
+                        "tertiary-fixed-dim": "#b6cad2",
+                        "on-primary-container": "#76646b",
+                        "surface-bright": "#fef8fa",
+                        "primary-fixed-dim": "#d7c1c8",
+                        "primary": "#6b5a60",
+                        "inverse-surface": "#323031",
+                        "on-primary-fixed": "#25181e",
+                        "on-secondary-container": "#6b616e",
+                        "on-tertiary-container": "#596c73",
+                        "on-tertiary-fixed": "#0b1e24",
+                        "inverse-primary": "#d7c1c8",
+                        "on-tertiary": "#ffffff",
+                        "tertiary-fixed": "#d2e6ef",
+                        "secondary-fixed-dim": "#cfc2d2",
+                        "surface": "#fef8fa",
+                        "on-error": "#ffffff",
+                        "primary-container": "#fce4ec",
+                        "surface-variant": "#e7e1e3",
+                        "error": "#ba1a1a",
+                        "on-tertiary-fixed-variant": "#374951",
+                        "on-background": "#1d1b1d",
+                        "surface-tint": "#6b5a60",
+                        "on-secondary-fixed": "#201924",
+                        "surface-container-low": "#f8f2f4"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "unit": "8px",
+                        "section-gap": "80px",
+                        "gutter": "24px",
+                        "container-padding": "40px",
+                        "margin-mobile": "20px"
+                    },
+                    "fontFamily": {
+                        "body-lg": ["Inter"],
+                        "body-md": ["Inter"],
+                        "display-lg": ["Playfair Display"],
+                        "label-md": ["Inter"],
+                        "headline-sm": ["Playfair Display"],
+                        "headline-md": ["Playfair Display"]
+                    },
+                    "fontSize": {
+                        "body-lg": ["18px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                        "body-md": ["16px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                        "display-lg": ["48px", {"lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                        "label-md": ["14px", {"lineHeight": "1", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                        "headline-sm": ["24px", {"lineHeight": "1.4", "fontWeight": "500"}],
+                        "headline-md": ["32px", {"lineHeight": "1.3", "fontWeight": "500"}]
+                    }
+                },
+            },
+        }
+    </script>
 <style>
-body {
-  background: linear-gradient(135deg,#fff5f8,#f3e8ff,#ffffff);
-  min-height: 100vh;
-  font-family: Inter;
-}
-.chat-box {
-  height: 70vh;
-  overflow-y: auto;
-}
-.msg {
-  max-width: 80%;
-  padding: 10px 14px;
-  border-radius: 12px;
-  margin-bottom: 10px;
-}
-.me {
-  background: #d7c1c8;
-  margin-left: auto;
-}
-.ai {
-  background: #f2ecee;
-}
-</style>
+        body {
+            background: linear-gradient(135deg, #fff5f8 0%, #f3e8ff 50%, #ffffff 100%);
+            overflow-x: hidden;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.5);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            box-shadow: 0 10px 30px -10px rgba(107, 90, 96, 0.1);
+        }
+        .chat-box {
+            height: 60vh;
+            overflow-y: auto;
+            scroll-behavior: smooth;
+        }
+        .msg {
+            max-width: 80%;
+            padding: 12px 16px;
+            border-radius: 16px;
+            margin-bottom: 12px;
+            animation: fadeIn 0.3s ease-in;
+        }
+        .me {
+            background: linear-gradient(135deg, #d7c1c8, #f4dce4);
+            margin-left: auto;
+            color: #25181e;
+        }
+        .ai {
+            background: #f2ecee;
+            color: #1d1b1d;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .input-focus:focus {
+            box-shadow: 0 0 0 4px rgba(252, 228, 236, 0.5);
+            border-color: #d7c1c8;
+        }
+        .send-btn:hover {
+            transform: scale(1.05);
+        }
+        .send-btn:active {
+            transform: scale(0.95);
+        }
+    </style>
 </head>
 
-<body class="flex flex-col items-center justify-center p-4">
+<body class="font-body-md text-on-surface selection:bg-primary-container selection:text-on-primary-container">
+<main class="relative z-10 flex flex-col items-center justify-center min-h-screen px-margin-mobile md:px-container-padding py-section-gap">
+<!-- Back Link -->
+<a class="self-start mb-unit flex items-center gap-2 text-on-surface-variant hover:text-primary transition-colors duration-200 group" href="index.html">
+<span class="material-symbols-outlined transition-transform group-hover:-translate-x-1">arrow_back</span>
+<span class="font-label-md text-label-md">Kembali ke Beranda</span>
+</a>
 
-<h1 class="text-2xl font-bold mb-4">💔 AI Curhat Gamon</h1>
+<!-- Chat Container -->
+<section class="glass-card w-full max-w-2xl p-gutter md:p-container-padding rounded-xl flex flex-col h-[80vh] md:h-[70vh]">
+<div class="mb-gutter text-center">
+<h1 class="font-display-lg text-headline-md md:text-display-lg text-primary mb-2">💔 AI Curhat Gamon</h1>
+<p class="font-body-md text-on-surface-variant">Curhatlah dengan AI yang penuh empati tentang perasaanmu.</p>
+</div>
 
 <!-- CHAT BOX -->
-<div id="chat" class="chat-box w-full max-w-xl bg-white/60 p-4 rounded-xl shadow"></div>
+<div id="chat" class="chat-box flex-1 bg-surface-container-low/50 rounded-lg p-4 mb-4 overflow-y-auto"></div>
 
 <!-- INPUT -->
-<div class="w-full max-w-xl flex gap-2 mt-4">
-  <input id="input" class="flex-1 p-3 rounded-lg border" placeholder="Tulis curhatanmu..." />
-  <button onclick="send()" class="bg-purple-500 text-white px-4 rounded-lg">Kirim</button>
+<div class="flex gap-3">
+  <input id="input" class="flex-1 bg-surface-container-lowest border border-outline-variant rounded-full px-gutter py-3 text-on-surface focus:outline-none input-focus transition-all" placeholder="Tulis curhatanmu..." />
+  <button onclick="send()" class="bg-primary text-on-primary px-6 py-3 rounded-full font-semibold hover:brightness-110 shadow-lg shadow-primary/20 transition-all duration-300 send-btn flex items-center gap-2">
+    <span class="material-symbols-outlined">send</span>
+    <span>Kirim</span>
+  </button>
 </div>
+</section>
+</main>
 
 <script>
 const chat = document.getElementById("chat");
 const input = document.getElementById("input");
+const sendBtn = document.querySelector('button[onclick="send()"]');
 
 // tambah pesan ke UI
 function addMessage(text, type) {
@@ -59,26 +189,74 @@ function addMessage(text, type) {
   chat.scrollTop = chat.scrollHeight;
 }
 
+// tampilkan typing indicator
+function showTyping() {
+  const typingDiv = document.createElement("div");
+  typingDiv.className = "msg ai typing";
+  typingDiv.innerHTML = '<div class="flex items-center gap-2"><div class="flex gap-1"><div class="w-2 h-2 bg-primary rounded-full animate-bounce"></div><div class="w-2 h-2 bg-primary rounded-full animate-bounce" style="animation-delay: 0.1s"></div><div class="w-2 h-2 bg-primary rounded-full animate-bounce" style="animation-delay: 0.2s"></div></div><span class="text-sm text-on-surface-variant">AI sedang mengetik...</span></div>';
+  typingDiv.id = "typing-indicator";
+  chat.appendChild(typingDiv);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+// sembunyikan typing indicator
+function hideTyping() {
+  const typingDiv = document.getElementById("typing-indicator");
+  if (typingDiv) typingDiv.remove();
+}
+
 // kirim ke backend
 async function send() {
-  const text = input.value;
+  const text = input.value.trim();
   if (!text) return;
+
+  // disable input dan button
+  input.disabled = true;
+  sendBtn.disabled = true;
+  sendBtn.innerHTML = '<span class="animate-spin material-symbols-outlined">progress_activity</span>';
 
   addMessage(text, "me");
   input.value = "";
 
-  const res = await fetch("/api/chat", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({ message: text })
-  });
+  showTyping();
 
-  const data = await res.json();
+  try {
+    const res = await fetch("/api/chat", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ message: text })
+    });
 
-  addMessage(data.reply || "AI tidak merespon", "ai");
+    const data = await res.json();
+
+    hideTyping();
+    addMessage(data.reply || "AI tidak merespon", "ai");
+  } catch (error) {
+    hideTyping();
+    addMessage("Maaf, terjadi kesalahan. Coba lagi nanti.", "ai");
+  }
+
+  // enable kembali
+  input.disabled = false;
+  sendBtn.disabled = false;
+  sendBtn.innerHTML = '<span class="material-symbols-outlined">send</span><span>Kirim</span>';
+  input.focus();
 }
+
+// enter key support
+input.addEventListener('keypress', function(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    send();
+  }
+});
+
+// welcome message
+setTimeout(() => {
+  addMessage("Halo! Saya di sini untuk mendengarkan curhatanmu. Apa yang sedang kamu rasakan? 💕", "ai");
+}, 500);
 </script>
 
 </body>
