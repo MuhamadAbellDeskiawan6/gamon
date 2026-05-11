@@ -1,8 +1,4 @@
 export default async function handler(req, res) {
-  if (req.method !== "POST") {
-    return res.status(405).json({ error: "Method not allowed" });
-  }
-
   try {
     const { message } = req.body;
 
@@ -15,11 +11,11 @@ export default async function handler(req, res) {
           "Authorization": `Bearer ${process.env.GROQ_API_KEY}`
         },
         body: JSON.stringify({
-          model: "llama-3.1-70b-versatile",
+          model: "llama-3.1-8b-instant",
           messages: [
             {
               role: "system",
-              content: "Kamu adalah AI teman curhat yang lembut, emosional, dan peka terhadap perasaan patah hati."
+              content: "Kamu adalah AI teman curhat yang lembut, emosional, dan peka terhadap patah hati."
             },
             {
               role: "user",
@@ -32,11 +28,19 @@ export default async function handler(req, res) {
 
     const data = await response.json();
 
-    res.status(200).json({
-      reply: data.choices?.[0]?.message?.content || "Tidak ada respon"
-    });
+    // 🔥 DEBUG penting (biar ketahuan error asli Groq)
+    console.log("GROQ RAW RESPONSE:", JSON.stringify(data));
+
+    const reply =
+      data?.choices?.[0]?.message?.content ||
+      data?.error?.message ||
+      "AI lagi diam... (cek API / model / key)";
+
+    return res.status(200).json({ reply });
 
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    return res.status(500).json({
+      reply: "Server error: " + err.message
+    });
   }
 }
