@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>AI Curhat - Gamon Tawing</title>
+
+<script src="https://cdn.tailwindcss.com"></script>
+
+<style>
+body {
+  background: linear-gradient(135deg,#fff5f8,#f3e8ff,#ffffff);
+  min-height: 100vh;
+  font-family: Inter;
+}
+.chat-box {
+  height: 70vh;
+  overflow-y: auto;
+}
+.msg {
+  max-width: 80%;
+  padding: 10px 14px;
+  border-radius: 12px;
+  margin-bottom: 10px;
+}
+.me {
+  background: #d7c1c8;
+  margin-left: auto;
+}
+.ai {
+  background: #f2ecee;
+}
+</style>
+</head>
+
+<body class="flex flex-col items-center justify-center p-4">
+
+<h1 class="text-2xl font-bold mb-4">💔 AI Curhat Gamon</h1>
+
+<!-- CHAT BOX -->
+<div id="chat" class="chat-box w-full max-w-xl bg-white/60 p-4 rounded-xl shadow"></div>
+
+<!-- INPUT -->
+<div class="w-full max-w-xl flex gap-2 mt-4">
+  <input id="input" class="flex-1 p-3 rounded-lg border" placeholder="Tulis curhatanmu..." />
+  <button onclick="send()" class="bg-purple-500 text-white px-4 rounded-lg">Kirim</button>
+</div>
+
+<script>
+const chat = document.getElementById("chat");
+const input = document.getElementById("input");
+
+// tambah pesan ke UI
+function addMessage(text, type) {
+  const div = document.createElement("div");
+  div.className = "msg " + type;
+  div.innerText = text;
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+// kirim ke backend
+async function send() {
+  const text = input.value;
+  if (!text) return;
+
+  addMessage(text, "me");
+  input.value = "";
+
+  const res = await fetch("/api/chat", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ message: text })
+  });
+
+  const data = await res.json();
+
+  addMessage(data.reply || "AI tidak merespon", "ai");
+}
+</script>
+
+</body>
+</html>
