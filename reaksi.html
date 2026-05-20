@@ -240,6 +240,11 @@
             tampilkanKataGamon();
         }
 
+        // Fungsi pembantu hitung jarak koordinat
+        function hitungJarak(p1, p2) {
+            return Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2));
+        }
+
         function onResults(results) {
             if (guideOverlay.style.opacity !== '0') {
                 guideOverlay.style.opacity = '0';
@@ -253,41 +258,46 @@
 
                 const jumlahTangan = results.multiHandLandmarks.length;
 
+                // 1. Logika untuk 1 Tangan (Korean Finger Heart /🫰)
                 if (jumlahTangan === 1) {
                     const landmarks = results.multiHandLandmarks[0];
-                    const jarakJempolTelunjuk = Math.sqrt(
-                        Math.pow(landmarks[8].x - landmarks[4].x, 2) + 
-                        Math.pow(landmarks[8].y - landmarks[4].y, 2)
-                    );
+                    
+                    // Jarak jempol ke telunjuk harus cukup dekat untuk saling bersilangan/menempel
+                    const jarakJempolTelunjuk = hitungJarak(landmarks[8], landmarks[4]);
 
-                    const tengahMenekuk = landmarks[12].y > landmarks[10].y;
-                    const manisMenekuk = landmarks[16].y > landmarks[14].y;
-                    const kelingkingMenekuk = landmarks[20].y > landmarks[18].y;
+                    // Menggunakan rasio atau jarak absolut yang lebih ketat (0.045) agar tidak terlalu sensitif
+                    const jempolDekatTelunjuk = jarakJempolTelunjuk < 0.045;
 
-                    const bentukSesuai = jarakJempolTelunjuk < 0.07 && tengahMenekuk && manisMenekuk && kelingkingMenekuk;
+                    // Deteksi jari menekuk secara absolut (posisi ujung jari harus berada di bawah sendi tengah/bawahnya)
+                    const tengahMenekuk = landmarks[12].y > landmarks[10].y && landmarks[11].y > landmarks[9].y;
+                    const manisMenekuk = landmarks[16].y > landmarks[14].y && landmarks[15].y > landmarks[13].y;
+                    const kelingkingMenekuk = landmarks[20].y > landmarks[18].y && landmarks[19].y > landmarks[17].y;
 
-                    if (bentukSesuai) {
+                    // Posisi telunjuk dan jempol harus mengarah ke atas (tidak terbalik atau menyamping asal-asalan)
+                    const posisiMenghadapAtas = landmarks[8].y < landmarks[6].y && landmarks[4].y < landmarks[2].y;
+
+                    if (jempolDekatTelunjuk && tengahMenekuk && manisMenekuk && kelingkingMenekuk && posisiMenghadapAtas) {
                         tampilkanKataGamon();
                     }
                 } 
+                // 2. Logika untuk 2 Tangan (Simbol Hati Klasik /🫶)
                 else if (jumlahTangan === 2) {
                     const tangan1 = results.multiHandLandmarks[0];
                     const tangan2 = results.multiHandLandmarks[1];
 
-                    const jarakAntarJempol = Math.sqrt(
-                        Math.pow(tangan1[4].x - tangan2[4].x, 2) + 
-                        Math.pow(tangan1[4].y - tangan2[4].y, 2)
-                    );
+                    // Jarak antara ujung kedua jempol dan kedua telunjuk kiri-kanan
+                    const jarakAntarJempol = hitungJarak(tangan1[4], tangan2[4]);
+                    const jarakAntarTelunjuk = hitungJarak(tangan1[8], tangan2[8]);
 
-                    const jarakAntarTelunjuk = Math.sqrt(
-                        Math.pow(tangan1[8].x - tangan2[8].x, 2) + 
-                        Math.pow(tangan1[8].y - tangan2[8].y, 2)
-                    );
+                    // Batas jarak diperketat menjadi maksimum 0.09 agar tangan harus benar-benar menyatu membentuk hati
+                    const ujungJempolBertemu = jarakAntarJempol < 0.09;
+                    const ujungTelunjukBertemu = jarakAntarTelunjuk < 0.09;
 
-                    const posisiSesuaiTangan1 = tangan1[8].y < tangan1[4].y;
-                    const posisiSesuaiTangan2 = tangan2[8].y < tangan2[4].y;
+                    // Jari telunjuk harus melengkung ke bawah/sejajar untuk membentuk lengkungan atas hati
+                    const posisiSesuaiTangan1 = tangan1[8].y < tangan1[5].y;
+                    const posisiSesuaiTangan2 = tangan2[8].y < tangan2[5].y;
 
-                    if (jarakAntarJempol < 0.12 && jarakAntarTelunjuk < 0.12 && posisiSesuaiTangan1 && posisiSesuaiTangan2) {
+                    if (ujungJempolBertemu && ujungTelunjukBertemu && posisiSesuaiTangan1 && posisiSesuaiTangan2) {
                         tampilkanKataGamon();
                     }
                 }
@@ -303,11 +313,12 @@
             locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
         });
 
+        // Menaikkan nilai keyakinan deteksi menjadi 0.75 agar meminimalkan false-trigger dari noise latar belakang
         hands.setOptions({
             maxNumHands: 2,
             modelComplexity: 1,
-            minDetectionConfidence: 0.6,
-            minTrackingConfidence: 0.6
+            minDetectionConfidence: 0.75,
+            minTrackingConfidence: 0.75
         });
 
         hands.onResults(onResults);
