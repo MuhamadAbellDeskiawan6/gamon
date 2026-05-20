@@ -245,77 +245,75 @@
             return Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2));
         }
 
-     function onResults(results) {
-            if (guideOverlay.style.opacity !== '0') {
-                guideOverlay.style.opacity = '0';
-                statusText.innerText = "Mencari Tangan...";
-            }
-
-            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
-                statusText.innerText = "Tangan Terdeteksi ✨";
-                statusDot.className = "relative inline-flex rounded-full h-2 w-2 bg-emerald-500";
-                statusPulse.className = "animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75";
-
-                const jumlahTangan = results.multiHandLandmarks.length;
-
-                // 1. LOGIKA 1 TANGAN (Korean Finger Heart / 🫰)
-                if (jumlahTangan === 1) {
-                    const landmarks = results.multiHandLandmarks[0];
-                    
-                    // Hitung ukuran telapak tangan sebagai acuan dinamis (jarak pergelangan ke pangkal jari tengah)
-                    const ukuranTelapak = hitungJarak(landmarks[0], landmarks[9]);
-
-                    // Jarak ujung jempol (4) ke ujung telunjuk (8) harus sangat dekat relatif terhadap ukuran tangan
-                    const jarakJempolTelunjuk = hitungJarak(landmarks[8], landmarks[4]);
-                    const jempolDekatTelunjuk = jarakJempolTelunjuk < (ukuranTelapak * 0.25); 
-
-                    // Jari tengah, manis, kelingking harus BENAR-BENAR menekuk masuk ke dalam telapak tangan
-                    // Kita cek jarak ujung jari ke pergelangan tangan (0) harus lebih pendek dari pangkal jarinya sendiri
-                    const tengahMenekuk = hitungJarak(landmarks[12], landmarks[0]) < hitungJarak(landmarks[9], landmarks[0]);
-                    const manisMenekuk = hitungJarak(landmarks[16], landmarks[0]) < hitungJarak(landmarks[13], landmarks[0]);
-                    const kelingkingMenekuk = hitungJarak(landmarks[20], landmarks[0]) < hitungJarak(landmarks[17], landmarks[0]);
-
-                    // Pastikan jempol dan telunjuk posisinya lebih tinggi dari pergelangan (tangan tegak)
-                    const posisiTegak = landmarks[8].y < landmarks[5].y && landmarks[4].y < landmarks[2].y;
-
-                    if (jempolDekatTelunjuk && tengahMenekuk && manisMenekuk && kelingkingMenekuk && posisiTegak) {
-                        tampilkanKataGamon();
-                    }
-                } 
-                // 2. LOGIKA 2 TANGAN (Simbol Hati Klasik / 🫶)
-                else if (jumlahTangan === 2) {
-                    const tangan1 = results.multiHandLandmarks[0];
-                    const tangan2 = results.multiHandLandmarks[1];
-
-                    // Hitung acuan ukuran tangan masing-masing
-                    const ukuranTangan1 = hitungJarak(tangan1[0], tangan1[9]);
-                    const ukuranTangan2 = hitungJarak(tangan2[0], tangan2[9]);
-                    const rataUkuran = (ukuranTangan1 + ukuranTangan2) / 2;
-
-                    // Jarak pertemuan antar ujung jari kiri dan kanan
-                    const jarakAntarJempol = hitungJarak(tangan1[4], tangan2[4]);
-                    const jarakAntarTelunjuk = hitungJarak(tangan1[8], tangan2[8]);
-
-                    // Menggunakan batasan dinamis berbasis ukuran tangan agar pas di layar kecil mobile
-                    const ujungJempolBertemu = jarakAntarJempol < (rataUkuran * 0.45);
-                    const ujungTelunjukBertemu = jarakAntarTelunjuk < (rataUkuran * 0.45);
-
-                    // Validasi bentuk lengkungan atas hati: 
-                    // Ujung telunjuk (8) harus berada di bawah pangkal jari telunjuk (5) akibat ditekuk melengkung
-                    const telunjuk1Melengkung = tangan1[8].y > tangan1[6].y;
-                    const telunjuk2Melengkung = tangan2[8].y > tangan2[6].y;
-
-                    if (ujungJempolBertemu && ujungTelunjukBertemu && telunjuk1Melengkung && telunjuk2Melengkung) {
-                        tampilkanKataGamon();
-                    }
-                }
-
-            } else {
-                statusText.innerText = "Mencari Tangan...";
-                statusDot.className = "relative inline-flex rounded-full h-2 w-2 bg-amber-500";
-                statusPulse.className = "animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75";
-            }
+   function onResults(results) {
+        if (guideOverlay.style.opacity !== '0') {
+            guideOverlay.style.opacity = '0';
+            statusText.innerText = "Mencari Tangan...";
         }
+
+        if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+            statusText.innerText = "Tangan Terdeteksi ✨";
+            statusDot.className = "relative inline-flex rounded-full h-2 w-2 bg-emerald-500";
+            statusPulse.className = "animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75";
+
+            const jumlahTangan = results.multiHandLandmarks.length;
+
+            // 1. LOGIKA 1 TANGAN (Finger Heart / Saranghae 🫰)
+            if (jumlahTangan === 1) {
+                const landmarks = results.multiHandLandmarks[0];
+                
+                // Hitung ukuran telapak tangan sebagai acuan rasio dinamis
+                const ukuranTelapak = hitungJarak(landmarks[0], landmarks[9]);
+
+                // Jarak ujung jempol (4) ke ujung telunjuk (8)
+                const jarakJempolTelunjuk = hitungJarak(landmarks[8], landmarks[4]);
+                
+                // Di iPhone, jarak 0.45 dari ukuran telapak adalah sweet spot yang pas
+                const jempolDekatTelunjuk = jarakJempolTelunjuk < (ukuranTelapak * 0.45); 
+
+                // KUNCI UTAMA MOBILE: Cek jari tengah, manis, kelingking menekuk berdasarkan posisi Y.
+                // Jika ujung jari (12, 16, 20) berada di bawah/sejajar dengan joint tengahnya (10, 14, 18), berarti jari menekuk.
+                const tengahMenekuk = landmarks[12].y >= landmarks[10].y;
+                const manisMenekuk = landmarks[16].y >= landmarks[14].y;
+                const kelingkingMenekuk = landmarks[20].y >= landmarks[18].y;
+
+                // Pastikan posisi tangan tegak berdiri (ujung telunjuk berada di atas pangkalnya sendiri)
+                const posisiTegak = landmarks[8].y < landmarks[5].y;
+
+                if (jempolDekatTelunjuk && tengahMenekuk && manisMenekuk && kelingkingMenekuk && posisiTegak) {
+                    tampilkanKataGamon();
+                }
+            } 
+            // 2. LOGIKA 2 TANGAN (Simbol Hati Klasik 🫶)
+            else if (jumlahTangan === 2) {
+                const tangan1 = results.multiHandLandmarks[0];
+                const tangan2 = results.multiHandLandmarks[1];
+
+                const ukuranTangan1 = hitungJarak(tangan1[0], tangan1[9]);
+                const ukuranTangan2 = hitungJarak(tangan2[0], tangan2[9]);
+                const rataUkuran = (ukuranTangan1 + ukuranTangan2) / 2;
+
+                const jarakAntarJempol = hitungJarak(tangan1[4], tangan2[4]);
+                const jarakAntarTelunjuk = hitungJarak(tangan1[8], tangan2[8]);
+
+                const ujungJempolBertemu = jarakAntarJempol < (rataUkuran * 0.6);
+                const ujungTelunjukBertemu = jarakAntarTelunjuk < (rataUkuran * 0.6);
+
+                // Validasi kelengkungan jari telunjuk (harus melengkung membentuk busur hati)
+                const telunjuk1Melengkung = tangan1[8].y > tangan1[6].y;
+                const telunjuk2Melengkung = tangan2[8].y > tangan2[6].y;
+
+                if (ujungJempolBertemu && ujungTelunjukBertemu && telunjuk1Melengkung && telunjuk2Melengkung) {
+                    tampilkanKataGamon();
+                }
+            }
+
+        } else {
+            statusText.innerText = "Mencari Tangan...";
+            statusDot.className = "relative inline-flex rounded-full h-2 w-2 bg-amber-500";
+            statusPulse.className = "animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75";
+        }
+    }
 
         const hands = new Hands({
             locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
