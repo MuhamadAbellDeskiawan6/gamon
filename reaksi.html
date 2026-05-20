@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>Cermin Reaksi - Gamon Tawing</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;1,500;1,600&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+    
+    <!-- MediaPipe Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "outline": "#7f7478",
+                        "inverse-on-surface": "#f5eff1",
+                        "secondary-fixed": "#ecdeee",
+                        "primary-fixed": "#f4dce4",
+                        "on-primary": "#ffffff",
+                        "secondary": "#655b68",
+                        "on-surface-variant": "#4d4447",
+                        "on-error-container": "#93000a",
+                        "surface-dim": "#ded9db",
+                        "on-secondary": "#ffffff",
+                        "on-surface": "#1d1b1d",
+                        "surface-container-highest": "#e7e1e3",
+                        "surface-container-high": "#ece7e9",
+                        "on-primary-fixed-variant": "#524249",
+                        "outline-variant": "#d0c3c7",
+                        "background": "#fef8fa",
+                        "on-secondary-fixed-variant": "#4d4450",
+                        "tertiary-container": "#d9edf6",
+                        "error-container": "#ffdad6",
+                        "tertiary": "#4f6169",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-container": "#f2ecee",
+                        "secondary-container": "#ecdeee",
+                        "tertiary-fixed-dim": "#b6cad2",
+                        "on-primary-container": "#76646b",
+                        "surface-bright": "#fef8fa",
+                        "primary-fixed-dim": "#d7c1c8",
+                        "primary": "#6b5a60",
+                        "inverse-surface": "#323031",
+                        "on-primary-fixed": "#25181e",
+                        "on-secondary-container": "#6b616e",
+                        "on-tertiary-container": "#596c73",
+                        "on-tertiary-fixed": "#0b1e24",
+                        "inverse-primary": "#d7c1c8",
+                        "on-tertiary": "#ffffff",
+                        "tertiary-fixed": "#d2e6ef",
+                        "secondary-fixed-dim": "#cfc2d2",
+                        "surface": "#fef8fa",
+                        "on-error": "#ffffff",
+                        "primary-container": "#fce4ec",
+                        "surface-variant": "#e7e1e3",
+                        "error": "#ba1a1a",
+                        "on-tertiary-fixed-variant": "#374951",
+                        "on-background": "#1d1b1d",
+                        "surface-tint": "#6b5a60",
+                        "on-secondary-fixed": "#201924",
+                        "surface-container-low": "#f8f2f4"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "unit": "8px",
+                        "section-gap": "80px",
+                        "gutter": "24px",
+                        "container-padding": "40px",
+                        "margin-mobile": "20px"
+                    },
+                    "fontFamily": {
+                        "body-lg": ["Inter"],
+                        "body-md": ["Inter"],
+                        "display-lg": ["Playfair Display"],
+                        "label-md": ["Inter"],
+                        "headline-sm": ["Playfair Display"],
+                        "headline-md": ["Playfair Display"]
+                    },
+                    "fontSize": {
+                        "body-lg": ["18px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                        "body-md": ["16px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                        "display-lg": ["48px", {"lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                        "label-md": ["14px", {"lineHeight": "1", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                        "headline-sm": ["24px", {"lineHeight": "1.4", "fontWeight": "500"}],
+                        "headline-md": ["32px", {"lineHeight": "1.3", "fontWeight": "500"}]
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background: linear-gradient(135deg, #fef8fa 0%, #fce4ec 50%, #f2ecee 100%);
+            min-height: 100vh;
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            box-shadow: 0 8px 32px 0 rgba(107, 90, 96, 0.08);
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+</head>
+<body class="font-body-md text-on-surface selection:bg-primary-container selection:text-on-primary-container">
+
+    <main class="relative z-10 flex flex-col items-center justify-center min-h-screen px-margin-mobile md:px-container-padding py-8 max-w-4xl mx-auto w-full">
+        
+        <!-- Back Link -->
+        <a class="self-start mb-6 flex items-center gap-2 text-on-surface-variant hover:text-primary transition-colors duration-200 group" href="index.html">
+            <span class="material-symbols-outlined transition-transform group-hover:-translate-x-1">arrow_back</span>
+            <span class="font-label-md text-label-md">Kembali ke Mading</span>
+        </a>
+
+        <!-- Content Card -->
+        <section class="glass-card w-full p-gutter md:p-container-padding rounded-xl flex flex-col items-center">
+            
+            <div class="mb-gutter text-center">
+                <h1 class="font-display-lg text-headline-md md:text-display-lg text-primary mb-2 italic">"Cermin Refleksi Hati"</h1>
+                <p class="font-body-md text-on-surface-variant max-w-md mx-auto">Hadapkan wajahmu, bentuk simbol hati (🫶 atau 🫰) ke kamera, dan biarkan semesta menerjemahkan rindumu.</p>
+            </div>
+
+            <!-- Webcam Container -->
+            <div class="relative w-full aspect-[4/3] rounded-xl overflow-hidden border border-outline-variant bg-surface-container-low shadow-inner group">
+                
+                <!-- Video Element -->
+                <video id="webcam" autoplay playsinline class="w-full h-full object-cover transform -scale-x-100"></video>
+                
+                <!-- Status Badge -->
+                <div id="status-badge" class="absolute top-4 left-4 bg-surface-container-lowest/80 backdrop-blur-md border border-outline-variant/60 px-3 py-1.5 rounded-full text-xs flex items-center gap-2 z-20 shadow-sm">
+                    <span class="relative flex h-2 w-2">
+                        <span id="status-pulse" class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                        <span id="status-dot" class="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+                    </span>
+                    <span id="status-text" class="text-on-surface-variant font-medium">Menyalakan kamera...</span>
+                </div>
+
+                <!-- Guide Overlay -->
+                <div id="guide-overlay" class="absolute inset-0 flex flex-col items-center justify-center bg-surface-container-lowest/60 backdrop-blur-sm text-center p-6 transition-opacity duration-500 pointer-events-none z-10">
+                    <div class="text-4xl mb-3 animate-bounce">🫶</div>
+                    <p class="font-label-md text-primary max-w-xs px-4">Izinkan akses kamera, lalu posisikan tanganmu membentuk kode hati di depan layar.</p>
+                </div>
+
+                <!-- Gamon Box Overlay (Quote Pop Up) -->
+                <div id="gamon-box" class="absolute inset-x-6 bottom-6 md:bottom-10 mx-auto max-w-lg bg-surface-container-lowest/95 backdrop-blur-md border border-primary/20 p-5 rounded-xl opacity-0 transform translate-y-4 transition-all duration-700 text-center pointer-events-none z-20 shadow-xl">
+                    <span class="absolute top-2 left-2 text-[10px] text-primary/40">✨</span>
+                    <span class="absolute bottom-2 right-2 text-[10px] text-primary/40">✨</span>
+                    
+                    <p id="gamon-text" class="font-display-lg italic text-body-lg text-primary leading-relaxed"></p>
+                    
+                    <div class="mt-3 text-[10px] uppercase tracking-widest text-on-primary-container font-semibold flex items-center justify-center gap-1">
+                        <span>🌌</span> <span>Gamon Tawing Reflection</span> <span>🌌</span>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Manual Trigger Fallback -->
+            <div class="mt-gutter text-center">
+                <p class="text-label-md text-on-surface-variant">Kamera tidak mendeteksi? <button onclick="pemicuManual()" class="text-primary font-semibold underline hover:text-primary-fixed-variant transition-colors">Klik di sini</button> untuk memunculkan pesan secara acak.</p>
+            </div>
+
+        </section>
+
+        <!-- Footer -->
+        <footer class="w-full text-center mt-gutter text-label-md text-on-surface-variant/60">
+            &copy; 2026 Gamon Tawing • Banjarmasin Celestial Project.
+        </footer>
+
+    </main>
+
+    <!-- Logic Scripts -->
+    <script>
+        const videoElement = document.getElementById('webcam');
+        const statusText = document.getElementById('status-text');
+        const statusDot = document.getElementById('status-dot');
+        const statusPulse = document.getElementById('status-pulse');
+        const guideOverlay = document.getElementById('guide-overlay');
+        const gamonBox = document.getElementById('gamon-box');
+        const gamonText = document.getElementById('gamon-text');
+
+        let cooldown = false; 
+
+        const kumpulanKataGamon = [
+            "Bentuk hati ini masih untukmu, meski aku tahu detaknya tak lagi kau dengar.",
+            "Lucu ya, tangan ini membentuk hati di layar, tapi hatiku yang asli masih tertinggal di masa lalumu.",
+            "Kamera bisa menangkap senyumku, tapi tidak dengan alasan di balik runtuhnya duniaku setelah kamu pergi.",
+            "Mengingatmu itu seperti menatap bintang mati; cahayanya masih sampai, tapi pemiliknya sudah lama hilang.",
+            "Aku masih di tempat yang sama, merawat rindu yang sengaja kau telantarkan.",
+            "Bagian tersulit dari melepaskan adalah menyadari bahwa hanya aku yang masih menggenggam kenangan ini.",
+            "Kamu adalah nama yang selalu gagal aku lupakan, meski malam sudah berganti ribuan kali.",
+            "Kisah kita sudah selesai, tapi kenapa luka ini masih terasa seperti baru kemarin sore?",
+            "Ternyata, menjadi bagian dari masa lalumu adalah patah hati paling sunyi yang harus aku nikmati sendiri.",
+            "Kamu berjalan menjauh dengan mudah, sementara aku sibuk mengumpulkan kepingan diri yang kau hancurkan.",
+            "Aku tidak membencimu. Aku hanya kecewa pada diriku sendiri karena percaya kamu tidak akan pernah pergi.",
+            "Sederhana bagimu untuk melangkah, seolah-olah waktu yang kita lewati hanya sekadar mampir tanpa arti.",
+            "Rinduku malam ini berisik sekali, sayangnya tidak ada lagi telinga yang mau mendengarkan.",
+            "Gestur hati ini adalah caraku merelakanmu. Semoga di langit yang lain, kamu menemukan bahagiamu.",
+            "Biarlah rindu ini melayang di antara bintang-bintang, menjadi rahasia malam yang tak perlu kau tahu.",
+            "Aku sedang belajar memeluk sepi, memberi ruang pada hati untuk sembuh dengan perlahan.",
+            "Mencintaimu adalah pelajaran, melepaskanmu adalah ujian, dan mengikhlaskanmu adalah kedamaian.",
+            "Terima kasih pernah menjadi bagian paling indah sekaligus paling fana di dalam mading hidupku.",
+            "Malam ini egoku runtuh, kutitipkan doa terbaik untukmu pada semesta yang sedang mendengarkan.",
+            "Kelak, nama yang hari ini membuat mataku basah hanya akan menjadi cerita fiksi yang mengukir senyuman."
+        ];
+
+        function tampilkanKataGamon() {
+            if (cooldown) return;
+            cooldown = true;
+
+            const indeksAcak = Math.floor(Math.random() * kumpulanKataGamon.length);
+            gamonText.innerText = kumpulanKataGamon[indeksAcak];
+
+            gamonBox.classList.remove('opacity-0', 'translate-y-4');
+            gamonBox.classList.add('opacity-100', 'translate-y-0');
+
+            setTimeout(() => {
+                gamonBox.classList.remove('opacity-100', 'translate-y-0');
+                gamonBox.classList.add('opacity-0', 'translate-y-4');
+                setTimeout(() => { cooldown = false; }, 2000);
+            }, 6000);
+        }
+
+        function pemicuManual() {
+            cooldown = false;
+            tampilkanKataGamon();
+        }
+
+        function onResults(results) {
+            if (guideOverlay.style.opacity !== '0') {
+                guideOverlay.style.opacity = '0';
+                statusText.innerText = "Mencari Tangan...";
+            }
+
+            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                statusText.innerText = "Tangan Terdeteksi ✨";
+                statusDot.className = "relative inline-flex rounded-full h-2 w-2 bg-emerald-500";
+                statusPulse.className = "animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75";
+
+                const jumlahTangan = results.multiHandLandmarks.length;
+
+                if (jumlahTangan === 1) {
+                    const landmarks = results.multiHandLandmarks[0];
+                    const jarakJempolTelunjuk = Math.sqrt(
+                        Math.pow(landmarks[8].x - landmarks[4].x, 2) + 
+                        Math.pow(landmarks[8].y - landmarks[4].y, 2)
+                    );
+
+                    const tengahMenekuk = landmarks[12].y > landmarks[10].y;
+                    const manisMenekuk = landmarks[16].y > landmarks[14].y;
+                    const kelingkingMenekuk = landmarks[20].y > landmarks[18].y;
+
+                    const bentukSesuai = jarakJempolTelunjuk < 0.07 && tengahMenekuk && manisMenekuk && kelingkingMenekuk;
+
+                    if (bentukSesuai) {
+                        tampilkanKataGamon();
+                    }
+                } 
+                else if (jumlahTangan === 2) {
+                    const tangan1 = results.multiHandLandmarks[0];
+                    const tangan2 = results.multiHandLandmarks[1];
+
+                    const jarakAntarJempol = Math.sqrt(
+                        Math.pow(tangan1[4].x - tangan2[4].x, 2) + 
+                        Math.pow(tangan1[4].y - tangan2[4].y, 2)
+                    );
+
+                    const jarakAntarTelunjuk = Math.sqrt(
+                        Math.pow(tangan1[8].x - tangan2[8].x, 2) + 
+                        Math.pow(tangan1[8].y - tangan2[8].y, 2)
+                    );
+
+                    const posisiSesuaiTangan1 = tangan1[8].y < tangan1[4].y;
+                    const posisiSesuaiTangan2 = tangan2[8].y < tangan2[4].y;
+
+                    if (jarakAntarJempol < 0.12 && jarakAntarTelunjuk < 0.12 && posisiSesuaiTangan1 && posisiSesuaiTangan2) {
+                        tampilkanKataGamon();
+                    }
+                }
+
+            } else {
+                statusText.innerText = "Mencari Tangan...";
+                statusDot.className = "relative inline-flex rounded-full h-2 w-2 bg-amber-500";
+                statusPulse.className = "animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75";
+            }
+        }
+
+        const hands = new Hands({
+            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+        });
+
+        hands.setOptions({
+            maxNumHands: 2,
+            modelComplexity: 1,
+            minDetectionConfidence: 0.6,
+            minTrackingConfidence: 0.6
+        });
+
+        hands.onResults(onResults);
+
+        const camera = new Camera(videoElement, {
+            onFrame: async () => {
+                await hands.send({image: videoElement});
+            },
+            width: 640,
+            height: 480
+        });
+
+        camera.start()
+            .then(() => {
+                statusText.innerText = "Kamera Aktif";
+            })
+            .catch((err) => {
+                console.error("Gagal membuka kamera: ", err);
+                statusText.innerText = "Akses Kamera Ditolak";
+                statusDot.className = "relative inline-flex rounded-full h-2 w-2 bg-rose-500";
+                statusPulse.className = "";
+            });
+    </script>
+</body>
+</html>
