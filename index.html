@@ -223,9 +223,31 @@
 </div>
 </div>
 <!-- "The Star" FAB -->
-<button onclick="location.href='reaksi.html'" class="fixed right-6 bottom-28 w-14 h-14 rounded-full bg-gradient-to-tr from-primary to-secondary flex items-center justify-center shadow-lg z-40 hover:scale-110 active:scale-95 transition-all group" title="Cermin Reaksi">
-<span class="material-symbols-outlined text-white text-3xl group-hover:rotate-12 transition-transform">photo_camera</span>
-</button>
+<div class="fixed right-6 bottom-28 z-40 flex flex-col items-center gap-3 group">
+    
+    <div class="flex flex-col items-center gap-3 opacity-0 pointer-events-none translate-y-4 group-hover:opacity-100 group-hover:pointer-events-auto group-hover:translate-y-0 transition-all duration-300">
+        
+        <a href="gacha.html" class="w-12 h-12 rounded-full bg-surface-container border border-outline-variant flex items-center justify-center shadow-md hover:bg-primary-container hover:scale-110 active:scale-95 transition-all relative group/tooltip" title="Simulasi Gacha Gamon">
+            <span class="material-symbols-outlined text-primary text-2xl">casino</span>
+            <span class="absolute right-14 bg-inverse-surface text-inverse-on-surface text-xs font-label-md px-2 py-1 rounded shadow-md whitespace-nowrap opacity-0 group-hover/tooltip:opacity-100 transition-opacity duration-200 pointer-events-none">
+                Gacha Gamon
+            </span>
+        </a>
+
+        <a href="reaksi.html" class="w-12 h-12 rounded-full bg-surface-container border border-outline-variant flex items-center justify-center shadow-md hover:bg-primary-container hover:scale-110 active:scale-95 transition-all relative group/tooltip" title="Cermin Reaksi">
+            <span class="material-symbols-outlined text-primary text-2xl">photo_camera</span>
+            <span class="absolute right-14 bg-inverse-surface text-inverse-on-surface text-xs font-label-md px-2 py-1 rounded shadow-md whitespace-nowrap opacity-0 group-hover/tooltip:opacity-100 transition-opacity duration-200 pointer-events-none">
+                Cermin Reaksi
+            </span>
+        </a>
+
+        </div>
+
+    <button class="w-14 h-14 rounded-full bg-gradient-to-tr from-primary to-secondary flex items-center justify-center shadow-lg hover:scale-105 active:scale-95 transition-all group-hover:scale-110" title="Menu Fitur">
+        <span class="material-symbols-outlined text-white text-3xl group-hover:rotate-12 transition-transform">apps</span>
+    </button>
+
+</div>
 <audio id="bgMusic" loop>
 <source src="music.mp3" type="audio/mpeg">
 </audio>
