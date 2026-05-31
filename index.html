@@ -518,12 +518,44 @@
         const canvasContent = document.getElementById('canvasContent');
         window.canvasContent = canvasContent;
         let zoomLevel = 1;
+        let zoomTranslateX = 0;
+        let zoomTranslateY = 0;
         window.zoomLevel = zoomLevel;
+        window.zoomTranslateX = zoomTranslateX;
+        window.zoomTranslateY = zoomTranslateY;
 
         function updateZoom() {
-            if (canvasContent) canvasContent.style.transform = `scale(${zoomLevel})`;
+            if (canvasContent) {
+                canvasContent.style.transform = `translate3d(${zoomTranslateX}px, ${zoomTranslateY}px, 0) scale(${zoomLevel})`;
+            }
             window.zoomLevel = zoomLevel;
+            window.zoomTranslateX = zoomTranslateX;
+            window.zoomTranslateY = zoomTranslateY;
             zoomLabel.textContent = `${Math.round(zoomLevel * 100)}%`;
+        }
+
+        function resetZoomFocus() {
+            zoomLevel = 1;
+            zoomTranslateX = 0;
+            zoomTranslateY = 0;
+            updateZoom();
+        }
+
+        function focusCardZoom(card) {
+            if (!card || !canvasContent) return;
+            const cardCenterX = card.offsetLeft + card.offsetWidth / 2;
+            const cardCenterY = card.offsetTop + card.offsetHeight / 2;
+            const viewportWidth = window.innerWidth;
+            const viewportHeight = window.innerHeight;
+
+            if (zoomLevel < 1.2) {
+                zoomLevel = 1.3;
+            }
+
+            zoomTranslateX = viewportWidth / 2 - cardCenterX * zoomLevel;
+            zoomTranslateY = viewportHeight / 2 - cardCenterY * zoomLevel;
+            bringToFront(card);
+            updateZoom();
         }
 
         zoomOut.addEventListener('click', () => {
@@ -537,8 +569,7 @@
         });
 
         zoomReset.addEventListener('click', () => {
-            zoomLevel = 1;
-            updateZoom();
+            resetZoomFocus();
         });
 
         function getTouchDistance(touches) {
@@ -611,6 +642,8 @@ const q = query(
 
 // Ambil likedPosts dari localStorage
 let likedPosts = JSON.parse(localStorage.getItem("likedPosts")) || [];
+let lastTapTime = 0;
+let lastTapCard = null;
 
 function createCard(data, id) {
     const card = document.createElement('div');
@@ -751,6 +784,25 @@ function createCard(data, id) {
             alert("Gagal like 😢");
         }
     });
+
+    card.addEventListener('dblclick', (e) => {
+        e.stopPropagation();
+        focusCardZoom(card);
+    });
+
+    card.addEventListener('touchend', (e) => {
+        if (e.touches && e.touches.length > 0) return;
+        const now = Date.now();
+        if (lastTapCard === card && now - lastTapTime < 300) {
+            e.preventDefault();
+            focusCardZoom(card);
+            lastTapTime = 0;
+            lastTapCard = null;
+        } else {
+            lastTapTime = now;
+            lastTapCard = card;
+        }
+    }, { passive: false });
 
     return card;
 }
