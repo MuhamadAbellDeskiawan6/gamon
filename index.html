@@ -2,7 +2,7 @@
 <html class="light" lang="id">
 <head>
 <meta charset="utf-8"/>
-<meta content="width=1024" name="viewport"/>
+<meta name="viewport" content="width=1024" />
 <title>Gamon Tawing</title>
 <link rel="icon" type="image/svg+xml" href="image/logo/Gamon%20Tawing.svg" />
 <link rel="icon" type="image/png" href="image/logo/Gamon%20Tawing.png" />
@@ -127,14 +127,108 @@
         .audio-custom::-webkit-media-controls-time-remaining-display {
             filter: grayscale(1) contrast(0.5);
         }
-       .floating-container {
-    position: relative;
-    width: 100vw; /* Memastikan lebar container 100% viewport */
-    left: 50%;
-    right: 50%;
-    margin-left: -50vw;
-    margin-right: -50vw;
-}
+        .floating-container {
+            position: relative;
+            width: 100vw;
+            min-height: 70vh;
+            left: 50%;
+            right: 50%;
+            margin-left: -50vw;
+            margin-right: -50vw;
+            overflow: hidden;
+        }
+        .canvas-stage {
+            position: relative;
+            width: 100%;
+            min-height: 70vh;
+            transform-origin: top center;
+            transition: transform 0.15s ease;
+            touch-action: none;
+        }
+        .zoom-controls {
+            position: fixed;
+            left: 1rem;
+            top: 1rem;
+            z-index: 80;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.4rem 0.65rem;
+            border-radius: 9999px;
+            background: rgba(255,255,255,0.92);
+            backdrop-filter: blur(12px);
+            box-shadow: 0 10px 25px -12px rgba(0,0,0,0.2);
+        }
+        .zoom-controls button {
+            min-width: 2.25rem;
+            height: 2.25rem;
+            border-radius: 9999px;
+            border: 1px solid rgba(107,90,96,0.2);
+            background: white;
+            color: #6b5a60;
+            font-weight: 700;
+            cursor: pointer;
+            transition: transform 0.15s ease, background 0.15s ease;
+            padding: 0 0.6rem;
+        }
+        .zoom-controls button:hover {
+            transform: scale(1.05);
+            background: #f7eef4;
+        }
+        #zoomReset {
+            width: auto;
+            min-width: 3.25rem;
+            padding: 0 0.75rem;
+        }
+        #zoomLabel {
+            font-weight: 600;
+        }
+        .zoom-controls span {
+            min-width: 3rem;
+            text-align: center;
+            font-size: 0.9rem;
+            color: #4d4447;
+        }
+        @media (max-width: 1024px) {
+            .zoom-controls {
+                left: 1rem;
+                top: 1rem;
+                bottom: auto;
+                transform: none;
+                flex-wrap: wrap;
+                justify-content: flex-start;
+                gap: 0.35rem;
+                padding: 0.45rem 0.65rem;
+                font-size: 0.92rem;
+            }
+            .zoom-controls button {
+                min-width: 2rem;
+                height: 2rem;
+                padding: 0 0.5rem;
+                font-size: 0.9rem;
+            }
+            .zoom-controls span {
+                min-width: 2.2rem;
+                font-size: 0.85rem;
+            }
+            #zoomReset {
+                min-width: 2.6rem;
+                padding: 0 0.6rem;
+            }
+            .floating-container {
+                min-height: 60vh;
+            }
+            #musicPlayerBar {
+                bottom: 4rem;
+                width: calc(100% - 20px);
+                left: 50%;
+                transform: translateX(-50%);
+            }
+            #menuFitur {
+                bottom: 10.5rem;
+                right: 0.75rem;
+            }
+        }
         .draggable {
             position: absolute;
             cursor: grab;
@@ -203,12 +297,22 @@
             </div>
 </header>
 <!-- Floating Cards Container -->
-<div class="floating-container w-full h-[70vh]" id="container">
-<!-- Cards will be injected here by script -->
+<div class="floating-container" id="canvasWrapper">
+    <div class="canvas-stage" id="canvasStage">
+        <div class="w-full h-[70vh]" id="container">
+            <!-- Cards will be injected here by script -->
+        </div>
+    </div>
+</div>
+<div class="zoom-controls" aria-label="Zoom controls">
+    <button type="button" id="zoomOut" title="Zoom out">−</button>
+    <span id="zoomLabel">100%</span>
+    <button type="button" id="zoomIn" title="Zoom in">+</button>
+    <button type="button" id="zoomReset" title="Reset zoom">Reset</button>
 </div>
 </main>
 <!-- Global Music Player Floating Bar -->
-<div class="fixed bottom-24 left-1/2 -translate-x-1/2 w-[calc(100%-32px)] md:w-[480px] z-50 glass-card rounded-full p-2 flex items-center gap-3 border border-primary/10 shadow-xl">
+<div id="musicPlayerBar" class="fixed bottom-24 left-1/2 -translate-x-1/2 w-[calc(100%-32px)] md:w-[480px] z-50 glass-card rounded-full p-2 flex items-center gap-3 border border-primary/10 shadow-xl">
 <div class="w-12 h-12 rounded-full overflow-hidden bg-surface-container flex-shrink-0 relative">
 <img alt="Track art" data-alt="A moody vinyl record spinning on a turntable under soft lighting." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDWnxhOulVUE5SbSSuUfq7T133nOIx1PEeyGWLwt4qhu4zDxj_36axd-l6hza_0AKipCm3szwszyPdIjDrzWPjGTdSU34XKzuUatnooWOtOb-xb8_WWweb5wQUgddpCGK4StLan-HcIozBZa-VpPr-0LyU2s_dVt5c14tQ4UGapiF1EKA9coSHV5riVj7-eVSbAUEM1q3uUTQhs-3wABwrHCGybCY3ZUU9AKFnoGB6xgfUHTYvfP3dGkp_stkjwNS3FHojGDnKs7YX4"/>
 <div class="absolute inset-0 flex items-center justify-center bg-black/5">
@@ -330,6 +434,7 @@
         let xOffset = 0;
         let yOffset = 0;
         window.currentCardZ = 20;
+        window.zoomLevel = 1;
 
         window.container.addEventListener("pointerdown", dragStart, false);
         window.container.addEventListener("pointerup", dragEnd, false);
@@ -358,8 +463,12 @@
                 xOffset = matrix.m41;
                 yOffset = matrix.m42;
 
-                initialX = e.clientX - xOffset;
-                initialY = e.clientY - yOffset;
+                const rect = window.container.getBoundingClientRect();
+                const pointerX = ((e.clientX - rect.left) / (window.zoomLevel || 1));
+                const pointerY = ((e.clientY - rect.top) / (window.zoomLevel || 1));
+
+                initialX = pointerX - xOffset;
+                initialY = pointerY - yOffset;
             }
         }
 
@@ -372,8 +481,11 @@
         function drag(e) {
             if (activeItem) {
                 e.preventDefault();
-                currentX = e.clientX - initialX;
-                currentY = e.clientY - initialY;
+                const rect = window.container.getBoundingClientRect();
+                const pointerX = ((e.clientX - rect.left) / (window.zoomLevel || 1));
+                const pointerY = ((e.clientY - rect.top) / (window.zoomLevel || 1));
+                currentX = pointerX - initialX;
+                currentY = pointerY - initialY;
                 setTranslate(currentX, currentY, activeItem);
             }
         }
@@ -382,6 +494,71 @@
             const rotation = el.style.transform.match(/rotate\([^)]+\)/) || '';
             el.style.transform = `translate3d(${xPos}px, ${yPos}px, 0) ${rotation}`;
         }
+    </script>
+
+<script>
+        const zoomOut = document.getElementById('zoomOut');
+        const zoomIn = document.getElementById('zoomIn');
+        const zoomReset = document.getElementById('zoomReset');
+        const zoomLabel = document.getElementById('zoomLabel');
+        const canvasStage = document.getElementById('canvasStage');
+        let zoomLevel = 1;
+        window.zoomLevel = zoomLevel;
+
+        function updateZoom() {
+            canvasStage.style.transform = `scale(${zoomLevel})`;
+            window.zoomLevel = zoomLevel;
+            zoomLabel.textContent = `${Math.round(zoomLevel * 100)}%`;
+        }
+
+        zoomOut.addEventListener('click', () => {
+            zoomLevel = Math.max(0.6, zoomLevel - 0.1);
+            updateZoom();
+        });
+
+        zoomIn.addEventListener('click', () => {
+            zoomLevel = Math.min(1.4, zoomLevel + 0.1);
+            updateZoom();
+        });
+
+        zoomReset.addEventListener('click', () => {
+            zoomLevel = 1;
+            updateZoom();
+        });
+
+        function getTouchDistance(touches) {
+            const [a, b] = touches;
+            return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+        }
+
+        let pinchStartDistance = 0;
+        let pinchStartZoom = 1;
+
+        canvasStage.addEventListener('touchstart', (e) => {
+            if (e.touches.length === 2) {
+                pinchStartDistance = getTouchDistance(e.touches);
+                pinchStartZoom = zoomLevel;
+            }
+        }, { passive: false });
+
+        canvasStage.addEventListener('touchmove', (e) => {
+            if (e.touches.length === 2) {
+                e.preventDefault();
+                const distance = getTouchDistance(e.touches);
+                if (pinchStartDistance > 0) {
+                    zoomLevel = Math.min(1.4, Math.max(0.6, pinchStartZoom * distance / pinchStartDistance));
+                    updateZoom();
+                }
+            }
+        }, { passive: false });
+
+        canvasStage.addEventListener('touchend', (e) => {
+            if (e.touches.length < 2) {
+                pinchStartDistance = 0;
+            }
+        });
+
+        updateZoom();
     </script>
 
 <script type="module">
@@ -422,24 +599,19 @@ let likedPosts = JSON.parse(localStorage.getItem("likedPosts")) || [];
 
 function createCard(data, id) {
     const card = document.createElement('div');
-    card.className = 'draggable glass-card p-gutter rounded-xl w-72';
-    
-    // Gunakan lebar jendela (viewport) agar menyebar ke ujung kanan-kiri
-    const screenWidth = window.innerWidth;
-    const screenHeight = window.innerHeight * 0.7; // Sesuaikan dengan tinggi kontainer (70vh)
+    card.className = 'draggable glass-card p-gutter rounded-xl w-[min(18rem,100%)] max-w-[280px]';
 
-    // Hitung posisi acak
-    // 300 adalah estimasi lebar kartu + sedikit margin agar tidak terpotong di kanan
-    const randomX = Math.random() * (screenWidth - 320);
-    // 250 adalah estimasi tinggi kartu agar tidak terlalu ke bawah
-    const randomY = Math.random() * (screenHeight - 250);
+    const screenWidth = window.container.clientWidth || window.innerWidth;
+    const screenHeight = window.container.clientHeight || window.innerHeight * 0.7;
 
-    // Set posisi
+    const maxCardWidth = 280;
+    const maxCardHeight = 260;
+    const randomX = Math.random() * Math.max(0, screenWidth - maxCardWidth);
+    const randomY = Math.random() * Math.max(0, screenHeight - maxCardHeight);
+
     card.style.position = 'absolute';
     card.style.left = `${randomX}px`;
     card.style.top = `${randomY}px`;
-    
-    // ... sisa kode kamu (rotation, innerHTML, dll)
     card.style.transform = `rotate(${Math.random() * 6 - 3}deg)`;
     card.style.zIndex = window.currentCardZ;
     window.currentCardZ += 1;
