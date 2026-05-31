@@ -145,6 +145,16 @@
             transition: transform 0.15s ease;
             touch-action: none;
         }
+        /* make the inner container cover the full viewport so cards can be moved above header */
+        #container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none; /* allow clicks to pass to header unless a card is present */
+            z-index: 1000; /* high so cards can overlap header */
+        }
         .zoom-controls {
             position: fixed;
             left: 1rem;
@@ -235,6 +245,7 @@
             user-select: none;
             touch-action: none;
             transition: box-shadow 0.3s ease;
+            pointer-events: auto; /* make cards interactive even though container ignores events */
         }
         .draggable:active {
             cursor: grabbing;
@@ -298,11 +309,13 @@
 </header>
 <!-- Floating Cards Container -->
 <div class="floating-container" id="canvasWrapper">
-    <div class="canvas-stage" id="canvasStage">
-        <div class="w-full h-[70vh]" id="container">
-            <!-- Cards will be injected here by script -->
+        <div class="canvas-stage" id="canvasStage">
         </div>
-    </div>
+        <div id="container">
+            <div id="canvasContent" style="position:relative; width:100%; height:100%;">
+                <!-- Cards will be injected here by script -->
+            </div>
+        </div>
 </div>
 <div class="zoom-controls" aria-label="Zoom controls">
     <button type="button" id="zoomOut" title="Zoom out">−</button>
@@ -433,12 +446,12 @@
         let initialY;
         let xOffset = 0;
         let yOffset = 0;
-        window.currentCardZ = 20;
+        window.currentCardZ = 1000;
         window.zoomLevel = 1;
 
-        window.container.addEventListener("pointerdown", dragStart, false);
-        window.container.addEventListener("pointerup", dragEnd, false);
-        window.container.addEventListener("pointermove", drag, false);
+        document.addEventListener("pointerdown", dragStart, false);
+        document.addEventListener("pointerup", dragEnd, false);
+        document.addEventListener("pointermove", drag, false);
 
         function bringToFront(el) {
             if (!el) return;
@@ -463,7 +476,7 @@
                 xOffset = matrix.m41;
                 yOffset = matrix.m42;
 
-                const rect = window.container.getBoundingClientRect();
+                const rect = (window.canvasContent || window.container).getBoundingClientRect();
                 const pointerX = ((e.clientX - rect.left) / (window.zoomLevel || 1));
                 const pointerY = ((e.clientY - rect.top) / (window.zoomLevel || 1));
 
@@ -481,7 +494,7 @@
         function drag(e) {
             if (activeItem) {
                 e.preventDefault();
-                const rect = window.container.getBoundingClientRect();
+                const rect = (window.canvasContent || window.container).getBoundingClientRect();
                 const pointerX = ((e.clientX - rect.left) / (window.zoomLevel || 1));
                 const pointerY = ((e.clientY - rect.top) / (window.zoomLevel || 1));
                 currentX = pointerX - initialX;
@@ -502,11 +515,13 @@
         const zoomReset = document.getElementById('zoomReset');
         const zoomLabel = document.getElementById('zoomLabel');
         const canvasStage = document.getElementById('canvasStage');
+        const canvasContent = document.getElementById('canvasContent');
+        window.canvasContent = canvasContent;
         let zoomLevel = 1;
         window.zoomLevel = zoomLevel;
 
         function updateZoom() {
-            canvasStage.style.transform = `scale(${zoomLevel})`;
+            if (canvasContent) canvasContent.style.transform = `scale(${zoomLevel})`;
             window.zoomLevel = zoomLevel;
             zoomLabel.textContent = `${Math.round(zoomLevel * 100)}%`;
         }
@@ -534,14 +549,14 @@
         let pinchStartDistance = 0;
         let pinchStartZoom = 1;
 
-        canvasStage.addEventListener('touchstart', (e) => {
+        canvasContent.addEventListener('touchstart', (e) => {
             if (e.touches.length === 2) {
                 pinchStartDistance = getTouchDistance(e.touches);
                 pinchStartZoom = zoomLevel;
             }
         }, { passive: false });
 
-        canvasStage.addEventListener('touchmove', (e) => {
+        canvasContent.addEventListener('touchmove', (e) => {
             if (e.touches.length === 2) {
                 e.preventDefault();
                 const distance = getTouchDistance(e.touches);
@@ -552,7 +567,7 @@
             }
         }, { passive: false });
 
-        canvasStage.addEventListener('touchend', (e) => {
+        canvasContent.addEventListener('touchend', (e) => {
             if (e.touches.length < 2) {
                 pinchStartDistance = 0;
             }
@@ -601,20 +616,36 @@ function createCard(data, id) {
     const card = document.createElement('div');
     card.className = 'draggable glass-card p-gutter rounded-xl w-[min(18rem,100%)] max-w-[280px]';
 
-    const screenWidth = window.container.clientWidth || window.innerWidth;
-    const screenHeight = window.container.clientHeight || window.innerHeight * 0.7;
+    const screenWidth = (window.canvasContent && window.canvasContent.clientWidth) || window.container.clientWidth || window.innerWidth;
+    const screenHeight = (window.canvasContent && window.canvasContent.clientHeight) || window.container.clientHeight || window.innerHeight * 0.7;
 
     const maxCardWidth = 280;
     const maxCardHeight = 260;
+
+    // Exclusion zone: avoid placing new cards over the header/title/buttons area on initial load
+    const headerEl = document.querySelector('header');
+    const headerRect = headerEl ? headerEl.getBoundingClientRect() : { bottom: 120 };
+    const exclusionBottom = Math.max(0, headerRect.bottom + 12); // 12px gap after header
+
+    // Compute random X within available width
     const randomX = Math.random() * Math.max(0, screenWidth - maxCardWidth);
-    const randomY = Math.random() * Math.max(0, screenHeight - maxCardHeight);
+
+    // Compute random Y but start after exclusionBottom so cards don't overlap header initially
+    let availableHeight = Math.max(0, screenHeight - exclusionBottom - maxCardHeight);
+    let randomY;
+    if (availableHeight > 8) {
+        randomY = exclusionBottom + Math.random() * availableHeight;
+    } else {
+        // fallback if not enough space: place anywhere within container (will still be draggable)
+        randomY = Math.random() * Math.max(0, screenHeight - maxCardHeight);
+    }
 
     card.style.position = 'absolute';
     card.style.left = `${randomX}px`;
     card.style.top = `${randomY}px`;
     card.style.transform = `rotate(${Math.random() * 6 - 3}deg)`;
-    card.style.zIndex = window.currentCardZ;
     window.currentCardZ += 1;
+    card.style.zIndex = window.currentCardZ;
 
     const nama = data.nama ? escapeHtml(data.nama) : "Anonim";
     const tujuan = data.tujuan ? escapeHtml(data.tujuan) : "Seseorang";
@@ -655,7 +686,7 @@ function createCard(data, id) {
     `;
 
     // Append first to get dimensions
-    window.container.appendChild(card);
+    (window.canvasContent || window.container).appendChild(card);
 
     const loveBtn = card.querySelector('.love-btn');
     const vnAudio = card.querySelector('audio');
@@ -726,7 +757,8 @@ function createCard(data, id) {
 
 // Firestore Listener
 onSnapshot(q, (snapshot) => {
-    window.container.innerHTML = ""; // Clear existing
+    const target = (window.canvasContent || window.container);
+    if (target) target.innerHTML = ""; // Clear existing cards only
     snapshot.forEach((doc) => {
         const data = doc.data();
         if (!data.pesan) return;
