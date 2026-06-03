@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>Peta Sebaran Gamon Indonesia - Gamon Tawing</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "outline": "#7f7478",
+                        "inverse-on-surface": "#f5eff1",
+                        "secondary-fixed": "#ecdeee",
+                        "primary-fixed": "#f4dce4",
+                        "on-primary": "#ffffff",
+                        "secondary": "#655b68",
+                        "on-surface-variant": "#4d4447",
+                        "on-error-container": "#93000a",
+                        "surface-dim": "#ded9db",
+                        "on-secondary": "#ffffff",
+                        "on-surface": "#1d1b1d",
+                        "surface-container-highest": "#e7e1e3",
+                        "surface-container-high": "#ece7e9",
+                        "on-primary-fixed-variant": "#524249",
+                        "outline-variant": "#d0c3c7",
+                        "background": "#fef8fa",
+                        "on-secondary-fixed-variant": "#4d4450",
+                        "tertiary-container": "#d9edf6",
+                        "error-container": "#ffdad6",
+                        "tertiary": "#4f6169",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-container": "#f2ecee",
+                        "secondary-container": "#ecdeee",
+                        "tertiary-fixed-dim": "#b6cad2",
+                        "on-primary-container": "#76646b",
+                        "surface-bright": "#fef8fa",
+                        "primary-fixed-dim": "#d7c1c8",
+                        "primary": "#6b5a60",
+                        "inverse-surface": "#323031",
+                        "on-primary-fixed": "#25181e",
+                        "on-secondary-container": "#6b616e",
+                        "on-tertiary-container": "#596c73",
+                        "on-tertiary-fixed": "#0b1e24",
+                        "inverse-primary": "#d7c1c8",
+                        "on-tertiary": "#ffffff",
+                        "tertiary-fixed": "#d2e6ef",
+                        "secondary-fixed-dim": "#cfc2d2",
+                        "surface": "#fef8fa",
+                        "on-error": "#ffffff",
+                        "primary-container": "#fce4ec",
+                        "surface-variant": "#e7e1e3",
+                        "error": "#ba1a1a",
+                        "on-tertiary-fixed-variant": "#374951",
+                        "on-background": "#1d1b1d",
+                        "surface-tint": "#6b5a60",
+                        "on-secondary-fixed": "#201924",
+                        "surface-container-low": "#f8f2f4"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "unit": "8px",
+                        "section-gap": "80px",
+                        "gutter": "24px",
+                        "container-padding": "40px",
+                        "margin-mobile": "20px"
+                    },
+                    "fontFamily": {
+                        "body-lg": ["Inter"],
+                        "body-md": ["Inter"],
+                        "display-lg": ["Playfair Display"],
+                        "label-md": ["Inter"],
+                        "headline-sm": ["Playfair Display"],
+                        "headline-md": ["Playfair Display"]
+                    },
+                    "fontSize": {
+                        "body-lg": ["18px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                        "body-md": ["16px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                        "display-lg": ["48px", {"lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                        "label-md": ["14px", {"lineHeight": "1", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                        "headline-sm": ["24px", {"lineHeight": "1.4", "fontWeight": "500"}],
+                        "headline-md": ["32px", {"lineHeight": "1.3", "fontWeight": "500"}]
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background: linear-gradient(135deg, #fef8fa 0%, #fce4ec 50%, #f2ecee 100%);
+            min-height: 100vh;
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            box-shadow: 0 8px 32px rgba(107, 90, 96, 0.08);
+        }
+        .font-body-md { font-family: 'Inter', sans-serif; }
+        .font-display-lg { font-family: 'Playfair Display', serif; }
+        .font-label-md { font-family: 'Inter', sans-serif; }
+        #mainMap { height: 520px; width: 100%; border-radius: 1rem; z-index: 1; box-shadow: 0 8px 30px rgba(107,90,96,0.12); border: 1px solid rgba(208, 195, 199, 0.6); }
+    </style>
+</head>
+<body class="font-body-md text-on-surface selection:bg-primary-container selection:text-on-primary-container p-margin-mobile md:px-container-padding md:py-section-gap bg-background">
+    <main class="max-w-6xl mx-auto space-y-gutter">
+        
+        <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <a class="inline-flex items-center gap-2 text-on-surface-variant hover:text-primary transition-colors" href="index.html">
+                <span class="material-symbols-outlined">arrow_back</span>
+                <span class="font-label-md">Kembali ke Beranda</span>
+            </a>
+        </div>
+
+        <div class="text-center py-4">
+            <h1 class="font-display-lg text-headline-md md:text-display-lg font-semibold text-primary">Peta Persebaran Gamon Nasional</h1>
+            <p class="text-on-surface-variant mt-2 text-body-md md:text-body-lg max-w-2xl mx-auto">Melihat seberapa banyak titik rindu dan kenangan tak tersampaikan di seluruh penjuru Indonesia.</p>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-md mx-auto">
+            <div class="glass-card p-gutter rounded-xl text-center">
+                <h3 class="text-xs font-semibold text-on-surface-variant uppercase tracking-wider">Total Titik Galau Terdeteksi</h3>
+                <p class="text-3xl font-bold text-error mt-1" id="totalGamonPoints">0</p>
+            </div>
+            <div class="glass-card p-gutter rounded-xl text-center flex flex-col justify-center items-center">
+                <span class="text-xs font-semibold text-on-surface-variant uppercase tracking-wider">Status Pemetaan</span>
+                <p class="text-green-600 font-semibold text-sm mt-1 flex items-center gap-1">
+                    <span class="w-2 h-2 bg-green-500 rounded-full animate-ping"></span> Realtime Terhubung
+                </p>
+            </div>
+        </div>
+
+        <div class="glass-card p-3 md:p-5 rounded-2xl">
+            <div id="mainMap"></div>
+        </div>
+        
+    </main>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyC247K8yyL67aWV95KNQy8CkMZsjgGCudQ",
+            authDomain: "gamon-tawing.firebaseapp.com",
+            projectId: "gamon-tawing",
+            storageBucket: "gamon-tawing.appspot.com",
+            messagingSenderId: "370162915989",
+            appId: "1:370162915989:web:76779062da83aa0c5c999c"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // Inisialisasi Peta Leaflet (Fokus default di wilayah geografis tengah Indonesia)
+        const mainMap = L.map('mainMap').setView([-2.5489, 118.0149], 5);
+        
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(mainMap);
+
+        // Ambil data dari koleksi 'gamon' lalu buat marker per koordinat
+        async function loadGamonMarkers() {
+            try {
+                const querySnapshot = await getDocs(collection(db, "gamon"));
+                let validPointsCount = 0;
+
+                querySnapshot.forEach((doc) => {
+                    const data = doc.data();
+                    
+                    // Validasi apakah dokumen memiliki koordinat latitude & longitude
+                    if (data.latitude !== undefined && data.longitude !== undefined) {
+                        validPointsCount++;
+
+                        // Format tampilan popup saat marker diklik
+                        const popupContent = `
+                            <div style="font-family: 'Inter', sans-serif; min-width: 160px;">
+                                <b style="color: #6b5a60;">Dari:</b> ${data.nama || 'Anonim'}<br>
+                                <b style="color: #6b5a60;">Untuk:</b> ${data.tujuan || 'Seseorang'}<br>
+                                <hr style="margin: 6px 0; border: 0; border-top: 1px solid #eee;">
+                                <p style="margin: 0; font-style: italic; color: #4d4447;">"${data.pesan}"</p>
+                            </div>
+                        `;
+
+                        // Tambahkan Marker standar ke peta
+                        L.marker([data.latitude, data.longitude])
+                            .addTo(mainMap)
+                            .bindPopup(popupContent);
+                    }
+                });
+
+                // Update teks jumlah angka total titik galau
+                document.getElementById('totalGamonPoints').innerText = validPointsCount;
+
+            } catch (error) {
+                console.error("Gagal menarik data koordinat gamon:", error);
+            }
+        }
+
+        // Eksekusi fungsi ketika dokumen siap
+        loadGamonMarkers();
+    </script>
+</body>
+</html>

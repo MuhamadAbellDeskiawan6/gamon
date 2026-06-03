@@ -115,12 +115,16 @@
             font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
         }
         .slot-display-container {
-            background: linear-gradient(180deg, #323031 0%, #1d1b1d 100%);
-            box-shadow: inset 0 4px 12px rgba(0,0,0,0.4);
+            background: var(--tw-bg-opacity, rgba(242, 236, 238, 1));
+            box-shadow: none;
+            border: 1px solid rgba(208, 195, 199, 0.5);
         }
         .slot-window {
-            background: #ffffff;
-            box-shadow: inset 0 2px 8px rgba(0,0,0,0.2);
+            background: transparent;
+            box-shadow: none;
+            font-size: 2rem;
+            padding: 2.5rem 0;
+            color: var(--tw-text-opacity, #1d1b1d);
         }
     </style>
 </head>
@@ -137,25 +141,7 @@
             
             <div class="mb-gutter text-center">
                 <h1 class="font-display-lg text-headline-md md:text-display-lg text-primary mb-2">Simulasi Gacha Gamon 🎰</h1>
-                <p class="font-body-md text-on-surface-variant">Uji keberuntunganmu lewat simulasi probabilitas matematika bandar judi.</p>
-            </div>
-
-            <div class="bg-surface-container rounded-xl p-gutter border border-outline-variant/30 mb-gutter">
-                <div class="flex items-center gap-2 text-primary font-semibold mb-2">
-                    <span class="material-symbols-outlined">tune</span>
-                    <span class="font-label-md">Pilih Mode Sistem</span>
-                </div>
-                <div class="grid grid-cols-2 gap-2">
-                    <button id="modeRealistis" onclick="switchMode('realistis')" class="py-2 px-3 text-xs font-semibold rounded-lg border-2 border-primary bg-primary-container/40 text-on-primary-container transition-all" type="button">
-                        Mode Realistis (Peluang Tipis)
-                    </button>
-                    <button id="modeSettingan" onclick="switchMode('settingan')" class="py-2 px-3 text-xs font-semibold rounded-lg border border-outline-variant bg-surface-container-lowest text-on-surface-variant transition-all" type="button">
-                        Mode Settingan (Pancingan Menang)
-                    </button>
-                </div>
-                <p id="modeDesc" class="text-xs text-on-surface-variant/80 mt-2 italic">
-                    *Mode Aktif: Peluang menang diatur tipis (hanya 1.5%) persis seperti algoritma asli di situs judi.
-                </p>
+                <p class="font-body-md text-on-surface-variant">Coba keberuntunganmu untuk tujuan edukasi — antarmuka disederhanakan.</p>
             </div>
 
             <div class="slot-display-container rounded-xl p-gutter border border-inverse-surface space-y-gutter mb-gutter">
@@ -210,6 +196,16 @@
         let saldo = 2500;
         let systemMode = 'realistis';
         let isSpinning = false;
+        let gachaPattern = '';
+        let spinCount = 0;
+        let patternAPrimed = false;
+
+        function generatePattern() {
+            const patterns = ['A', 'B', 'C'];
+            return patterns[Math.floor(Math.random() * patterns.length)];
+        }
+
+        gachaPattern = generatePattern();
 
         const itemsPool = [
             { 
@@ -280,7 +276,7 @@
                 showPopup(
                     'error', 
                     'Saldo Habis!', 
-                    'Air matamu sudah habis dieksploitasi harapan kosong. Sistem memaksa kamu buat move on total.',
+                    'Air matamu sudah habis dieksploitasi harapan kosong. Sistem memaksa kamu buat move on total.\nSilakan refresh halaman untuk mengisi saldo gratis.',
                     'Bandar judi memanfaatkan momen tanggung rugi ini supaya korban penasaran dan akhirnya mencari pinjol demi modal instan.'
                 );
                 return;
@@ -311,23 +307,69 @@
 
         function konfirmasiHasilAkhir() {
             let res1, res2, res3;
-
-            if (systemMode === 'realistis') {
-                let hitRate = Math.random() * 100;
-                if (hitRate <= 1.5) { 
-                    res1 = res2 = res3 = itemsPool[3]; 
+            const isFinalSpin = saldo === 0;
+            const normalRoll = () => {
+                const hitRate = Math.random() * 100;
+                if (hitRate <= 1.5) {
+                    return [itemsPool[3], itemsPool[3], itemsPool[3]];
                 } else if (hitRate <= 20) {
-                    res1 = res2 = itemsPool[2]; 
-                    res3 = itemsPool[0]; 
+                    return [itemsPool[2], itemsPool[2], itemsPool[0]];
+                }
+                return [
+                    itemsPool[Math.floor(Math.random() * 2)],
+                    itemsPool[Math.floor(Math.random() * 3)],
+                    itemsPool[Math.floor(Math.random() * 2)]
+                ];
+            };
+
+            if (gachaPattern === 'A') {
+                if (spinCount === 0) {
+                    const seed = Math.random();
+                    if (seed < 0.45) {
+                        [res1, res2, res3] = [itemsPool[3], itemsPool[3], itemsPool[3]];
+                        patternAPrimed = true;
+                    } else if (seed < 0.75) {
+                        [res1, res2, res3] = [itemsPool[2], itemsPool[2], itemsPool[0]];
+                    } else {
+                        [res1, res2, res3] = normalRoll();
+                    }
+                } else if (patternAPrimed) {
+                    const seed = Math.random();
+                    if (seed < 0.25) {
+                        [res1, res2, res3] = [itemsPool[2], itemsPool[2], itemsPool[0]];
+                    } else {
+                        [res1, res2, res3] = [
+                            itemsPool[Math.floor(Math.random() * 2)],
+                            itemsPool[Math.floor(Math.random() * 2)],
+                            itemsPool[Math.floor(Math.random() * 2)]
+                        ];
+                    }
                 } else {
-                    res1 = itemsPool[Math.floor(Math.random() * 2)];
-                    res2 = itemsPool[Math.floor(Math.random() * 3)];
-                    res3 = itemsPool[Math.floor(Math.random() * 2)];
+                    [res1, res2, res3] = normalRoll();
+                }
+            } else if (gachaPattern === 'B') {
+                if (isFinalSpin) {
+                    [res1, res2, res3] = [itemsPool[3], itemsPool[3], itemsPool[3]];
+                } else if (spinCount === 0) {
+                    const seed = Math.random();
+                    if (seed < 0.45) {
+                        [res1, res2, res3] = [itemsPool[0], itemsPool[1], itemsPool[0]];
+                    } else {
+                        [res1, res2, res3] = [itemsPool[2], itemsPool[2], itemsPool[0]];
+                    }
+                } else {
+                    const seed = Math.random();
+                    if (seed < 0.25) {
+                        [res1, res2, res3] = [itemsPool[2], itemsPool[2], itemsPool[0]];
+                    } else {
+                        [res1, res2, res3] = [itemsPool[Math.floor(Math.random() * 2)], itemsPool[Math.floor(Math.random() * 2)], itemsPool[Math.floor(Math.random() * 2)]];
+                    }
                 }
             } else {
-                res1 = res2 = res3 = itemsPool[3];
+                [res1, res2, res3] = normalRoll();
             }
 
+            spinCount++;
             document.getElementById('box1').innerText = res1.id;
             document.getElementById('box2').innerText = res2.id;
             document.getElementById('box3').innerText = res3.id;
@@ -388,6 +430,16 @@
             } else {
                 icon.innerText = 'info';
                 icon.parentElement.className = "w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto";
+            }
+
+            // Sesuaikan tombol aksi pada popup
+            const actionBtn = modal.querySelector('button');
+            if (type === 'error' && title && title.toLowerCase().includes('saldo')) {
+                actionBtn.innerText = 'Sudah isi saldo? Refresh';
+                actionBtn.onclick = () => { location.reload(); };
+            } else {
+                actionBtn.innerText = 'Lanjut Spin';
+                actionBtn.onclick = closePopup;
             }
 
             modal.classList.remove('hidden');

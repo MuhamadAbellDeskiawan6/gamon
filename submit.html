@@ -7,6 +7,9 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600&display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
 <script id="tailwind-config">
         tailwind.config = {
             darkMode: "class",
@@ -112,28 +115,32 @@
         .material-symbols-outlined {
             font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
         }
+        /* Style Tambahan untuk Peta Input */
+        #inputMap {
+            height: 250px;
+            width: 100%;
+            border-radius: 0.5rem;
+            border: 1px solid #d0c3c7;
+            z-index: 1;
+        }
     </style>
 </head>
 <body class="font-body-md text-on-surface selection:bg-primary-container selection:text-on-primary-container">
 <main class="relative z-10 flex flex-col items-center justify-center min-h-screen px-margin-mobile md:px-container-padding py-section-gap">
-<!-- Back Link -->
 <a class="self-start mb-unit flex items-center gap-2 text-on-surface-variant hover:text-primary transition-colors duration-200 group" href="index.html">
 <span class="material-symbols-outlined transition-transform group-hover:-translate-x-1">arrow_back</span>
 <span class="font-label-md text-label-md">Kembali ke Beranda</span>
 </a>
-<!-- Form Card -->
 <section class="glass-card w-full max-w-2xl p-gutter md:p-container-padding rounded-xl">
 <div class="mb-gutter text-center">
 <h1 class="font-display-lg text-headline-md md:text-display-lg text-primary mb-2">Sampaikan Gamonmu 💔</h1>
 <p class="font-body-md text-on-surface-variant">Bagikan perasaan yang masih tertinggal di kedalaman hati.</p>
 </div>
-<!-- Privacy Notice -->
 <div class="bg-primary-container/30 border border-primary-container/50 rounded-lg p-unit mb-gutter flex items-center gap-3">
 <span class="material-symbols-outlined text-primary-fixed-variant" style="font-variation-settings: 'FILL' 1;">encrypted</span>
 <p class="font-label-md text-label-md text-on-primary-container">Privasi Terjamin: Pesan anda aman terenkripsi di sistem kami.</p>
 </div>
 <form class="space-y-gutter" id="submitForm">
-<!-- Inputs -->
 <div class="space-y-unit">
 <div>
 <label class="block font-label-md text-label-md text-on-surface-variant mb-1" for="senderName">Nama kamu</label>
@@ -148,7 +155,24 @@
 <textarea class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-gutter py-2 text-on-surface focus:outline-none input-focus transition-all resize-none" id="messageContent" placeholder="Tuliskan semua kata yang tak sempat terucap..." required="" rows="5"></textarea>
 </div>
 </div>
-<!-- Audio Recorder Section -->
+
+<div class="space-y-unit">
+<div class="flex items-center gap-3 mb-3">
+<label class="flex items-center gap-2 cursor-pointer">
+<input type="checkbox" id="enableLocation" class="w-4 h-4 rounded border-outline-variant cursor-pointer" />
+<span class="font-label-md text-label-md text-on-surface-variant">Tandai Lokasi Kenangan Gamonmu (Opsional)</span>
+</label>
+</div>
+
+<div id="locationContainer" class="hidden space-y-unit">
+<div id="inputMap"></div>
+<p class="text-xs text-on-surface-variant italic mt-1">Sistem mendeteksi otomatis koordinat: <span id="coordsDisplay" class="font-mono font-bold">-3.3167, 114.5900 (Banjarmasin)</span></p>
+</div>
+
+<input type="hidden" id="latitude" value="">
+<input type="hidden" id="longitude" value="">
+</div>
+
 <div class="space-y-unit">
 <label class="block font-label-md text-label-md text-on-surface-variant mb-1">Rekam VN (Opsional)</label>
 <div class="flex flex-col items-center gap-unit bg-surface-container-low rounded-xl p-gutter border border-dashed border-outline-variant" id="recorderContainer">
@@ -169,7 +193,6 @@
 </div>
 </div>
 </div>
-<!-- Submit Button -->
 <div class="pt-unit">
 <button class="w-full py-gutter rounded-xl bg-primary text-on-primary font-headline-sm hover:brightness-110 shadow-lg shadow-primary/20 transition-all duration-300 active:scale-95 flex justify-center items-center gap-3" id="submitBtn" type="submit">
 <span id="btnText">Kirim Gamon</span>
@@ -179,7 +202,9 @@
 </form>
 </section>
 </main>
-<!-- Scripts -->
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
 <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
@@ -196,7 +221,73 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // Logic for Audio Recording
+        // --- INISIALISASI PETA INPUT (LEAFLET) ---
+        // Titik awal di Banjarmasin (bisa diganti titik tengah Indonesia jika mau)
+        const defaultLat = -3.3167;
+        const defaultLng = 114.5900;
+
+        let inputMap = null;
+        let marker = null;
+        const enableLocationCheckbox = document.getElementById('enableLocation');
+        const locationContainer = document.getElementById('locationContainer');
+
+        // Fungsi inisialisasi peta
+        function initializeMap() {
+            if (inputMap) return; // Cegah inisialisasi ganda
+            
+            inputMap = L.map('inputMap').setView([defaultLat, defaultLng], 12);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(inputMap);
+
+            // Pasang Marker Pin yang bisa di-drag (geser)
+            marker = L.marker([defaultLat, defaultLng], { draggable: true }).addTo(inputMap);
+
+            // Event saat Pin ditarik/digeser
+            marker.on('dragend', function (e) {
+                const position = marker.getLatLng();
+                updateCoordinates(position.lat, position.lng);
+            });
+
+            // Event saat Peta di-klik di area manapun (Pin pindah otomatis)
+            inputMap.on('click', function (e) {
+                marker.setLatLng(e.latlng);
+                updateCoordinates(e.latlng.lat, e.latlng.lng);
+            });
+        }
+
+        // Fungsi memperbarui nilai koordinat di input tersembunyi
+        function updateCoordinates(lat, lng) {
+            document.getElementById('latitude').value = lat.toFixed(6);
+            document.getElementById('longitude').value = lng.toFixed(6);
+            document.getElementById('coordsDisplay').innerText = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+        }
+
+        // Event listener untuk toggle lokasi
+        enableLocationCheckbox.addEventListener('change', function () {
+            if (this.checked) {
+                // Aktifkan lokasi
+                locationContainer.classList.remove('hidden');
+                initializeMap();
+                setTimeout(() => inputMap.invalidateSize(), 100); // Refresh ukuran peta
+                updateCoordinates(defaultLat, defaultLng); // Set koordinat default
+            } else {
+                // Nonaktifkan lokasi
+                locationContainer.classList.add('hidden');
+                if (inputMap) {
+                    inputMap.remove();
+                    inputMap = null;
+                    marker = null;
+                }
+                // Kosongkan nilai koordinat
+                document.getElementById('latitude').value = '';
+                document.getElementById('longitude').value = '';
+                document.getElementById('coordsDisplay').innerText = '(Tidak ada lokasi)';
+            }
+        });
+
+
+        // --- LOGIC FOR AUDIO RECORDING ---
         let mediaRecorder;
         let audioChunks = [];
         let audioBase64 = null;
@@ -209,22 +300,11 @@
 
         const getSupportedAudioMimeType = () => {
             const types = [
-                'audio/webm;codecs=opus',
-                'audio/webm',
-                'audio/mp4',
-                'audio/x-m4a',
-                'audio/mpeg',
-                'audio/wav'
+                'audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/x-m4a', 'audio/mpeg', 'audio/wav'
             ];
-
-            if (!window.MediaRecorder || typeof MediaRecorder.isTypeSupported !== 'function') {
-                return '';
-            }
-
+            if (!window.MediaRecorder || typeof MediaRecorder.isTypeSupported !== 'function') return '';
             for (const type of types) {
-                if (MediaRecorder.isTypeSupported(type)) {
-                    return type;
-                }
+                if (MediaRecorder.isTypeSupported(type)) return type;
             }
             return '';
         };
@@ -241,7 +321,7 @@
 
         recordBtn.addEventListener('click', async () => {
             if (!isRecordingSupported()) {
-                alert('Rekaman suara tidak didukung di peramban ini. Silakan gunakan perangkat lain atau kirim tanpa VN.');
+                alert('Rekaman suara tidak didukung di peramban ini.');
                 return;
             }
 
@@ -265,9 +345,7 @@
                         
                         const reader = new FileReader();
                         reader.readAsDataURL(audioBlob);
-                        reader.onloadend = () => {
-                            audioBase64 = reader.result;
-                        };
+                        reader.onloadend = () => { audioBase64 = reader.result; };
                     };
 
                     audioChunks = [];
@@ -291,6 +369,7 @@
             }
         });
 
+        // --- SUBMIT FORM DATA KE FIRESTORE ---
         const form = document.getElementById('submitForm');
         const submitBtn = document.getElementById('submitBtn');
         const btnText = document.getElementById('btnText');
@@ -302,24 +381,28 @@
             btnText.innerText = 'Mengirim...';
             loader.classList.remove('hidden');
 
-            const formData = {
-                sender: document.getElementById('senderName').value,
-                receiver: document.getElementById('receiverName').value,
-                content: document.getElementById('messageContent').value,
-                audio: audioBase64,
-                timestamp: Date.now()
+            const latVal = document.getElementById('latitude').value;
+            const lngVal = document.getElementById('longitude').value;
+
+            // Prepare data dengan lokasi opsional
+            const gamonData = {
+                nama: document.getElementById('senderName').value,
+                tujuan: document.getElementById('receiverName').value,
+                pesan: document.getElementById('messageContent').value,
+                audioUrl: audioBase64,
+                waktu: Date.now()
             };
 
-            try {
-                await addDoc(collection(db, 'gamon'), {
-                    nama: formData.sender,
-                    tujuan: formData.receiver,
-                    pesan: formData.content,
-                    audioUrl: formData.audio,
-                    waktu: Date.now()
-                });
+            // Tambahkan latitude & longitude hanya jika lokasi diaktifkan
+            if (latVal && lngVal) {
+                gamonData.latitude = parseFloat(latVal);
+                gamonData.longitude = parseFloat(lngVal);
+            }
 
-                alert('Gamonmu telah terkirim ke bintang-bintang.');
+            try {
+                await addDoc(collection(db, 'gamon'), gamonData);
+
+                alert('Gamonmu telah terkirim dan dipetakan.');
                 window.location.href = 'index.html';
             } catch (err) {
                 console.error(err);
