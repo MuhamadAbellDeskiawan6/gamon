@@ -19,7 +19,7 @@ const secretKey = "SK-iqZcijyclbfh2VKd3VQQ";
     order: {
         amount: amount,
         invoice_number: orderId,
-        return_url: "https://gamon-fawn.vercel.app/photobox.html"
+        callback_url: "https://gamon-fawn.vercel.app/api/doku-notify"
     },
     payment: {
         payment_due_date: 60
