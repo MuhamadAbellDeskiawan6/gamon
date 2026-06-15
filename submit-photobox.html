@@ -1,0 +1,33 @@
+<div>
+    <label class="block font-label-md text-label-md text-on-surface-variant mb-1" for="email">Email untuk Softfile</label>
+    <input class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-gutter py-2 text-on-surface" id="email" required type="email" placeholder="contoh@mail.com"/>
+</div>
+
+<script type="module">
+    import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    // ... inisialisasi firebase sama seperti submit.html ...
+
+    const form = document.getElementById('submitForm');
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const photo = localStorage.getItem('tempPhoto');
+        const data = {
+            nama: document.getElementById('senderName').value,
+            tujuan: document.getElementById('receiverName').value,
+            pesan: document.getElementById('messageContent').value,
+            email: document.getElementById('email').value,
+            photoBase64: photo, // Kirim foto ke Firestore
+            waktu: Date.now()
+        };
+
+        try {
+            await addDoc(collection(db, 'photobox_order'), data);
+            alert('Sukses! Pesanan sedang dicetak dan softfile akan dikirim ke email anda.');
+            localStorage.removeItem('tempPhoto');
+            window.location.href = 'index.html';
+        } catch (err) {
+            console.error(err);
+        }
+    });
+</script>
