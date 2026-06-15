@@ -14,6 +14,11 @@
         
         <button id="btnMulai" class="w-full py-3 bg-pink-500 text-white rounded-lg font-bold">Mulai Pembayaran (5k)</button>
         <button id="btnFoto" class="hidden w-full py-3 bg-green-500 text-white rounded-lg font-bold mt-2">Ambil Foto</button>
+
+        <div id="divSelesai" class="hidden">
+    <p class="text-green-600 font-bold mb-4">Pembayaran Berhasil!</p>
+    <button onclick="window.location.reload()" class="w-full py-3 bg-blue-500 text-white rounded-lg">Kembali ke Photobox</button>
+</div>
     </div>
 
    <script type="module">
@@ -91,11 +96,13 @@ btnMulai.onclick = async () => {
     // 3. Pantau status dari Webhook (DOKU Notify)
     const orderId = localStorage.getItem('tempOrderId');
     if (orderId) {
-        onSnapshot(doc(db, "orders", orderId), (doc) => {
-            if (doc.exists() && doc.data().status === "PAID") {
-                startCamera();
-            }
-        });
+       onSnapshot(doc(db, "orders", orderId), (doc) => {
+    if (doc.exists() && doc.data().status === "PAID") {
+        // Jika sudah PAID, panggil fungsi kamera
+        startCamera();
+        // Opsional: Sembunyikan elemen lain jika perlu
+    }
+});
     }
 </script>
 </body>
