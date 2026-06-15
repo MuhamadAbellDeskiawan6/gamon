@@ -93,17 +93,22 @@ btnMulai.onclick = async () => {
     }
 };
 
-    // 3. Pantau status dari Webhook (DOKU Notify)
-    const orderId = localStorage.getItem('tempOrderId');
-    if (orderId) {
-       onSnapshot(doc(db, "orders", orderId), (doc) => {
-    if (doc.exists() && doc.data().status === "PAID") {
-        // Jika sudah PAID, panggil fungsi kamera
-        startCamera();
-        // Opsional: Sembunyikan elemen lain jika perlu
-    }
-});
-    }
+   // Pantau status dari Webhook
+const orderId = localStorage.getItem('tempOrderId');
+if (orderId) {
+    onSnapshot(doc(db, "orders", orderId), (doc) => {
+        if (doc.exists() && doc.data().status === "PAID") {
+            // Tampilkan pesan sukses sebentar
+            alert("Pembayaran berhasil! Mengaktifkan kamera...");
+            
+            // Panggil fungsi kamera
+            startCamera();
+            
+            // JIKA masih tidak redirect, kita paksa window.location
+            // tapi karena ini satu halaman, cukup panggil startCamera saja
+        }
+    });
+}
 </script>
 </body>
 </html>
