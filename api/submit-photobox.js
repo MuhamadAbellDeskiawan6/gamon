@@ -70,14 +70,15 @@ export default async function handler(req, res) {
 
         // 2. REKAPAN BACKUP: Simpan transaksi log ke photobox_order
         await db.collection('photobox_order').add({
-            orderId: orderId || 'GAMON-MANUAL',
-            nama: nama || '',
-            tujuan: tujuan || '',
-            pesan: pesan || '',
-            email: email,
-            photoBase64: photoBase64,
-            waktu: timestamp
-        });
+    orderId: orderId || 'GAMON-MANUAL',
+    nama: nama || '',
+    tujuan: tujuan || '',
+    pesan: pesan || '',
+    email: email,
+    photoBase64: photoBase64, // Data gambar utama yang akan diambil script printer
+    waktu: timestamp,
+    isPrinted: false // Penanda bahwa foto ini mengantre untuk dicetak fisik
+});
 
         // Isolasi Base64 untuk attachment email platform Resend
         const base64Content = photoBase64.replace(/^data:image\/[a-z]+;base64,/, "");
