@@ -5,23 +5,74 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Photobox Gamon Tawing</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:ital,wght@1,500;1,600&display=swap" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #fef8fa 0%, #fce4ec 100%);
+        }
+        .polaroid-frame {
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.02);
+        }
+    </style>
 </head>
-<body class="bg-gray-100 flex flex-col items-center justify-center min-h-screen p-4">
-    <div class="bg-white p-6 rounded-xl shadow-lg w-full max-w-md text-center">
-        <h1 class="text-2xl font-bold mb-4">Self Photobox</h1>
-        <video id="video" class="w-full h-64 bg-black rounded-lg mb-4" autoplay playsinline></video>
+<body class="font-['Inter'] flex flex-col items-center justify-center min-h-screen p-4 md:p-8">
+    
+    <div class="bg-white p-6 rounded-2xl shadow-xl w-full max-w-md text-center relative border border-pink-100">
+        <div class="mb-6">
+            <h1 class="text-2xl font-bold text-gray-800 tracking-tight">Self Photobox 📸</h1>
+            <p class="text-xs text-gray-500 mt-1">Abadikan kenangan gamonmu dalam selembar polaroid bersih</p>
+        </div>
+        
+        <div class="relative w-full aspect-[3/4] bg-gray-900 rounded-xl mb-5 overflow-hidden flex items-center justify-center shadow-inner">
+            <video id="video" class="w-full h-full object-cover" autoplay playsinline></video>
+            <img id="photoPreview" class="hidden w-full h-full object-cover absolute top-0 left-0" alt="Preview"/>
+            
+            <div id="flashOverlay" class="absolute inset-0 bg-white opacity-0 transition-opacity duration-100 pointer-events-none"></div>
+            
+            <div id="countdownDisplay" class="hidden absolute text-8xl font-black text-white drop-shadow-[0_4px_12px_rgba(0,0,0,0.5)] animate-scale">5</div>
+        </div>
         <canvas id="canvas" class="hidden"></canvas>
         
-        <button id="btnMulai" class="w-full py-3 bg-pink-500 text-white rounded-lg font-bold">Mulai Pembayaran (5k)</button>
-        <button id="btnFoto" class="hidden w-full py-3 bg-green-500 text-white rounded-lg font-bold mt-2">Ambil Foto</button>
+        <button id="btnMulai" class="w-full py-3.5 bg-pink-600 text-white rounded-xl font-semibold shadow-lg shadow-pink-200 hover:bg-pink-700 transition active:scale-[0.99]">Mulai Pembayaran (5k)</button>
 
-        <div id="divSelesai" class="hidden">
-    <p class="text-green-600 font-bold mb-4">Pembayaran Berhasil!</p>
-    <button onclick="window.location.reload()" class="w-full py-3 bg-blue-500 text-white rounded-lg">Kembali ke Photobox</button>
-</div>
+        <div id="areaAksiFoto" class="hidden space-y-3">
+            <button id="btnFoto" class="w-full py-3.5 bg-gray-900 text-white rounded-xl font-semibold shadow-md hover:bg-black transition active:scale-[0.99]">Ambil Foto (Timer 5 Detik)</button>
+            <div id="areaRetake" class="hidden flex gap-3">
+                <button id="btnRetake" class="w-1/2 py-3 bg-gray-100 text-gray-700 rounded-xl font-medium border border-gray-200 hover:bg-gray-200 transition">Foto Ulang</button>
+                <button id="btnLanjut" class="w-1/2 py-3 bg-pink-600 text-white rounded-xl font-semibold hover:bg-pink-700 transition shadow-md shadow-pink-100">Lanjut Isi Data</button>
+            </div>
+        </div>
+
+        <form id="formData" class="hidden text-left space-y-4 mt-2 border-t border-gray-100 pt-5">
+            <h3 class="font-semibold text-gray-800 text-base">Lengkapi Data Polaroid & Cerita</h3>
+            
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-medium text-gray-600 mb-1" for="senderName">Nama Pengirim</label>
+                    <input class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-pink-500 bg-gray-50/50" id="senderName" required type="text" placeholder="Nama kamu"/>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-600 mb-1" for="receiverName">Untuk Siapa</label>
+                    <input class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-pink-500 bg-gray-50/50" id="receiverName" required type="text" placeholder="Nama si dia / inisial"/>
+                </div>
+            </div>
+            
+            <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1" for="email">Email untuk Pengiriman Softfile</label>
+                <input class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-pink-500 bg-gray-50/50" id="email" required type="email" placeholder="nama@email.com"/>
+            </div>
+            
+            <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1" for="messageContent">Pesan yang Ingin Ditampilkan di Index Gamon</label>
+                <textarea class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-pink-500 bg-gray-50/50 resize-none" id="messageContent" required placeholder="Tulis cerita atau pesan galau yang akan muncul terintegrasi di beranda..." rows="3" maxlength="150"></textarea>
+                <p class="text-[10px] text-gray-400 mt-1 italic">*Maksimal 150 karakter agar pas dan rapi di kertas polaroid.</p>
+            </div>
+            
+            <button type="submit" id="btnKirim" class="w-full py-3.5 bg-pink-600 text-white rounded-xl font-semibold shadow-lg shadow-pink-200 hover:bg-pink-700 transition active:scale-[0.99] mt-2">Cetak, Kirim Email & Publish 🚀</button>
+        </form>
     </div>
 
-  <script type="module">
+<script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
     import { getFirestore, doc, onSnapshot, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
@@ -31,54 +82,60 @@
         projectId: "gamon-tawing",
         storageBucket: "gamon-tawing.firebasestorage.app",
         messagingSenderId: "370162915989",
-        appId: "1:370162915989:web:76779062da83aa0c5c999c",
-        measurementId: "G-DDRQKDZXV7"
+        appId: "1:370162915989:web:76779062da83aa0c5c999c"
     };
 
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
     const btnMulai = document.getElementById('btnMulai');
+    const areaAksiFoto = document.getElementById('areaAksiFoto');
     const btnFoto = document.getElementById('btnFoto');
-    const divSelesai = document.getElementById('divSelesai');
+    const areaRetake = document.getElementById('areaRetake');
+    const btnRetake = document.getElementById('btnRetake');
+    const btnLanjut = document.getElementById('btnLanjut');
+    const formData = document.getElementById('formData');
     const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const photoPreview = document.getElementById('photoPreview');
+    const countdownDisplay = document.getElementById('countdownDisplay');
+    const flashOverlay = document.getElementById('flashOverlay');
 
-    // Fungsi Kamera
+    let localStream;
+    let rawCapturedImage = null;
+
     async function startCamera() {
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-            video.srcObject = stream;
+            localStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user", aspectRatio: 3/4 } });
+            video.srcObject = localStream;
             btnMulai.classList.add('hidden');
-            btnFoto.classList.remove('hidden');
-            divSelesai.classList.add('hidden');
-        } catch (err) { alert("Izin kamera ditolak!"); }
+            areaAksiFoto.classList.remove('hidden');
+            video.classList.remove('hidden');
+            photoPreview.classList.add('hidden');
+        } catch (err) { 
+            alert("Gagal mengakses kamera: " + err.message); 
+        }
     }
 
-    // Listener Status Pembayaran
     function listenToPayment(orderId) {
         onSnapshot(doc(db, "orders", orderId), (docSnapshot) => {
             if (docSnapshot.exists() && docSnapshot.data().status === "PAID") {
                 startCamera();
-                divSelesai.classList.remove('hidden');
             }
         });
     }
 
-    // Cek URL saat halaman dimuat (untuk user yang kembali dari DOKU)
     const urlParams = new URLSearchParams(window.location.search);
     const orderIdFromUrl = urlParams.get('orderId');
     const storedOrderId = localStorage.getItem('tempOrderId');
 
     if (orderIdFromUrl || storedOrderId) {
-        const id = orderIdFromUrl || storedOrderId;
-        listenToPayment(id);
+        listenToPayment(orderIdFromUrl || storedOrderId);
     }
 
-    // Klik Mulai
     btnMulai.onclick = async () => {
         btnMulai.innerText = "Memproses...";
         btnMulai.disabled = true;
-
         try {
             const orderId = 'GAMON-' + Date.now();
             localStorage.setItem('tempOrderId', orderId);
@@ -99,6 +156,215 @@
             btnMulai.innerText = "Mulai Pembayaran (5k)";
             btnMulai.disabled = false;
         }
+    };
+
+    function captureSnapshot() {
+        flashOverlay.classList.remove('opacity-0');
+        flashOverlay.classList.add('opacity-100');
+        
+        setTimeout(() => {
+            flashOverlay.classList.remove('opacity-100');
+            flashOverlay.classList.add('opacity-0');
+        }, 150);
+
+        const context = canvas.getContext('2d');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        
+        context.translate(canvas.width, 0);
+        context.scale(-1, 1);
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        context.setTransform(1, 0, 0, 1, 0, 0);
+
+        rawCapturedImage = canvas.toDataURL('image/jpeg', 0.95);
+        photoPreview.src = rawCapturedImage;
+        
+        video.classList.add('hidden');
+        photoPreview.classList.remove('hidden');
+        
+        btnFoto.classList.add('hidden');
+        btnFoto.disabled = false;
+        btnFoto.innerText = "Ambil Foto (Timer 5 Detik)";
+        areaRetake.classList.remove('hidden');
+    }
+
+    btnFoto.onclick = () => {
+        btnFoto.disabled = true;
+        let timeLeft = 5;
+        
+        countdownDisplay.innerText = timeLeft;
+        countdownDisplay.classList.remove('hidden');
+
+        const timer = setInterval(() => {
+            timeLeft--;
+            if (timeLeft <= 0) {
+                clearInterval(timer);
+                countdownDisplay.classList.add('hidden');
+                captureSnapshot();
+            } else {
+                countdownDisplay.innerText = timeLeft;
+            }
+        }, 1000);
+    };
+
+    btnRetake.onclick = () => {
+        video.classList.remove('hidden');
+        photoPreview.classList.add('hidden');
+        btnFoto.classList.remove('hidden');
+        areaRetake.classList.add('hidden');
+        rawCapturedImage = null;
+    };
+
+    btnLanjut.onclick = () => {
+        areaAksiFoto.classList.add('hidden');
+        formData.classList.remove('hidden');
+        if (localStream) {
+            localStream.getTracks().forEach(track => track.stop());
+        }
+    };
+
+    formData.onsubmit = async (e) => {
+        e.preventDefault();
+        const btnKirim = document.getElementById('btnKirim');
+        btnKirim.innerText = "Membuat Lembar Polaroid...";
+        btnKirim.disabled = true;
+
+        const nama = document.getElementById('senderName').value;
+        const tujuan = document.getElementById('receiverName').value;
+        const pesan = document.getElementById('messageContent').value;
+        const email = document.getElementById('email').value;
+
+        // Cetak Polaroid Canvas Resolusi Tinggi (Standar Rasio Polaroid Bersih Klasik)
+        const polaroidCanvas = document.createElement('canvas');
+        const ctx = polaroidCanvas.getContext('2d');
+        
+        polaroidCanvas.width = 1200;
+        polaroidCanvas.height = 1600;
+
+        // 1. Background Putih Bersih Minimalis
+        ctx.fillStyle = "#FFFFFF";
+        ctx.fillRect(0, 0, polaroidCanvas.width, polaroidCanvas.height);
+
+        // 2. Stroke Inner Border Tipis Elegan
+        ctx.strokeStyle = "#F1F5F9";
+        ctx.lineWidth = 4;
+        ctx.strokeRect(15, 15, polaroidCanvas.width - 30, polaroidCanvas.height - 30);
+
+        const img = new Image();
+        img.src = rawCapturedImage;
+        
+        img.onload = async () => {
+            // Pengaturan dimensi foto utama (Clean Square/Rasio Terpelihara)
+            const photoX = 70;
+            const photoY = 70;
+            const photoWidth = 1060;
+            const photoHeight = 1060;
+
+            // Image Aspect Ratio Handling (Center Cropping)
+            const imgRatio = img.width / img.height;
+            const targetRatio = photoWidth / photoHeight;
+            let sx, sy, sw, sh;
+
+            if (imgRatio > targetRatio) {
+                sh = img.height;
+                sw = img.height * targetRatio;
+                sx = (img.width - sw) / 2;
+                sy = 0;
+            } else {
+                sw = img.width;
+                sh = img.width / targetRatio;
+                sx = 0;
+                sy = (img.height - sh) / 2;
+            }
+
+            ctx.drawImage(img, sx, sy, sw, sh, photoX, photoY, photoWidth, photoHeight);
+
+            // Menunggu load Font sistem agar gambar tidak default serif kasar
+            await document.fonts.ready;
+
+            // 3. Render Tulisan Informasi (To / From) - Menggunakan Desain Tipografi Clean & Modern Italics
+            ctx.fillStyle = "#475569";
+            ctx.font = "italic 500 36px 'Playfair Display', serif";
+            ctx.textAlign = "left";
+            ctx.fillText(`Dear: ${tujuan}`, 80, 1200);
+            
+            ctx.textAlign = "right";
+            ctx.fillText(`— Dari: ${nama}`, 1120, 1200);
+
+            // Garis tipis pembatas teks cerita
+            ctx.strokeStyle = "#E2E8F0";
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(80, 1240);
+            ctx.lineTo(1120, 1240);
+            ctx.stroke();
+
+            // 4. Render Pesan Cerita Utama (Word Wrapping)
+            ctx.fillStyle = "#1E293B";
+            ctx.font = "italic 500 44px 'Playfair Display', serif";
+            ctx.textAlign = "center";
+            
+            const words = pesan.split(' ');
+            let line = '';
+            let lineCount = 0;
+            const maxWidth = 1000;
+            let currentY = 1320;
+            const lineHeight = 65;
+
+            for (let n = 0; n < words.length; n++) {
+                let testLine = line + words[n] + ' ';
+                let metrics = ctx.measureText(testLine);
+                let testWidth = metrics.width;
+                
+                if (testWidth > maxWidth && n > 0) {
+                    ctx.fillText(line, 600, currentY);
+                    line = words[n] + ' ';
+                    currentY += lineHeight;
+                    lineCount++;
+                    if(lineCount >= 3) break;
+                } else {
+                    line = testLine;
+                }
+            }
+            if (lineCount < 3) {
+                ctx.fillText(line, 600, currentY);
+            }
+
+            const polaroidBase64 = polaroidCanvas.toDataURL('image/jpeg', 0.9);
+
+            btnKirim.innerText = "Mengintegrasikan & Mengirim...";
+            
+            const payload = {
+                nama,
+                tujuan,
+                pesan,
+                email,
+                photoBase64: polaroidBase64,
+                orderId: localStorage.getItem('tempOrderId') || 'GAMON-MANUAL'
+            };
+
+            try {
+                const response = await fetch('/api/submit-photobox', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    const errData = await response.json();
+                    throw new Error(errData.message || 'Gagal memproses data.');
+                }
+
+                alert('Cerita kamu berhasil dipublish ke beranda Gamon Tawing dan softfile Polaroid premium telah dikirim ke email!');
+                localStorage.removeItem('tempOrderId');
+                window.location.href = 'index.html';
+
+            } catch (err) {
+                alert('Gagal: ' + err.message);
+                btnKirim.innerText = "Cetak, Kirim Email & Publish 🚀";
+                btnKirim.disabled = false;
+            }
+        };
     };
 </script>
 </body>
