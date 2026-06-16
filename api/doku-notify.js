@@ -8,31 +8,32 @@ if (!getApps().length) {
 }
 
 export default async function handler(req, res) {
-   // Izinkan GET jika DOKU mengirim notifikasi melalui GET
-    if (req.method !== 'POST' && req.method !== 'GET') {
+    if (req.method !== 'POST') {
         return res.status(405).send('Method Not Allowed');
     }
 
-    // Jika metode GET, biasanya DOKU hanya memanggil URL untuk konfirmasi 
-    // atau mengirim data via query params.
-    // Jika data ada di body (POST), gunakan req.body.
-    // Jika data ada di query (GET), gunakan req.query.
-    const data = req.method === 'POST' ? req.body : req.query;
+    const data = req.body;
     
-    const orderId = data.order?.invoice_number;
-    const status = data.transaction?.status;
+    // Pastikan data yang diperlukan ada
+    if (!data.order || !data.transaction) {
+        return res.status(400).send('Invalid Notification Format');
+    }
+
+    const orderId = data.order.invoice_number;
+    const status = data.transaction.status;
 
     if (status === 'SUCCESS') {
         const db = getFirestore();
         try {
-            // Di doku-notify.js
-await db.collection('orders').doc(orderId).update({
-    status: "PAID"
-});
+            await db.collection('orders').doc(orderId).update({
+                status: "PAID"
+            });
             return res.status(200).send("OK");
         } catch (e) {
+            console.error("Firebase Update Error:", e);
             return res.status(500).send("Gagal Update DB");
         }
     }
-    return res.status(200).send("NOT_PAID");
+
+    return res.status(200).send("Transaction not successful");
 }
