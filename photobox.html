@@ -21,94 +21,85 @@
 </div>
     </div>
 
-   <script type="module">
-    // TAMBAHKAN 'initializeApp' di sini
+  <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
     import { getFirestore, doc, onSnapshot, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-    // Isi dengan data dari Firebase Console Anda
     const firebaseConfig = {
-       apiKey: "AIzaSyC247K8yyL67aWV95KNQy8CkMZsjgGCudQ",
-  authDomain: "gamon-tawing.firebaseapp.com",
-  projectId: "gamon-tawing",
-  storageBucket: "gamon-tawing.firebasestorage.app",
-  messagingSenderId: "370162915989",
-  appId: "1:370162915989:web:76779062da83aa0c5c999c",
-  measurementId: "G-DDRQKDZXV7"
+        apiKey: "AIzaSyC247K8yyL67aWV95KNQy8CkMZsjgGCudQ",
+        authDomain: "gamon-tawing.firebaseapp.com",
+        projectId: "gamon-tawing",
+        storageBucket: "gamon-tawing.firebasestorage.app",
+        messagingSenderId: "370162915989",
+        appId: "1:370162915989:web:76779062da83aa0c5c999c",
+        measurementId: "G-DDRQKDZXV7"
     };
 
-    const app = initializeApp(firebaseConfig); // INI HARUS DIJALANKAN
+    const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
     const btnMulai = document.getElementById('btnMulai');
-    const video = document.getElementById('video');
     const btnFoto = document.getElementById('btnFoto');
+    const divSelesai = document.getElementById('divSelesai');
+    const video = document.getElementById('video');
 
-    // 1. Fungsi untuk aktifkan kamera
+    // Fungsi Kamera
     async function startCamera() {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ video: true });
             video.srcObject = stream;
             btnMulai.classList.add('hidden');
             btnFoto.classList.remove('hidden');
+            divSelesai.classList.add('hidden');
         } catch (err) { alert("Izin kamera ditolak!"); }
     }
 
-   // Ganti bagian btnMulai.onclick Anda dengan ini:
-btnMulai.onclick = async () => {
-    btnMulai.innerText = "Memproses...";
-    btnMulai.disabled = true; // Mencegah klik ganda
-
-    try {
-        const orderId = 'GAMON-' + Date.now();
-        localStorage.setItem('tempOrderId', orderId);
-
-        // 1. Simpan ke Firebase
-        await setDoc(doc(db, "orders", orderId), { status: "PENDING" });
-
-        // 2. Fetch ke API
-        const response = await fetch('/api/create-payment', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ amount: 5000, orderId: orderId })
+    // Listener Status Pembayaran
+    function listenToPayment(orderId) {
+        onSnapshot(doc(db, "orders", orderId), (docSnapshot) => {
+            if (docSnapshot.exists() && docSnapshot.data().status === "PAID") {
+                startCamera();
+                divSelesai.classList.remove('hidden');
+            }
         });
-
-        // 3. Cek apakah response berhasil
-        if (!response.ok) throw new Error("Gagal menghubungi server");
-
-        const data = await response.json();
-        
-        // 4. Arahkan ke URL DOKU
-        if (data.response?.payment?.url) {
-            window.location.replace(data.response.payment.url);
-        } else {
-            console.error("Data dari DOKU:", data);
-            alert("Gagal mendapatkan URL pembayaran. Cek Console.");
-        }
-    } catch (err) {
-        console.error(err);
-        alert("Terjadi kesalahan: " + err.message);
-        btnMulai.innerText = "Mulai Pembayaran (5k)";
-        btnMulai.disabled = false;
     }
-};
 
-   // Pantau status dari Webhook
-const orderId = localStorage.getItem('tempOrderId');
-if (orderId) {
-    onSnapshot(doc(db, "orders", orderId), (doc) => {
-        if (doc.exists() && doc.data().status === "PAID") {
-            // Tampilkan pesan sukses sebentar
-            alert("Pembayaran berhasil! Mengaktifkan kamera...");
-            
-            // Panggil fungsi kamera
-            startCamera();
-            
-            // JIKA masih tidak redirect, kita paksa window.location
-            // tapi karena ini satu halaman, cukup panggil startCamera saja
+    // Cek URL saat halaman dimuat (untuk user yang kembali dari DOKU)
+    const urlParams = new URLSearchParams(window.location.search);
+    const orderIdFromUrl = urlParams.get('orderId');
+    const storedOrderId = localStorage.getItem('tempOrderId');
+
+    if (orderIdFromUrl || storedOrderId) {
+        const id = orderIdFromUrl || storedOrderId;
+        listenToPayment(id);
+    }
+
+    // Klik Mulai
+    btnMulai.onclick = async () => {
+        btnMulai.innerText = "Memproses...";
+        btnMulai.disabled = true;
+
+        try {
+            const orderId = 'GAMON-' + Date.now();
+            localStorage.setItem('tempOrderId', orderId);
+            await setDoc(doc(db, "orders", orderId), { status: "PENDING" });
+
+            const response = await fetch('/api/create-payment', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ amount: 5000, orderId: orderId })
+            });
+
+            const data = await response.json();
+            if (data.response?.payment?.url) {
+                window.location.replace(data.response.payment.url);
+            }
+        } catch (err) {
+            alert("Kesalahan: " + err.message);
+            btnMulai.innerText = "Mulai Pembayaran (5k)";
+            btnMulai.disabled = false;
         }
-    });
-}
+    };
 </script>
 </body>
 </html>

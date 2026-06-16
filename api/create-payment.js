@@ -15,17 +15,17 @@ const secretKey = "SK-iqZcijyclbfh2VKd3VQQ";
 
        const timestamp = new Date().toISOString().split('.')[0] + "Z";
 
-      const requestBody = {
-   order: {
+     // Di dalam api/create-payment.js
+const requestBody = {
+    order: {
         amount: amount,
         invoice_number: orderId,
-        callback_url: "https://gamon-fawn.vercel.app/photobox.html?orderId=" + orderId // Tambahkan orderId di sini
+        callback_url: "https://gamon-fawn.vercel.app/api/doku-notify" 
     },
     payment: {
-        payment_due_date: 60
-    },
-    // Ini untuk Webhook (komunikasi server ke server, bukan untuk redirect user)
-    callback_url: "https://gamon-fawn.vercel.app/api/doku-notify" 
+        payment_due_date: 60,
+        return_url: "https://gamon-fawn.vercel.app/photobox.html"
+    }
 };
 
         const jsonBody = JSON.stringify(requestBody);
