@@ -8,9 +8,17 @@ if (!getApps().length) {
 }
 
 export default async function handler(req, res) {
-    if (req.method !== 'POST') return res.status(405).send('Method Not Allowed');
+   // Izinkan GET jika DOKU mengirim notifikasi melalui GET
+    if (req.method !== 'POST' && req.method !== 'GET') {
+        return res.status(405).send('Method Not Allowed');
+    }
 
-    const data = req.body;
+    // Jika metode GET, biasanya DOKU hanya memanggil URL untuk konfirmasi 
+    // atau mengirim data via query params.
+    // Jika data ada di body (POST), gunakan req.body.
+    // Jika data ada di query (GET), gunakan req.query.
+    const data = req.method === 'POST' ? req.body : req.query;
+    
     const orderId = data.order?.invoice_number;
     const status = data.transaction?.status;
 
