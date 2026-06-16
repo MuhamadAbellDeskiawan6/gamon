@@ -16,11 +16,10 @@ const secretKey = "SK-iqZcijyclbfh2VKd3VQQ";
        const timestamp = new Date().toISOString().split('.')[0] + "Z";
 
       const requestBody = {
-    order: {
+   order: {
         amount: amount,
         invoice_number: orderId,
-        // DOKU menggunakan parameter 'url' untuk redirect setelah bayar
-        url: "https://gamon-fawn.vercel.app/photobox.html" 
+        callback_url: "https://gamon-fawn.vercel.app/photobox.html?orderId=" + orderId // Tambahkan orderId di sini
     },
     payment: {
         payment_due_date: 60
