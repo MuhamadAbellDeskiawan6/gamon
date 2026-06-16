@@ -25,6 +25,10 @@ const requestBody = {
     payment: {
         payment_due_date: 60,
         return_url: "https://gamon-fawn.vercel.app/photobox.html"
+    },
+    // TAMBAHKAN OBJEK INI Sesuai Dokumentasi DOKU
+    additional_info: {
+        override_notification_url: "https://gamon-fawn.vercel.app/api/doku-notify"
     }
 };
 

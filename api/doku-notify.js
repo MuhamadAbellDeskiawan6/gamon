@@ -7,32 +7,40 @@ if (!getApps().length) {
 }
 
 export default async function handler(req, res) {
-    // 1. Izinkan POST untuk Webhook (Update DB)
-    // 2. Izinkan GET untuk Redirect dari DOKU
-    
-    // Jika ada request GET dari DOKU, langsung redirect ke photobox
+    // Jika user klik tombol 'Go to Merchant' (Browser mengarah ke sini via GET)
     if (req.method === 'GET') {
         return res.redirect(302, '/photobox.html');
     }
 
-    if (req.method !== 'POST') {
-        return res.status(405).send('Method Not Allowed');
-    }
+    // Jika DOKU mengirimkan status pembayaran riil (Server-to-Server via POST)
+    if (req.method === 'POST') {
+        console.log("=== HIT WEBHOOK DOKU VIA POST ===");
+        console.log("PAYLOAD:", JSON.stringify(req.body, null, 2));
 
-    // Logika Update Database (hanya untuk POST)
-    const data = req.body;
-    const orderId = data.order?.invoice_number;
-    const status = data.transaction?.status;
+        const data = req.body;
+        
+        // Pengaman ekstra: fallback check jika penamaan properti di sandbox sedikit berbeda
+        const orderId = data.order?.invoice_number;
+        const status = data.transaction?.status || data.target?.status; 
 
-    if (status === 'SUCCESS' && orderId) {
-        const db = getFirestore();
-        try {
-            await db.collection('orders').doc(orderId).update({ status: "PAID" });
-            return res.status(200).send("OK");
-        } catch (e) {
-            return res.status(500).send("Gagal Update DB");
+        if (orderId && (status === 'SUCCESS' || status === 'PAID')) {
+            const db = getFirestore();
+            try {
+                // Update status menjadi PAID
+                await db.collection('orders').doc(orderId).update({ 
+                    status: "PAID",
+                    updatedAt: new Date() 
+                });
+                console.log(`Order ${orderId} berhasil diupdate ke PAID`);
+                return res.status(200).send("OK");
+            } catch (e) {
+                console.error("Gagal update Firestore:", e);
+                return res.status(500).send("Gagal Update DB");
+            }
         }
+
+        return res.status(200).send("Not Processed or Condition Not Met");
     }
     
-    return res.status(200).send("Not Processed");
+    return res.status(405).send('Method Not Allowed');
 }
