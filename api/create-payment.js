@@ -7,8 +7,8 @@ export default async function handler(req, res) {
         });
     }
 
-   const clientId = "BRN-0245-1781503260311";
-const secretKey = "SK-iqZcijyclbfh2VKd3VQQ";
+   const clientId = "BRN-0226-1781255193170";
+const secretKey = "SK-NgMsKzkHcLlY95v7wsju";
 
     try {
         const { amount, orderId } = req.body;
@@ -64,7 +64,7 @@ const requestBody = {
         console.log("SIGNATURE:", signature);
 
         const response = await fetch(
-            "https://api-sandbox.doku.com/checkout/v1/payment",
+            "https://api.doku.com/checkout/v1/payment",
             {
                 method: "POST",
                // Tambahkan Request-Target ke dalam headers fetch:
