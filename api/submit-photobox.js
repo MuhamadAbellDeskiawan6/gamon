@@ -2,6 +2,7 @@ import { initializeApp, cert, getApps } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import fs from 'fs';
 import path from 'path';
+import nodemailer from 'nodemailer';
 
 // Load Environment secara manual untuk environment lokal development
 if (!process.env.FIREBASE_SERVICE_ACCOUNT) {
@@ -15,9 +16,10 @@ if (!process.env.FIREBASE_SERVICE_ACCOUNT) {
                 process.env.FIREBASE_SERVICE_ACCOUNT = firebaseMatch[1].trim();
             }
             
-            const resendMatch = envContent.match(/RESEND_API_KEY=['"]?([^'"\s\n]+)['"]?/);
-            if (resendMatch && resendMatch[1]) {
-                process.env.RESEND_API_KEY = resendMatch[1].trim();
+            // Mengubah pencarian env menjadi GMAIL_APP_PASSWORD untuk lokal testing
+            const gmailMatch = envContent.match(/GMAIL_APP_PASSWORD=['"]?([^'"\s\n]+)['"]?/);
+            if (gmailMatch && gmailMatch[1]) {
+                process.env.GMAIL_APP_PASSWORD = gmailMatch[1].trim();
             }
         }
     } catch (err) {
@@ -53,16 +55,15 @@ export default async function handler(req, res) {
         const db = getFirestore();
         const timestamp = Date.now();
 
-        // FIX UTAMA: Menyesuaikan nama field agar dibaca dengan benar oleh index.html bawaan Anda
-        // index.html membaca data menggunakan properti: nama, tujuan, pesan, dan waktu.
+        // 1. Simpan ke koleksi 'gamon' untuk peta/index utama
         await db.collection('gamon').add({
-            nama: nama || 'Anonim',       // Menggunakan 'nama' bukan 'senderName'
-            tujuan: tujuan || 'Seseorang', // Menggunakan 'tujuan' bukan 'receiverName'
-            pesan: pesan || '',           // Menggunakan 'pesan' bukan 'messageContent'
-            waktu: timestamp,             // Format timestamp milidetik yang dibutuhkan Firebase manual di index.html Anda
+            nama: nama || 'Anonim',       
+            tujuan: tujuan || 'Seseorang', 
+            pesan: pesan || '',           
+            waktu: timestamp,             
             email: email,
-            photoUrl: photoBase64,        // Tetap disimpan sebagai arsip/data pelengkap photobox
-            type: 'photobox',             // Sebagai marker jenis kiriman
+            photoUrl: photoBase64,        
+            type: 'photobox',             
             latitude: -3.3167,
             longitude: 114.5900,
             createdAt: new Date(timestamp)
@@ -70,69 +71,57 @@ export default async function handler(req, res) {
 
         // 2. REKAPAN BACKUP: Simpan transaksi log ke photobox_order
         await db.collection('photobox_order').add({
-    orderId: orderId || 'GAMON-MANUAL',
-    nama: nama || '',
-    tujuan: tujuan || '',
-    pesan: pesan || '',
-    email: email,
-    photoBase64: photoBase64, // Data gambar utama yang akan diambil script printer
-    waktu: timestamp,
-    isPrinted: false // Penanda bahwa foto ini mengantre untuk dicetak fisik
-});
-
-        // Isolasi Base64 untuk attachment email platform Resend
-        const base64Content = photoBase64.replace(/^data:image\/[a-z]+;base64,/, "");
-        
-        const apiKey = process.env.RESEND_API_KEY;
-        if (!apiKey) {
-            throw new Error("RESEND_API_KEY bermasalah di Server.");
-        }
-
-        // 3. KIRIM SOFTFILE VIA RESEND
-        const emailResponse = await fetch('https://api.resend.com/emails', {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${apiKey}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                from: 'onboarding@resend.dev', 
-                to: [email],
-                subject: `📸 Polaroid Gamon Tawing - Softfile Cetak Digital untuk ${nama || 'Kamu'}`,
-                html: `
-                    <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 25px; border: 1px solid #f0f0f0; border-radius: 16px; background-color: #fffafb; text-align: center;">
-                        <h2 style="color: #db2777; margin-bottom: 5px; font-weight: 700; tracking-tight">Gamon Tawing Photobox 📸</h2>
-                        <p style="font-size: 14px; color: #64748b; margin-top: 0;">Hai kak! Ini hasil cetak digital Polaroid eksklusif kamu 💌</p>
-                        
-                        <div style="background: #ffffff; padding: 12px; border-radius: 12px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.05); margin: 20px 0; border: 1px solid #f1f5f9;">
-                            <img src="data:image/jpeg;base64,${base64Content}" alt="Polaroid Gamon" style="width: 100%; display: block; border-radius: 4px;" />
-                        </div>
-                        
-                        <p style="font-size: 12px; color: #94a3b8; line-height: 1.5;">Softfile lembaran utuh di atas telah otomatis terbit di peta index utama Gamon Tawing. Simpan file lampiran email ini untuk dicetak ulang menjadi fisik kapan saja!</p>
-                    </div>
-                `,
-                attachments: [
-                    {
-                        filename: `polaroid-gamon-${timestamp}.jpg`,
-                        content: base64Content
-                    }
-                ]
-            })
+            orderId: orderId || 'GAMON-MANUAL',
+            nama: nama || '',
+            tujuan: tujuan || '',
+            pesan: pesan || '',
+            email: email,
+            photoBase64: photoBase64, 
+            waktu: timestamp,
+            isPrinted: false 
         });
 
-        const rawResponseText = await emailResponse.text();
-        let resendData;
-        try {
-            resendData = JSON.parse(rawResponseText);
-        } catch (e) {
-            return res.status(emailResponse.status).json({ message: 'Resend response format invalid.', error: rawResponseText });
-        }
+        // 3. PROSES KIRIM EMAIL VIA NODEMAILER (GMAIL SMTP)
+        // Isolasi Base64 untuk lampiran file
+        const base64Content = photoBase64.replace(/^data:image\/[a-z]+;base64,/, "");
 
-        if (!emailResponse.ok) {
-            return res.status(emailResponse.status).json({ message: 'Resend API service failure.', error: resendData });
-        }
+        // Konfigurasi Transporter SMTP Gmail
+        const transporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: {
+                user: 'muhamadabelldeskiawan@gmail.com', // Email Gmail kamu
+                pass: process.env.GMAIL_APP_PASSWORD     // 16 digit App Password (wajib diset di Vercel & .env.local)
+            }
+        });
 
-        return res.status(200).json({ success: true, message: 'Sukses menerbitkan data ke index beranda dan mengirim softfile email!' });
+        // Set Konten dan Target Pengiriman Email
+        const mailOptions = {
+            from: '"Gamon Tawing Photobox" <muhamadabelldeskiawan@gmail.com>',
+            to: email, 
+            subject: `📸 Polaroid Gamon Tawing - Softfile Cetak Digital untuk ${nama || 'Kamu'}`,
+            html: `
+                <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 25px; border: 1px solid #f0f0f0; border-radius: 16px; background-color: #fffafb; text-align: center;">
+                    <h2 style="color: #db2777; margin-bottom: 5px; font-weight: 700;">Gamon Tawing Photobox 📸</h2>
+                    <p style="font-size: 14px; color: #64748b; margin-top: 0;">Hai kak! Ini hasil cetak digital Polaroid eksklusif kamu 💌</p>
+                    <div style="background: #ffffff; padding: 12px; border-radius: 12px; margin: 20px 0; border: 1px solid #f1f5f9;">
+                        <p style="font-size: 13px; color: #475569; font-style: italic;">"Foto Polaroid Premium Kamu Telah Terlampir di Email Ini"</p>
+                    </div>
+                    <p style="font-size: 12px; color: #94a3b8; line-height: 1.5;">Softfile kamu juga otomatis terbit di peta index utama Gamon Tawing.</p>
+                </div>
+            `,
+            attachments: [
+                {
+                    filename: `polaroid-gamon-${timestamp}.jpg`,
+                    content: base64Content,
+                    encoding: 'base64' 
+                }
+            ]
+        };
+
+        // Eksekusi Kirim Email
+        await transporter.sendMail(mailOptions);
+
+        return res.status(200).json({ success: true, message: 'Sukses menerbitkan data dan mengirim softfile email!' });
 
     } catch (error) {
         console.error("Internal Server Error:", error.message);
