@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pesan Suara Gamon Booth</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-pink-50 flex items-center justify-center min-h-screen p-4">
+    <div class="bg-white p-6 rounded-2xl shadow-lg w-full max-w-sm text-center border border-pink-100">
+        <h2 class="text-xl font-bold text-gray-800">Pesan Suara Rahasia 💌</h2>
+        <p class="text-xs text-gray-500 mt-1 mb-6">Seseorang meninggalkan pesan suara ini untukmu saat di Photobooth</p>
+        
+        <div id="loading" class="text-sm text-gray-400">Memuat audio...</div>
+        <audio id="audioPlayer" class="w-full hidden" controls></audio>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyC247K8yyL67aWV95KNQy8CkMZsjgGCudQ",
+            authDomain: "gamon-tawing.firebaseapp.com",
+            projectId: "gamon-tawing",
+            storageBucket: "gamon-tawing.firebasestorage.app",
+            messagingSenderId: "370162915989",
+            appId: "1:370162915989:web:76779062da83aa0c5c999c"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // Ambil orderId dari parameter URL (?orderId=xxxx)
+        const urlParams = new URLSearchParams(window.location.search);
+        const orderId = urlParams.get('orderId');
+
+        async function loadVoiceNote() {
+            if (!orderId) {
+                document.getElementById('loading').innerText = "Link tidak valid / data hilang.";
+                return;
+            }
+
+            try {
+                // Cari dokumen di 'photobox_order' yang orderId-nya cocok
+                const q = query(collection(db, "photobox_order"), where("orderId", "==", orderId));
+                const querySnapshot = await getDocs(q);
+
+                if (!querySnapshot.empty) {
+                    let audioDataUrl = null;
+                    querySnapshot.forEach((doc) => {
+                        audioDataUrl = doc.data().audioUrl;
+                    });
+
+                    if (audioDataUrl) {
+                        const player = document.getElementById('audioPlayer');
+                        player.src = audioDataUrl;
+                        player.classList.remove('hidden');
+                        document.getElementById('loading').classList.add('hidden');
+                    } else {
+                        document.getElementById('loading').innerText = "Pasanganmu tidak meninggalkan pesan suara.";
+                    }
+                } else {
+                    document.getElementById('loading').innerText = "Data pesanan tidak ditemukan.";
+                }
+            } catch (err) {
+                document.getElementById('loading').innerText = "Gagal memuat pesan suara.";
+                console.error(err);
+            }
+        }
+
+        loadVoiceNote();
+    </script>
+</body>
+</html>

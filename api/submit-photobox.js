@@ -16,7 +16,6 @@ if (!process.env.FIREBASE_SERVICE_ACCOUNT) {
                 process.env.FIREBASE_SERVICE_ACCOUNT = firebaseMatch[1].trim();
             }
             
-            // Mengubah pencarian env menjadi GMAIL_APP_PASSWORD untuk lokal testing
             const gmailMatch = envContent.match(/GMAIL_APP_PASSWORD=['"]?([^'"\s\n]+)['"]?/);
             if (gmailMatch && gmailMatch[1]) {
                 process.env.GMAIL_APP_PASSWORD = gmailMatch[1].trim();
@@ -45,7 +44,8 @@ export default async function handler(req, res) {
         return res.status(405).json({ message: 'Method Not Allowed' });
     }
 
-    const { nama, tujuan, pesan, email, photoBase64, orderId } = req.body;
+    // 1. Destructuring data dengan benar
+    const { nama, tujuan, pesan, email, photoBase64, audioUrl, orderId } = req.body;
 
     if (!email || !photoBase64) {
         return res.status(400).json({ message: 'Informasi data esensial tidak lengkap.' });
@@ -55,7 +55,7 @@ export default async function handler(req, res) {
         const db = getFirestore();
         const timestamp = Date.now();
 
-        // 1. Simpan ke koleksi 'gamon' untuk peta/index utama
+        // 2. Simpan ke koleksi 'gamon' untuk peta/index utama (Termasuk audioUrl jika ada)
         await db.collection('gamon').add({
             nama: nama || 'Anonim',       
             tujuan: tujuan || 'Seseorang', 
@@ -63,13 +63,14 @@ export default async function handler(req, res) {
             waktu: timestamp,             
             email: email,
             photoUrl: photoBase64,        
+            audioUrl: audioUrl || null, // <-- Disimpan di sini untuk diputar di halaman reaksi
             type: 'photobox',             
             latitude: -3.3167,
             longitude: 114.5900,
             createdAt: new Date(timestamp)
         });
 
-        // 2. REKAPAN BACKUP: Simpan transaksi log ke photobox_order
+        // 3. REKAPAN BACKUP: Simpan transaksi log ke photobox_order
         await db.collection('photobox_order').add({
             orderId: orderId || 'GAMON-MANUAL',
             nama: nama || '',
@@ -77,24 +78,22 @@ export default async function handler(req, res) {
             pesan: pesan || '',
             email: email,
             photoBase64: photoBase64, 
+            audioUrl: audioUrl || null, // <-- Dicadangkan juga di log order
             waktu: timestamp,
             isPrinted: false 
         });
 
-        // 3. PROSES KIRIM EMAIL VIA NODEMAILER (GMAIL SMTP)
-        // Isolasi Base64 untuk lampiran file
+        // 4. PROSES KIRIM EMAIL VIA NODEMAILER (GMAIL SMTP)
         const base64Content = photoBase64.replace(/^data:image\/[a-z]+;base64,/, "");
 
-        // Konfigurasi Transporter SMTP Gmail
         const transporter = nodemailer.createTransport({
             service: 'gmail',
             auth: {
-                user: 'muhamadabelldeskiawan@gmail.com', // Email Gmail kamu
-                pass: process.env.GMAIL_APP_PASSWORD     // 16 digit App Password (wajib diset di Vercel & .env.local)
+                user: 'muhamadabelldeskiawan@gmail.com',
+                pass: process.env.GMAIL_APP_PASSWORD     
             }
         });
 
-        // Set Konten dan Target Pengiriman Email
         const mailOptions = {
             from: '"Gamon Tawing Photobox" <muhamadabelldeskiawan@gmail.com>',
             to: email, 
@@ -105,6 +104,7 @@ export default async function handler(req, res) {
                     <p style="font-size: 14px; color: #64748b; margin-top: 0;">Hai kak! Ini hasil cetak digital Polaroid eksklusif kamu 💌</p>
                     <div style="background: #ffffff; padding: 12px; border-radius: 12px; margin: 20px 0; border: 1px solid #f1f5f9;">
                         <p style="font-size: 13px; color: #475569; font-style: italic;">"Foto Polaroid Premium Kamu Telah Terlampir di Email Ini"</p>
+                        ${audioUrl ? '<p style="font-size: 12px; color: #db2777; font-weight: bold;">Pesan suara (VN) kamu juga sudah terekam di dalam QR Code polaroid!</p>' : ''}
                     </div>
                     <p style="font-size: 12px; color: #94a3b8; line-height: 1.5;">Softfile kamu juga otomatis terbit di peta index utama Gamon Tawing.</p>
                 </div>
@@ -118,7 +118,6 @@ export default async function handler(req, res) {
             ]
         };
 
-        // Eksekusi Kirim Email
         await transporter.sendMail(mailOptions);
 
         return res.status(200).json({ success: true, message: 'Sukses menerbitkan data dan mengirim softfile email!' });

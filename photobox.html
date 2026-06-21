@@ -7,7 +7,11 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:ital,wght=1,500;1,600&display=swap" rel="stylesheet">
     
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/selfie_segmentation.js" crossorigin="anonymous"></script>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
     <style>
         body {
@@ -20,6 +24,9 @@
         .bg-thumb.active {
             border-color: #db2777;
             transform: scale(1.05);
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
         }
     </style>
 </head>
@@ -51,6 +58,7 @@
         </div>
         
         <canvas id="canvas" class="hidden"></canvas>
+        <div id="qrcode" class="hidden"></div>
         
         <button id="btnMulai" class="w-full py-3.5 bg-pink-600 text-white rounded-xl font-semibold shadow-lg shadow-pink-200 hover:bg-pink-700 transition active:scale-[0.99]">Mulai Pembayaran (5k)</button>
 
@@ -82,6 +90,28 @@
                 <label class="block text-xs font-medium text-gray-600 mb-1" for="messageContent">Pesan yang Ingin Ditampilkan di Index Gamon</label>
                 <textarea class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-pink-500 bg-gray-50/50 resize-none" id="messageContent" required placeholder="Tulis cerita atau pesan galau..." rows="3" maxlength="150"></textarea>
             </div>
+
+            <div class="space-y-1.5 border-t border-gray-100 pt-3">
+                <label class="block text-xs font-medium text-gray-600">Sampaikan Pesan Suara / VN (Opsional)</label>
+                <div class="flex flex-col items-center gap-3 bg-gray-50/50 rounded-xl p-4 border border-dashed border-gray-200" id="recorderContainer">
+                    <button class="flex items-center justify-center gap-2 px-5 py-2.5 rounded-full bg-pink-50 text-pink-700 border border-pink-100 hover:bg-pink-100 transition-all duration-200 active:scale-95 text-sm font-medium w-full" id="recordBtn" type="button">
+                        <span class="material-symbols-outlined text-lg" id="recordIcon">mic</span>
+                        <span id="recordText">Rekam Suara (Maks 1 Menit)</span>
+                    </button>
+                    <div class="hidden flex items-center gap-1.5 animate-pulse" id="recordingStatus">
+                        <div class="w-2.5 h-2.5 bg-red-500 rounded-full"></div>
+                        <span class="text-red-500 text-xs font-medium">Sedang merekam...</span>
+                    </div>
+                    <div class="hidden w-full space-y-2" id="audioPreview">
+                        <div class="flex items-center gap-1 text-green-600 text-xs font-medium">
+                            <span class="material-symbols-outlined text-base" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+                            <span>Pesan suara direkam! QR otomatis dicetak di polaroid.</span>
+                        </div>
+                        <audio class="w-full h-8 text-xs" controls id="player"></audio>
+                    </div>
+                </div>
+            </div>
+
             <button type="submit" id="btnKirim" class="w-full py-3.5 bg-pink-600 text-white rounded-xl font-semibold shadow-lg shadow-pink-200 hover:bg-pink-700 transition mt-2">Cetak, Kirim Email & Publish 🚀</button>
         </form>
     </div>
@@ -118,75 +148,71 @@
     const flashOverlay = document.getElementById('flashOverlay');
     const backgroundSelector = document.getElementById('backgroundSelector');
 
+    // Audio Elements
+    const recordBtn = document.getElementById('recordBtn');
+    const recordText = document.getElementById('recordText');
+    const recordIcon = document.getElementById('recordIcon');
+    const audioPreview = document.getElementById('audioPreview');
+    const player = document.getElementById('player');
+    const recordingStatus = document.getElementById('recordingStatus');
+
     let localStream;
     let rawCapturedImage = null;
     let selfieSegmentation;
     let currentBackground = 'original';
     let ctxOutput = outputCanvas.getContext('2d');
 
+    // Variabel state audio recorder
+    let mediaRecorder;
+    let audioChunks = [];
+    let audioBase64 = null;
+
     // Inisialisasi MediaPipe Selfie Segmentation
     function initSelfieSegmentation() {
         selfieSegmentation = new SelfieSegmentation({
             locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${file}`
         });
-
-        selfieSegmentation.setOptions({
-            modelSelection: 1, // 1 berarti menggunakan model yang dioptimalkan untuk performa/mobile
-        });
-
+        selfieSegmentation.setOptions({ modelSelection: 1 });
         selfieSegmentation.onResults(onSegmentationResults);
     }
 
     function onSegmentationResults(results) {
         ctxOutput.save();
         ctxOutput.clearRect(0, 0, outputCanvas.width, outputCanvas.height);
-        
-        // Buat efek mirror/terbalik agar terasa natural saat selfie di HP
         ctxOutput.translate(outputCanvas.width, 0);
         ctxOutput.scale(-1, 1);
-
-        // Menggambar Masking Segmentasi
         ctxOutput.drawImage(results.segmentationMask, 0, 0, outputCanvas.width, outputCanvas.height);
-
-        // Konfigurasi tipe komposisi gambar untuk mengganti background
         ctxOutput.globalCompositeOperation = 'source-in';
         ctxOutput.drawImage(results.image, 0, 0, outputCanvas.width, outputCanvas.height);
-
         ctxOutput.globalCompositeOperation = 'destination-over';
         if (currentBackground === 'original') {
-            // Jika original, gambar video asli sebagai background
             ctxOutput.drawImage(results.image, 0, 0, outputCanvas.width, outputCanvas.height);
         } else {
-            // Jika memilih background warna kustom
             ctxOutput.fillStyle = currentBackground;
             ctxOutput.fillRect(0, 0, outputCanvas.width, outputCanvas.height);
         }
-        
         ctxOutput.restore();
     }
 
     async function startCamera() {
         try {
-            // 🔥 Menggunakan "facingMode: user" agar otomatis membuka kamera depan HP
             localStream = await navigator.mediaDevices.getUserMedia({ 
                 video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } } 
             });
             video.srcObject = localStream;
-            
             video.onloadedmetadata = () => {
                 outputCanvas.width = video.videoWidth;
                 outputCanvas.height = video.videoHeight;
                 video.play();
                 updateFrameProcessing();
             };
-
             btnMulai.classList.add('hidden');
             areaAksiFoto.classList.remove('hidden');
             backgroundSelector.classList.remove('hidden');
             outputCanvas.classList.remove('hidden');
             photoPreview.classList.add('hidden');
         } catch (err) { 
-            alert("Gagal mengakses kamera depan: " + err.message); 
+            alert("Gagal mengakses kamera: " + err.message); 
         }
     }
 
@@ -197,13 +223,70 @@
         }
     }
 
-    // Event Selector Background
     document.querySelectorAll('.bg-thumb').forEach(thumb => {
         thumb.addEventListener('click', (e) => {
             document.querySelectorAll('.bg-thumb').forEach(t => t.classList.remove('active'));
             e.target.classList.add('active');
             currentBackground = e.target.getAttribute('data-bg');
         });
+    });
+
+    // --- LOGIK AUDIO RECORDING (VN) ---
+    const getSupportedAudioMimeType = () => {
+        const types = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/x-m4a', 'audio/mpeg', 'audio/wav'];
+        if (!window.MediaRecorder || typeof MediaRecorder.isTypeSupported !== 'function') return '';
+        for (const type of types) { if (MediaRecorder.isTypeSupported(type)) return type; }
+        return '';
+    };
+
+    const isRecordingSupported = () => {
+        return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder);
+    };
+
+    if (!isRecordingSupported()) {
+        recordBtn.disabled = true;
+        recordBtn.classList.add('opacity-50', 'cursor-not-allowed');
+        recordText.innerText = 'Pesan suara tidak didukung perangkat ini';
+    }
+
+    recordBtn.addEventListener('click', async () => {
+        if (!mediaRecorder || mediaRecorder.state === 'inactive') {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                const mimeType = getSupportedAudioMimeType();
+                mediaRecorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+                audioChunks = [];
+
+                mediaRecorder.ondataavailable = event => {
+                    if (event.data && event.data.size > 0) audioChunks.push(event.data);
+                };
+
+                mediaRecorder.onstop = async () => {
+                    const type = audioChunks[0]?.type || mediaRecorder.mimeType || 'audio/webm';
+                    const audioBlob = new Blob(audioChunks, { type });
+                    player.src = URL.createObjectURL(audioBlob);
+                    audioPreview.classList.remove('hidden');
+                    
+                    const reader = new FileReader();
+                    reader.readAsDataURL(audioBlob);
+                    reader.onloadend = () => { audioBase64 = reader.result; };
+                };
+
+                mediaRecorder.start();
+                recordText.innerText = 'Berhenti Merekam';
+                recordIcon.innerText = 'stop';
+                recordingStatus.classList.remove('hidden');
+                recordBtn.classList.add('bg-red-50', 'text-red-600', 'border-red-100');
+            } catch (err) {
+                alert('Gagal mengakses mikrofon Anda.');
+            }
+        } else {
+            mediaRecorder.stop();
+            recordText.innerText = 'Rekam Ulang';
+            recordIcon.innerText = 'refresh';
+            recordingStatus.classList.add('hidden');
+            recordBtn.classList.remove('bg-red-50', 'text-red-600', 'border-red-100');
+        }
     });
 
     function listenToPayment(orderId) {
@@ -215,7 +298,6 @@
         });
     }
 
-    // Logika Pembayaran (Sama dengan kode asli Anda)
     const urlParams = new URLSearchParams(window.location.search);
     const orderIdFromUrl = urlParams.get('orderId');
     const storedOrderId = localStorage.getItem('tempOrderId');
@@ -252,23 +334,17 @@
     function captureSnapshot() {
         flashOverlay.classList.remove('opacity-0');
         flashOverlay.classList.add('opacity-100');
-        
         setTimeout(() => {
             flashOverlay.classList.remove('opacity-100');
             flashOverlay.classList.add('opacity-0');
         }, 150);
 
-        // Ambil gambar langsung dari outputCanvas yang sudah terproses oleh AI background
         rawCapturedImage = outputCanvas.toDataURL('image/jpeg', 0.95);
         photoPreview.src = rawCapturedImage;
-        
         outputCanvas.classList.add('hidden');
         backgroundSelector.classList.add('hidden');
         photoPreview.classList.remove('hidden');
-        
         btnFoto.classList.add('hidden');
-        btnFoto.disabled = false;
-        btnFoto.innerText = "Ambil Foto (Timer 5 Detik)";
         areaRetake.classList.remove('hidden');
     }
 
@@ -309,7 +385,7 @@
         }
     };
 
-    // Logika pengiriman form data & Canvas rendering polaroid (Tetap sama seperti kode asli Anda)
+    // --- SUBMIT DATA DAN MERENDER POLAROID DENGAN QR VN ---
     formData.onsubmit = async (e) => {
         e.preventDefault();
         const btnKirim = document.getElementById('btnKirim');
@@ -320,10 +396,11 @@
         const tujuan = document.getElementById('receiverName').value;
         const pesan = document.getElementById('messageContent').value;
         const email = document.getElementById('email').value;
+        const generatedOrderId = localStorage.getItem('tempOrderId') || 'GAMON-' + Date.now();
 
+        // 1. Inisialisasi Canvas Cetak
         const polaroidCanvas = document.createElement('canvas');
         const ctx = polaroidCanvas.getContext('2d');
-        
         polaroidCanvas.width = 1200;
         polaroidCanvas.height = 1600;
 
@@ -360,7 +437,6 @@
             }
 
             ctx.drawImage(img, sx, sy, sw, sh, photoX, photoY, photoWidth, photoHeight);
-
             await document.fonts.ready;
 
             ctx.fillStyle = "#475569";
@@ -378,24 +454,52 @@
             ctx.lineTo(1120, 1240);
             ctx.stroke();
 
+            // 2. Jika User Merekam VN -> Buat QR Code dan Render ke Kertas Polaroid
+if (audioBase64) {
+    document.getElementById('qrcode').innerHTML = ""; 
+    
+    // Domain produksi Vercel kamu
+    const domainProduksi = "https://gamon-tawing.vercel.app"; 
+    
+    // 🔥 DIUBAH: Diarahkan ke halaman suara.html, bukan reaksi.html
+    const listenUrl = `${domainProduksi}/suara.html?orderId=${generatedOrderId}`;
+    
+    const qrContainer = document.getElementById('qrcode');
+    new QRCode(qrContainer, {
+        text: listenUrl,
+        width: 160,
+        height: 160,
+        correctLevel: QRCode.CorrectLevel.H
+    });
+
+    // Tunggu sebentar agar gambar QR selesai di-render internal oleh library
+    await new Promise(resolve => setTimeout(resolve, 300));
+    const qrImgElement = qrContainer.querySelector('img');
+
+    if (qrImgElement) {
+        // Gambar QR di pojok kanan bawah space pesan polaroid
+        ctx.drawImage(qrImgElement, 950, 1320, 180, 180);
+    }
+}
+
+            // 3. Render Tulisan Pesan Cerita Utama (Batas lebar disesuaikan jika ada QR)
             ctx.fillStyle = "#1E293B";
-            ctx.font = "italic 500 44px 'Playfair Display', serif";
-            ctx.textAlign = "center";
+            ctx.font = "italic 500 40px 'Playfair Display', serif";
+            ctx.textAlign = "left";
             
             const words = pesan.split(' ');
             let line = '';
             let lineCount = 0;
-            const maxWidth = 1000;
+            // Lebar dikurangi jadi 800 agar teks tidak menabrak QR Code di sisi kanan
+            const maxWidth = audioBase64 ? 820 : 1000; 
             let currentY = 1320;
-            const lineHeight = 65;
+            const lineHeight = 60;
 
             for (let n = 0; n < words.length; n++) {
                 let testLine = line + words[n] + ' ';
                 let metrics = ctx.measureText(testLine);
-                let testWidth = metrics.width;
-                
-                if (testWidth > maxWidth && n > 0) {
-                    ctx.fillText(line, 600, currentY);
+                if (metrics.width > maxWidth && n > 0) {
+                    ctx.fillText(line, 80, currentY);
                     line = words[n] + ' ';
                     currentY += lineHeight;
                     lineCount++;
@@ -405,19 +509,21 @@
                 }
             }
             if (lineCount < 3) {
-                ctx.fillText(line, 600, currentY);
+                ctx.fillText(line, 80, currentY);
             }
 
             const polaroidBase64 = polaroidCanvas.toDataURL('image/jpeg', 0.9);
-            btnKirim.innerText = "Mengintegrasikan & Mengirim...";
+            btnKirim.innerText = "Mengirim data...";
             
+            // Sertakan file audioBase64 ke dalam request body payload API
             const payload = {
                 nama,
                 tujuan,
                 pesan,
                 email,
                 photoBase64: polaroidBase64,
-                orderId: localStorage.getItem('tempOrderId') || 'GAMON-MANUAL'
+                audioUrl: audioBase64, // VN terkirim ke server untuk disimpan
+                orderId: generatedOrderId
             };
 
             try {
@@ -429,10 +535,10 @@
 
                 if (!response.ok) {
                     const errData = await response.json();
-                    throw new Error(errData.message || 'Gagal memproses data.');
+                    throw new Error(errData.message || 'Gagal memproses.');
                 }
 
-                alert('Cerita kamu berhasil dipublish dan softfile Polaroid telah dikirim ke email!');
+                alert('Cerita & VN kamu berhasil disimpan dan Polaroid siap dicetak di printer kafe!');
                 localStorage.removeItem('tempOrderId');
                 window.location.href = 'index.html';
 
