@@ -3,15 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Photobox Gamon Tawing</title>
+    <title>Photobooth Gamon Tawing</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:ital,wght@1,500;1,600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:ital,wght=1,500;1,600&display=swap" rel="stylesheet">
+    
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/selfie_segmentation.js" crossorigin="anonymous"></script>
+
     <style>
         body {
             background: linear-gradient(135deg, #fef8fa 0%, #fce4ec 100%);
         }
-        .polaroid-frame {
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.02);
+        .bg-thumb {
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .bg-thumb.active {
+            border-color: #db2777;
+            transform: scale(1.05);
         }
     </style>
 </head>
@@ -19,18 +27,29 @@
     
     <div class="bg-white p-6 rounded-2xl shadow-xl w-full max-w-md text-center relative border border-pink-100">
         <div class="mb-6">
-            <h1 class="text-2xl font-bold text-gray-800 tracking-tight">Self Photobox 📸</h1>
-            <p class="text-xs text-gray-500 mt-1">Abadikan kenangan gamonmu dalam selembar polaroid bersih</p>
+            <h1 class="text-2xl font-bold text-gray-800 tracking-tight">Gamon Booth 📸</h1>
+            <p class="text-xs text-gray-500 mt-1">Scan, bayar, dan abadikan kenangan langsung dari HP-mu</p>
         </div>
         
-        <div class="relative w-full aspect-[3/4] bg-gray-900 rounded-xl mb-5 overflow-hidden flex items-center justify-center shadow-inner">
-            <video id="video" class="w-full h-full object-cover" autoplay playsinline></video>
+        <div class="relative w-full aspect-[3/4] bg-gray-900 rounded-xl mb-4 overflow-hidden flex items-center justify-center shadow-inner">
+            <video id="video" class="hidden" autoplay playsinline></video>
+            <canvas id="outputCanvas" class="w-full h-full object-cover"></canvas>
             <img id="photoPreview" class="hidden w-full h-full object-cover absolute top-0 left-0" alt="Preview"/>
             
             <div id="flashOverlay" class="absolute inset-0 bg-white opacity-0 transition-opacity duration-100 pointer-events-none"></div>
-            
-            <div id="countdownDisplay" class="hidden absolute text-8xl font-black text-white drop-shadow-[0_4px_12px_rgba(0,0,0,0.5)] animate-scale">5</div>
+            <div id="countdownDisplay" class="hidden absolute text-8xl font-black text-white drop-shadow-[0_4px_12px_rgba(0,0,0,0.5)]">5</div>
         </div>
+
+        <div id="backgroundSelector" class="hidden mb-4 text-left">
+            <label class="block text-xs font-medium text-gray-600 mb-1.5">Pilih Kategori Suasana (Virtual Background):</label>
+            <div class="flex gap-2 overflow-x-auto pb-1">
+                <div class="bg-thumb active border-2 border-transparent rounded-lg p-1 bg-gray-100 text-xs font-medium flex-shrink-0" data-bg="original">Original</div>
+                <div class="bg-thumb border-2 border-transparent rounded-lg p-1 bg-pink-200 text-xs font-medium flex-shrink-0" data-bg="#fce4ec">Pastel Pink</div>
+                <div class="bg-thumb border-2 border-transparent rounded-lg p-1 bg-slate-800 text-white text-xs font-medium flex-shrink-0" data-bg="#1e293b">Dark Mood</div>
+                <div class="bg-thumb border-2 border-transparent rounded-lg p-1 bg-amber-100 text-xs font-medium flex-shrink-0" data-bg="#fef3c7">Warm Cafe</div>
+            </div>
+        </div>
+        
         <canvas id="canvas" class="hidden"></canvas>
         
         <button id="btnMulai" class="w-full py-3.5 bg-pink-600 text-white rounded-xl font-semibold shadow-lg shadow-pink-200 hover:bg-pink-700 transition active:scale-[0.99]">Mulai Pembayaran (5k)</button>
@@ -45,7 +64,6 @@
 
         <form id="formData" class="hidden text-left space-y-4 mt-2 border-t border-gray-100 pt-5">
             <h3 class="font-semibold text-gray-800 text-base">Lengkapi Data Polaroid & Cerita</h3>
-            
             <div class="grid grid-cols-2 gap-3">
                 <div>
                     <label class="block text-xs font-medium text-gray-600 mb-1" for="senderName">Nama Pengirim</label>
@@ -56,19 +74,15 @@
                     <input class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-pink-500 bg-gray-50/50" id="receiverName" required type="text" placeholder="Nama si dia / inisial"/>
                 </div>
             </div>
-            
             <div>
                 <label class="block text-xs font-medium text-gray-600 mb-1" for="email">Email untuk Pengiriman Softfile</label>
                 <input class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-pink-500 bg-gray-50/50" id="email" required type="email" placeholder="nama@email.com"/>
             </div>
-            
             <div>
                 <label class="block text-xs font-medium text-gray-600 mb-1" for="messageContent">Pesan yang Ingin Ditampilkan di Index Gamon</label>
-                <textarea class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-pink-500 bg-gray-50/50 resize-none" id="messageContent" required placeholder="Tulis cerita atau pesan galau yang akan muncul terintegrasi di beranda..." rows="3" maxlength="150"></textarea>
-                <p class="text-[10px] text-gray-400 mt-1 italic">*Maksimal 150 karakter agar pas dan rapi di kertas polaroid.</p>
+                <textarea class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-pink-500 bg-gray-50/50 resize-none" id="messageContent" required placeholder="Tulis cerita atau pesan galau..." rows="3" maxlength="150"></textarea>
             </div>
-            
-            <button type="submit" id="btnKirim" class="w-full py-3.5 bg-pink-600 text-white rounded-xl font-semibold shadow-lg shadow-pink-200 hover:bg-pink-700 transition active:scale-[0.99] mt-2">Cetak, Kirim Email & Publish 🚀</button>
+            <button type="submit" id="btnKirim" class="w-full py-3.5 bg-pink-600 text-white rounded-xl font-semibold shadow-lg shadow-pink-200 hover:bg-pink-700 transition mt-2">Cetak, Kirim Email & Publish 🚀</button>
         </form>
     </div>
 
@@ -88,6 +102,7 @@
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
+    // DOM Elements
     const btnMulai = document.getElementById('btnMulai');
     const areaAksiFoto = document.getElementById('areaAksiFoto');
     const btnFoto = document.getElementById('btnFoto');
@@ -97,34 +112,110 @@
     const formData = document.getElementById('formData');
     const video = document.getElementById('video');
     const canvas = document.getElementById('canvas');
+    const outputCanvas = document.getElementById('outputCanvas');
     const photoPreview = document.getElementById('photoPreview');
     const countdownDisplay = document.getElementById('countdownDisplay');
     const flashOverlay = document.getElementById('flashOverlay');
+    const backgroundSelector = document.getElementById('backgroundSelector');
 
     let localStream;
     let rawCapturedImage = null;
+    let selfieSegmentation;
+    let currentBackground = 'original';
+    let ctxOutput = outputCanvas.getContext('2d');
+
+    // Inisialisasi MediaPipe Selfie Segmentation
+    function initSelfieSegmentation() {
+        selfieSegmentation = new SelfieSegmentation({
+            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${file}`
+        });
+
+        selfieSegmentation.setOptions({
+            modelSelection: 1, // 1 berarti menggunakan model yang dioptimalkan untuk performa/mobile
+        });
+
+        selfieSegmentation.onResults(onSegmentationResults);
+    }
+
+    function onSegmentationResults(results) {
+        ctxOutput.save();
+        ctxOutput.clearRect(0, 0, outputCanvas.width, outputCanvas.height);
+        
+        // Buat efek mirror/terbalik agar terasa natural saat selfie di HP
+        ctxOutput.translate(outputCanvas.width, 0);
+        ctxOutput.scale(-1, 1);
+
+        // Menggambar Masking Segmentasi
+        ctxOutput.drawImage(results.segmentationMask, 0, 0, outputCanvas.width, outputCanvas.height);
+
+        // Konfigurasi tipe komposisi gambar untuk mengganti background
+        ctxOutput.globalCompositeOperation = 'source-in';
+        ctxOutput.drawImage(results.image, 0, 0, outputCanvas.width, outputCanvas.height);
+
+        ctxOutput.globalCompositeOperation = 'destination-over';
+        if (currentBackground === 'original') {
+            // Jika original, gambar video asli sebagai background
+            ctxOutput.drawImage(results.image, 0, 0, outputCanvas.width, outputCanvas.height);
+        } else {
+            // Jika memilih background warna kustom
+            ctxOutput.fillStyle = currentBackground;
+            ctxOutput.fillRect(0, 0, outputCanvas.width, outputCanvas.height);
+        }
+        
+        ctxOutput.restore();
+    }
 
     async function startCamera() {
         try {
-            localStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user", aspectRatio: 3/4 } });
+            // 🔥 Menggunakan "facingMode: user" agar otomatis membuka kamera depan HP
+            localStream = await navigator.mediaDevices.getUserMedia({ 
+                video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } } 
+            });
             video.srcObject = localStream;
+            
+            video.onloadedmetadata = () => {
+                outputCanvas.width = video.videoWidth;
+                outputCanvas.height = video.videoHeight;
+                video.play();
+                updateFrameProcessing();
+            };
+
             btnMulai.classList.add('hidden');
             areaAksiFoto.classList.remove('hidden');
-            video.classList.remove('hidden');
+            backgroundSelector.classList.remove('hidden');
+            outputCanvas.classList.remove('hidden');
             photoPreview.classList.add('hidden');
         } catch (err) { 
-            alert("Gagal mengakses kamera: " + err.message); 
+            alert("Gagal mengakses kamera depan: " + err.message); 
         }
     }
+
+    async function updateFrameProcessing() {
+        if (!video.paused && !video.ended) {
+            await selfieSegmentation.send({ image: video });
+            requestAnimationFrame(updateFrameProcessing);
+        }
+    }
+
+    // Event Selector Background
+    document.querySelectorAll('.bg-thumb').forEach(thumb => {
+        thumb.addEventListener('click', (e) => {
+            document.querySelectorAll('.bg-thumb').forEach(t => t.classList.remove('active'));
+            e.target.classList.add('active');
+            currentBackground = e.target.getAttribute('data-bg');
+        });
+    });
 
     function listenToPayment(orderId) {
         onSnapshot(doc(db, "orders", orderId), (docSnapshot) => {
             if (docSnapshot.exists() && docSnapshot.data().status === "PAID") {
+                initSelfieSegmentation();
                 startCamera();
             }
         });
     }
 
+    // Logika Pembayaran (Sama dengan kode asli Anda)
     const urlParams = new URLSearchParams(window.location.search);
     const orderIdFromUrl = urlParams.get('orderId');
     const storedOrderId = localStorage.getItem('tempOrderId');
@@ -167,19 +258,12 @@
             flashOverlay.classList.add('opacity-0');
         }, 150);
 
-        const context = canvas.getContext('2d');
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        
-        context.translate(canvas.width, 0);
-        context.scale(-1, 1);
-        context.drawImage(video, 0, 0, canvas.width, canvas.height);
-        context.setTransform(1, 0, 0, 1, 0, 0);
-
-        rawCapturedImage = canvas.toDataURL('image/jpeg', 0.95);
+        // Ambil gambar langsung dari outputCanvas yang sudah terproses oleh AI background
+        rawCapturedImage = outputCanvas.toDataURL('image/jpeg', 0.95);
         photoPreview.src = rawCapturedImage;
         
-        video.classList.add('hidden');
+        outputCanvas.classList.add('hidden');
+        backgroundSelector.classList.add('hidden');
         photoPreview.classList.remove('hidden');
         
         btnFoto.classList.add('hidden');
@@ -191,7 +275,6 @@
     btnFoto.onclick = () => {
         btnFoto.disabled = true;
         let timeLeft = 5;
-        
         countdownDisplay.innerText = timeLeft;
         countdownDisplay.classList.remove('hidden');
 
@@ -208,21 +291,25 @@
     };
 
     btnRetake.onclick = () => {
-        video.classList.remove('hidden');
+        outputCanvas.classList.remove('hidden');
+        backgroundSelector.classList.remove('hidden');
         photoPreview.classList.add('hidden');
         btnFoto.classList.remove('hidden');
         areaRetake.classList.add('hidden');
         rawCapturedImage = null;
+        updateFrameProcessing();
     };
 
     btnLanjut.onclick = () => {
         areaAksiFoto.classList.add('hidden');
+        backgroundSelector.classList.add('hidden');
         formData.classList.remove('hidden');
         if (localStream) {
             localStream.getTracks().forEach(track => track.stop());
         }
     };
 
+    // Logika pengiriman form data & Canvas rendering polaroid (Tetap sama seperti kode asli Anda)
     formData.onsubmit = async (e) => {
         e.preventDefault();
         const btnKirim = document.getElementById('btnKirim');
@@ -234,18 +321,15 @@
         const pesan = document.getElementById('messageContent').value;
         const email = document.getElementById('email').value;
 
-        // Cetak Polaroid Canvas Resolusi Tinggi (Standar Rasio Polaroid Bersih Klasik)
         const polaroidCanvas = document.createElement('canvas');
         const ctx = polaroidCanvas.getContext('2d');
         
         polaroidCanvas.width = 1200;
         polaroidCanvas.height = 1600;
 
-        // 1. Background Putih Bersih Minimalis
         ctx.fillStyle = "#FFFFFF";
         ctx.fillRect(0, 0, polaroidCanvas.width, polaroidCanvas.height);
 
-        // 2. Stroke Inner Border Tipis Elegan
         ctx.strokeStyle = "#F1F5F9";
         ctx.lineWidth = 4;
         ctx.strokeRect(15, 15, polaroidCanvas.width - 30, polaroidCanvas.height - 30);
@@ -254,13 +338,11 @@
         img.src = rawCapturedImage;
         
         img.onload = async () => {
-            // Pengaturan dimensi foto utama (Clean Square/Rasio Terpelihara)
             const photoX = 70;
             const photoY = 70;
             const photoWidth = 1060;
             const photoHeight = 1060;
 
-            // Image Aspect Ratio Handling (Center Cropping)
             const imgRatio = img.width / img.height;
             const targetRatio = photoWidth / photoHeight;
             let sx, sy, sw, sh;
@@ -279,10 +361,8 @@
 
             ctx.drawImage(img, sx, sy, sw, sh, photoX, photoY, photoWidth, photoHeight);
 
-            // Menunggu load Font sistem agar gambar tidak default serif kasar
             await document.fonts.ready;
 
-            // 3. Render Tulisan Informasi (To / From) - Menggunakan Desain Tipografi Clean & Modern Italics
             ctx.fillStyle = "#475569";
             ctx.font = "italic 500 36px 'Playfair Display', serif";
             ctx.textAlign = "left";
@@ -291,7 +371,6 @@
             ctx.textAlign = "right";
             ctx.fillText(`— Dari: ${nama}`, 1120, 1200);
 
-            // Garis tipis pembatas teks cerita
             ctx.strokeStyle = "#E2E8F0";
             ctx.lineWidth = 2;
             ctx.beginPath();
@@ -299,7 +378,6 @@
             ctx.lineTo(1120, 1240);
             ctx.stroke();
 
-            // 4. Render Pesan Cerita Utama (Word Wrapping)
             ctx.fillStyle = "#1E293B";
             ctx.font = "italic 500 44px 'Playfair Display', serif";
             ctx.textAlign = "center";
@@ -331,7 +409,6 @@
             }
 
             const polaroidBase64 = polaroidCanvas.toDataURL('image/jpeg', 0.9);
-
             btnKirim.innerText = "Mengintegrasikan & Mengirim...";
             
             const payload = {
@@ -355,7 +432,7 @@
                     throw new Error(errData.message || 'Gagal memproses data.');
                 }
 
-                alert('Cerita kamu berhasil dipublish ke beranda Gamon Tawing dan softfile Polaroid premium telah dikirim ke email!');
+                alert('Cerita kamu berhasil dipublish dan softfile Polaroid telah dikirim ke email!');
                 localStorage.removeItem('tempOrderId');
                 window.location.href = 'index.html';
 
