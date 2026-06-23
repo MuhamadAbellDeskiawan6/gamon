@@ -8,7 +8,10 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600&display=swap" rel="stylesheet"/>
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.Default.css" />
 
+<script src="https://unpkg.com/leaflet.markercluster/dist/leaflet.markercluster.js"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script id="tailwind-config">
         tailwind.config = {
@@ -148,71 +151,84 @@
         
     </main>
 
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- Leaflet -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+<!-- Marker Cluster -->
+<script src="https://unpkg.com/leaflet.markercluster/dist/leaflet.markercluster.js"></script>
 
-        const firebaseConfig = {
-            apiKey: "AIzaSyC247K8yyL67aWV95KNQy8CkMZsjgGCudQ",
-            authDomain: "gamon-tawing.firebaseapp.com",
-            projectId: "gamon-tawing",
-            storageBucket: "gamon-tawing.appspot.com",
-            messagingSenderId: "370162915989",
-            appId: "1:370162915989:web:76779062da83aa0c5c999c"
-        };
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
+const firebaseConfig = {
+    apiKey: "AIzaSyC247K8yyL67aWV95KNQz...",
+    authDomain: "gamon-tawing.firebaseapp.com",
+    projectId: "gamon-tawing",
+    storageBucket: "gamon-tawing.appspot.com",
+    messagingSenderId: "370162915989",
+    appId: "1:370162915989:web:76779062da83aa0c5c999c"
+};
 
-        // Inisialisasi Peta Leaflet (Fokus default di wilayah geografis tengah Indonesia)
-        const mainMap = L.map('mainMap').setView([-2.5489, 118.0149], 5);
-        
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap contributors'
-        }).addTo(mainMap);
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
 
-        // Ambil data dari koleksi 'gamon' lalu buat marker per koordinat
-        async function loadGamonMarkers() {
-            try {
-                const querySnapshot = await getDocs(collection(db, "gamon"));
-                let validPointsCount = 0;
+// MAP
+const mainMap = L.map('mainMap').setView([-2.5489, 118.0149], 5);
 
-                querySnapshot.forEach((doc) => {
-                    const data = doc.data();
-                    
-                    // Validasi apakah dokumen memiliki koordinat latitude & longitude
-                    if (data.latitude !== undefined && data.longitude !== undefined) {
-                        validPointsCount++;
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap'
+}).addTo(mainMap);
 
-                        // Format tampilan popup saat marker diklik
-                        const popupContent = `
-                            <div style="font-family: 'Inter', sans-serif; min-width: 160px;">
-                                <b style="color: #6b5a60;">Dari:</b> ${data.nama || 'Anonim'}<br>
-                                <b style="color: #6b5a60;">Untuk:</b> ${data.tujuan || 'Seseorang'}<br>
-                                <hr style="margin: 6px 0; border: 0; border-top: 1px solid #eee;">
-                                <p style="margin: 0; font-style: italic; color: #4d4447;">"${data.pesan}"</p>
-                            </div>
-                        `;
+// =========================
+// ✅ INIT MARKER CLUSTER
+// =========================
+const markers = L.markerClusterGroup();
+mainMap.addLayer(markers);
 
-                        // Tambahkan Marker standar ke peta
-                        L.marker([data.latitude, data.longitude])
-                            .addTo(mainMap)
-                            .bindPopup(popupContent);
-                    }
-                });
+// =========================
+// LOAD DATA FIRESTORE
+// =========================
+async function loadGamonMarkers() {
+    try {
+        const snapshot = await getDocs(collection(db, "gamon"));
 
-                // Update teks jumlah angka total titik galau
-                document.getElementById('totalGamonPoints').innerText = validPointsCount;
+        let count = 0;
 
-            } catch (error) {
-                console.error("Gagal menarik data koordinat gamon:", error);
+        snapshot.forEach((doc) => {
+            const data = doc.data();
+
+            if (data.latitude != null && data.longitude != null) {
+
+                count++;
+
+                const popup = `
+                    <div style="font-family: Inter; min-width:160px">
+                        <b>Dari:</b> ${data.nama || '-'}<br>
+                        <b>Untuk:</b> ${data.tujuan || '-'}<br>
+                        <hr>
+                        <i>"${data.pesan || ''}"</i>
+                    </div>
+                `;
+
+                const marker = L.marker([
+                    data.latitude,
+                    data.longitude
+                ]).bindPopup(popup);
+
+                markers.addLayer(marker);
             }
-        }
+        });
 
-        // Eksekusi fungsi ketika dokumen siap
-        loadGamonMarkers();
-    </script>
+        document.getElementById("totalGamonPoints").innerText = count;
+
+    } catch (err) {
+        console.error(err);
+    }
+}
+
+loadGamonMarkers();
+
+</script>
 </body>
 </html>
