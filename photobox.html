@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Photobooth Gamon Tawing</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:ital,wght=1,500;1,600&display=swap" rel="stylesheet">
     
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
@@ -167,6 +168,33 @@
     let audioChunks = [];
     let audioBase64 = null;
 
+    function showSuccess(message) {
+    return Swal.fire({
+        icon: 'success',
+        title: 'Berhasil',
+        text: message,
+        confirmButtonColor: '#db2777'
+    });
+}
+
+function showError(message) {
+    return Swal.fire({
+        icon: 'error',
+        title: 'Oops...',
+        text: message,
+        confirmButtonColor: '#db2777'
+    });
+}
+
+function showInfo(message) {
+    return Swal.fire({
+        icon: 'info',
+        title: 'Informasi',
+        text: message,
+        confirmButtonColor: '#db2777'
+    });
+}
+
     // Inisialisasi MediaPipe Selfie Segmentation
     function initSelfieSegmentation() {
         selfieSegmentation = new SelfieSegmentation({
@@ -211,9 +239,9 @@
             backgroundSelector.classList.remove('hidden');
             outputCanvas.classList.remove('hidden');
             photoPreview.classList.add('hidden');
-        } catch (err) { 
-            alert("Gagal mengakses kamera: " + err.message); 
-        }
+        } catch (err) {
+    showError("Gagal mengakses kamera: " + err.message);
+}
     }
 
     async function updateFrameProcessing() {
@@ -278,7 +306,7 @@
                 recordingStatus.classList.remove('hidden');
                 recordBtn.classList.add('bg-red-50', 'text-red-600', 'border-red-100');
             } catch (err) {
-                alert('Gagal mengakses mikrofon Anda.');
+                showError('Gagal mengakses mikrofon Anda.');
             }
         } else {
             mediaRecorder.stop();
@@ -291,10 +319,19 @@
 
     function listenToPayment(orderId) {
         onSnapshot(doc(db, "orders", orderId), (docSnapshot) => {
-            if (docSnapshot.exists() && docSnapshot.data().status === "PAID") {
-                initSelfieSegmentation();
-                startCamera();
-            }
+           if (docSnapshot.exists() && docSnapshot.data().status === "PAID") {
+
+    Swal.fire({
+        icon: 'success',
+        title: 'Pembayaran Berhasil',
+        text: 'Silakan ambil foto Anda',
+        confirmButtonColor: '#db2777'
+    }).then(() => {
+        initSelfieSegmentation();
+        startCamera();
+    });
+
+}
         });
     }
 
@@ -325,7 +362,7 @@
                 window.location.replace(data.response.payment.url);
             }
         } catch (err) {
-            alert("Kesalahan: " + err.message);
+           showError("Kesalahan: " + err.message);
             btnMulai.innerText = "Mulai Pembayaran (5k)";
             btnMulai.disabled = false;
         }
@@ -373,6 +410,7 @@
         btnFoto.classList.remove('hidden');
         areaRetake.classList.add('hidden');
         rawCapturedImage = null;
+         btnFoto.disabled = false;
         updateFrameProcessing();
     };
 
@@ -514,6 +552,16 @@ if (audioBase64) {
 
             const polaroidBase64 = polaroidCanvas.toDataURL('image/jpeg', 0.9);
             btnKirim.innerText = "Mengirim data...";
+
+            Swal.fire({
+    title: 'Memproses...',
+    text: 'Mohon tunggu sebentar',
+    allowOutsideClick: false,
+    allowEscapeKey: false,
+    didOpen: () => {
+        Swal.showLoading();
+    }
+});
             
             // Sertakan file audioBase64 ke dalam request body payload API
             const payload = {
@@ -532,18 +580,23 @@ if (audioBase64) {
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
-
+Swal.close();
                 if (!response.ok) {
                     const errData = await response.json();
                     throw new Error(errData.message || 'Gagal memproses.');
                 }
 
-                alert('Cerita & VN kamu berhasil disimpan dan Polaroid siap dicetak di printer kafe!');
-                localStorage.removeItem('tempOrderId');
-                window.location.href = 'index.html';
+               await showSuccess(
+    'Cerita & VN kamu berhasil disimpan dan Polaroid siap dicetak di printer kafe!'
+);
+
+localStorage.removeItem('tempOrderId');
+window.location.href = 'index.html';
 
             } catch (err) {
-                alert('Gagal: ' + err.message);
+
+                Swal.close();
+                await showError('Gagal: ' + err.message);
                 btnKirim.innerText = "Cetak, Kirim Email & Publish 🚀";
                 btnKirim.disabled = false;
             }
