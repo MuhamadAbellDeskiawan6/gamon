@@ -626,229 +626,342 @@
 
         updateZoom();
     </script>
-
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { 
-  getFirestore, 
-  collection, 
-  onSnapshot, 
-  query, 
-  orderBy, 
-  limit,
-  doc,
-  updateDoc,
-  increment
+
+import {
+    getFirestore,
+    collection,
+    getDocs,
+    query,
+    orderBy,
+    limit,
+    doc,
+    updateDoc,
+    increment
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyC247K8yyL67aWV95KNQy8CkMZsjgGCudQ",
-  authDomain: "gamon-tawing.firebaseapp.com",
-  projectId: "gamon-tawing",
-  storageBucket: "gamon-tawing.appspot.com",
-  messagingSenderId: "370162915989",
-  appId: "1:370162915989:web:76779062da83aa0c5c999c"
+    apiKey: "AIzaSyC247K8yyL67aWV95KNQy8CkMZsjgGCudQ",
+    authDomain: "gamon-tawing.firebaseapp.com",
+    projectId: "gamon-tawing",
+    storageBucket: "gamon-tawing.appspot.com",
+    messagingSenderId: "370162915989",
+    appId: "1:370162915989:web:76779062da83aa0c5c999c"
 };
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-// Query Firestore for the latest 30 messages
-const q = query(
-  collection(db, "gamon"),
-  orderBy("waktu", "desc"),
-  limit(30)
-);
+let likedPosts =
+    JSON.parse(localStorage.getItem("likedPosts")) || [];
 
-// Ambil likedPosts dari localStorage
-let likedPosts = JSON.parse(localStorage.getItem("likedPosts")) || [];
-let lastTapTime = 0;
-let lastTapCard = null;
+function escapeHtml(str) {
+    return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
 
 function createCard(data, id) {
-    const card = document.createElement('div');
-    card.className = 'draggable glass-card p-gutter rounded-xl w-[min(18rem,100%)] max-w-[280px]';
 
-    const screenWidth = (window.canvasContent && window.canvasContent.clientWidth) || window.container.clientWidth || window.innerWidth;
-    const screenHeight = (window.canvasContent && window.canvasContent.clientHeight) || window.container.clientHeight || window.innerHeight * 0.7;
+    const isPhotobox =
+        data.type === "photobox";
 
-    const maxCardWidth = 280;
-    const maxCardHeight = 260;
+    const card =
+        document.createElement("div");
 
-    // Exclusion zone: avoid placing new cards over the header/title/buttons area on initial load
-    const headerEl = document.querySelector('header');
-    const headerRect = headerEl ? headerEl.getBoundingClientRect() : { bottom: 120 };
-    const exclusionBottom = Math.max(0, headerRect.bottom + 12); // 12px gap after header
+    card.className =
+        isPhotobox
+            ? "draggable glass-card p-gutter rounded-xl w-[320px]"
+            : "draggable glass-card p-gutter rounded-xl w-[280px]";
 
-    // Compute random X within available width
-    const randomX = Math.random() * Math.max(0, screenWidth - maxCardWidth);
+    const screenWidth =
+        (window.canvasContent &&
+            window.canvasContent.clientWidth)
+        || window.innerWidth;
 
-    // Compute random Y but start after exclusionBottom so cards don't overlap header initially
-    let availableHeight = Math.max(0, screenHeight - exclusionBottom - maxCardHeight);
-    let randomY;
-    if (availableHeight > 8) {
-        randomY = exclusionBottom + Math.random() * availableHeight;
-    } else {
-        // fallback if not enough space: place anywhere within container (will still be draggable)
-        randomY = Math.random() * Math.max(0, screenHeight - maxCardHeight);
-    }
+    const screenHeight =
+        (window.canvasContent &&
+            window.canvasContent.clientHeight)
+        || window.innerHeight;
 
-    card.style.position = 'absolute';
+    const randomX =
+        Math.random() *
+        Math.max(
+            0,
+            screenWidth -
+            (isPhotobox ? 320 : 280)
+        );
+
+    const randomY =
+        Math.random() *
+        Math.max(
+            0,
+            screenHeight - 350
+        );
+
+    card.style.position = "absolute";
     card.style.left = `${randomX}px`;
     card.style.top = `${randomY}px`;
-    card.style.transform = `rotate(${Math.random() * 6 - 3}deg)`;
-    window.currentCardZ += 1;
-    card.style.zIndex = window.currentCardZ;
 
-    const nama = data.nama ? escapeHtml(data.nama) : "Anonim";
-    const tujuan = data.tujuan ? escapeHtml(data.tujuan) : "Seseorang";
-    const pesan = data.pesan ? escapeHtml(data.pesan) : "";
-    const likes = data.likes || 0;
-    const waktu = data.waktu ? 
-        (data.waktu.toDate ? new Date(data.waktu.toDate()).toLocaleDateString('id-ID') : 
-         typeof data.waktu === 'string' ? new Date(data.waktu).toLocaleDateString('id-ID') : 
-         new Date(data.waktu).toLocaleDateString('id-ID')) : 
-        "Hari ini";
+    card.style.transform =
+        `rotate(${Math.random() * 6 - 3}deg)`;
 
-    const audioHtml = data.audioUrl ? `
-        <audio class="audio-custom w-full h-8 mb-4 rounded-full" controls playsinline preload="metadata" src="${data.audioUrl}">
+    window.currentCardZ =
+        (window.currentCardZ || 0) + 1;
+
+    card.style.zIndex =
+        window.currentCardZ;
+
+    const nama =
+        data.nama
+            ? escapeHtml(data.nama)
+            : "Anonim";
+
+    const tujuan =
+        data.tujuan
+            ? escapeHtml(data.tujuan)
+            : "Seseorang";
+
+    const pesan =
+        data.pesan
+            ? escapeHtml(data.pesan)
+            : "";
+
+    const likes =
+        data.likes || 0;
+
+    const badge =
+        isPhotobox
+            ? `
+            <span class="bg-purple-500 text-white text-xs px-2 py-1 rounded-full">
+                📸 Photobox
+            </span>
+        `
+            : `
+            <span class="bg-pink-500 text-white text-xs px-2 py-1 rounded-full">
+                💌 Curhat
+            </span>
+        `;
+
+    const waktu =
+        data.waktu
+            ? new Date(Number(data.waktu))
+                .toLocaleDateString("id-ID")
+            : "-";
+
+    const photoHtml =
+        data.photoUrl
+            ? `
+        <img
+            src="${data.photoUrl}"
+            class="w-full rounded-lg mb-3 shadow"
+            loading="lazy"
+        >
+    `
+            : "";
+
+    const audioHtml =
+        data.audioUrl
+            ? `
+        <audio
+            class="audio-custom w-full h-8 mb-4 rounded-full"
+            controls
+            src="${data.audioUrl}">
         </audio>
-    ` : '';
+    `
+            : "";
 
     card.innerHTML = `
-        <div class="flex items-center justify-between mb-4 border-b border-black/5 pb-2 gap-3">
-            <span class="font-label-md text-primary">${nama} <span class="text-on-surface-variant/60">ke</span> ${tujuan}</span>
-            <div class="flex items-center gap-2">
-                ${data.audioUrl ? `<span class="material-symbols-outlined text-sm text-on-surface-variant">volume_up</span>` : ''}
-                <button type="button" class="toggle-detail-btn" aria-expanded="true" title="Toggle detail">
-                    <span class="material-symbols-outlined">arrow_drop_down</span>
-                </button>
+        <div class="flex flex-col gap-2 mb-3">
+
+            ${badge}
+
+            <div class="font-semibold text-primary">
+                ${nama}
+                <span class="text-gray-400">
+                    ke
+                </span>
+                ${tujuan}
             </div>
+
         </div>
-        <div class="message-box font-body-md italic text-on-surface mb-4 leading-relaxed max-h-40 overflow-y-auto whitespace-pre-wrap">
+
+        ${photoHtml}
+
+        <div
+            class="message-box font-body-md italic text-on-surface mb-4 leading-relaxed max-h-40 overflow-y-auto whitespace-pre-wrap">
             "${pesan}"
         </div>
+
         ${audioHtml}
+
         <div class="flex items-center justify-between">
-            <button class="love-btn flex items-center gap-1 group" type="button">
-                <span class="material-symbols-outlined text-error group-hover:scale-110 transition-transform" style="font-variation-settings: 'FILL' 1;">favorite</span>
-                <span class="font-label-md text-on-surface-variant">${likes}</span>
-            </button>
-            <span class="font-label-md text-outline/60 text-xs">${waktu}</span>
+
+            ${
+                !isPhotobox
+                    ? `
+                <button
+                    class="love-btn flex items-center gap-1">
+
+                    <span
+                        class="material-symbols-outlined text-error">
+                        favorite
+                    </span>
+
+                    <span>
+                        ${likes}
+                    </span>
+
+                </button>
+            `
+                    : `
+                <span class="text-xs text-purple-500 font-semibold">
+                    Premium Photobox
+                </span>
+            `
+            }
+
+            <span class="text-xs text-gray-500">
+                ${waktu}
+            </span>
+
         </div>
     `;
 
-    // Append first to get dimensions
-    (window.canvasContent || window.container).appendChild(card);
+    (window.canvasContent || window.container)
+        .appendChild(card);
 
-    const loveBtn = card.querySelector('.love-btn');
-    const vnAudio = card.querySelector('audio');
-    const postId = id;
+    if (!isPhotobox) {
 
-    if (vnAudio) {
-        vnAudio.addEventListener("play", () => {
-            if (window.isPlaying) {
-                window.music.pause();
-                window.btn.textContent = 'play_circle';
-                window.isPlaying = false;
+        const loveBtn =
+            card.querySelector(".love-btn");
+
+        if (loveBtn) {
+
+            if (likedPosts.includes(id)) {
+                loveBtn.disabled = true;
             }
-        });
+
+            loveBtn.addEventListener(
+                "click",
+                async () => {
+
+                    if (likedPosts.includes(id))
+                        return;
+
+                    try {
+
+                        await updateDoc(
+                            doc(db, "gamon", id),
+                            {
+                                likes: increment(1)
+                            }
+                        );
+
+                        likedPosts.push(id);
+
+                        localStorage.setItem(
+                            "likedPosts",
+                            JSON.stringify(likedPosts)
+                        );
+
+                        loveBtn.disabled = true;
+
+                        const count =
+                            loveBtn.querySelector(
+                                "span:last-child"
+                            );
+
+                        count.textContent =
+                            parseInt(
+                                count.textContent
+                            ) + 1;
+
+                    } catch (err) {
+                        console.error(err);
+                    }
+                }
+            );
+        }
     }
 
-    const toggleBtn = card.querySelector('.toggle-detail-btn');
-    const detailSection = card.querySelector('.message-box');
-    const audioElement = card.querySelector('audio');
-
-    if (likedPosts.includes(postId)) {
-        loveBtn.classList.add('liked');
-        loveBtn.disabled = true;
-    }
-
-    toggleBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const isCollapsed = card.classList.toggle('collapsed');
-        toggleBtn.setAttribute('aria-expanded', String(!isCollapsed));
-        toggleBtn.innerHTML = `<span class="material-symbols-outlined">${isCollapsed ? 'arrow_drop_up' : 'arrow_drop_down'}</span>`;
-    });
-
-    loveBtn.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        if (likedPosts.includes(postId)) {
-            alert("Kamu sudah kasih love 💔");
-            return;
-        }
-
-        try {
-            const postRef = doc(db, "gamon", postId);
-            await updateDoc(postRef, {
-                likes: increment(1)
-            });
-
-            likedPosts.push(postId);
-            localStorage.setItem("likedPosts", JSON.stringify(likedPosts));
-
-            loveBtn.classList.add('liked');
-            loveBtn.disabled = true;
-
-            // Animasi
-            loveBtn.style.transform = "scale(1.2)";
-            setTimeout(() => {
-                loveBtn.style.transform = "scale(1)";
-            }, 150);
-
-            const count = loveBtn.querySelector('span:last-child');
-            count.textContent = parseInt(count.textContent) + 1;
-
-        } catch (err) {
-            console.error(err);
-            alert("Gagal like 😢");
-        }
-    });
-
-    card.addEventListener('dblclick', (e) => {
-        e.stopPropagation();
-        focusCardZoom(card);
-    });
-
-    card.addEventListener('touchend', (e) => {
-        if (e.touches && e.touches.length > 0) return;
-        const now = Date.now();
-        if (lastTapCard === card && now - lastTapTime < 300) {
-            e.preventDefault();
+    card.addEventListener("dblclick", () => {
+        if (
+            typeof focusCardZoom === "function"
+        ) {
             focusCardZoom(card);
-            lastTapTime = 0;
-            lastTapCard = null;
-        } else {
-            lastTapTime = now;
-            lastTapCard = card;
         }
-    }, { passive: false });
+    });
 
     return card;
 }
 
-// Firestore Listener
-onSnapshot(q, (snapshot) => {
-    const target = (window.canvasContent || window.container);
-    if (target) target.innerHTML = ""; // Clear existing cards only
-    snapshot.forEach((doc) => {
-        const data = doc.data();
-        if (!data.pesan) return;
-        createCard(data, doc.id);
-    });
-}, (error) => {
-    console.error('Error in onSnapshot:', error);
-});
+async function loadAllPosts() {
 
-// Simple HTML escape
-function escapeHtml(str) {
-  return String(str)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
+    const target =
+        window.canvasContent ||
+        window.container;
+
+    target.innerHTML = "";
+
+    try {
+
+        const snapshot =
+            await getDocs(
+                query(
+                    collection(db, "gamon"),
+                    orderBy("waktu", "desc"),
+                    limit(100)
+                )
+            );
+
+        let allPosts = [];
+
+        snapshot.forEach((docSnap) => {
+
+            const data =
+                docSnap.data();
+
+            allPosts.push({
+                id: docSnap.id,
+                ...data
+            });
+
+        });
+
+        allPosts.sort(
+            (a, b) =>
+                Number(b.waktu || 0) -
+                Number(a.waktu || 0)
+        );
+
+        allPosts.forEach((item) => {
+
+            if (!item.pesan)
+                return;
+
+            createCard(
+                item,
+                item.id
+            );
+
+        });
+
+    } catch (err) {
+
+        console.error(
+            "Gagal load data:",
+            err
+        );
+
+    }
 }
+
+loadAllPosts();
 </script>
 
 </body>
