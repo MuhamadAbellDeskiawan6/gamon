@@ -20,13 +20,15 @@ const requestBody = {
     order: {
         amount: amount,
         invoice_number: orderId,
-        callback_url: "https://gamon-fawn.vercel.app/api/doku-notify" 
+        callback_url: "https://gamon-fawn.vercel.app/api/doku-notify"
     },
     payment: {
         payment_due_date: 60,
-        return_url: "https://gamon-fawn.vercel.app/photobox.html"
+        return_url: "https://gamon-fawn.vercel.app/photobox.html",
+
+        // paksa QRIS
+        payment_method_types: ["QRIS"]
     },
-    // TAMBAHKAN OBJEK INI Sesuai Dokumentasi DOKU
     additional_info: {
         override_notification_url: "https://gamon-fawn.vercel.app/api/doku-notify"
     }
@@ -56,12 +58,12 @@ const requestBody = {
             .update(signatureComponent)
             .digest("base64");
 
-        console.log("=== DOKU DEBUG ===");
-        console.log("CLIENT ID:", clientId);
-        console.log("REQUEST ID:", orderId);
-        console.log("TIMESTAMP:", timestamp);
-        console.log("DIGEST:", digest);
-        console.log("SIGNATURE:", signature);
+        // console.log("=== DOKU DEBUG ===");
+        // console.log("CLIENT ID:", clientId);
+        // console.log("REQUEST ID:", orderId);
+        // console.log("TIMESTAMP:", timestamp);
+        // console.log("DIGEST:", digest);
+        // console.log("SIGNATURE:", signature);
 
         const response = await fetch(
             "https://api.doku.com/checkout/v1/payment",
@@ -81,12 +83,12 @@ headers: {
             }
         );
 
-        console.log("BODY:", jsonBody);
+        // console.log("BODY:", jsonBody);
 console.log("STATUS:", response.status);
-console.log("HEADERS:", Object.fromEntries(response.headers.entries()));
+// console.log("HEADERS:", Object.fromEntries(response.headers.entries()));
 const rawText = await response.text();
 
-console.log("RESPONSE TEXT:", rawText);
+// console.log("RESPONSE TEXT:", rawText);
 
 let data;
 try {
@@ -95,9 +97,17 @@ try {
     data = { raw: rawText };
 }
 
-console.log("STATUS:", response.status);
-console.log("DOKU RESPONSE:", JSON.stringify(data, null, 2));
+console.log(
+    "METHODS:",
+    data.response?.payment?.payment_method_types
+); 
 
+// console.log("STATUS:", response.status);
+// console.log("DOKU RESPONSE:", JSON.stringify(data, null, 2));
+if (process.env.NODE_ENV !== "production") {
+    console.log("STATUS:", response.status);
+    console.log("DOKU RESPONSE:", JSON.stringify(data, null, 2));
+}
         console.log("=== DOKU RESPONSE ===");
         console.log(JSON.stringify(data, null, 2));
 

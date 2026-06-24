@@ -358,6 +358,10 @@ function showInfo(message) {
             });
 
             const data = await response.json();
+
+//             console.log("=== DOKU RESPONSE ===");
+// console.log(JSON.stringify(data, null, 2)); 
+
             if (data.response?.payment?.url) {
                 window.location.replace(data.response.payment.url);
             }
