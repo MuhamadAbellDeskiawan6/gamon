@@ -1,397 +1,305 @@
 <!DOCTYPE html>
-
-<html lang="id">
+<html class="light" lang="id">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Tentang Kami - Gamon Tawing</title>
-
-<link rel="icon" type="image/png" href="image/logo/Gamon Tawing.png">
-
-<script src="https://cdn.tailwindcss.com"></script>
-
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-
-<style>
-*{
-    margin:0;
-    padding:0;
-    box-sizing:border-box;
-}
-
-body{
-    font-family:'Inter',sans-serif;
-    background:linear-gradient(135deg,#fff5f8 0%,#f3e8ff 50%,#ffffff 100%);
-    min-height:100vh;
-    overflow-x:hidden;
-}
-
-.star{
-    position:absolute;
-    border-radius:50%;
-    background:#c084fc;
-    opacity:.4;
-    animation:blink 5s infinite ease-in-out;
-}
-
-@keyframes blink{
-    0%,100%{
-        opacity:.2;
-        transform:scale(1);
-    }
-    50%{
-        opacity:.8;
-        transform:scale(1.8);
-    }
-}
-
-.glass{
-    background:rgba(255,255,255,.55);
-    backdrop-filter:blur(16px);
-    border:1px solid rgba(255,255,255,.7);
-    box-shadow:0 10px 30px rgba(0,0,0,.08);
-}
-
-.gradient-text{
-    background:linear-gradient(90deg,#7c3aed,#ec4899);
-    -webkit-background-clip:text;
-    -webkit-text-fill-color:transparent;
-}
-
-.feature-card{
-    transition:.3s;
-}
-
-.feature-card:hover{
-    transform:translateY(-4px);
-}
-
-.coming-soon{
-    font-size:11px;
-    background:#ede9fe;
-    color:#7c3aed;
-    padding:4px 10px;
-    border-radius:999px;
-    font-weight:600;
-}
-</style>
-
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=1024" />
+    <title>Tentang Kami - Gamon Tawing</title>
+    <link rel="icon" type="image/svg+xml" href="image/logo/Gamon%20Tawing.svg" />
+    <link rel="icon" type="image/png" href="image/logo/Gamon%20Tawing.png" />
+    
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&amp;display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400..900&amp;display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+    
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "outline": "#7f7478",
+                        "inverse-on-surface": "#f5eff1",
+                        "secondary-fixed": "#ecdeee",
+                        "primary-fixed": "#f4dce4",
+                        "on-primary": "#ffffff",
+                        "secondary": "#655b68",
+                        "on-surface-variant": "#4d4447",
+                        "on-error-container": "#93000a",
+                        "surface-dim": "#ded9db",
+                        "on-secondary": "#ffffff",
+                        "on-surface": "#1d1b1d",
+                        "surface-container-highest": "#e7e1e3",
+                        "surface-container-high": "#ece7e9",
+                        "on-primary-fixed-variant": "#524249",
+                        "outline-variant": "#d0c3c7",
+                        "background": "#fef8fa",
+                        "on-secondary-fixed-variant": "#4d4450",
+                        "tertiary-container": "#d9edf6",
+                        "error-container": "#ffdad6",
+                        "tertiary": "#4f6169",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-container": "#f2ecee",
+                        "secondary-container": "#ecdeee",
+                        "tertiary-fixed-dim": "#b6cad2",
+                        "on-primary-container": "#76646b",
+                        "surface-bright": "#fef8fa",
+                        "primary-fixed-dim": "#d7c1c8",
+                        "primary": "#6b5a60",
+                        "inverse-surface": "#323031",
+                        "on-primary-fixed": "#25181e",
+                        "on-secondary-container": "#6b616e",
+                        "on-tertiary-container": "#596c73",
+                        "on-tertiary-fixed": "#0b1e24",
+                        "inverse-primary": "#d7c1c8",
+                        "on-tertiary": "#ffffff",
+                        "tertiary-fixed": "#d2e6ef",
+                        "secondary-fixed-dim": "#cfc2d2",
+                        "surface": "#fef8fa",
+                        "on-error": "#ffffff",
+                        "primary-container": "#fce4ec",
+                        "surface-variant": "#e7e1e3",
+                        "error": "#ba1a1a",
+                        "on-tertiary-fixed-variant": "#374951",
+                        "on-background": "#1d1b1d",
+                        "surface-tint": "#6b5a60",
+                        "on-secondary-fixed": "#201924",
+                        "surface-container-low": "#f8f2f4"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "unit": "8px",
+                        "section-gap": "60px",
+                        "gutter": "24px",
+                        "container-padding": "40px"
+                    },
+                    "fontFamily": {
+                        "body-lg": ["Inter"],
+                        "body-md": ["Inter"],
+                        "display-lg": ["Playfair Display"],
+                        "label-md": ["Inter"],
+                        "headline-sm": ["Playfair Display"],
+                        "headline-md": ["Playfair Display"]
+                    }
+                },
+            },
+        }
+    </script>
+    <style>
+        body {
+            background: linear-gradient(135deg, #fff5f8 0%, #f3e8ff 50%, #ffffff 100%);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        .star-particle {
+            position: absolute;
+            background: #b794f4;
+            border-radius: 50%;
+            opacity: 0.4;
+            pointer-events: none;
+            box-shadow: 0 0 5px rgba(183, 148, 244, 0.5);
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.55);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            box-shadow: 0 10px 30px -10px rgba(107, 90, 96, 0.08);
+        }
+        @keyframes pulse-soft {
+            0%, 100% { transform: scale(1); opacity: 0.4; }
+            50% { transform: scale(1.5); opacity: 0.7; }
+        }
+    </style>
 </head>
+<body class="text-on-surface selection:bg-primary-container">
 
-<body>
+    <!-- Star Particles Background Layer -->
+    <div class="fixed inset-0 pointer-events-none z-0" id="stars"></div>
 
-<div id="stars" class="fixed inset-0 pointer-events-none"></div>
-
-<header class="relative z-10 py-12 text-center">
-
-```
-<img
-    src="image/logo/Gamon Tawing.png"
-    alt="Gamon Tawing"
-    class="mx-auto w-56 mb-4"
->
-
-<h1 class="text-5xl font-extrabold gradient-text mb-4">
-    Tentang Gamon Tawing
-</h1>
-
-<p class="max-w-3xl mx-auto text-gray-600 italic px-5 text-lg">
-    Tempat di mana rindu, kenangan, dan perasaan yang belum selesai
-    menemukan ruang untuk bercerita.
-</p>
-```
-
-</header>
-
-<main class="max-w-6xl mx-auto px-5 pb-20">
-
-```
-<div class="glass rounded-3xl p-8 md:p-12">
-
-    <!-- APA ITU -->
-    <section class="mb-12">
-
-        <h2 class="text-3xl font-bold text-purple-700 mb-5">
-            Apa Itu Gamon Tawing?
-        </h2>
-
-        <p class="text-gray-700 leading-8">
-            Gamon Tawing adalah platform digital yang menyediakan ruang
-            bagi siapa saja untuk mengekspresikan perasaan, mengenang
-            kenangan, menyampaikan pesan yang belum sempat terucap,
-            serta berbagi cerita secara aman dan nyaman.
-        </p>
-
-    </section>
-
-    <!-- INFORMASI -->
-    <section class="mb-12">
-
-        <h2 class="text-3xl font-bold text-purple-700 mb-5">
-            Informasi Platform
-        </h2>
-
-        <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-
-            <div class="bg-white/60 rounded-xl p-5">
-                <div class="font-bold text-purple-700">Nama Platform</div>
-                <div>Gamon Tawing</div>
+    <main class="relative z-10 pt-20 pb-32 max-w-4xl mx-auto px-6">
+        
+        <!-- Header Section -->
+        <header class="text-center mb-12">
+            <div class="mx-auto max-w-xs bg-transparent overflow-hidden mb-4">
+                <img src="image/logo/Gamon%20Tawing.png" alt="Gamon Tawing" class="mx-auto h-44 w-auto object-cover object-top bg-transparent" />
             </div>
+            <h1 class="font-display-lg text-4xl font-semibold text-primary mb-4">Tentang Gamon Tawing</h1>
+            <p class="font-body-lg text-on-surface-variant italic max-w-2xl mx-auto">
+                "Tempat di mana rindu, kenangan, dan perasaan yang belum selesai menemukan ruang untuk bercerita."
+            </p>
+        </header>
 
-            <div class="bg-white/60 rounded-xl p-5">
-                <div class="font-bold text-purple-700">Didirikan</div>
-                <div>Since 2025</div>
-            </div>
-
-            <div class="bg-white/60 rounded-xl p-5">
-                <div class="font-bold text-purple-700">Founder</div>
-                <div>Muhamad Abell Deskiawan</div>
-            </div>
-
-            <div class="bg-white/60 rounded-xl p-5">
-                <div class="font-bold text-purple-700">Lokasi</div>
-                <div>Banjarmasin, Kalimantan Selatan</div>
-            </div>
-
-            <div class="bg-white/60 rounded-xl p-5">
-                <div class="font-bold text-purple-700">Bidang</div>
-                <div>Digital Platform & Creative Technology</div>
-            </div>
-
-            <div class="bg-white/60 rounded-xl p-5">
-                <div class="font-bold text-purple-700">Status</div>
-                <div>Startup Independen</div>
-            </div>
-
-        </div>
-
-    </section>
-
-    <!-- MENGAPA -->
-    <section class="mb-12">
-
-        <h2 class="text-3xl font-bold text-purple-700 mb-5">
-            Mengapa Kami Membuat Ini?
-        </h2>
-
-        <p class="text-gray-700 leading-8 mb-4">
-            Banyak orang mengalami kehilangan, penolakan, perpisahan,
-            patah hati, dan berbagai tekanan emosional tanpa memiliki
-            tempat yang nyaman untuk mengekspresikan perasaannya.
-        </p>
-
-        <p class="text-gray-700 leading-8 mb-4">
-            Tidak sedikit konflik, tindakan impulsif, percobaan bunuh diri,
-            hingga tindak kekerasan yang berawal dari emosi yang dipendam
-            terlalu lama tanpa adanya ruang untuk bercerita dan mendapatkan
-            dukungan.
-        </p>
-
-        <p class="text-gray-700 leading-8 mb-4">
-            Gamon Tawing hadir sebagai ruang digital yang memungkinkan
-            setiap orang menuliskan isi hati mereka, mengenang kenangan,
-            menyampaikan pesan yang belum sempat terucap, serta menemukan
-            bahwa mereka tidak sendirian dalam menghadapi rasa kehilangan.
-        </p>
-
-        <p class="text-gray-700 leading-8">
-            Kami percaya bahwa setiap cerita layak didengar dan setiap
-            perasaan berhak mendapatkan ruang untuk disampaikan secara
-            sehat dan bertanggung jawab.
-        </p>
-
-    </section>
-
-    <!-- FITUR -->
-    <section class="mb-12">
-
-        <h2 class="text-3xl font-bold text-purple-700 mb-5">
-            Fitur Platform
-        </h2>
-
-        <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-
-            <div class="feature-card bg-white/60 rounded-xl p-5">
-                💌 Pesan Gamon
-            </div>
-
-            <div class="feature-card bg-white/60 rounded-xl p-5">
-                🎤 Voice Note Curhat
-            </div>
-
-            <div class="feature-card bg-white/60 rounded-xl p-5">
-                ❤️ Dukungan Komunitas
-            </div>
-
-            <div class="feature-card bg-white/60 rounded-xl p-5">
-                🗺️ Peta Persebaran Cerita
-            </div>
-
-            <div class="feature-card bg-white/60 rounded-xl p-5">
-                🤖 AI Curhat
-            </div>
-
-            <div class="feature-card bg-white/60 rounded-xl p-5">
-                🎲 Gacha Gamon
-            </div>
-
-            <div class="feature-card bg-white/60 rounded-xl p-5 border-2 border-dashed border-purple-300">
-                📸 Self Photobox
-                <span class="coming-soon ml-2">
-                    Coming Soon
-                </span>
-            </div>
-
-        </div>
-
-    </section>
-
-    <!-- VISI -->
-    <section class="mb-12">
-
-        <h2 class="text-3xl font-bold text-purple-700 mb-5">
-            Visi
-        </h2>
-
-        <p class="text-gray-700 leading-8">
-            Menjadi platform digital yang membantu masyarakat
-            mengekspresikan emosi, mengenang kenangan, serta menemukan
-            ketenangan melalui teknologi dan cerita.
-        </p>
-
-    </section>
-
-    <!-- MISI -->
-    <section class="mb-12">
-
-        <h2 class="text-3xl font-bold text-purple-700 mb-5">
-            Misi
-        </h2>
-
-        <ul class="space-y-3 text-gray-700">
-
-            <li>• Menyediakan ruang ekspresi yang mudah diakses.</li>
-
-            <li>• Mengembangkan teknologi yang mendukung kesehatan emosional secara positif.</li>
-
-            <li>• Membangun komunitas yang saling memahami dan mendukung.</li>
-
-            <li>• Menghadirkan fitur kreatif yang bermanfaat bagi pengguna.</li>
-
-            <li>• Mengembangkan layanan digital inovatif berbasis komunitas.</li>
-
-        </ul>
-
-    </section>
-
-    <!-- KONTAK -->
-    <section class="mb-12">
-
-        <h2 class="text-3xl font-bold text-purple-700 mb-5">
-            Hubungi Kami
-        </h2>
-
-        <div class="grid md:grid-cols-3 gap-4">
-
-            <div class="bg-white/60 rounded-xl p-5">
-                <div class="font-bold text-purple-700 mb-2">
-                    Email
+        <!-- Main Content Area -->
+        <div class="glass-card rounded-[32px] p-8 md:p-12 space-y-12">
+            
+            <!-- APA ITU -->
+            <section>
+                <div class="flex items-center gap-2 mb-4 text-primary">
+                    <span class="material-symbols-outlined text-2xl">auto_awesome</span>
+                    <h2 class="font-headline-md text-2xl font-medium">Apa Itu Gamon Tawing?</h2>
                 </div>
-                <div class="break-all">
-                    muhamadabelldeskiawan@gmail.com
-                </div>
-            </div>
+                <p class="font-body-md text-on-surface-variant leading-relaxed">
+                    Gamon Tawing adalah platform digital yang menyediakan ruang bagi siapa saja untuk mengekspresikan perasaan, mengenang kenangan, menyampaikan pesan yang belum sempat terucap, serta berbagi cerita secara aman dan nyaman.
+                </p>
+            </section>
 
-            <div class="bg-white/60 rounded-xl p-5">
-                <div class="font-bold text-purple-700 mb-2">
-                    WhatsApp
+            <hr class="border-outline-variant/30">
+
+            <!-- INFORMASI PLATFORM -->
+            <section>
+                <div class="flex items-center gap-2 mb-6 text-primary">
+                    <span class="material-symbols-outlined text-2xl">info</span>
+                    <h2 class="font-headline-md text-2xl font-medium">Informasi Platform</h2>
+                </div>
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div class="bg-surface-container-low/70 rounded-2xl p-5 border border-white/40">
+                        <div class="font-semibold text-primary mb-1">Nama Platform</div>
+                        <div class="text-on-surface-variant">Gamon Tawing</div>
+                    </div>
+                    <div class="bg-surface-container-low/70 rounded-2xl p-5 border border-white/40">
+                        <div class="font-semibold text-primary mb-1">Didirikan</div>
+                        <div class="text-on-surface-variant">Since 2025</div>
+                    </div>
+                    <div class="bg-surface-container-low/70 rounded-2xl p-5 border border-white/40">
+                        <div class="font-semibold text-primary mb-1">Lokasi asal</div>
+                        <div class="text-on-surface-variant">Banjarmasin, Kalimantan Selatan</div>
+                    </div>
+                    <div class="bg-surface-container-low/70 rounded-2xl p-5 border border-white/40">
+                        <div class="font-semibold text-primary mb-1">Bidang</div>
+                        <div class="text-on-surface-variant">Digital Platform & Creative Technology</div>
+                    </div>
+                </div>
+            </section>
+
+            <hr class="border-outline-variant/30">
+
+            <!-- MENGAPA -->
+            <section>
+                <div class="flex items-center gap-2 mb-4 text-primary">
+                    <span class="material-symbols-outlined text-2xl">favorite</span>
+                    <h2 class="font-headline-md text-2xl font-medium">Mengapa Kami Membuat Ini?</h2>
+                </div>
+                <div class="font-body-md text-on-surface-variant space-y-4 leading-relaxed">
+                    <p>Banyak orang mengalami kehilangan, penolakan, perpisahan, patah hati, dan berbagai tekanan emosional tanpa memiliki tempat yang nyaman untuk mengekspresikan perasaannya.</p>
+                    <p>Tidak sedikit konflik, tindakan impulsif, hingga tekanan psikologis berat yang berawal dari emosi yang dipendam terlalu lama tanpa adanya ruang untuk bercerita dan mendapatkan pelepasan emosi yang sehat.</p>
+                    <p>Gamon Tawing hadir sebagai ruang digital yang memungkinkan setiap orang menuliskan isi hati mereka, mengenang kenangan, menyampaikan pesan yang belum sempat terucap, serta menemukan bahwa mereka tidak sendirian dalam menghadapi rasa kehilangan.</p>
+                    <p>Kami percaya bahwa setiap cerita layak didengar dan setiap perasaan berhak mendapatkan ruang untuk disampaikan secara sehat dan bertanggung jawab.</p>
+                </div>
+            </section>
+
+            <hr class="border-outline-variant/30">
+
+            <!-- FITUR -->
+            <section>
+                <div class="flex items-center gap-2 mb-6 text-primary">
+                    <span class="material-symbols-outlined text-2xl">apps</span>
+                    <h2 class="font-headline-md text-2xl font-medium">Fitur Platform</h2>
+                </div>
+                <div class="grid sm:grid-cols-2 md:grid-cols-3 gap-4">
+                    <div class="bg-surface-container-low/70 rounded-xl p-4 flex items-center gap-3 border border-white/40">
+                        <span class="text-xl">💌</span> <span class="font-medium text-on-surface-variant">Pesan Gamon</span>
+                    </div>
+                    <div class="bg-surface-container-low/70 rounded-xl p-4 flex items-center gap-3 border border-white/40">
+                        <span class="text-xl">🎤</span> <span class="font-medium text-on-surface-variant">Voice Note Curhat</span>
+                    </div>
+                    <div class="bg-surface-container-low/70 rounded-xl p-4 flex items-center gap-3 border border-white/40">
+                        <span class="text-xl">❤️</span> <span class="font-medium text-on-surface-variant">Dukungan Komunitas</span>
+                    </div>
+                    <div class="bg-surface-container-low/70 rounded-xl p-4 flex items-center gap-3 border border-white/40">
+                        <span class="text-xl">🗺️</span> <span class="font-medium text-on-surface-variant">Peta Persebaran Cerita</span>
+                    </div>
+                    <div class="bg-surface-container-low/70 rounded-xl p-4 flex items-center gap-3 border border-white/40">
+                        <span class="text-xl">🤖</span> <span class="font-medium text-on-surface-variant">AI Curhat</span>
+                    </div>
+                    <div class="bg-surface-container-low/70 rounded-xl p-4 flex items-center gap-3 border border-white/40">
+                        <span class="text-xl">📸</span> <span class="font-medium text-on-surface-variant">Gamon Photobooth</span>
+                    </div>
+                </div>
+            </section>
+
+            <hr class="border-outline-variant/30">
+
+            <!-- VISI & MISI -->
+            <section class="grid md:grid-cols-2 gap-8">
+                <div>
+                    <div class="flex items-center gap-2 mb-3 text-primary">
+                        <span class="material-symbols-outlined text-xl">visibility</span>
+                        <h3 class="font-headline-sm text-xl font-medium">Visi</h3>
+                    </div>
+                    <p class="font-body-md text-on-surface-variant leading-relaxed">
+                        Menjadi platform digital yang membantu masyarakat mengekspresikan emosi, mengenang kenangan, serta menemukan ketenangan melalui teknologi dan cerita.
+                    </p>
                 </div>
                 <div>
-                    0895703228001
+                    <div class="flex items-center gap-2 mb-3 text-primary">
+                        <span class="material-symbols-outlined text-xl">track_changes</span>
+                        <h3 class="font-headline-sm text-xl font-medium">Misi</h3>
+                    </div>
+                    <ul class="font-body-md text-on-surface-variant space-y-2">
+                        <li class="flex items-start gap-2">
+                            <span class="text-primary-fixed-dim mt-1">•</span>
+                            <span>Menyediakan ruang ekspresi yang mudah diakses.</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-primary-fixed-dim mt-1">•</span>
+                            <span>Mengembangkan teknologi pendukung kesehatan emosional positif.</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-primary-fixed-dim mt-1">•</span>
+                            <span>Membangun komunitas yang saling memahami.</span>
+                        </li>
+                    </ul>
                 </div>
-            </div>
+            </section>
 
-            <div class="bg-white/60 rounded-xl p-5">
-                <div class="font-bold text-purple-700 mb-2">
-                    Instagram
+            <hr class="border-outline-variant/30">
+
+            <!-- DISCLAIMER -->
+            <section class="bg-error-container/20 border border-error/10 rounded-2xl p-6">
+                <div class="flex items-center gap-2 mb-3 text-error">
+                    <span class="material-symbols-outlined">warning</span>
+                    <h2 class="font-headline-sm text-lg font-semibold">Disclaimer</h2>
                 </div>
-                <div>
-                    @abldskwn
+                <div class="font-body-md text-on-surface-variant space-y-3 text-sm leading-relaxed">
+                    <p>Gamon Tawing bukan layanan psikologi, psikiatri, maupun konseling profesional. Platform ini dibuat sebagai media ekspresi, berbagi cerita, dan dukungan komunitas bagi masyarakat.</p>
+                    <p>Jika Anda mengalami kondisi darurat, krisis emosional berat, atau keinginan menyakiti diri sendiri, segera hubungi keluarga, tenaga kesehatan, psikolog, psikiater, atau layanan darurat yang tersedia di wilayah Anda.</p>
                 </div>
+            </section>
+
+            <!-- Back Actions -->
+            <div class="pt-6 text-center border-t border-outline-variant/20">
+                <p class="text-xs text-on-surface-variant/70 mb-6">Dibuat dengan ❤️ sejak 2025.</p>
+                <a href="index.html" class="inline-flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-[#f4dce4] to-[#e1d2f5] text-on-primary-fixed-variant font-semibold rounded-full shadow-md hover:shadow-lg hover:scale-105 transition-all active:scale-95 border border-white/50">
+                    <span class="material-symbols-outlined text-sm">arrow_back</span>
+                    Kembali ke Beranda
+                </a>
             </div>
 
         </div>
+    </main>
 
-    </section>
+    <script>
+        // Soft Sparkle Particle Generator
+        const starsContainer = document.getElementById('stars');
+        const starCount = 60;
 
-    <!-- DISCLAIMER -->
-    <section class="mb-12">
-
-        <h2 class="text-3xl font-bold text-purple-700 mb-5">
-            Disclaimer
-        </h2>
-
-        <p class="text-gray-700 leading-8 mb-4">
-            Gamon Tawing bukan layanan psikologi, psikiatri,
-            maupun konseling profesional.
-        </p>
-
-        <p class="text-gray-700 leading-8 mb-4">
-            Platform ini dibuat sebagai media ekspresi, berbagi cerita,
-            dan dukungan komunitas bagi masyarakat.
-        </p>
-
-        <p class="text-gray-700 leading-8">
-            Jika Anda mengalami kondisi darurat, krisis emosional berat,
-            atau keinginan menyakiti diri sendiri, segera hubungi
-            keluarga, tenaga kesehatan, psikolog, psikiater,
-            atau layanan darurat yang tersedia di wilayah Anda.
-        </p>
-
-    </section>
-
-    <div class="border-t pt-8 text-center">
-
-        <p class="text-gray-600 mb-6">
-            Dibuat dengan ❤️ di Banjarmasin sejak 2025.
-        </p>
-
-        <a
-            href="index.html"
-            class="inline-block px-8 py-3 rounded-full bg-purple-600 text-white font-semibold hover:bg-purple-700 transition"
-        >
-            Kembali ke Beranda
-        </a>
-
-    </div>
-
-</div>
-```
-
-</main>
-
-<script>
-const stars = document.getElementById('stars');
-
-for(let i=0;i<80;i++){
-
-    const star = document.createElement('div');
-
-    star.className = 'star';
-
-    const size = Math.random() * 4 + 2;
-
-    star.style.width = size + 'px';
-    star.style.height = size + 'px';
-
-    star.style.left = Math.random()*100 + '%';
-    star.style.top = Math.random()*100 + '%';
-
-    star.style.animationDelay = Math.random()*5 + 's';
-
-    stars.appendChild(star);
-}
-</script>
-
+        for (let i = 0; i < starCount; i++) {
+            const star = document.createElement('div');
+            star.className = 'star-particle';
+            const size = 2 + Math.random() * 4;
+            star.style.width = `${size}px`;
+            star.style.height = `${size}px`;
+            star.style.left = `${Math.random() * 100}%`;
+            star.style.top = `${Math.random() * 100}%`;
+            star.style.animation = `pulse-soft ${3 + Math.random() * 6}s infinite ease-in-out`;
+            star.style.animationDelay = `${Math.random() * 5}s`;
+            starsContainer.appendChild(star);
+        }
+    </script>
 </body>
 </html>

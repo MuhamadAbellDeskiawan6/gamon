@@ -8,638 +8,519 @@
 <link rel="icon" type="image/png" href="image/logo/Gamon%20Tawing.png" />
 <meta name="google-site-verification" content="brhBnzlMdpBNrETSVrBAz9lwk9wB0mc15VRAJBIhPCY" />
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&amp;display=swap" rel="stylesheet"/>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400..900&amp;display=swap" rel="stylesheet"/>
-<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400..900&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
 <script id="tailwind-config">
-        tailwind.config = {
-            darkMode: "class",
-            theme: {
-                extend: {
-                    "colors": {
-                        "outline": "#7f7478",
-                        "inverse-on-surface": "#f5eff1",
-                        "secondary-fixed": "#ecdeee",
-                        "primary-fixed": "#f4dce4",
-                        "on-primary": "#ffffff",
-                        "secondary": "#655b68",
-                        "on-surface-variant": "#4d4447",
-                        "on-error-container": "#93000a",
-                        "surface-dim": "#ded9db",
-                        "on-secondary": "#ffffff",
-                        "on-surface": "#1d1b1d",
-                        "surface-container-highest": "#e7e1e3",
-                        "surface-container-high": "#ece7e9",
-                        "on-primary-fixed-variant": "#524249",
-                        "outline-variant": "#d0c3c7",
-                        "background": "#fef8fa",
-                        "on-secondary-fixed-variant": "#4d4450",
-                        "tertiary-container": "#d9edf6",
-                        "error-container": "#ffdad6",
-                        "tertiary": "#4f6169",
-                        "surface-container-lowest": "#ffffff",
-                        "surface-container": "#f2ecee",
-                        "secondary-container": "#ecdeee",
-                        "tertiary-fixed-dim": "#b6cad2",
-                        "on-primary-container": "#76646b",
-                        "surface-bright": "#fef8fa",
-                        "primary-fixed-dim": "#d7c1c8",
-                        "primary": "#6b5a60",
-                        "inverse-surface": "#323031",
-                        "on-primary-fixed": "#25181e",
-                        "on-secondary-container": "#6b616e",
-                        "on-tertiary-container": "#596c73",
-                        "on-tertiary-fixed": "#0b1e24",
-                        "inverse-primary": "#d7c1c8",
-                        "on-tertiary": "#ffffff",
-                        "tertiary-fixed": "#d2e6ef",
-                        "secondary-fixed-dim": "#cfc2d2",
-                        "surface": "#fef8fa",
-                        "on-error": "#ffffff",
-                        "primary-container": "#fce4ec",
-                        "surface-variant": "#e7e1e3",
-                        "error": "#ba1a1a",
-                        "on-tertiary-fixed-variant": "#374951",
-                        "on-background": "#1d1b1d",
-                        "surface-tint": "#6b5a60",
-                        "on-secondary-fixed": "#201924",
-                        "surface-container-low": "#f8f2f4"
-                    },
-                    "borderRadius": {
-                        "DEFAULT": "0.25rem",
-                        "lg": "0.5rem",
-                        "xl": "0.75rem",
-                        "full": "9999px"
-                    },
-                    "spacing": {
-                        "unit": "8px",
-                        "section-gap": "80px",
-                        "gutter": "24px",
-                        "container-padding": "40px",
-                        "margin-mobile": "20px"
-                    },
-                    "fontFamily": {
-                        "body-lg": ["Inter"],
-                        "body-md": ["Inter"],
-                        "display-lg": ["Playfair Display"],
-                        "label-md": ["Inter"],
-                        "headline-sm": ["Playfair Display"],
-                        "headline-md": ["Playfair Display"]
-                    },
-                    "fontSize": {
-                        "body-lg": ["18px", {"lineHeight": "1.6", "fontWeight": "400"}],
-                        "body-md": ["16px", {"lineHeight": "1.6", "fontWeight": "400"}],
-                        "display-lg": ["48px", {"lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "600"}],
-                        "label-md": ["14px", {"lineHeight": "1", "letterSpacing": "0.05em", "fontWeight": "600"}],
-                        "headline-sm": ["24px", {"lineHeight": "1.4", "fontWeight": "500"}],
-                        "headline-md": ["32px", {"lineHeight": "1.3", "fontWeight": "500"}]
-                    }
+    tailwind.config = {
+        darkMode: "class",
+        theme: {
+            extend: {
+                "colors": {
+                    "outline":"#7f7478","inverse-on-surface":"#f5eff1","secondary-fixed":"#ecdeee",
+                    "primary-fixed":"#f4dce4","on-primary":"#ffffff","secondary":"#655b68",
+                    "on-surface-variant":"#4d4447","surface-dim":"#ded9db","on-secondary":"#ffffff",
+                    "on-surface":"#1d1b1d","surface-container-highest":"#e7e1e3","surface-container-high":"#ece7e9",
+                    "on-primary-fixed-variant":"#524249","outline-variant":"#d0c3c7","background":"#fef8fa",
+                    "tertiary-container":"#d9edf6","error-container":"#ffdad6","tertiary":"#4f6169",
+                    "surface-container-lowest":"#ffffff","surface-container":"#f2ecee","secondary-container":"#ecdeee",
+                    "on-primary-container":"#76646b","surface-bright":"#fef8fa","primary-fixed-dim":"#d7c1c8",
+                    "primary":"#6b5a60","inverse-surface":"#323031","on-primary-fixed":"#25181e",
+                    "on-secondary-container":"#6b616e","tertiary-fixed":"#d2e6ef","surface":"#fef8fa",
+                    "on-error":"#ffffff","primary-container":"#fce4ec","surface-variant":"#e7e1e3",
+                    "error":"#ba1a1a","on-background":"#1d1b1d","surface-tint":"#6b5a60",
+                    "on-secondary-fixed":"#201924","surface-container-low":"#f8f2f4"
                 },
-            },
-        }
-    </script>
-<style>
-        body {
-            background: linear-gradient(135deg, #fff5f8 0%, #f3e8ff 50%, #ffffff 100%);
-            overflow-x: hidden;
-            min-height: 100vh;
-            overflow-x: hidden;
-        }
-        .star-particle {
-            position: absolute;
-            background: #b794f4;
-            border-radius: 50%;
-            opacity: 0.4;
-            pointer-events: none;
-            box-shadow: 0 0 5px rgba(183, 148, 244, 0.5);
-        }
-        .glass-card {
-            background: rgba(255, 255, 255, 0.5);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.4);
-            box-shadow: 0 10px 30px -10px rgba(107, 90, 96, 0.1);
-        }
-        .audio-custom::-webkit-media-controls-panel {
-            background-color: #f2ecee;
-        }
-        .audio-custom::-webkit-media-controls-play-button,
-        .audio-custom::-webkit-media-controls-current-time-display,
-        .audio-custom::-webkit-media-controls-time-remaining-display {
-            filter: grayscale(1) contrast(0.5);
-        }
-        .floating-container {
-            position: relative;
-            width: 100vw;
-            min-height: 70vh;
-            left: 50%;
-            right: 50%;
-            margin-left: -50vw;
-            margin-right: -50vw;
-            overflow: hidden;
-        }
-        .canvas-stage {
-            position: relative;
-            width: 100%;
-            min-height: 70vh;
-            transform-origin: top center;
-            transition: transform 0.15s ease;
-            touch-action: none;
-        }
-        /* make the inner container cover the full viewport so cards can be moved above header */
-        #container {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            pointer-events: none; /* allow clicks to pass to header unless a card is present */
-            z-index: 1000; /* high so cards can overlap header */
-        }
-        .zoom-controls {
-            position: fixed;
-            left: 1rem;
-            top: 1rem;
-            z-index: 80;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            padding: 0.4rem 0.65rem;
-            border-radius: 9999px;
-            background: rgba(255,255,255,0.92);
-            backdrop-filter: blur(12px);
-            box-shadow: 0 10px 25px -12px rgba(0,0,0,0.2);
-        }
-        .zoom-controls button {
-            min-width: 2.25rem;
-            height: 2.25rem;
-            border-radius: 9999px;
-            border: 1px solid rgba(107,90,96,0.2);
-            background: white;
-            color: #6b5a60;
-            font-weight: 700;
-            cursor: pointer;
-            transition: transform 0.15s ease, background 0.15s ease;
-            padding: 0 0.6rem;
-        }
-        .zoom-controls button:hover {
-            transform: scale(1.05);
-            background: #f7eef4;
-        }
-        #zoomReset {
-            width: auto;
-            min-width: 3.25rem;
-            padding: 0 0.75rem;
-        }
-        #zoomLabel {
-            font-weight: 600;
-        }
-        .zoom-controls span {
-            min-width: 3rem;
-            text-align: center;
-            font-size: 0.9rem;
-            color: #4d4447;
-        }
-        @media (max-width: 1024px) {
-            .zoom-controls {
-                left: 1rem;
-                top: 1rem;
-                bottom: auto;
-                transform: none;
-                flex-wrap: wrap;
-                justify-content: flex-start;
-                gap: 0.35rem;
-                padding: 0.45rem 0.65rem;
-                font-size: 0.92rem;
-            }
-            .zoom-controls button {
-                min-width: 2rem;
-                height: 2rem;
-                padding: 0 0.5rem;
-                font-size: 0.9rem;
-            }
-            .zoom-controls span {
-                min-width: 2.2rem;
-                font-size: 0.85rem;
-            }
-            #zoomReset {
-                min-width: 2.6rem;
-                padding: 0 0.6rem;
-            }
-            .floating-container {
-                min-height: 60vh;
-            }
-            #musicPlayerBar {
-                bottom: 4rem;
-                width: calc(100% - 20px);
-                left: 50%;
-                transform: translateX(-50%);
-            }
-            #menuFitur {
-                bottom: 10.5rem;
-                right: 0.75rem;
-            }
-        }
-        .draggable {
-            position: absolute;
-            cursor: grab;
-            user-select: none;
-            touch-action: none;
-            transition: box-shadow 0.3s ease;
-            pointer-events: auto; /* make cards interactive even though container ignores events */
-        }
-        .draggable:active {
-            cursor: grabbing;
-            box-shadow: 0 20px 40px -15px rgba(107, 90, 96, 0.2);
-        }
-        @keyframes pulse-soft {
-            0%, 100% { transform: scale(1); opacity: 0.4; }
-            50% { transform: scale(1.5); opacity: 0.7; }
-        }
-        .love-btn[disabled] {
-            opacity: 0.55;
-            cursor: not-allowed;
-        }
-        .draggable.collapsed {
-            max-height: 96px;
-            overflow: hidden;
-        }
-        .draggable.collapsed .message-box,
-        .draggable.collapsed audio {
-            display: none;
-        }
-        .toggle-detail-btn {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            width: 2rem;
-            height: 2rem;
-            border-radius: 9999px;
-            background: rgba(255,255,255,0.7);
-            color: #6b5a60;
-            transition: transform 0.2s ease, background-color 0.2s ease;
-        }
-        .toggle-detail-btn:hover {
-            background: rgba(255,255,255,0.9);
-            transform: scale(1.05);
-        }
-    </style>
-</head>
-<body class="text-on-surface selection:bg-primary-container">
-<!-- Star Particles Background Layer -->
-<div class="fixed inset-0 pointer-events-none z-0" id="stars"></div>
-<main class="relative z-10 pt-24 pb-32 w-full">
-<!-- Hero Section -->
-<header class="text-center mb-section-gap">
-<div class="mx-auto mb-0 max-w-xs bg-transparent overflow-hidden">
-    <img src="image/logo/Gamon%20Tawing.png" alt="Gamon Tawing" class="mx-auto h-56 w-auto object-cover object-top bg-transparent" />
-    <span class="sr-only">Gamon Tawing</span>
-</div>
-<p class="font-body-lg text-on-surface-variant max-w-2xl mx-auto mb-8 italic -mt-8">
-                "Di sini, segala rindu yang tak tersampaikan dan luka yang masih basah menemukan tempat untuk melayang di antara bintang-bintang."
-            </p>
-            <div class="flex justify-center items-center gap-4">
-                <button onclick="location.href='submit.html'" class="inline-flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-[#f4dce4] to-[#e1d2f5] text-on-primary-fixed-variant font-semibold rounded-full shadow-[0_4px_15px_rgba(107,90,96,0.15)] hover:shadow-[0_6px_20px_rgba(107,90,96,0.2)] hover:scale-105 transition-all active:scale-95 border border-white/50">
-                    <span class="material-symbols-outlined">edit_note</span>
-                    Sampaikan Gamonmu
-                </button>
-                <a href="ai.html" class="inline-flex items-center gap-2 px-8 py-3 bg-purple-400 text-white font-semibold rounded-full shadow-[0_4px_15px_rgba(107,90,96,0.15)] hover:shadow-[0_6px_20px_rgba(107,90,96,0.2)] hover:scale-105 transition-all active:scale-95 border border-white/50">
-                    💬 AI Curhat
-                </a>
-            </div>
-</header>
-<!-- Floating Cards Container -->
-<div class="floating-container" id="canvasWrapper">
-        <div class="canvas-stage" id="canvasStage">
-        </div>
-        <div id="container">
-            <div id="canvasContent" style="position:relative; width:100%; height:100%;">
-                <!-- Cards will be injected here by script -->
-            </div>
-        </div>
-</div>
-<div class="zoom-controls" aria-label="Zoom controls">
-    <button type="button" id="zoomOut" title="Zoom out">−</button>
-    <span id="zoomLabel">100%</span>
-    <button type="button" id="zoomIn" title="Zoom in">+</button>
-    <button type="button" id="zoomReset" title="Reset zoom">Reset</button>
-</div>
-</main>
-<!-- Global Music Player Floating Bar -->
-<div id="musicPlayerBar" class="fixed bottom-24 left-1/2 -translate-x-1/2 w-[calc(100%-32px)] md:w-[480px] z-50 glass-card rounded-full p-2 flex items-center gap-3 border border-primary/10 shadow-xl">
-<div class="w-12 h-12 rounded-full overflow-hidden bg-surface-container flex-shrink-0 relative">
-<img alt="Track art" data-alt="A moody vinyl record spinning on a turntable under soft lighting." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDWnxhOulVUE5SbSSuUfq7T133nOIx1PEeyGWLwt4qhu4zDxj_36axd-l6hza_0AKipCm3szwszyPdIjDrzWPjGTdSU34XKzuUatnooWOtOb-xb8_WWweb5wQUgddpCGK4StLan-HcIozBZa-VpPr-0LyU2s_dVt5c14tQ4UGapiF1EKA9coSHV5riVj7-eVSbAUEM1q3uUTQhs-3wABwrHCGybCY3ZUU9AKFnoGB6xgfUHTYvfP3dGkp_stkjwNS3FHojGDnKs7YX4"/>
-<div class="absolute inset-0 flex items-center justify-center bg-black/5">
-<span class="material-symbols-outlined text-primary text-xl animate-pulse">music_note</span>
-</div>
-</div>
-<div class="flex-grow min-w-0">
-<div class="font-semibold text-sm truncate text-on-surface">Lihat Kebunku</div>
-<div class="text-xs truncate text-on-surface-variant">Aku Jeje</div>
-</div>
-<div class="flex items-center gap-2 pr-4">
-<button class="material-symbols-outlined text-on-surface-variant hover:text-primary transition-colors">skip_previous</button>
-<button id="musicToggle" class="material-symbols-outlined text-primary text-3xl hover:scale-110 transition-transform" style="font-variation-settings: 'FILL' 1;">play_circle</button>
-<button class="material-symbols-outlined text-on-surface-variant hover:text-primary transition-colors">skip_next</button>
-</div>
-</div>
-<!-- "The Star" FAB -->
-<div class="fixed right-6 bottom-28 z-40 flex flex-col items-center gap-3 group" id="menuFitur">
-    
-    <div id="menuItems" class="flex flex-col items-center gap-3 opacity-0 pointer-events-none translate-y-4 transition-all duration-300">
-        <a href="photobox.html" class="w-12 h-12 rounded-full bg-surface-container border border-outline-variant flex items-center justify-center shadow-md hover:bg-primary-container hover:scale-110 active:scale-95 transition-all relative group/tooltip" title="Gamon Photobooth">
-        <span class="material-symbols-outlined text-primary text-2xl">photo_camera_back</span>
-        <span class="absolute right-14 bg-inverse-surface text-inverse-on-surface text-xs font-label-md px-2 py-1 rounded shadow-md whitespace-nowrap opacity-0 group-hover/tooltip:opacity-100 transition-opacity duration-200 pointer-events-none">
-            Gamon Booth
-        </span>
-    </a>
-<!--     
-        <a href="gacha.html" class="w-12 h-12 rounded-full bg-surface-container border border-outline-variant flex items-center justify-center shadow-md hover:bg-primary-container hover:scale-110 active:scale-95 transition-all relative group/tooltip" title="Simulasi Gacha Gamon">
-            <span class="material-symbols-outlined text-primary text-2xl">casino</span>
-            <span class="absolute right-14 bg-inverse-surface text-inverse-on-surface text-xs font-label-md px-2 py-1 rounded shadow-md whitespace-nowrap opacity-0 group-hover/tooltip:opacity-100 transition-opacity duration-200 pointer-events-none">
-                Gacha Gamon
-            </span>
-        </a> -->
-
-        <!-- <a href="reaksi.html" class="w-12 h-12 rounded-full bg-surface-container border border-outline-variant flex items-center justify-center shadow-md hover:bg-primary-container hover:scale-110 active:scale-95 transition-all relative group/tooltip" title="Cermin Reaksi">
-            <span class="material-symbols-outlined text-primary text-2xl">photo_camera</span>
-            <span class="absolute right-14 bg-inverse-surface text-inverse-on-surface text-xs font-label-md px-2 py-1 rounded shadow-md whitespace-nowrap opacity-0 group-hover/tooltip:opacity-100 transition-opacity duration-200 pointer-events-none">
-                Cermin Reaksi
-            </span>
-        </a> -->
-
-        <a href="map.html" class="w-12 h-12 rounded-full bg-surface-container border border-outline-variant flex items-center justify-center shadow-md hover:bg-primary-container hover:scale-110 active:scale-95 transition-all relative group/tooltip" title="Peta Persebaran Gamon">
-            <span class="material-symbols-outlined text-primary text-2xl">map</span>
-            <span class="absolute right-14 bg-inverse-surface text-inverse-on-surface text-xs font-label-md px-2 py-1 rounded shadow-md whitespace-nowrap opacity-0 group-hover/tooltip:opacity-100 transition-opacity duration-200 pointer-events-none">
-                Lihat Peta
-            </span>
-        </a>
-
-        <a href="about.html" class="w-12 h-12 rounded-full bg-surface-container border border-outline-variant flex items-center justify-center shadow-md hover:bg-primary-container hover:scale-110 active:scale-95 transition-all relative group/tooltip">
-    <span class="material-symbols-outlined text-primary text-2xl">info</span>
-    <span class="absolute right-14 bg-inverse-surface text-inverse-on-surface text-xs px-2 py-1 rounded shadow-md whitespace-nowrap opacity-0 group-hover/tooltip:opacity-100 transition-opacity">
-        Tentang Kami
-    </span>
-</a>
-
-        </div>
-
-    <button id="menuBtn" class="w-14 h-14 rounded-full bg-gradient-to-tr from-primary to-secondary flex items-center justify-center shadow-lg hover:scale-105 active:scale-95 transition-all" title="Menu Fitur">
-        <span class="material-symbols-outlined text-white text-3xl transition-transform">apps</span>
-    </button>
-
-</div>
-<audio id="bgMusic" loop>
-<source src="music.mp3" type="audio/mpeg">
-</audio>
-
-<script>
-        // Soft Sparkle Particle Generator
-        const starsContainer = document.getElementById('stars');
-        const starCount = 60;
-
-        for (let i = 0; i < starCount; i++) {
-            const star = document.createElement('div');
-            star.className = 'star-particle';
-            const size = 2 + Math.random() * 4;
-            star.style.width = `${size}px`;
-            star.style.height = `${size}px`;
-            star.style.left = `${Math.random() * 100}%`;
-            star.style.top = `${Math.random() * 100}%`;
-            star.style.animation = `pulse-soft ${3 + Math.random() * 6}s infinite ease-in-out`;
-            star.style.animationDelay = `${Math.random() * 5}s`;
-            starsContainer.appendChild(star);
-        }
-
-        // Menu Fitur Toggle
-        const menuBtn = document.getElementById('menuBtn');
-        const menuItems = document.getElementById('menuItems');
-        const menuIcon = menuBtn.querySelector('.material-symbols-outlined');
-        let menuOpen = false;
-
-        menuBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            menuOpen = !menuOpen;
-            if (menuOpen) {
-                menuItems.classList.remove('opacity-0', 'pointer-events-none', 'translate-y-4');
-                menuItems.classList.add('opacity-100', 'pointer-events-auto', 'translate-y-0');
-                menuIcon.textContent = 'close';
-            } else {
-                menuItems.classList.add('opacity-0', 'pointer-events-none', 'translate-y-4');
-                menuItems.classList.remove('opacity-100', 'pointer-events-auto', 'translate-y-0');
-                menuIcon.textContent = 'apps';
-            }
-        });
-
-        // Close menu when clicking outside
-        document.addEventListener('click', () => {
-            if (menuOpen) {
-                menuOpen = false;
-                menuItems.classList.add('opacity-0', 'pointer-events-none', 'translate-y-4');
-                menuItems.classList.remove('opacity-100', 'pointer-events-auto', 'translate-y-0');
-                menuIcon.textContent = 'apps';
-            }
-        });
-
-        // Music Toggle
-        window.music = document.getElementById("bgMusic");
-        window.btn = document.getElementById("musicToggle");
-
-        window.isPlaying = false;
-
-        window.btn.addEventListener("click", () => {
-          if (window.isPlaying) {
-            window.music.pause();
-            window.btn.textContent = 'play_circle';
-          } else {
-            window.music.play();
-            window.btn.textContent = 'pause_circle';
-          }
-          window.isPlaying = !window.isPlaying;
-        });
-
-        // Draggable Floating Cards Logic
-        window.container = document.getElementById('container');
-        let activeItem = null;
-        let currentX;
-        let currentY;
-        let initialX;
-        let initialY;
-        let xOffset = 0;
-        let yOffset = 0;
-        window.currentCardZ = 1000;
-        window.zoomLevel = 1;
-
-        document.addEventListener("pointerdown", dragStart, false);
-        document.addEventListener("pointerup", dragEnd, false);
-        document.addEventListener("pointermove", drag, false);
-
-        function bringToFront(el) {
-            if (!el) return;
-            window.currentCardZ += 1;
-            el.style.zIndex = window.currentCardZ;
-            el.classList.add('active-card');
-            setTimeout(() => el.classList.remove('active-card'), 220);
-        }
-
-        function dragStart(e) {
-            const path = (typeof e.composedPath === 'function') ? e.composedPath() : [e.target];
-            if (path.some(node => node instanceof Element && node.matches && node.matches('button, audio, a, input, textarea'))) {
-                return;
-            }
-
-            if (e.target.closest('.draggable')) {
-                activeItem = e.target.closest('.draggable');
-                bringToFront(activeItem);
-
-                const style = window.getComputedStyle(activeItem);
-                const matrix = new WebKitCSSMatrix(style.transform);
-                xOffset = matrix.m41;
-                yOffset = matrix.m42;
-
-                const rect = (window.canvasContent || window.container).getBoundingClientRect();
-                const pointerX = ((e.clientX - rect.left) / (window.zoomLevel || 1));
-                const pointerY = ((e.clientY - rect.top) / (window.zoomLevel || 1));
-
-                initialX = pointerX - xOffset;
-                initialY = pointerY - yOffset;
-            }
-        }
-
-        function dragEnd() {
-            initialX = currentX;
-            initialY = currentY;
-            activeItem = null;
-        }
-
-        function drag(e) {
-            if (activeItem) {
-                e.preventDefault();
-                const rect = (window.canvasContent || window.container).getBoundingClientRect();
-                const pointerX = ((e.clientX - rect.left) / (window.zoomLevel || 1));
-                const pointerY = ((e.clientY - rect.top) / (window.zoomLevel || 1));
-                currentX = pointerX - initialX;
-                currentY = pointerY - initialY;
-                setTranslate(currentX, currentY, activeItem);
-            }
-        }
-
-        function setTranslate(xPos, yPos, el) {
-            const rotation = el.style.transform.match(/rotate\([^)]+\)/) || '';
-            el.style.transform = `translate3d(${xPos}px, ${yPos}px, 0) ${rotation}`;
-        }
-    </script>
-
-<script>
-        const zoomOut = document.getElementById('zoomOut');
-        const zoomIn = document.getElementById('zoomIn');
-        const zoomReset = document.getElementById('zoomReset');
-        const zoomLabel = document.getElementById('zoomLabel');
-        const canvasStage = document.getElementById('canvasStage');
-        const canvasContent = document.getElementById('canvasContent');
-        window.canvasContent = canvasContent;
-        let zoomLevel = 1;
-        let zoomTranslateX = 0;
-        let zoomTranslateY = 0;
-        window.zoomLevel = zoomLevel;
-        window.zoomTranslateX = zoomTranslateX;
-        window.zoomTranslateY = zoomTranslateY;
-
-        function updateZoom() {
-            if (canvasContent) {
-                canvasContent.style.transform = `translate3d(${zoomTranslateX}px, ${zoomTranslateY}px, 0) scale(${zoomLevel})`;
-            }
-            window.zoomLevel = zoomLevel;
-            window.zoomTranslateX = zoomTranslateX;
-            window.zoomTranslateY = zoomTranslateY;
-            zoomLabel.textContent = `${Math.round(zoomLevel * 100)}%`;
-        }
-
-        function resetZoomFocus() {
-            zoomLevel = 1;
-            zoomTranslateX = 0;
-            zoomTranslateY = 0;
-            updateZoom();
-        }
-
-        function focusCardZoom(card) {
-            if (!card || !canvasContent) return;
-            const cardCenterX = card.offsetLeft + card.offsetWidth / 2;
-            const cardCenterY = card.offsetTop + card.offsetHeight / 2;
-            const viewportWidth = window.innerWidth;
-            const viewportHeight = window.innerHeight;
-
-            if (zoomLevel < 1.2) {
-                zoomLevel = 1.3;
-            }
-
-            zoomTranslateX = viewportWidth / 2 - cardCenterX * zoomLevel;
-            zoomTranslateY = viewportHeight / 2 - cardCenterY * zoomLevel;
-            bringToFront(card);
-            updateZoom();
-        }
-
-        zoomOut.addEventListener('click', () => {
-            zoomLevel = Math.max(0.6, zoomLevel - 0.1);
-            updateZoom();
-        });
-
-        zoomIn.addEventListener('click', () => {
-            zoomLevel = Math.min(1.4, zoomLevel + 0.1);
-            updateZoom();
-        });
-
-        zoomReset.addEventListener('click', () => {
-            resetZoomFocus();
-        });
-
-        function getTouchDistance(touches) {
-            const [a, b] = touches;
-            return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
-        }
-
-        let pinchStartDistance = 0;
-        let pinchStartZoom = 1;
-
-        canvasContent.addEventListener('touchstart', (e) => {
-            if (e.touches.length === 2) {
-                pinchStartDistance = getTouchDistance(e.touches);
-                pinchStartZoom = zoomLevel;
-            }
-        }, { passive: false });
-
-        canvasContent.addEventListener('touchmove', (e) => {
-            if (e.touches.length === 2) {
-                e.preventDefault();
-                const distance = getTouchDistance(e.touches);
-                if (pinchStartDistance > 0) {
-                    zoomLevel = Math.min(1.4, Math.max(0.6, pinchStartZoom * distance / pinchStartDistance));
-                    updateZoom();
+                "borderRadius":{"DEFAULT":"0.25rem","lg":"0.5rem","xl":"0.75rem","full":"9999px"},
+                "spacing":{"unit":"8px","section-gap":"80px","gutter":"24px","container-padding":"40px","margin-mobile":"20px"},
+                "fontFamily":{"body-lg":["Inter"],"body-md":["Inter"],"display-lg":["Playfair Display"],"label-md":["Inter"],"headline-sm":["Playfair Display"],"headline-md":["Playfair Display"]},
+                "fontSize":{
+                    "body-lg":["18px",{"lineHeight":"1.6","fontWeight":"400"}],
+                    "body-md":["16px",{"lineHeight":"1.6","fontWeight":"400"}],
+                    "display-lg":["48px",{"lineHeight":"1.1","letterSpacing":"-0.02em","fontWeight":"600"}],
+                    "label-md":["14px",{"lineHeight":"1","letterSpacing":"0.05em","fontWeight":"600"}],
+                    "headline-sm":["24px",{"lineHeight":"1.4","fontWeight":"500"}],
+                    "headline-md":["32px",{"lineHeight":"1.3","fontWeight":"500"}]
                 }
             }
-        }, { passive: false });
+        }
+    }
+</script>
+<style>
+    body {
+        background: linear-gradient(135deg, #fff5f8 0%, #f3e8ff 50%, #ffffff 100%);
+        overflow-x: hidden;
+        min-height: 100vh;
+    }
 
-        canvasContent.addEventListener('touchend', (e) => {
-            if (e.touches.length < 2) {
-                pinchStartDistance = 0;
-            }
+    /* ── STAR PARTICLES ── */
+    .star-particle {
+        position: absolute; background: #b794f4; border-radius: 50%; opacity: 0.4;
+        pointer-events: none; box-shadow: 0 0 5px rgba(183,148,244,0.5);
+    }
+    @keyframes pulse-soft {
+        0%,100%{transform:scale(1);opacity:.4}
+        50%{transform:scale(1.6);opacity:.7}
+    }
+
+    /* ── BUBBLE CANVAS ── */
+    #bubbleCanvas {
+        position: relative;
+        width: 100%;
+        height: 70vh;
+        min-height: 440px;
+        overflow: hidden;
+    }
+
+    /* ── BUBBLE ── */
+    .bubble {
+        position: absolute;
+        cursor: pointer;
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        gap: 2px; text-align: center; padding: 8px;
+        background: rgba(255,255,255,0.58);
+        border: 1.5px solid rgba(255,255,255,0.75);
+        box-shadow: 0 6px 22px -8px rgba(107,90,96,0.18);
+        backdrop-filter: blur(10px);
+        user-select: none;
+        transition: transform .2s ease, box-shadow .2s ease;
+        will-change: transform;
+    }
+    .bubble:hover {
+        transform: scale(1.12) !important;
+        box-shadow: 0 12px 32px -8px rgba(107,90,96,0.26);
+        animation-play-state: paused;
+        z-index: 50;
+    }
+    .bubble:active { transform: scale(0.96) !important; }
+
+    /* circle */
+    .bubble.shape-circle { border-radius: 50%; }
+
+    /* cloud / blob */
+    .bubble.shape-cloud {
+        border-radius: 60% 40% 55% 45% / 45% 55% 45% 55%;
+        padding: 10px 16px;
+    }
+    .bubble.shape-cloud-2 {
+        border-radius: 45% 55% 40% 60% / 55% 45% 60% 40%;
+        padding: 10px 14px;
+    }
+    .bubble.shape-blob {
+        border-radius: 38% 62% 46% 54% / 54% 38% 62% 46%;
+        padding: 10px 14px;
+    }
+
+    /* types */
+    .bubble.type-curhat  { background: rgba(252,228,236,0.62); border-color: rgba(244,168,196,0.5); }
+    .bubble.type-photobox{ background: rgba(237,229,252,0.62); border-color: rgba(196,174,248,0.5); }
+
+    /* float animations — multiple variants */
+    @keyframes float-a { 0%,100%{translate:0 0} 33%{translate:4px -12px} 66%{translate:-3px -6px} }
+    @keyframes float-b { 0%,100%{translate:0 0} 40%{translate:-5px -10px} 70%{translate:3px -14px} }
+    @keyframes float-c { 0%,100%{translate:0 0} 50%{translate:3px -8px} }
+    .float-a { animation: float-a var(--fd,6s) infinite ease-in-out var(--fdel,0s); }
+    .float-b { animation: float-b var(--fd,6s) infinite ease-in-out var(--fdel,0s); }
+    .float-c { animation: float-c var(--fd,6s) infinite ease-in-out var(--fdel,0s); }
+    .bubble:hover { animation-play-state: paused !important; }
+
+    .bubble-emoji { font-size: 1.15em; line-height:1; }
+    .bubble-from  { font-size: 10px; font-weight: 700; color: #6b5a60; max-width: 90%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .bubble-to    { font-size: 9px;  color: #a78ca2; max-width: 90%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .bubble-likes { font-size: 9px; color: #e07ea0; display: flex; align-items: center; gap: 2px; margin-top: 1px; }
+
+    /* ── MODAL OVERLAY ── */
+    #modalOverlay {
+        position: fixed; inset: 0; z-index: 500;
+        background: rgba(40,20,34,0.38);
+        backdrop-filter: blur(5px);
+        display: flex; align-items: center; justify-content: center;
+        opacity: 0; pointer-events: none;
+        transition: opacity .22s ease;
+    }
+    #modalOverlay.show { opacity: 1; pointer-events: auto; }
+
+    #modalBox {
+        background: rgba(255,255,255,0.97);
+        border-radius: 24px;
+        border: 1.5px solid rgba(255,255,255,0.9);
+        box-shadow: 0 24px 60px -16px rgba(107,90,96,0.28);
+        width: 340px;
+        max-width: calc(100vw - 32px);
+        max-height: 80vh;
+        overflow-y: auto;
+        padding: 24px;
+        position: relative;
+        transform: scale(.88) translateY(12px);
+        transition: transform .24s cubic-bezier(.34,1.56,.64,1);
+    }
+    #modalOverlay.show #modalBox { transform: scale(1) translateY(0); }
+
+    #modalClose {
+        position: absolute; top: 14px; right: 14px;
+        width: 30px; height: 30px; border-radius: 50%;
+        background: rgba(107,90,96,0.1); border: none; cursor: pointer;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 15px; color: #6b5a60; transition: background .15s;
+    }
+    #modalClose:hover { background: rgba(107,90,96,0.2); }
+
+    .modal-badge {
+        display: inline-flex; align-items: center; gap: 4px;
+        font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 99px; margin-bottom: 12px;
+    }
+    .badge-curhat   { background: #fce4ec; color: #ad1457; }
+    .badge-photobox { background: #ede0ff; color: #6d28d9; }
+
+    #modalHeader { font-size: 15px; font-weight: 700; color: #6b5a60; margin-bottom: 12px; line-height: 1.4; }
+    #modalHeader .to-label { color: #c09aaf; font-weight: 400; font-size: 13px; }
+
+    #modalPhoto { width: 100%; border-radius: 12px; margin-bottom: 12px; display: none; }
+
+    #modalMsg {
+        font-size: 14px; color: #4d4447; line-height: 1.7; font-style: italic;
+        background: rgba(107,90,96,0.05); border-radius: 12px; padding: 12px 14px;
+        margin-bottom: 14px; white-space: pre-wrap;
+    }
+
+    #modalAudio { width: 100%; border-radius: 99px; margin-bottom: 14px; display: none; }
+    #modalAudio.has-audio { display: block; }
+    #modalAudio::-webkit-media-controls-panel { background-color: #f2ecee; }
+
+    .modal-footer { display: flex; align-items: center; justify-content: space-between; }
+    #modalDate { font-size: 11px; color: #b0a0a8; }
+    #modalLoveBtn {
+        display: flex; align-items: center; gap: 5px;
+        background: none; border: none; cursor: pointer;
+        font-size: 12px; color: #e07ea0; font-weight: 600;
+        padding: 5px 10px; border-radius: 99px;
+        transition: background .15s;
+    }
+    #modalLoveBtn:hover { background: rgba(224,126,160,0.12); }
+    #modalLoveBtn:disabled { opacity: .5; cursor: not-allowed; }
+    #modalLoveBtn .material-symbols-outlined { font-size: 16px; }
+
+    .glass-card {
+        background: rgba(255,255,255,0.55);
+        backdrop-filter: blur(12px);
+        border: 1px solid rgba(255,255,255,0.45);
+        box-shadow: 0 8px 24px -8px rgba(107,90,96,0.12);
+    }
+
+    @keyframes fadeInScale {
+        from { opacity:0; transform:scale(.7); }
+        to   { opacity:1; transform:scale(1); }
+    }
+    .bubble-enter { animation: fadeInScale .35s cubic-bezier(.34,1.56,.64,1) both; }
+
+    /* hint bar */
+    #hintBar {
+        text-align: center; padding: 0.5rem 1rem 2rem;
+        font-size: 13px; color: rgba(107,90,96,0.5);
+        display: flex; align-items: center; justify-content: center; gap: 6px;
+    }
+
+    /* loading skeleton */
+    #loadingMsg { text-align:center; padding:4rem 1rem; color: rgba(107,90,96,0.4); font-size:14px; }
+
+    @media(max-width:768px){
+        #bubbleCanvas { height: 60vh; min-height: 360px; }
+        #musicPlayerBar { bottom:4rem; width:calc(100% - 20px); left:50%; transform:translateX(-50%); }
+        #menuFitur { bottom:10.5rem; right:.75rem; }
+    }
+</style>
+</head>
+<body class="text-on-surface selection:bg-primary-container">
+
+<!-- Stars -->
+<div class="fixed inset-0 pointer-events-none z-0" id="stars"></div>
+
+<main class="relative z-10 pt-24 pb-32 w-full">
+
+    <!-- Hero -->
+    <header class="text-center mb-12">
+        <div class="mx-auto mb-0 max-w-xs overflow-hidden">
+            <img src="image/logo/Gamon%20Tawing.png" alt="Gamon Tawing" class="mx-auto h-56 w-auto object-cover object-top" />
+        </div>
+        <p class="font-body-lg text-on-surface-variant max-w-2xl mx-auto mb-8 italic -mt-8">
+            "Di sini, segala rindu yang tak tersampaikan dan luka yang masih basah menemukan tempat untuk melayang di antara bintang-bintang."
+        </p>
+        <div class="flex justify-center items-center gap-4 flex-wrap">
+            <button onclick="location.href='submit.html'" class="inline-flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-[#f4dce4] to-[#e1d2f5] text-on-primary-fixed-variant font-semibold rounded-full shadow-[0_4px_15px_rgba(107,90,96,0.15)] hover:shadow-[0_6px_20px_rgba(107,90,96,0.2)] hover:scale-105 transition-all active:scale-95 border border-white/50">
+                <span class="material-symbols-outlined">edit_note</span>
+                Sampaikan Gamonmu
+            </button>
+            <a href="ai.html" class="inline-flex items-center gap-2 px-8 py-3 bg-purple-400 text-white font-semibold rounded-full shadow-[0_4px_15px_rgba(107,90,96,0.15)] hover:shadow-[0_6px_20px_rgba(107,90,96,0.2)] hover:scale-105 transition-all active:scale-95 border border-white/50">
+                💬 AI Curhat
+            </a>
+        </div>
+    </header>
+
+    <!-- Hint -->
+    <div id="hintBar">
+        <span class="material-symbols-outlined" style="font-size:16px;opacity:.5;">touch_app</span>
+        klik bubble untuk baca pesannya
+    </div>
+
+    <!-- Bubble Canvas -->
+    <div id="bubbleCanvas">
+        <div id="loadingMsg">Memuat pesan-pesan rindu... ✦</div>
+    </div>
+
+</main>
+
+<!-- Modal -->
+<div id="modalOverlay">
+    <div id="modalBox">
+        <button id="modalClose">✕</button>
+        <div id="modalBadgeEl"></div>
+        <div id="modalHeader"></div>
+        <img id="modalPhoto" alt="foto" />
+        <div id="modalMsg"></div>
+        <audio id="modalAudio" controls></audio>
+        <div class="modal-footer">
+            <span id="modalDate"></span>
+            <button id="modalLoveBtn">
+                <span class="material-symbols-outlined" style="font-variation-settings:'FILL' 1;">favorite</span>
+                <span id="modalLikeCount">0</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Music player -->
+<div id="musicPlayerBar" class="fixed bottom-24 left-1/2 -translate-x-1/2 w-[calc(100%-32px)] md:w-[480px] z-50 glass-card rounded-full p-2 flex items-center gap-3 border border-primary/10 shadow-xl">
+    <div class="w-12 h-12 rounded-full overflow-hidden bg-surface-container flex-shrink-0 relative">
+        <img alt="Track art" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDWnxhOulVUE5SbSSuUfq7T133nOIx1PEeyGWLwt4qhu4zDxj_36axd-l6hza_0AKipCm3szwszyPdIjDrzWPjGTdSU34XKzuUatnooWOtOb-xb8_WWweb5wQUgddpCGK4StLan-HcIozBZa-VpPr-0LyU2s_dVt5c14tQ4UGapiF1EKA9coSHV5riVj7-eVSbAUEM1q3uUTQhs-3wABwrHCGybCY3ZUU9AKFnoGB6xgfUHTYvfP3dGkp_stkjwNS3FHojGDnKs7YX4"/>
+        <div class="absolute inset-0 flex items-center justify-center bg-black/5">
+            <span class="material-symbols-outlined text-primary text-xl animate-pulse">music_note</span>
+        </div>
+    </div>
+    <div class="flex-grow min-w-0">
+        <div class="font-semibold text-sm truncate text-on-surface">Lihat Kebunku</div>
+        <div class="text-xs truncate text-on-surface-variant">Aku Jeje</div>
+    </div>
+    <div class="flex items-center gap-2 pr-4">
+        <button class="material-symbols-outlined text-on-surface-variant hover:text-primary transition-colors">skip_previous</button>
+        <button id="musicToggle" class="material-symbols-outlined text-primary text-3xl hover:scale-110 transition-transform" style="font-variation-settings:'FILL' 1;">play_circle</button>
+        <button class="material-symbols-outlined text-on-surface-variant hover:text-primary transition-colors">skip_next</button>
+    </div>
+</div>
+
+<!-- FAB -->
+<div class="fixed right-6 bottom-28 z-40 flex flex-col items-center gap-3" id="menuFitur">
+    <div id="menuItems" class="flex flex-col items-center gap-3 opacity-0 pointer-events-none translate-y-4 transition-all duration-300">
+        <a href="photobox.html" class="w-12 h-12 rounded-full bg-surface-container border border-outline-variant flex items-center justify-center shadow-md hover:bg-primary-container hover:scale-110 active:scale-95 transition-all relative group/tooltip">
+            <span class="material-symbols-outlined text-primary text-2xl">photo_camera_back</span>
+            <span class="absolute right-14 bg-inverse-surface text-inverse-on-surface text-xs font-label-md px-2 py-1 rounded shadow-md whitespace-nowrap opacity-0 group-hover/tooltip:opacity-100 transition-opacity duration-200 pointer-events-none">Gamon Booth</span>
+        </a>
+        <a href="map.html" class="w-12 h-12 rounded-full bg-surface-container border border-outline-variant flex items-center justify-center shadow-md hover:bg-primary-container hover:scale-110 active:scale-95 transition-all relative group/tooltip">
+            <span class="material-symbols-outlined text-primary text-2xl">map</span>
+            <span class="absolute right-14 bg-inverse-surface text-inverse-on-surface text-xs font-label-md px-2 py-1 rounded shadow-md whitespace-nowrap opacity-0 group-hover/tooltip:opacity-100 transition-opacity duration-200 pointer-events-none">Lihat Peta</span>
+        </a>
+        <a href="about.html" class="w-12 h-12 rounded-full bg-surface-container border border-outline-variant flex items-center justify-center shadow-md hover:bg-primary-container hover:scale-110 active:scale-95 transition-all relative group/tooltip">
+            <span class="material-symbols-outlined text-primary text-2xl">info</span>
+            <span class="absolute right-14 bg-inverse-surface text-inverse-on-surface text-xs px-2 py-1 rounded shadow-md whitespace-nowrap opacity-0 group-hover/tooltip:opacity-100 transition-opacity">Tentang Kami</span>
+        </a>
+    </div>
+    <button id="menuBtn" class="w-14 h-14 rounded-full bg-gradient-to-tr from-primary to-secondary flex items-center justify-center shadow-lg hover:scale-105 active:scale-95 transition-all">
+        <span class="material-symbols-outlined text-white text-3xl transition-transform">apps</span>
+    </button>
+</div>
+
+<audio id="bgMusic" loop><source src="music.mp3" type="audio/mpeg"></audio>
+
+<script>
+    // ── Stars ──
+    const starsEl = document.getElementById('stars');
+    for (let i = 0; i < 60; i++) {
+        const s = document.createElement('div');
+        s.className = 'star-particle';
+        const sz = 2 + Math.random() * 4;
+        s.style.cssText = `width:${sz}px;height:${sz}px;left:${Math.random()*100}%;top:${Math.random()*100}%;animation:pulse-soft ${3+Math.random()*6}s infinite ease-in-out;animation-delay:${Math.random()*5}s`;
+        starsEl.appendChild(s);
+    }
+
+    // ── FAB ──
+    const menuBtn = document.getElementById('menuBtn');
+    const menuItems = document.getElementById('menuItems');
+    const menuIcon = menuBtn.querySelector('.material-symbols-outlined');
+    let menuOpen = false;
+    menuBtn.addEventListener('click', e => {
+        e.stopPropagation(); menuOpen = !menuOpen;
+        menuItems.classList.toggle('opacity-0', !menuOpen);
+        menuItems.classList.toggle('pointer-events-none', !menuOpen);
+        menuItems.classList.toggle('translate-y-4', !menuOpen);
+        menuItems.classList.toggle('opacity-100', menuOpen);
+        menuItems.classList.toggle('pointer-events-auto', menuOpen);
+        menuItems.classList.toggle('translate-y-0', menuOpen);
+        menuIcon.textContent = menuOpen ? 'close' : 'apps';
+    });
+    document.addEventListener('click', () => {
+        if (!menuOpen) return; menuOpen = false;
+        menuItems.classList.add('opacity-0','pointer-events-none','translate-y-4');
+        menuItems.classList.remove('opacity-100','pointer-events-auto','translate-y-0');
+        menuIcon.textContent = 'apps';
+    });
+
+    // ── Music ──
+    const music = document.getElementById('bgMusic');
+    const musicBtn = document.getElementById('musicToggle');
+    let isPlaying = false;
+    musicBtn.addEventListener('click', () => {
+        isPlaying ? music.pause() : music.play();
+        musicBtn.textContent = isPlaying ? 'play_circle' : 'pause_circle';
+        isPlaying = !isPlaying;
+    });
+
+    // ── Modal ──
+    const overlay = document.getElementById('modalOverlay');
+    const modalBox = document.getElementById('modalBox');
+    let currentPost = null;
+    let likedPosts = JSON.parse(localStorage.getItem('likedPosts') || '[]');
+    let dbRef = null; // set by firebase module
+
+    function openModal(data, id) {
+        currentPost = { data, id };
+        const isPhotobox = data.type === 'photobox';
+
+        document.getElementById('modalBadgeEl').innerHTML = isPhotobox
+            ? '<span class="modal-badge badge-photobox">📸 Photobox</span>'
+            : '<span class="modal-badge badge-curhat">💌 Curhat</span>';
+
+        const nama   = esc(data.nama   || 'Anonim');
+        const tujuan = esc(data.tujuan || 'Seseorang');
+        document.getElementById('modalHeader').innerHTML = `${nama} <span class="to-label">ke</span> ${tujuan}`;
+        document.getElementById('modalMsg').textContent = `"${data.pesan || ''}"`;
+
+        const photo = document.getElementById('modalPhoto');
+        if (data.photoUrl) { photo.src = data.photoUrl; photo.style.display = 'block'; }
+        else { photo.style.display = 'none'; photo.src = ''; }
+
+        const audioEl = document.getElementById('modalAudio');
+        if (data.audioUrl) { audioEl.src = data.audioUrl; audioEl.classList.add('has-audio'); }
+        else { audioEl.src = ''; audioEl.classList.remove('has-audio'); }
+
+        const waktu = data.waktu ? new Date(Number(data.waktu)).toLocaleDateString('id-ID') : '-';
+        document.getElementById('modalDate').textContent = waktu;
+
+        const loveBtn = document.getElementById('modalLoveBtn');
+        const likeCount = document.getElementById('modalLikeCount');
+        likeCount.textContent = data.likes || 0;
+        loveBtn.disabled = likedPosts.includes(id);
+
+        overlay.classList.add('show');
+    }
+
+    function closeModal() {
+        overlay.classList.remove('show');
+        document.getElementById('modalAudio').pause();
+    }
+
+    document.getElementById('modalClose').addEventListener('click', closeModal);
+    overlay.addEventListener('click', e => { if (e.target === overlay) closeModal(); });
+
+    document.getElementById('modalLoveBtn').addEventListener('click', async () => {
+        if (!currentPost || likedPosts.includes(currentPost.id)) return;
+        if (window._incrementLike) await window._incrementLike(currentPost.id);
+        likedPosts.push(currentPost.id);
+        localStorage.setItem('likedPosts', JSON.stringify(likedPosts));
+        const loveBtn = document.getElementById('modalLoveBtn');
+        loveBtn.disabled = true;
+        const likeCountEl = document.getElementById('modalLikeCount');
+        likeCountEl.textContent = parseInt(likeCountEl.textContent) + 1;
+        // update bubble label if visible
+        const bEl = document.querySelector(`.bubble[data-id="${currentPost.id}"] .bubble-likes`);
+        if (bEl) bEl.textContent = '♥ ' + likeCountEl.textContent;
+    });
+
+    // ── Bubble placement — smart grid-scatter ──
+    // Divide canvas into a grid of cells, place one bubble per cell with random offset
+    function placeBubbles(posts) {
+        const canvas = document.getElementById('bubbleCanvas');
+        canvas.innerHTML = '';
+
+        const W = canvas.offsetWidth  || window.innerWidth;
+        const H = canvas.offsetHeight || 440;
+
+        const count  = posts.length;
+        // target aspect ~1.6 cols per row
+        const cols   = Math.max(3, Math.round(Math.sqrt(count * 1.6)));
+        const rows   = Math.ceil(count / cols);
+
+        const cellW  = W / cols;
+        const cellH  = H / rows;
+
+        const shapes    = ['shape-circle','shape-cloud','shape-cloud-2','shape-blob'];
+        const floats    = ['float-a','float-b','float-c'];
+        const durations = [5,6,7,8,9];
+        const delays    = [0,0.5,1,1.5,2,2.5,3];
+
+        posts.forEach((item, i) => {
+            const col = i % cols;
+            const row = Math.floor(i / cols);
+
+            // random within cell, with margin so bubble doesn't touch edge
+            const margin = 0.15;
+            const cx = (col + margin + Math.random() * (1 - margin*2)) * cellW;
+            const cy = (row + margin + Math.random() * (1 - margin*2)) * cellH;
+
+            // size: scale with pesan length, min 54px, max 100px
+            const pesanLen = (item.pesan || '').length;
+            const sz = Math.min(100, Math.max(54, 54 + Math.floor(pesanLen / 6)));
+
+            const shape   = shapes[Math.floor(Math.random() * shapes.length)];
+            const float   = floats[i % floats.length];
+            const dur     = durations[i % durations.length];
+            const delay   = delays[i % delays.length];
+
+            const bubble = document.createElement('div');
+            bubble.className = `bubble ${shape} ${float} type-${item.type || 'curhat'} bubble-enter`;
+            bubble.dataset.id = item.id;
+            bubble.style.cssText = `
+                left:${cx - sz/2}px;
+                top:${cy - sz/2}px;
+                width:${shape==='shape-circle'?sz+'px':'auto'};
+                height:${shape==='shape-circle'?sz+'px':'auto'};
+                min-width:${sz*0.7}px;
+                min-height:${sz*0.6}px;
+                --fd:${dur}s;
+                --fdel:${delay}s;
+                animation-delay:${delay}s, ${delay}s;
+            `;
+
+            const short = (s, n) => s && s.length > n ? s.slice(0, n-1) + '…' : (s || '');
+            bubble.innerHTML = `
+                <span class="bubble-emoji">${item.type==='photobox'?'📸':'💌'}</span>
+                <span class="bubble-from">${short(item.nama||'Anonim', 9)}</span>
+                <span class="bubble-to">→ ${short(item.tujuan||'Seseorang', 9)}</span>
+                <span class="bubble-likes">♥ ${item.likes||0}</span>
+            `;
+
+            bubble.addEventListener('click', () => openModal(item, item.id));
+            canvas.appendChild(bubble);
         });
+    }
 
-        updateZoom();
-    </script>
+    function esc(s) {
+        return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+    }
+
+    // re-place on resize
+    let resizeTimer;
+    window.addEventListener('resize', () => {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(() => {
+            if (window._cachedPosts && window._cachedPosts.length) {
+                placeBubbles(window._cachedPosts);
+            }
+        }, 300);
+    });
+</script>
+
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-
-import {
-    getFirestore,
-    collection,
-    getDocs,
-    query,
-    orderBy,
-    limit,
-    doc,
-    updateDoc,
-    increment
-} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getFirestore, collection, getDocs, query, orderBy, limit, doc, updateDoc, increment } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 const firebaseConfig = {
     apiKey: "AIzaSyC247K8yyL67aWV95KNQy8CkMZsjgGCudQ",
@@ -651,313 +532,25 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+const db  = getFirestore(app);
 
-let likedPosts =
-    JSON.parse(localStorage.getItem("likedPosts")) || [];
-
-function escapeHtml(str) {
-    return String(str)
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
-}
-
-function createCard(data, id) {
-
-    const isPhotobox =
-        data.type === "photobox";
-
-    const card =
-        document.createElement("div");
-
-    card.className =
-        isPhotobox
-            ? "draggable glass-card p-gutter rounded-xl w-[320px]"
-            : "draggable glass-card p-gutter rounded-xl w-[280px]";
-
-    const screenWidth =
-        (window.canvasContent &&
-            window.canvasContent.clientWidth)
-        || window.innerWidth;
-
-    const screenHeight =
-        (window.canvasContent &&
-            window.canvasContent.clientHeight)
-        || window.innerHeight;
-
-    const randomX =
-        Math.random() *
-        Math.max(
-            0,
-            screenWidth -
-            (isPhotobox ? 320 : 280)
-        );
-
-    const randomY =
-        Math.random() *
-        Math.max(
-            0,
-            screenHeight - 350
-        );
-
-    card.style.position = "absolute";
-    card.style.left = `${randomX}px`;
-    card.style.top = `${randomY}px`;
-
-    card.style.transform =
-        `rotate(${Math.random() * 6 - 3}deg)`;
-
-    window.currentCardZ =
-        (window.currentCardZ || 0) + 1;
-
-    card.style.zIndex =
-        window.currentCardZ;
-
-    const nama =
-        data.nama
-            ? escapeHtml(data.nama)
-            : "Anonim";
-
-    const tujuan =
-        data.tujuan
-            ? escapeHtml(data.tujuan)
-            : "Seseorang";
-
-    const pesan =
-        data.pesan
-            ? escapeHtml(data.pesan)
-            : "";
-
-    const likes =
-        data.likes || 0;
-
-    const badge =
-        isPhotobox
-            ? `
-            <span class="bg-purple-500 text-white text-xs px-2 py-1 rounded-full">
-                📸 Photobox
-            </span>
-        `
-            : `
-            <span class="bg-pink-500 text-white text-xs px-2 py-1 rounded-full">
-                💌 Curhat
-            </span>
-        `;
-
-    const waktu =
-        data.waktu
-            ? new Date(Number(data.waktu))
-                .toLocaleDateString("id-ID")
-            : "-";
-
-    const photoHtml =
-        data.photoUrl
-            ? `
-        <img
-            src="${data.photoUrl}"
-            class="w-full rounded-lg mb-3 shadow"
-            loading="lazy"
-        >
-    `
-            : "";
-
-    const audioHtml =
-        data.audioUrl
-            ? `
-        <audio
-            class="audio-custom w-full h-8 mb-4 rounded-full"
-            controls
-            src="${data.audioUrl}">
-        </audio>
-    `
-            : "";
-
-    card.innerHTML = `
-        <div class="flex flex-col gap-2 mb-3">
-
-            ${badge}
-
-            <div class="font-semibold text-primary">
-                ${nama}
-                <span class="text-gray-400">
-                    ke
-                </span>
-                ${tujuan}
-            </div>
-
-        </div>
-
-        ${photoHtml}
-
-        <div
-            class="message-box font-body-md italic text-on-surface mb-4 leading-relaxed max-h-40 overflow-y-auto whitespace-pre-wrap">
-            "${pesan}"
-        </div>
-
-        ${audioHtml}
-
-        <div class="flex items-center justify-between">
-
-            ${
-                !isPhotobox
-                    ? `
-                <button
-                    class="love-btn flex items-center gap-1">
-
-                    <span
-                        class="material-symbols-outlined text-error">
-                        favorite
-                    </span>
-
-                    <span>
-                        ${likes}
-                    </span>
-
-                </button>
-            `
-                    : `
-                <span class="text-xs text-purple-500 font-semibold">
-                    Premium Photobox
-                </span>
-            `
-            }
-
-            <span class="text-xs text-gray-500">
-                ${waktu}
-            </span>
-
-        </div>
-    `;
-
-    (window.canvasContent || window.container)
-        .appendChild(card);
-
-    if (!isPhotobox) {
-
-        const loveBtn =
-            card.querySelector(".love-btn");
-
-        if (loveBtn) {
-
-            if (likedPosts.includes(id)) {
-                loveBtn.disabled = true;
-            }
-
-            loveBtn.addEventListener(
-                "click",
-                async () => {
-
-                    if (likedPosts.includes(id))
-                        return;
-
-                    try {
-
-                        await updateDoc(
-                            doc(db, "gamon", id),
-                            {
-                                likes: increment(1)
-                            }
-                        );
-
-                        likedPosts.push(id);
-
-                        localStorage.setItem(
-                            "likedPosts",
-                            JSON.stringify(likedPosts)
-                        );
-
-                        loveBtn.disabled = true;
-
-                        const count =
-                            loveBtn.querySelector(
-                                "span:last-child"
-                            );
-
-                        count.textContent =
-                            parseInt(
-                                count.textContent
-                            ) + 1;
-
-                    } catch (err) {
-                        console.error(err);
-                    }
-                }
-            );
-        }
-    }
-
-    card.addEventListener("dblclick", () => {
-        if (
-            typeof focusCardZoom === "function"
-        ) {
-            focusCardZoom(card);
-        }
-    });
-
-    return card;
-}
+window._incrementLike = async (id) => {
+    try { await updateDoc(doc(db,'gamon',id), { likes: increment(1) }); } catch(e) { console.error(e); }
+};
 
 async function loadAllPosts() {
-
-    const target =
-        window.canvasContent ||
-        window.container;
-
-    target.innerHTML = "";
-
     try {
+        const snap = await getDocs(query(collection(db,'gamon'), orderBy('waktu','desc'), limit(100)));
+        const posts = [];
+        snap.forEach(d => { const data = d.data(); if (data.pesan) posts.push({ id: d.id, ...data }); });
+        posts.sort((a,b) => Number(b.waktu||0) - Number(a.waktu||0));
 
-        const snapshot =
-            await getDocs(
-                query(
-                    collection(db, "gamon"),
-                    orderBy("waktu", "desc"),
-                    limit(100)
-                )
-            );
-
-        let allPosts = [];
-
-        snapshot.forEach((docSnap) => {
-
-            const data =
-                docSnap.data();
-
-            allPosts.push({
-                id: docSnap.id,
-                ...data
-            });
-
-        });
-
-        allPosts.sort(
-            (a, b) =>
-                Number(b.waktu || 0) -
-                Number(a.waktu || 0)
-        );
-
-        allPosts.forEach((item) => {
-
-            if (!item.pesan)
-                return;
-
-            createCard(
-                item,
-                item.id
-            );
-
-        });
-
-    } catch (err) {
-
-        console.error(
-            "Gagal load data:",
-            err
-        );
-
+        window._cachedPosts = posts;
+        document.getElementById('loadingMsg').remove();
+        placeBubbles(posts);
+    } catch(e) {
+        console.error('Gagal load data:', e);
+        document.getElementById('loadingMsg').textContent = 'Gagal memuat pesan 😢';
     }
 }
 
