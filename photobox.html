@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Photobooth Gamon Tawing</title>
+    <title>Remnics By Gamon Tawing</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:ital,wght=1,500;1,600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght=400;500;600;700&family=Playfair+Display:ital,wght=1,500;1,600&display=swap" rel="stylesheet">
     
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/selfie_segmentation.js" crossorigin="anonymous"></script>
@@ -14,137 +14,215 @@
 
     <style>
         body {
-            background: linear-gradient(135deg, #fef8fa 0%, #fce4ec 100%);
+            background: linear-gradient(180deg, #fdfbfb 0%, #ebedee 100%);
         }
         .bg-thumb {
             cursor: pointer;
-            transition: all 0.2s;
+            transition: all 0.2s ease;
         }
         .bg-thumb.active {
-            border-color: #db2777;
-            transform: scale(1.05);
+            border-color: #1e293b;
+            transform: scale(1.03);
         }
         .material-symbols-outlined {
-            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+        }
+        @keyframes float {
+            0%, 100% { transform: translateY(0px) rotate(12deg); }
+            50% { transform: translateY(-8px) rotate(10deg); }
+        }
+        @keyframes float-reverse {
+            0%, 100% { transform: translateY(0px) rotate(-10deg); }
+            50% { transform: translateY(-6px) rotate(-14deg); }
+        }
+        .animate-float-custom {
+            animation: float 5s ease-in-out infinite;
+        }
+        .animate-float-reverse {
+            animation: float-reverse 6s ease-in-out infinite;
         }
     </style>
 </head>
-<body class="font-['Inter'] flex flex-col items-center justify-center min-h-screen p-4 md:p-8">
+<body class="font-['Plus_Jakarta+Sans'] flex flex-col items-center justify-center min-h-screen p-4 md:p-8 relative overflow-x-hidden select-none py-12">
     
-    <div class="bg-white p-6 rounded-2xl shadow-xl w-full max-w-md text-center relative border border-pink-100">
-        <div class="mb-6">
-            <h1 class="text-2xl font-bold text-gray-800 tracking-tight">Gamon Booth 📸</h1>
-            <p class="text-xs text-gray-500 mt-1">Scan, bayar, abadikan cerita & dapatkan Gantungan Kunci Polaroid fisik langsung ke rumahmu!</p>
-        </div>
+    <!-- MAIN CONTAINER MACHINE WRAPPER -->
+    <div class="w-full max-w-md relative z-10">
         
-        <div class="relative w-full aspect-[3/4] bg-gray-900 rounded-xl mb-4 overflow-hidden flex items-center justify-center shadow-inner">
-            <video id="video" class="hidden" autoplay playsinline></video>
-            <canvas id="outputCanvas" class="w-full h-full object-cover"></canvas>
-            <img id="photoPreview" class="hidden w-full h-full object-cover absolute top-0 left-0" alt="Preview"/>
+        <!-- ELEMENT 1: GANTUNGAN KUNCI POLAROID PASANGAN (Dikecilkan & digeser pada Desktop agar tidak menutupi teks) -->
+        <div class="absolute -top-10 -right-4 sm:-right-6 md:-right-14 w-24 sm:w-28 md:w-24 flex flex-col items-center pointer-events-none z-20 animate-float-custom origin-bottom">
+            <!-- Ring Gantungan -->
+            <div class="w-4 h-4 sm:w-5 sm:h-5 rounded-full border-2 border-gray-400 bg-transparent mb-[-4px] shadow-sm z-30"></div>
+            <!-- Akrilik Frame -->
+            <div class="bg-white/90 backdrop-blur-sm p-1.5 pb-4 sm:p-2 sm:pb-6 rounded-lg shadow-[0_8px_20px_rgba(0,0,0,0.06)] border border-white/60 w-full text-center">
+                <img id="assetCoupleKeychain" src="https://images.unsplash.com/photo-1516589178581-6cd7833ae3b2?auto=format&fit=crop&w=300&q=80" alt="Keychain Merch" class="w-full aspect-square object-cover rounded-md grayscale-[20%]">
+                <span class="block mt-1 sm:mt-2 font-['Playfair_Display'] italic text-[8px] sm:text-[9px] text-gray-400">core memory</span>
+            </div>
+        </div>
+
+        <!-- ELEMENT 2: KAMERA POLAROID DI DALAM FRAME POLAROID (Sesuai request, kamera kini berada di dalam frame) -->
+        <div class="absolute -bottom-12 -left-6 w-24 sm:w-28 md:w-28 flex flex-col items-center pointer-events-none z-20 animate-float-reverse origin-bottom">
+            <!-- Akrilik Frame Polaroid Kamera -->
+            <div class="bg-white/90 backdrop-blur-sm p-1.5 pb-4 sm:p-2 sm:pb-6 rounded-lg shadow-[0_8px_20px_rgba(0,0,0,0.06)] border border-white/60 w-full text-center">
+                <img id="assetPolaroidCamera" src="https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?auto=format&fit=crop&w=300&q=80" alt="Polaroid Camera Physical" class="w-full aspect-square object-cover rounded-md">
+                <span class="block mt-1 sm:mt-2 font-['Playfair_Display'] italic text-[8px] sm:text-[9px] text-gray-400">instax 90s</span>
+            </div>
+        </div>
+
+        <!-- LAYAR UTAMA INTERFACE BOOTH -->
+        <div class="bg-white p-2 rounded-[28px] shadow-[0_20px_50px_rgba(0,0,0,0.04)] border border-gray-100 relative z-10">
             
-            <div id="flashOverlay" class="absolute inset-0 bg-white opacity-0 transition-opacity duration-100 pointer-events-none"></div>
-            <div id="countdownDisplay" class="hidden absolute text-8xl font-black text-white drop-shadow-[0_4px_12px_rgba(0,0,0,0.5)]">5</div>
-        </div>
+            <div class="bg-neutral-50 p-4 sm:p-5 rounded-[22px] border border-gray-50">
+                
+                <!-- App Header Modern & Clean -->
+                <div class="mb-5 text-center md:pr-4"> 
+                    <div class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-neutral-200/60 text-neutral-700 font-medium text-[10px] tracking-wider uppercase mb-2">
+                        🔒 Secure Payment Verified
+                    </div>
+                    <h1 class="text-2xl font-bold text-neutral-900 tracking-tight font-['Playfair_Display'] italic">
+                        Remnics <span class="not-italic text-sm text-neutral-400">by Gamon Tawing</span>
+                    </h1>
+                    <p class="text-[11px] text-neutral-500 mt-1 max-w-xs mx-auto leading-relaxed">
+                        Abadikan foto berdua, simpan pesan rahasia, dan terima berupa fisik <span class="font-semibold text-neutral-800 underline decoration-neutral-300">Gantungan Kunci Polaroid Minimalis</span> tepat di depan rumah.
+                    </p>
+                </div>
+                
+                <!-- CAMERA SCREEN -->
+                <div class="relative w-full aspect-[3/4] bg-neutral-900 rounded-2xl mb-4 overflow-hidden flex items-center justify-center shadow-inner">
+                    <video id="video" class="hidden" autoplay playsinline></video>
+                    <canvas id="outputCanvas" class="w-full h-full object-cover"></canvas>
+                    <img id="photoPreview" class="hidden w-full h-full object-cover absolute top-0 left-0" alt="Preview"/>
+                    
+                    <div class="absolute inset-5 border border-white/10 pointer-events-none rounded-lg flex items-center justify-center">
+                        <div class="w-3 h-3 border-t border-l border-white/30 absolute top-0 left-0"></div>
+                        <div class="w-3 h-3 border-t border-r border-white/30 absolute top-0 right-0"></div>
+                        <div class="w-3 h-3 border-b border-l border-white/30 absolute bottom-0 left-0"></div>
+                        <div class="w-3 h-3 border-b border-r border-white/30 absolute bottom-0 right-0"></div>
+                    </div>
 
-        <div id="backgroundSelector" class="hidden mb-4 text-left">
-            <label class="block text-xs font-medium text-gray-600 mb-1.5">Pilih Kategori Suasana (Virtual Background):</label>
-            <div class="flex gap-2 overflow-x-auto pb-1">
-                <div class="bg-thumb active border-2 border-transparent rounded-lg p-1 bg-gray-100 text-xs font-medium flex-shrink-0" data-bg="original">Original</div>
-                <div class="bg-thumb border-2 border-transparent rounded-lg p-1 bg-pink-200 text-xs font-medium flex-shrink-0" data-bg="#fce4ec">Pastel Pink</div>
-                <div class="bg-thumb border-2 border-transparent rounded-lg p-1 bg-slate-800 text-white text-xs font-medium flex-shrink-0" data-bg="#1e293b">Dark Mood</div>
-                <div class="bg-thumb border-2 border-transparent rounded-lg p-1 bg-amber-100 text-xs font-medium flex-shrink-0" data-bg="#fef3c7">Warm Cafe</div>
-            </div>
-        </div>
-        
-        <canvas id="canvas" class="hidden"></canvas>
-        <div id="qrcode" class="hidden"></div>
-        
-        <button id="btnMulai" class="w-full py-3.5 bg-pink-600 text-white rounded-xl font-semibold shadow-lg shadow-pink-200 hover:bg-pink-700 transition active:scale-[0.99]">Mulai Pembayaran (5k)</button>
+                    <div id="flashOverlay" class="absolute inset-0 bg-white opacity-0 transition-opacity duration-100 pointer-events-none z-30"></div>
+                    <div id="countdownDisplay" class="hidden absolute text-7xl font-light text-white font-['Playfair_Display'] z-20">5</div>
+                </div>
 
-        <div id="areaAksiFoto" class="hidden space-y-3">
-            <button id="btnFoto" class="w-full py-3.5 bg-gray-900 text-white rounded-xl font-semibold shadow-md hover:bg-black transition active:scale-[0.99]">Ambil Foto (Timer 5 Detik)</button>
-            <div id="areaRetake" class="hidden flex gap-3">
-                <button id="btnRetake" class="w-1/2 py-3 bg-gray-100 text-gray-700 rounded-xl font-medium border border-gray-200 hover:bg-gray-200 transition">Foto Ulang</button>
-                <button id="btnLanjut" class="w-1/2 py-3 bg-pink-600 text-white rounded-xl font-semibold hover:bg-pink-700 transition shadow-md shadow-pink-100">Lanjut Isi Data</button>
-            </div>
-        </div>
-
-        <form id="formData" class="hidden text-left space-y-4 mt-2 border-t border-gray-100 pt-5">
-            <div class="bg-gradient-to-r from-pink-50 to-purple-50 border border-pink-200 rounded-xl p-3 flex gap-2 items-start mb-2">
-                <span class="material-symbols-outlined text-pink-600 text-xl select-none">card_membership</span>
-                <div class="text-xs text-pink-800">
-                    <span class="font-bold">All-in-One Benefit!</span> Foto, pesan tulisan, dan rekaman VN kamu akan dicetak jadi <strong>Gantungan Kunci Polaroid Fisik</strong> eksklusif dan dikirim langsung menuju alamat rumahmu.
-                </div>
-            </div>
-
-            <h3 class="font-semibold text-gray-800 text-base">Lengkapi Data Polaroid & Cerita</h3>
-            <div class="grid grid-cols-2 gap-3">
-                <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1" for="senderName">Nama Pengirim</label>
-                    <input class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-pink-500 bg-gray-50/50" id="senderName" required type="text" placeholder="Nama kamu"/>
-                </div>
-                <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1" for="receiverName">Untuk Siapa</label>
-                    <input class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-pink-500 bg-gray-50/50" id="receiverName" required type="text" placeholder="Nama si dia"/>
-                </div>
-            </div>
-            <div class="grid grid-cols-2 gap-3">
-                <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1" for="email">Email Softfile</label>
-                    <input class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-pink-500 bg-gray-50/50" id="email" required type="email" placeholder="nama@email.com"/>
-                </div>
-                <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1" for="whatsapp">No. WhatsApp</label>
-                    <input class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-pink-500 bg-gray-50/50" id="whatsapp" required type="tel" placeholder="08xxxxxxxxxx"/>
-                </div>
-            </div>
-            <div>
-                <label class="block text-xs font-medium text-gray-600 mb-1" for="messageContent">Pesan yang Ingin Ditampilkan di Index Gamon</label>
-                <textarea class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-pink-500 bg-gray-50/50 resize-none" id="messageContent" required placeholder="Tulis cerita atau pesan galau..." rows="2" maxlength="150"></textarea>
-            </div>
-
-            <div class="border-t border-gray-100 pt-3 space-y-3">
-                <h4 class="text-sm font-semibold text-gray-800 flex items-center gap-1">
-                    <span class="material-symbols-outlined text-sm">local_shipping</span> Alamat Pengiriman Gantungan Kunci
-                </h4>
-                <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1" for="shippingAddress">Alamat Lengkap (Jalan, RT/RW, Kecamatan, Kota, Kode Pos)</label>
-                    <textarea class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-pink-500 bg-gray-50/50 resize-none" id="shippingAddress" required placeholder="Tulis alamat rumah sejelas-jelasnya agar merch tidak salah kirim..." rows="2"></textarea>
-                </div>
-                <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1">Koordinat GPS Titik Rumah (Akurasi Kurir)</label>
-                    <div class="flex gap-2">
-                        <input class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-gray-100 text-gray-500 focus:outline-none" id="geoCoordinates" readonly type="text" placeholder="-6.xxxx, 106.xxxx" required/>
-                        <button type="button" id="btnGetLocation" class="px-3 bg-gray-800 text-white rounded-xl text-xs font-medium flex items-center gap-1 hover:bg-black transition whitespace-nowrap">
-                            <span class="material-symbols-outlined text-sm">my_location</span> Pin Point
-                        </button>
+                <!-- BACKGROUND SECTOR -->
+                <div id="backgroundSelector" class="hidden mb-4 text-left bg-white p-2 rounded-xl border border-neutral-200/60">
+                    <label class="block text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                        <span class="material-symbols-outlined text-sm">filter_hdr</span> Studio Aura Mood:
+                    </label>
+                    <div class="flex gap-2 overflow-x-auto pb-0.5">
+                        <div class="bg-thumb active border border-transparent rounded-md px-3 py-1 bg-neutral-100 text-[11px] font-medium flex-shrink-0" data-bg="original">Original</div>
+                        <div class="bg-thumb border border-transparent rounded-md px-3 py-1 bg-pink-50 text-pink-700 text-[11px] font-medium flex-shrink-0" data-bg="#fdf2f8">Soft Pink</div>
+                        <div class="bg-thumb border border-transparent rounded-md px-3 py-1 bg-neutral-800 text-white text-[11px] font-medium flex-shrink-0" data-bg="#171717">Warm Dark</div>
+                        <div class="bg-thumb border border-transparent rounded-md px-3 py-1 bg-orange-50 text-amber-800 text-[11px] font-medium flex-shrink-0" data-bg="#fffbeb">Warm Vintage</div>
                     </div>
                 </div>
-            </div>
-
-            <div class="space-y-1.5 border-t border-gray-100 pt-3">
-                <label class="block text-xs font-medium text-gray-600">Sampaikan Pesan Suara / VN (Opsional)</label>
-                <div class="flex flex-col items-center gap-3 bg-gray-50/50 rounded-xl p-4 border border-dashed border-gray-200" id="recorderContainer">
-                    <button class="flex items-center justify-center gap-2 px-5 py-2.5 rounded-full bg-pink-50 text-pink-700 border border-pink-100 hover:bg-pink-100 transition-all duration-200 active:scale-95 text-sm font-medium w-full" id="recordBtn" type="button">
-                        <span class="material-symbols-outlined text-lg" id="recordIcon">mic</span>
-                        <span id="recordText">Rekam Suara (Maks 1 Menit)</span>
+                
+                <canvas id="canvas" class="hidden"></canvas>
+                <div id="qrcode" class="hidden"></div>
+                
+                <!-- CTAS -->
+                <div class="relative pb-4">
+                    <button id="btnMulai" class="w-full py-3.5 bg-neutral-900 text-white rounded-xl font-medium shadow-sm hover:bg-neutral-800 transition active:scale-[0.99] text-xs tracking-wider uppercase">
+                        Mulai Cetak Kenangan (5k)
                     </button>
-                    <div class="hidden flex items-center gap-1.5 animate-pulse" id="recordingStatus">
-                        <div class="w-2.5 h-2.5 bg-red-500 rounded-full"></div>
-                        <span class="text-red-500 text-xs font-medium">Sedang merekam...</span>
-                    </div>
-                    <div class="hidden w-full space-y-2" id="audioPreview">
-                        <div class="flex items-center gap-1 text-green-600 text-xs font-medium">
-                            <span class="material-symbols-outlined text-base" style="font-variation-settings: 'FILL' 1;">check_circle</span>
-                            <span>Pesan suara direkam! QR otomatis dicetak di polaroid.</span>
+
+                    <div id="areaAksiFoto" class="hidden space-y-2.5">
+                        <button id="btnFoto" class="w-full py-3.5 bg-neutral-900 text-white rounded-xl font-medium shadow-sm hover:bg-neutral-800 transition active:scale-[0.99] text-xs tracking-wider uppercase">
+                            Ambil Gambar (Timer 5 Detik)
+                        </button>
+                        <div id="areaRetake" class="hidden flex gap-2">
+                            <button id="btnRetake" class="w-1/2 py-2.5 bg-white text-neutral-600 rounded-xl font-medium border border-neutral-200 hover:bg-neutral-50 transition text-xs">
+                                Foto Ulang
+                            </button>
+                            <button id="btnLanjut" class="w-1/2 py-2.5 bg-neutral-900 text-white rounded-xl font-medium hover:bg-neutral-800 transition text-xs">
+                                Lanjut Pengiriman
+                            </button>
                         </div>
-                        <audio class="w-full h-8 text-xs" controls id="player"></audio>
                     </div>
                 </div>
-            </div>
 
-            <button type="submit" id="btnKirim" class="w-full py-3.5 bg-pink-600 text-white rounded-xl font-semibold shadow-lg shadow-pink-200 hover:bg-pink-700 transition mt-2">Pesan & Kirim Gantungan Kunci 🚀</button>
-        </form>
+                <!-- DATA COMPACT FORM -->
+                <form id="formData" class="hidden text-left space-y-3.5 mt-2 border-t border-neutral-200/80 pt-4 animate-fadeIn">
+                    <div class="bg-neutral-100 border border-neutral-200 rounded-xl p-3 flex gap-2 items-start">
+                        <span class="material-symbols-outlined text-neutral-600 text-lg select-none">info</span>
+                        <div class="text-[10px] text-neutral-600 leading-normal">
+                            Foto berdua beserta lampiran pesan teks dan tautan QR audio (jika ada) akan dipasang presisi di dalam case akrilik gantungan kunci anti luntur.
+                        </div>
+                    </div>
+
+                    <h3 class="font-semibold text-neutral-800 text-xs tracking-wide uppercase">Identitas & Isi Surat</h3>
+                    
+                    <div class="grid grid-cols-2 gap-2.5">
+                        <div>
+                            <label class="block text-[10px] font-medium text-neutral-500 mb-1" for="senderName">Pengirim</label>
+                            <input class="w-full border border-neutral-200 rounded-lg px-2.5 py-2 text-xs focus:outline-none focus:border-neutral-900 bg-white shadow-sm" id="senderName" required type="text" placeholder="Nama kamu"/>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-medium text-neutral-500 mb-1" for="receiverName">Penerima</label>
+                            <input class="w-full border border-neutral-200 rounded-lg px-2.5 py-2 text-xs focus:outline-none focus:border-neutral-900 bg-white shadow-sm" id="receiverName" required type="text" placeholder="Nama pasangan"/>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-2.5">
+                        <div>
+                            <label class="block text-[10px] font-medium text-neutral-500 mb-1" for="email">Softfile Email</label>
+                            <input class="w-full border border-neutral-200 rounded-lg px-2.5 py-2 text-xs focus:outline-none focus:border-neutral-900 bg-white shadow-sm" id="email" required type="email" placeholder="nama@domain.com"/>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-medium text-neutral-500 mb-1" for="whatsapp">No. WhatsApp</label>
+                            <input class="w-full border border-neutral-200 rounded-lg px-2.5 py-2 text-xs focus:outline-none focus:border-neutral-900 bg-white shadow-sm" id="whatsapp" required type="tel" placeholder="08xxxxxxxxxx"/>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-[10px] font-medium text-neutral-500 mb-1" for="messageContent">Catatan Singkat di Bawah Foto (Maks 150 Karakter)</label>
+                        <textarea class="w-full border border-neutral-200 rounded-lg px-2.5 py-2 text-xs focus:outline-none focus:border-neutral-900 bg-white resize-none shadow-sm" id="messageContent" required placeholder="Tuliskan tanggal jadian, kutipan bermakna, atau pesan kecil..." rows="2" maxlength="150"></textarea>
+                    </div>
+
+                    <div class="border-t border-neutral-200/60 pt-3 space-y-2.5">
+                        <h4 class="text-[10px] font-bold text-neutral-400 uppercase tracking-wider flex items-center gap-1">
+                            <span class="material-symbols-outlined text-sm">local_shipping</span> Tujuan Ekspedisi Pengiriman
+                        </h4>
+                        <div>
+                            <label class="block text-[10px] font-medium text-neutral-500 mb-1" for="shippingAddress">Alamat Rumah Lengkap</label>
+                            <textarea class="w-full border border-neutral-200 rounded-lg px-2.5 py-2 text-xs focus:outline-none focus:border-neutral-900 bg-white resize-none shadow-sm" id="shippingAddress" required placeholder="Tulis nama jalan, nomor, RT/RW, kelurahan/kecamatan, dan kota..." rows="2"></textarea>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-medium text-neutral-500 mb-1">Verifikasi Koordinat Peta</label>
+                            <div class="flex gap-2">
+                                <input class="w-full border border-neutral-200 rounded-lg px-2.5 py-2 text-xs bg-neutral-100 text-neutral-500 focus:outline-none" id="geoCoordinates" readonly type="text" placeholder="Klik pin untuk kurir" required/>
+                                <button type="button" id="btnGetLocation" class="px-3 bg-neutral-900 text-white rounded-lg text-xs font-medium flex items-center gap-1 hover:bg-neutral-800 transition whitespace-nowrap shadow-md">
+                                    <span class="material-symbols-outlined text-sm">my_location</span> Pin Titik
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="space-y-1.5 border-t border-neutral-200/60 pt-3">
+                        <label class="block text-[10px] font-bold text-neutral-400 uppercase tracking-wider">Suara Rahasia (Audio Bisikan/Lagu - Opsional)</label>
+                        <div class="flex flex-col items-center gap-2 bg-neutral-50 rounded-lg p-3 border border-dashed border-neutral-300" id="recorderContainer">
+                            <button class="flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg bg-white text-neutral-700 border border-neutral-200 hover:bg-neutral-50 transition text-xs font-medium w-full shadow-sm" id="recordBtn" type="button">
+                                <span class="material-symbols-outlined text-base" id="recordIcon">mic</span>
+                                <span id="recordText">Rekam Audio (Maks 1 Menit)</span>
+                            </button>
+                            <div class="hidden flex items-center gap-1 animate-pulse" id="recordingStatus">
+                                <span class="text-red-500 text-[10px] font-medium">Mikrofon aktif... Merekam suara Anda berdua</span>
+                            </div>
+                            <div class="hidden w-full space-y-1.5" id="audioPreview">
+                                <div class="text-emerald-600 text-[10px] font-medium flex items-center gap-0.5">
+                                    <span class="material-symbols-outlined text-sm" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+                                    <span>Audio terkunci. QR otomatis disematkan di fisik keychain.</span>
+                                </div>
+                                <audio class="w-full h-8 text-xs" controls id="player"></audio>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button type="submit" id="btnKirim" class="w-full py-3.5 bg-neutral-900 text-white rounded-xl font-medium hover:bg-neutral-800 transition mt-2 text-xs tracking-wider uppercase shadow-md">
+                        Kirim & Proses Gantungan Kunci
+                    </button>
+                </form>
+            </div>
+        </div>
     </div>
 
 <script type="module">
@@ -163,7 +241,6 @@
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
-    // DOM Elements
     const btnMulai = document.getElementById('btnMulai');
     const areaAksiFoto = document.getElementById('areaAksiFoto');
     const btnFoto = document.getElementById('btnFoto');
@@ -181,7 +258,6 @@
     const btnGetLocation = document.getElementById('btnGetLocation');
     const geoCoordinates = document.getElementById('geoCoordinates');
 
-    // Audio Elements
     const recordBtn = document.getElementById('recordBtn');
     const recordText = document.getElementById('recordText');
     const recordIcon = document.getElementById('recordIcon');
@@ -198,17 +274,16 @@
     let mediaRecorder;
     let audioChunks = [];
     let audioBase64 = null;
-    let unsubscribePaymentListener = null; // Menyimpan fungsi pembatalan listener
+    let unsubscribePaymentListener = null;
 
     function showSuccess(message) {
-        return Swal.fire({ icon: 'success', title: 'Berhasil', text: message, confirmButtonColor: '#db2777' });
+        return Swal.fire({ icon: 'success', title: 'Berhasil', text: message, confirmButtonColor: '#171717' });
     }
 
     function showError(message) {
-        return Swal.fire({ icon: 'error', title: 'Oops...', text: message, confirmButtonColor: '#db2777' });
+        return Swal.fire({ icon: 'error', title: 'Oops...', text: message, confirmButtonColor: '#171717' });
     }
 
-    // Geolocation Handling
     btnGetLocation.onclick = () => {
         if (navigator.geolocation) {
             btnGetLocation.innerText = "Mencari...";
@@ -216,11 +291,11 @@
                 (position) => {
                     geoCoordinates.value = `${position.coords.latitude}, ${position.coords.longitude}`;
                     btnGetLocation.innerHTML = `<span class="material-symbols-outlined text-sm">check_circle</span> Terkunci`;
-                    btnGetLocation.className = "px-3 bg-green-600 text-white rounded-xl text-xs font-medium flex items-center gap-1";
+                    btnGetLocation.className = "px-3 bg-neutral-800 text-white rounded-lg text-xs font-medium flex items-center gap-1";
                 },
                 (error) => {
                     showError("Gagal mengambil titik lokasi: " + error.message);
-                    btnGetLocation.innerHTML = `<span class="material-symbols-outlined text-sm">my_location</span> Pin Point`;
+                    btnGetLocation.innerHTML = `<span class="material-symbols-outlined text-sm">my_location</span> Pin Titik`;
                 },
                 { enableHighAccuracy: true }
             );
@@ -332,7 +407,7 @@
                 recordText.innerText = 'Berhenti Merekam';
                 recordIcon.innerText = 'stop';
                 recordingStatus.classList.remove('hidden');
-                recordBtn.classList.add('bg-red-50', 'text-red-600', 'border-red-100');
+                recordBtn.classList.add('bg-neutral-100', 'text-red-600');
             } catch (err) {
                 showError('Gagal mengakses mikrofon Anda.');
             }
@@ -341,23 +416,20 @@
             recordText.innerText = 'Rekam Ulang';
             recordIcon.innerText = 'refresh';
             recordingStatus.classList.add('hidden');
-            recordBtn.classList.remove('bg-red-50', 'text-red-600', 'border-red-100');
+            recordBtn.classList.remove('bg-neutral-100', 'text-red-600');
         }
     });
 
     function listenToPayment(orderId) {
-        // Kunci tombol mulai agar user tahu sistem sedang mendengarkan/menunggu verifikasi pembayaran
         btnMulai.innerText = "Mengecek Status Pembayaran...";
         btnMulai.disabled = true;
 
-        // Batalkan listener sebelumnya jika ada demi keamanan
         if (unsubscribePaymentListener) {
             unsubscribePaymentListener();
         }
 
         unsubscribePaymentListener = onSnapshot(doc(db, "orders", orderId), (docSnapshot) => {
            if (docSnapshot.exists() && docSnapshot.data().status === "PAID") {
-                // HENTIKAN LISTENER SEGERA setelah status berubah jadi PAID agar tidak terpanggil 2 kali
                 if (unsubscribePaymentListener) {
                     unsubscribePaymentListener();
                     unsubscribePaymentListener = null;
@@ -367,13 +439,12 @@
                     icon: 'success',
                     title: 'Pembayaran Berhasil',
                     text: 'Silakan ambil foto Anda',
-                    confirmButtonColor: '#db2777'
+                    confirmButtonColor: '#171717'
                 }).then(() => {
                     initSelfieSegmentation();
                     startCamera();
                 });
             } else {
-                // Jika data ada tapi belum PAID, kembalikan tombol ke sedia kala
                 btnMulai.innerText = "Mulai Pembayaran (5k)";
                 btnMulai.disabled = false;
             }
@@ -626,7 +697,7 @@
             } catch (err) {
                 Swal.close();
                 await showError('Gagal: ' + err.message);
-                btnKirim.innerText = "Pesan & Kirim Gantungan Kunci 🚀";
+                btnKirim.innerText = "Kirim & Proses Gantungan Kunci";
                 btnKirim.disabled = false;
             }
         };
