@@ -2,6 +2,7 @@
   "name": "gamon",
   "version": "1.0.0",
   "dependencies": {
+    "cookie": "^2.0.0",
     "firebase-admin": "^12.0.0",
     "nodemailer": "^9.0.0"
   }

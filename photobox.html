@@ -9,9 +9,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:ital,wght=1,500;1,600&display=swap" rel="stylesheet">
     
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
-
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/selfie_segmentation.js" crossorigin="anonymous"></script>
-
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
     <style>
@@ -36,7 +34,7 @@
     <div class="bg-white p-6 rounded-2xl shadow-xl w-full max-w-md text-center relative border border-pink-100">
         <div class="mb-6">
             <h1 class="text-2xl font-bold text-gray-800 tracking-tight">Gamon Booth 📸</h1>
-            <p class="text-xs text-gray-500 mt-1">Scan, bayar, dan abadikan kenangan langsung dari HP-mu</p>
+            <p class="text-xs text-gray-500 mt-1">Scan, bayar, abadikan cerita & dapatkan Gantungan Kunci Polaroid fisik langsung ke rumahmu!</p>
         </div>
         
         <div class="relative w-full aspect-[3/4] bg-gray-900 rounded-xl mb-4 overflow-hidden flex items-center justify-center shadow-inner">
@@ -72,6 +70,13 @@
         </div>
 
         <form id="formData" class="hidden text-left space-y-4 mt-2 border-t border-gray-100 pt-5">
+            <div class="bg-gradient-to-r from-pink-50 to-purple-50 border border-pink-200 rounded-xl p-3 flex gap-2 items-start mb-2">
+                <span class="material-symbols-outlined text-pink-600 text-xl select-none">card_membership</span>
+                <div class="text-xs text-pink-800">
+                    <span class="font-bold">All-in-One Benefit!</span> Foto, pesan tulisan, dan rekaman VN kamu akan dicetak jadi <strong>Gantungan Kunci Polaroid Fisik</strong> eksklusif dan dikirim langsung menuju alamat rumahmu.
+                </div>
+            </div>
+
             <h3 class="font-semibold text-gray-800 text-base">Lengkapi Data Polaroid & Cerita</h3>
             <div class="grid grid-cols-2 gap-3">
                 <div>
@@ -80,16 +85,41 @@
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-600 mb-1" for="receiverName">Untuk Siapa</label>
-                    <input class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-pink-500 bg-gray-50/50" id="receiverName" required type="text" placeholder="Nama si dia / inisial"/>
+                    <input class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-pink-500 bg-gray-50/50" id="receiverName" required type="text" placeholder="Nama si dia"/>
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-medium text-gray-600 mb-1" for="email">Email Softfile</label>
+                    <input class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-pink-500 bg-gray-50/50" id="email" required type="email" placeholder="nama@email.com"/>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-600 mb-1" for="whatsapp">No. WhatsApp</label>
+                    <input class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-pink-500 bg-gray-50/50" id="whatsapp" required type="tel" placeholder="08xxxxxxxxxx"/>
                 </div>
             </div>
             <div>
-                <label class="block text-xs font-medium text-gray-600 mb-1" for="email">Email untuk Pengiriman Softfile</label>
-                <input class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-pink-500 bg-gray-50/50" id="email" required type="email" placeholder="nama@email.com"/>
-            </div>
-            <div>
                 <label class="block text-xs font-medium text-gray-600 mb-1" for="messageContent">Pesan yang Ingin Ditampilkan di Index Gamon</label>
-                <textarea class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-pink-500 bg-gray-50/50 resize-none" id="messageContent" required placeholder="Tulis cerita atau pesan galau..." rows="3" maxlength="150"></textarea>
+                <textarea class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-pink-500 bg-gray-50/50 resize-none" id="messageContent" required placeholder="Tulis cerita atau pesan galau..." rows="2" maxlength="150"></textarea>
+            </div>
+
+            <div class="border-t border-gray-100 pt-3 space-y-3">
+                <h4 class="text-sm font-semibold text-gray-800 flex items-center gap-1">
+                    <span class="material-symbols-outlined text-sm">local_shipping</span> Alamat Pengiriman Gantungan Kunci
+                </h4>
+                <div>
+                    <label class="block text-xs font-medium text-gray-600 mb-1" for="shippingAddress">Alamat Lengkap (Jalan, RT/RW, Kecamatan, Kota, Kode Pos)</label>
+                    <textarea class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-pink-500 bg-gray-50/50 resize-none" id="shippingAddress" required placeholder="Tulis alamat rumah sejelas-jelasnya agar merch tidak salah kirim..." rows="2"></textarea>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-600 mb-1">Koordinat GPS Titik Rumah (Akurasi Kurir)</label>
+                    <div class="flex gap-2">
+                        <input class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-gray-100 text-gray-500 focus:outline-none" id="geoCoordinates" readonly type="text" placeholder="-6.xxxx, 106.xxxx" required/>
+                        <button type="button" id="btnGetLocation" class="px-3 bg-gray-800 text-white rounded-xl text-xs font-medium flex items-center gap-1 hover:bg-black transition whitespace-nowrap">
+                            <span class="material-symbols-outlined text-sm">my_location</span> Pin Point
+                        </button>
+                    </div>
+                </div>
             </div>
 
             <div class="space-y-1.5 border-t border-gray-100 pt-3">
@@ -113,7 +143,7 @@
                 </div>
             </div>
 
-            <button type="submit" id="btnKirim" class="w-full py-3.5 bg-pink-600 text-white rounded-xl font-semibold shadow-lg shadow-pink-200 hover:bg-pink-700 transition mt-2">Cetak, Kirim Email & Publish 🚀</button>
+            <button type="submit" id="btnKirim" class="w-full py-3.5 bg-pink-600 text-white rounded-xl font-semibold shadow-lg shadow-pink-200 hover:bg-pink-700 transition mt-2">Pesan & Kirim Gantungan Kunci 🚀</button>
         </form>
     </div>
 
@@ -148,6 +178,8 @@
     const countdownDisplay = document.getElementById('countdownDisplay');
     const flashOverlay = document.getElementById('flashOverlay');
     const backgroundSelector = document.getElementById('backgroundSelector');
+    const btnGetLocation = document.getElementById('btnGetLocation');
+    const geoCoordinates = document.getElementById('geoCoordinates');
 
     // Audio Elements
     const recordBtn = document.getElementById('recordBtn');
@@ -163,39 +195,39 @@
     let currentBackground = 'original';
     let ctxOutput = outputCanvas.getContext('2d');
 
-    // Variabel state audio recorder
     let mediaRecorder;
     let audioChunks = [];
     let audioBase64 = null;
 
     function showSuccess(message) {
-    return Swal.fire({
-        icon: 'success',
-        title: 'Berhasil',
-        text: message,
-        confirmButtonColor: '#db2777'
-    });
-}
+        return Swal.fire({ icon: 'success', title: 'Berhasil', text: message, confirmButtonColor: '#db2777' });
+    }
 
-function showError(message) {
-    return Swal.fire({
-        icon: 'error',
-        title: 'Oops...',
-        text: message,
-        confirmButtonColor: '#db2777'
-    });
-}
+    function showError(message) {
+        return Swal.fire({ icon: 'error', title: 'Oops...', text: message, confirmButtonColor: '#db2777' });
+    }
 
-function showInfo(message) {
-    return Swal.fire({
-        icon: 'info',
-        title: 'Informasi',
-        text: message,
-        confirmButtonColor: '#db2777'
-    });
-}
+    // Geolocation Handling
+    btnGetLocation.onclick = () => {
+        if (navigator.geolocation) {
+            btnGetLocation.innerText = "Mencari...";
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    geoCoordinates.value = `${position.coords.latitude}, ${position.coords.longitude}`;
+                    btnGetLocation.innerHTML = `<span class="material-symbols-outlined text-sm">check_circle</span> Terkunci`;
+                    btnGetLocation.className = "px-3 bg-green-600 text-white rounded-xl text-xs font-medium flex items-center gap-1";
+                },
+                (error) => {
+                    showError("Gagal mengambil titik lokasi: " + error.message);
+                    btnGetLocation.innerHTML = `<span class="material-symbols-outlined text-sm">my_location</span> Pin Point`;
+                },
+                { enableHighAccuracy: true }
+            );
+        } else {
+            showError("Browser tidak mensupport deteksi lokasi.");
+        }
+    };
 
-    // Inisialisasi MediaPipe Selfie Segmentation
     function initSelfieSegmentation() {
         selfieSegmentation = new SelfieSegmentation({
             locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${file}`
@@ -240,8 +272,8 @@ function showInfo(message) {
             outputCanvas.classList.remove('hidden');
             photoPreview.classList.add('hidden');
         } catch (err) {
-    showError("Gagal mengakses kamera: " + err.message);
-}
+            showError("Gagal mengakses kamera: " + err.message);
+        }
     }
 
     async function updateFrameProcessing() {
@@ -259,7 +291,6 @@ function showInfo(message) {
         });
     });
 
-    // --- LOGIK AUDIO RECORDING (VN) ---
     const getSupportedAudioMimeType = () => {
         const types = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/x-m4a', 'audio/mpeg', 'audio/wav'];
         if (!window.MediaRecorder || typeof MediaRecorder.isTypeSupported !== 'function') return '';
@@ -267,11 +298,7 @@ function showInfo(message) {
         return '';
     };
 
-    const isRecordingSupported = () => {
-        return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder);
-    };
-
-    if (!isRecordingSupported()) {
+    if (!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder)) {
         recordBtn.disabled = true;
         recordBtn.classList.add('opacity-50', 'cursor-not-allowed');
         recordText.innerText = 'Pesan suara tidak didukung perangkat ini';
@@ -320,18 +347,16 @@ function showInfo(message) {
     function listenToPayment(orderId) {
         onSnapshot(doc(db, "orders", orderId), (docSnapshot) => {
            if (docSnapshot.exists() && docSnapshot.data().status === "PAID") {
-
-    Swal.fire({
-        icon: 'success',
-        title: 'Pembayaran Berhasil',
-        text: 'Silakan ambil foto Anda',
-        confirmButtonColor: '#db2777'
-    }).then(() => {
-        initSelfieSegmentation();
-        startCamera();
-    });
-
-}
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Pembayaran Berhasil',
+                    text: 'Silakan ambil foto Anda',
+                    confirmButtonColor: '#db2777'
+                }).then(() => {
+                    initSelfieSegmentation();
+                    startCamera();
+                });
+            }
         });
     }
 
@@ -358,17 +383,13 @@ function showInfo(message) {
             });
 
             const data = await response.json();
-
-//             console.log("=== DOKU RESPONSE ===");
-// console.log(JSON.stringify(data, null, 2)); 
-
             if (data.response?.payment?.url) {
                 window.location.replace(data.response.payment.url);
             }
         } catch (err) {
            showError("Kesalahan: " + err.message);
-            btnMulai.innerText = "Mulai Pembayaran (5k)";
-            btnMulai.disabled = false;
+           btnMulai.innerText = "Mulai Pembayaran (5k)";
+           btnMulai.disabled = false;
         }
     };
 
@@ -414,7 +435,7 @@ function showInfo(message) {
         btnFoto.classList.remove('hidden');
         areaRetake.classList.add('hidden');
         rawCapturedImage = null;
-         btnFoto.disabled = false;
+        btnFoto.disabled = false;
         updateFrameProcessing();
     };
 
@@ -427,20 +448,21 @@ function showInfo(message) {
         }
     };
 
-    // --- SUBMIT DATA DAN MERENDER POLAROID DENGAN QR VN ---
     formData.onsubmit = async (e) => {
         e.preventDefault();
         const btnKirim = document.getElementById('btnKirim');
-        btnKirim.innerText = "Membuat Lembar Polaroid...";
+        btnKirim.innerText = "Mengolah Polaroid...";
         btnKirim.disabled = true;
 
         const nama = document.getElementById('senderName').value;
         const tujuan = document.getElementById('receiverName').value;
         const pesan = document.getElementById('messageContent').value;
         const email = document.getElementById('email').value;
+        const whatsapp = document.getElementById('whatsapp').value;
+        const alamat = document.getElementById('shippingAddress').value;
+        const koordinat = document.getElementById('geoCoordinates').value;
         const generatedOrderId = localStorage.getItem('tempOrderId') || 'GAMON-' + Date.now();
 
-        // 1. Inisialisasi Canvas Cetak
         const polaroidCanvas = document.createElement('canvas');
         const ctx = polaroidCanvas.getContext('2d');
         polaroidCanvas.width = 1200;
@@ -496,35 +518,26 @@ function showInfo(message) {
             ctx.lineTo(1120, 1240);
             ctx.stroke();
 
-            // 2. Jika User Merekam VN -> Buat QR Code dan Render ke Kertas Polaroid
-if (audioBase64) {
-    document.getElementById('qrcode').innerHTML = ""; 
-    
-    // Domain produksi Vercel kamu
-    const domainProduksi = "https://gamon-fawn.vercel.app"; 
-    
-    // 🔥 DIUBAH: Diarahkan ke halaman suara.html, bukan reaksi.html
-    const listenUrl = `${domainProduksi}/suara.html?orderId=${generatedOrderId}`;
-    
-    const qrContainer = document.getElementById('qrcode');
-    new QRCode(qrContainer, {
-        text: listenUrl,
-        width: 160,
-        height: 160,
-        correctLevel: QRCode.CorrectLevel.H
-    });
+            if (audioBase64) {
+                document.getElementById('qrcode').innerHTML = ""; 
+                const domainProduksi = "https://gamon-fawn.vercel.app"; 
+                const listenUrl = `${domainProduksi}/suara.html?orderId=${generatedOrderId}`;
+                
+                const qrContainer = document.getElementById('qrcode');
+                new QRCode(qrContainer, {
+                    text: listenUrl,
+                    width: 160,
+                    height: 160,
+                    correctLevel: QRCode.CorrectLevel.H
+                });
 
-    // Tunggu sebentar agar gambar QR selesai di-render internal oleh library
-    await new Promise(resolve => setTimeout(resolve, 300));
-    const qrImgElement = qrContainer.querySelector('img');
+                await new Promise(resolve => setTimeout(resolve, 300));
+                const qrImgElement = qrContainer.querySelector('img');
+                if (qrImgElement) {
+                    ctx.drawImage(qrImgElement, 950, 1320, 180, 180);
+                }
+            }
 
-    if (qrImgElement) {
-        // Gambar QR di pojok kanan bawah space pesan polaroid
-        ctx.drawImage(qrImgElement, 950, 1320, 180, 180);
-    }
-}
-
-            // 3. Render Tulisan Pesan Cerita Utama (Batas lebar disesuaikan jika ada QR)
             ctx.fillStyle = "#1E293B";
             ctx.font = "italic 500 40px 'Playfair Display', serif";
             ctx.textAlign = "left";
@@ -532,7 +545,6 @@ if (audioBase64) {
             const words = pesan.split(' ');
             let line = '';
             let lineCount = 0;
-            // Lebar dikurangi jadi 800 agar teks tidak menabrak QR Code di sisi kanan
             const maxWidth = audioBase64 ? 820 : 1000; 
             let currentY = 1320;
             const lineHeight = 60;
@@ -555,26 +567,19 @@ if (audioBase64) {
             }
 
             const polaroidBase64 = polaroidCanvas.toDataURL('image/jpeg', 0.9);
-            btnKirim.innerText = "Mengirim data...";
+            btnKirim.innerText = "Mengirim Pesanan...";
 
             Swal.fire({
-    title: 'Memproses...',
-    text: 'Mohon tunggu sebentar',
-    allowOutsideClick: false,
-    allowEscapeKey: false,
-    didOpen: () => {
-        Swal.showLoading();
-    }
-});
+                title: 'Memproses...',
+                text: 'Mendaftarkan alamat & menyimpan file kenangan...',
+                allowOutsideClick: false,
+                didOpen: () => { Swal.showLoading(); }
+            });
             
-            // Sertakan file audioBase64 ke dalam request body payload API
             const payload = {
-                nama,
-                tujuan,
-                pesan,
-                email,
+                nama, tujuan, pesan, email, whatsapp, alamat, koordinat,
                 photoBase64: polaroidBase64,
-                audioUrl: audioBase64, // VN terkirim ke server untuk disimpan
+                audioUrl: audioBase64, 
                 orderId: generatedOrderId
             };
 
@@ -584,24 +589,19 @@ if (audioBase64) {
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
-Swal.close();
+                Swal.close();
                 if (!response.ok) {
                     const errData = await response.json();
                     throw new Error(errData.message || 'Gagal memproses.');
                 }
 
-               await showSuccess(
-    'Cerita & VN kamu berhasil disimpan dan Polaroid siap dicetak di printer kafe!'
-);
-
-localStorage.removeItem('tempOrderId');
-window.location.href = 'index.html';
-
+                await showSuccess('Berhasil! Gantungan kunci Polaroid akan segera kami rakit dan kirim ke alamat Anda.');
+                localStorage.removeItem('tempOrderId');
+                window.location.href = 'index.html';
             } catch (err) {
-
                 Swal.close();
                 await showError('Gagal: ' + err.message);
-                btnKirim.innerText = "Cetak, Kirim Email & Publish 🚀";
+                btnKirim.innerText = "Pesan & Kirim Gantungan Kunci 🚀";
                 btnKirim.disabled = false;
             }
         };
