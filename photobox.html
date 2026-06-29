@@ -198,6 +198,7 @@
     let mediaRecorder;
     let audioChunks = [];
     let audioBase64 = null;
+    let unsubscribePaymentListener = null; // Menyimpan fungsi pembatalan listener
 
     function showSuccess(message) {
         return Swal.fire({ icon: 'success', title: 'Berhasil', text: message, confirmButtonColor: '#db2777' });
@@ -345,8 +346,23 @@
     });
 
     function listenToPayment(orderId) {
-        onSnapshot(doc(db, "orders", orderId), (docSnapshot) => {
+        // Kunci tombol mulai agar user tahu sistem sedang mendengarkan/menunggu verifikasi pembayaran
+        btnMulai.innerText = "Mengecek Status Pembayaran...";
+        btnMulai.disabled = true;
+
+        // Batalkan listener sebelumnya jika ada demi keamanan
+        if (unsubscribePaymentListener) {
+            unsubscribePaymentListener();
+        }
+
+        unsubscribePaymentListener = onSnapshot(doc(db, "orders", orderId), (docSnapshot) => {
            if (docSnapshot.exists() && docSnapshot.data().status === "PAID") {
+                // HENTIKAN LISTENER SEGERA setelah status berubah jadi PAID agar tidak terpanggil 2 kali
+                if (unsubscribePaymentListener) {
+                    unsubscribePaymentListener();
+                    unsubscribePaymentListener = null;
+                }
+
                 Swal.fire({
                     icon: 'success',
                     title: 'Pembayaran Berhasil',
@@ -356,7 +372,14 @@
                     initSelfieSegmentation();
                     startCamera();
                 });
+            } else {
+                // Jika data ada tapi belum PAID, kembalikan tombol ke sedia kala
+                btnMulai.innerText = "Mulai Pembayaran (5k)";
+                btnMulai.disabled = false;
             }
+        }, (error) => {
+            btnMulai.innerText = "Mulai Pembayaran (5k)";
+            btnMulai.disabled = false;
         });
     }
 
@@ -385,6 +408,8 @@
             const data = await response.json();
             if (data.response?.payment?.url) {
                 window.location.replace(data.response.payment.url);
+            } else {
+                throw new Error("Gagal mendapatkan link pembayaran.");
             }
         } catch (err) {
            showError("Kesalahan: " + err.message);
