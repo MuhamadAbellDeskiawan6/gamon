@@ -48,15 +48,23 @@
 </script>
 <style>
     body {
-        background: linear-gradient(135deg, #fff5f8 0%, #f3e8ff 50%, #ffffff 100%);
+        background: linear-gradient(135deg, #f3e8ff 0%, #fff5f8 50%, #e0f2fe 100%);
         overflow-x: hidden;
         min-height: 100vh;
     }
 
-    /* ── STAR PARTICLES ── */
+    /* ── STAR & SPACE BACKGROUND DECORATION ── */
     .star-particle {
         position: absolute; background: #b794f4; border-radius: 50%; opacity: 0.4;
         pointer-events: none; box-shadow: 0 0 5px rgba(183,148,244,0.5);
+    }
+    .space-decor {
+        position: absolute; pointer-events: none; opacity: 0.25; filter: blur(4px);
+        animation: spaceFloat 18s infinite ease-in-out alternate;
+    }
+    @keyframes spaceFloat {
+        0% { transform: translateY(0px) rotate(0deg) scale(1); }
+        100% { transform: translateY(-30px) rotate(15deg) scale(1.15); }
     }
     @keyframes pulse-soft {
         0%,100%{transform:scale(1);opacity:.4}
@@ -68,61 +76,58 @@
         position: relative;
         width: 100%;
         height: 70vh;
-        min-height: 440px;
+        min-height: 460px;
         overflow: hidden;
     }
 
     /* ── BUBBLE ── */
     .bubble {
         position: absolute;
-        cursor: pointer;
+        cursor: grab;
         display: flex; flex-direction: column; align-items: center; justify-content: center;
-        gap: 2px; text-align: center; padding: 8px;
-        background: rgba(255,255,255,0.58);
-        border: 1.5px solid rgba(255,255,255,0.75);
+        gap: 2px; text-align: center; padding: 12px;
+        background: rgba(255,255,255,0.65);
+        border: 1.5px solid rgba(255,255,255,0.8);
         box-shadow: 0 6px 22px -8px rgba(107,90,96,0.18);
         backdrop-filter: blur(10px);
         user-select: none;
-        transition: transform .2s ease, box-shadow .2s ease;
-        will-change: transform;
+        box-sizing: border-box;
+        overflow: hidden;
+        touch-action: none; /* Cegah scroll browser saat di-drag di mobile */
     }
     .bubble:hover {
-        transform: scale(1.12) !important;
         box-shadow: 0 12px 32px -8px rgba(107,90,96,0.26);
-        animation-play-state: paused;
         z-index: 50;
     }
-    .bubble:active { transform: scale(0.96) !important; }
+    .bubble:active { cursor: grabbing; }
 
-    /* circle */
+    /* Bentuk Awan / Bubble */
     .bubble.shape-circle { border-radius: 50%; }
+    .bubble.shape-cloud { border-radius: 60% 40% 55% 45% / 45% 55% 45% 55%; }
+    .bubble.shape-cloud-2 { border-radius: 45% 55% 40% 60% / 55% 45% 60% 40%; }
+    .bubble.shape-blob { border-radius: 38% 62% 46% 54% / 54% 38% 62% 46%; }
 
-    /* cloud / blob */
-    .bubble.shape-cloud {
-        border-radius: 60% 40% 55% 45% / 45% 55% 45% 55%;
-        padding: 10px 16px;
-    }
-    .bubble.shape-cloud-2 {
-        border-radius: 45% 55% 40% 60% / 55% 45% 60% 40%;
-        padding: 10px 14px;
-    }
-    .bubble.shape-blob {
-        border-radius: 38% 62% 46% 54% / 54% 38% 62% 46%;
-        padding: 10px 14px;
-    }
+    /* Varian Tipe */
+    .bubble.type-curhat  { background: rgba(252,228,236,0.68); border-color: rgba(244,168,196,0.5); }
+    .bubble.type-photobox{ background: rgba(237,229,252,0.68); border-color: rgba(196,174,248,0.5); }
 
-    /* types */
-    .bubble.type-curhat  { background: rgba(252,228,236,0.62); border-color: rgba(244,168,196,0.5); }
-    .bubble.type-photobox{ background: rgba(237,229,252,0.62); border-color: rgba(196,174,248,0.5); }
-
-    /* float animations — multiple variants */
-    @keyframes float-a { 0%,100%{translate:0 0} 33%{translate:4px -12px} 66%{translate:-3px -6px} }
-    @keyframes float-b { 0%,100%{translate:0 0} 40%{translate:-5px -10px} 70%{translate:3px -14px} }
-    @keyframes float-c { 0%,100%{translate:0 0} 50%{translate:3px -8px} }
-    .float-a { animation: float-a var(--fd,6s) infinite ease-in-out var(--fdel,0s); }
-    .float-b { animation: float-b var(--fd,6s) infinite ease-in-out var(--fdel,0s); }
-    .float-c { animation: float-c var(--fd,6s) infinite ease-in-out var(--fdel,0s); }
-    .bubble:hover { animation-play-state: paused !important; }
+    /* Animasi Melayang Lambat (CSS Floating) */
+    .float-container {
+        position: absolute;
+        width: 84px;
+        height: 84px;
+        transition: transform 0.1s ease-out; /* Menghaluskan pergerakan awal */
+    }
+    @keyframes float-a { 0%,100%{transform:translate(0, 0)} 33%{transform:translate(4px, -10px)} 66%{transform:translate(-3px, -5px)} }
+    @keyframes float-b { 0%,100%{transform:translate(0, 0)} 40%{transform:translate(-5px, -8px)} 70%{transform:translate(3px, -12px)} }
+    @keyframes float-c { 0%,100%{transform:translate(0, 0)} 50%{transform:translate(3px, -7px)} }
+    
+    .float-a .bubble { animation: float-a var(--fd,6s) infinite ease-in-out var(--fdel,0s); }
+    .float-b .bubble { animation: float-b var(--fd,6s) infinite ease-in-out var(--fdel,0s); }
+    .float-c .bubble { animation: float-c var(--fd,6s) infinite ease-in-out var(--fdel,0s); }
+    
+    /* Matikan animasi melayang bawaan CSS ketika sedang di-drag agar posisi akurat */
+    .dragging .bubble { animation: none !important; transform: scale(1.08) !important; z-index: 100; }
 
     .bubble-emoji { font-size: 1.15em; line-height:1; }
     .bubble-from  { font-size: 10px; font-weight: 700; color: #6b5a60; max-width: 90%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -181,6 +186,8 @@
         font-size: 14px; color: #4d4447; line-height: 1.7; font-style: italic;
         background: rgba(107,90,96,0.05); border-radius: 12px; padding: 12px 14px;
         margin-bottom: 14px; white-space: pre-wrap;
+        max-height: 160px;
+        overflow-y: auto;
     }
 
     #modalAudio { width: 100%; border-radius: 99px; margin-bottom: 14px; display: none; }
@@ -213,18 +220,16 @@
     }
     .bubble-enter { animation: fadeInScale .35s cubic-bezier(.34,1.56,.64,1) both; }
 
-    /* hint bar */
     #hintBar {
         text-align: center; padding: 0.5rem 1rem 2rem;
         font-size: 13px; color: rgba(107,90,96,0.5);
         display: flex; align-items: center; justify-content: center; gap: 6px;
     }
 
-    /* loading skeleton */
     #loadingMsg { text-align:center; padding:4rem 1rem; color: rgba(107,90,96,0.4); font-size:14px; }
 
     @media(max-width:768px){
-        #bubbleCanvas { height: 60vh; min-height: 360px; }
+        #bubbleCanvas { height: 60vh; min-height: 380px; }
         #musicPlayerBar { bottom:4rem; width:calc(100% - 20px); left:50%; transform:translateX(-50%); }
         #menuFitur { bottom:10.5rem; right:.75rem; }
     }
@@ -232,8 +237,10 @@
 </head>
 <body class="text-on-surface selection:bg-primary-container">
 
-<!-- Stars -->
-<div class="fixed inset-0 pointer-events-none z-0" id="stars"></div>
+<!-- Background Elements (Space & Clouds Decor) -->
+<div class="fixed inset-0 pointer-events-none z-0" id="spaceBackground">
+    <div class="fixed inset-0" id="stars"></div>
+</div>
 
 <main class="relative z-10 pt-24 pb-32 w-full">
 
@@ -258,8 +265,8 @@
 
     <!-- Hint -->
     <div id="hintBar">
-        <span class="material-symbols-outlined" style="font-size:16px;opacity:.5;">touch_app</span>
-        klik bubble untuk baca pesannya
+        <span class="material-symbols-outlined" style="font-size:16px;opacity:.5;">drag_pan</span>
+        klik untuk baca, tahan & geser untuk memindahkan awan
     </div>
 
     <!-- Bubble Canvas -->
@@ -331,14 +338,31 @@
 <audio id="bgMusic" loop><source src="music.mp3" type="audio/mpeg"></audio>
 
 <script>
-    // ── Stars ──
+    // ── Stars & Outer Space Clouds Decor ──
+    const spaceBg = document.getElementById('spaceBackground');
     const starsEl = document.getElementById('stars');
+    
+    // Generate Stars
     for (let i = 0; i < 60; i++) {
         const s = document.createElement('div');
         s.className = 'star-particle';
         const sz = 2 + Math.random() * 4;
         s.style.cssText = `width:${sz}px;height:${sz}px;left:${Math.random()*100}%;top:${Math.random()*100}%;animation:pulse-soft ${3+Math.random()*6}s infinite ease-in-out;animation-delay:${Math.random()*5}s`;
         starsEl.appendChild(s);
+    }
+
+    // Generate Melayang Nuansa Awan / Nebula luar angkasa besar di background
+    const spaceEmojis = ['☁️', '🪐', '✨', '☁️', '🌙'];
+    for(let i=0; i < 6; i++) {
+        const decor = document.createElement('div');
+        decor.className = 'space-decor';
+        decor.textContent = spaceEmojis[i % spaceEmojis.length];
+        decor.style.fontSize = (40 + Math.random() * 60) + 'px';
+        decor.style.left = (Math.random() * 90) + '%';
+        decor.style.top = (Math.random() * 80) + '%';
+        decor.style.animationDelay = (Math.random() * -10) + 's';
+        decor.style.animationDuration = (15 + Math.random() * 15) + 's';
+        spaceBg.appendChild(decor);
     }
 
     // ── FAB ──
@@ -378,7 +402,6 @@
     const modalBox = document.getElementById('modalBox');
     let currentPost = null;
     let likedPosts = JSON.parse(localStorage.getItem('likedPosts') || '[]');
-    let dbRef = null; // set by firebase module
 
     function openModal(data, id) {
         currentPost = { data, id };
@@ -429,22 +452,86 @@
         loveBtn.disabled = true;
         const likeCountEl = document.getElementById('modalLikeCount');
         likeCountEl.textContent = parseInt(likeCountEl.textContent) + 1;
-        // update bubble label if visible
+        
         const bEl = document.querySelector(`.bubble[data-id="${currentPost.id}"] .bubble-likes`);
         if (bEl) bEl.textContent = '♥ ' + likeCountEl.textContent;
     });
 
-    // ── Bubble placement — smart grid-scatter ──
-    // Divide canvas into a grid of cells, place one bubble per cell with random offset
+    // ── Drag & Drop Engine (Mouse + Touch) ──
+    let activeContainer = null;
+    let startX, startY, initialLeft, initialTop;
+    let isMoving = false;
+
+    function setupDragAndDrop(containerEl) {
+        // Event handler awal sentuhan/klik
+        const onStart = (e) => {
+            // Abaikan jika klik berasal dari komponen tombol internal (jika ada)
+            if(e.target.closest('.bubble-likes')) return;
+
+            activeContainer = containerEl;
+            isMoving = false;
+
+            const clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+            const clientY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+
+            startX = clientX;
+            startY = clientY;
+
+            initialLeft = parseFloat(activeContainer.style.left);
+            initialTop = parseFloat(activeContainer.style.top);
+
+            activeContainer.classList.add('dragging');
+            
+            document.addEventListener('mousemove', onMove, { passive: false });
+            document.addEventListener('mouseup', onEnd);
+            document.addEventListener('touchmove', onMove, { passive: false });
+            document.addEventListener('touchend', onEnd);
+        };
+
+        const onMove = (e) => {
+            if (!activeContainer) return;
+            
+            const clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+            const clientY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+
+            const dx = clientX - startX;
+            const dy = clientY - startY;
+
+            // Jika pergeseran lebih dari 4 pixel, tandai sebagai aksi drag/geser (bukan klik biasa)
+            if (Math.abs(dx) > 4 || Math.abs(dy) > 4) {
+                isMoving = true;
+            }
+
+            activeContainer.style.left = `${initialLeft + dx}px`;
+            activeContainer.style.top = `${initialTop + dy}px`;
+            
+            e.preventDefault(); // Mencegah scrolling halaman bawaan mobile saat men-drag
+        };
+
+        const onEnd = () => {
+            if (activeContainer) {
+                activeContainer.classList.remove('dragging');
+                activeContainer = null;
+            }
+            document.removeEventListener('mousemove', onMove);
+            document.removeEventListener('mouseup', onEnd);
+            document.removeEventListener('touchmove', onMove);
+            document.removeEventListener('touchend', onEnd);
+        };
+
+        containerEl.addEventListener('mousedown', onStart);
+        containerEl.addEventListener('touchstart', onStart, { passive: true });
+    }
+
+    // ── Bubble Generator ──
     function placeBubbles(posts) {
         const canvas = document.getElementById('bubbleCanvas');
         canvas.innerHTML = '';
 
         const W = canvas.offsetWidth  || window.innerWidth;
-        const H = canvas.offsetHeight || 440;
+        const H = canvas.offsetHeight || 460;
 
         const count  = posts.length;
-        // target aspect ~1.6 cols per row
         const cols   = Math.max(3, Math.round(Math.sqrt(count * 1.6)));
         const rows   = Math.ceil(count / cols);
 
@@ -453,52 +540,62 @@
 
         const shapes    = ['shape-circle','shape-cloud','shape-cloud-2','shape-blob'];
         const floats    = ['float-a','float-b','float-c'];
-        const durations = [5,6,7,8,9];
-        const delays    = [0,0.5,1,1.5,2,2.5,3];
+        const durations = [6, 7, 8, 9];
+        const delays    = [0, 0.5, 1, 1.5, 2];
 
         posts.forEach((item, i) => {
             const col = i % cols;
             const row = Math.floor(i / cols);
 
-            // random within cell, with margin so bubble doesn't touch edge
-            const margin = 0.15;
-            const cx = (col + margin + Math.random() * (1 - margin*2)) * cellW;
-            const cy = (row + margin + Math.random() * (1 - margin*2)) * cellH;
+            const margin = 0.15; 
+            const cx = (col + margin + Math.random() * (1 - margin * 2)) * cellW;
+            const cy = (row + margin + Math.random() * (1 - margin * 2)) * cellH;
 
-            // size: scale with pesan length, min 54px, max 100px
-            const pesanLen = (item.pesan || '').length;
-            const sz = Math.min(100, Math.max(54, 54 + Math.floor(pesanLen / 6)));
+            const sz = 84; 
 
             const shape   = shapes[Math.floor(Math.random() * shapes.length)];
-            const float   = floats[i % floats.length];
-            const dur     = durations[i % durations.length];
-            const delay   = delays[i % delays.length];
+            const float   = floats[Math.floor(Math.random() * floats.length)];
+            const dur     = durations[Math.floor(Math.random() * durations.length)];
+            const delay   = delays[Math.floor(Math.random() * delays.length)];
 
-            const bubble = document.createElement('div');
-            bubble.className = `bubble ${shape} ${float} type-${item.type || 'curhat'} bubble-enter`;
-            bubble.dataset.id = item.id;
-            bubble.style.cssText = `
+            // Wrapper melayang (float container)
+            const wrapper = document.createElement('div');
+            wrapper.className = `float-container ${float}`;
+            wrapper.style.cssText = `
                 left:${cx - sz/2}px;
                 top:${cy - sz/2}px;
-                width:${shape==='shape-circle'?sz+'px':'auto'};
-                height:${shape==='shape-circle'?sz+'px':'auto'};
-                min-width:${sz*0.7}px;
-                min-height:${sz*0.6}px;
                 --fd:${dur}s;
                 --fdel:${delay}s;
-                animation-delay:${delay}s, ${delay}s;
+            `;
+
+            // Elemen bubble utama di dalam wrapper
+            const bubble = document.createElement('div');
+            bubble.className = `bubble ${shape} type-${item.type || 'curhat'} bubble-enter`;
+            bubble.dataset.id = item.id;
+            bubble.style.cssText = `
+                width:${sz}px;
+                height:${sz}px;
+                animation-delay: ${delay}s;
             `;
 
             const short = (s, n) => s && s.length > n ? s.slice(0, n-1) + '…' : (s || '');
             bubble.innerHTML = `
                 <span class="bubble-emoji">${item.type==='photobox'?'📸':'💌'}</span>
-                <span class="bubble-from">${short(item.nama||'Anonim', 9)}</span>
-                <span class="bubble-to">→ ${short(item.tujuan||'Seseorang', 9)}</span>
+                <span class="bubble-from">${short(item.nama||'Anonim', 8)}</span>
+                <span class="bubble-to">→ ${short(item.tujuan||'Seseorang', 8)}</span>
                 <span class="bubble-likes">♥ ${item.likes||0}</span>
             `;
 
-            bubble.addEventListener('click', () => openModal(item, item.id));
-            canvas.appendChild(bubble);
+            // Eksekusi buka modal hanya jika user melakukan klik murni (bukan setelah menggeser/drag)
+            bubble.addEventListener('click', () => {
+                if (!isMoving) {
+                    openModal(item, item.id);
+                }
+            });
+
+            setupDragAndDrop(wrapper);
+            wrapper.appendChild(bubble);
+            canvas.appendChild(wrapper);
         });
     }
 
@@ -506,7 +603,6 @@
         return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
     }
 
-    // re-place on resize
     let resizeTimer;
     window.addEventListener('resize', () => {
         clearTimeout(resizeTimer);
@@ -546,11 +642,13 @@ async function loadAllPosts() {
         posts.sort((a,b) => Number(b.waktu||0) - Number(a.waktu||0));
 
         window._cachedPosts = posts;
-        document.getElementById('loadingMsg').remove();
+        const loadingEl = document.getElementById('loadingMsg');
+        if(loadingEl) loadingEl.remove();
         placeBubbles(posts);
     } catch(e) {
         console.error('Gagal load data:', e);
-        document.getElementById('loadingMsg').textContent = 'Gagal memuat pesan 😢';
+        const loadingEl = document.getElementById('loadingMsg');
+        if(loadingEl) loadingEl.textContent = 'Gagal memuat pesan 😢';
     }
 }
 
