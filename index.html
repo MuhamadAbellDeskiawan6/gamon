@@ -296,22 +296,20 @@
 </div>
 
 <!-- Music player -->
-<div id="musicPlayerBar" class="fixed bottom-24 left-1/2 -translate-x-1/2 w-[calc(100%-32px)] md:w-[480px] z-50 glass-card rounded-full p-2 flex items-center gap-3 border border-primary/10 shadow-xl">
-    <div class="w-12 h-12 rounded-full overflow-hidden bg-surface-container flex-shrink-0 relative">
-        <img alt="Track art" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDWnxhOulVUE5SbSSuUfq7T133nOIx1PEeyGWLwt4qhu4zDxj_36axd-l6hza_0AKipCm3szwszyPdIjDrzWPjGTdSU34XKzuUatnooWOtOb-xb8_WWweb5wQUgddpCGK4StLan-HcIozBZa-VpPr-0LyU2s_dVt5c14tQ4UGapiF1EKA9coSHV5riVj7-eVSbAUEM1q3uUTQhs-3wABwrHCGybCY3ZUU9AKFnoGB6xgfUHTYvfP3dGkp_stkjwNS3FHojGDnKs7YX4"/>
-        <div class="absolute inset-0 flex items-center justify-center bg-black/5">
-            <span class="material-symbols-outlined text-primary text-xl animate-pulse">music_note</span>
-        </div>
+<div id="musicPlayerBar" class="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 glass-card rounded-full p-1.5 flex items-center justify-between border border-white/40 shadow-[0_8px_32px_0_rgba(107,90,96,0.1)] backdrop-blur-md transition-all duration-300 ease-in-out w-[110px]">
+    
+    <button id="musicToggle" class="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center hover:bg-primary/20 hover:scale-105 active:scale-95 transition-all flex-shrink-0">
+        <span class="material-symbols-outlined" style="font-size: 24px;">play_arrow</span>
+    </button>
+
+    <div id="musicTextInfo" class="hidden min-w-0 px-2 opacity-0 transition-opacity duration-200">
+        <div class="font-semibold text-xs truncate text-on-surface tracking-wide">Four Summers</div>
+        <div class="text-[10px] truncate text-on-surface-variant/80 mt-0.5">Reality Club</div>
     </div>
-    <div class="flex-grow min-w-0">
-        <div class="font-semibold text-sm truncate text-on-surface">Lihat Kebunku</div>
-        <div class="text-xs truncate text-on-surface-variant">Aku Jeje</div>
-    </div>
-    <div class="flex items-center gap-2 pr-4">
-        <button class="material-symbols-outlined text-on-surface-variant hover:text-primary transition-colors">skip_previous</button>
-        <button id="musicToggle" class="material-symbols-outlined text-primary text-3xl hover:scale-110 transition-transform" style="font-variation-settings:'FILL' 1;">play_circle</button>
-        <button class="material-symbols-outlined text-on-surface-variant hover:text-primary transition-colors">skip_next</button>
-    </div>
+    
+    <button id="musicResizeBtn" class="w-8 h-8 rounded-full flex items-center justify-center text-on-surface-variant/70 hover:text-primary hover:bg-surface-container transition-all flex-shrink-0">
+        <span class="material-symbols-outlined" style="font-size: 20px;">chevron_right</span>
+    </button>
 </div>
 
 <!-- FAB -->
@@ -387,14 +385,105 @@
         menuIcon.textContent = 'apps';
     });
 
-    // ── Music ──
+    // ── Music (Ultra Minimalist & Default Minimize Engine) ──
     const music = document.getElementById('bgMusic');
     const musicBtn = document.getElementById('musicToggle');
+    const playerBar = document.getElementById('musicPlayerBar');
+    const resizeBtn = document.getElementById('musicResizeBtn');
+    const textInfo = document.getElementById('musicTextInfo');
+
     let isPlaying = false;
-    musicBtn.addEventListener('click', () => {
-        isPlaying ? music.pause() : music.play();
-        musicBtn.textContent = isPlaying ? 'play_circle' : 'pause_circle';
-        isPlaying = !isPlaying;
+    let isMinimized = true; // Set awal ke true agar default-nya mengecil
+
+    // Fungsi update UI tombol play/pause (Segitiga & Garis Dua)
+    function updateMusicUI(playing) {
+        isPlaying = playing;
+        const iconEl = musicBtn.querySelector('.material-symbols-outlined');
+        
+        if (playing) {
+            iconEl.textContent = 'pause';
+            musicBtn.classList.add('bg-primary', 'text-white');
+            musicBtn.classList.remove('bg-primary/10', 'text-primary');
+        } else {
+            iconEl.textContent = 'play_arrow';
+            musicBtn.classList.remove('bg-primary', 'text-white');
+            musicBtn.classList.add('bg-primary/10', 'text-primary');
+        }
+    }
+
+    // Autoplay Handler
+    function tryAutoplay() {
+        music.play().then(() => {
+            updateMusicUI(true);
+        }).catch(error => {
+            console.log("Autoplay ditahan browser. Menunggu interaksi user.");
+            const playOnInteraction = () => {
+                music.play().then(() => {
+                    updateMusicUI(true);
+                    document.removeEventListener('click', playOnInteraction);
+                });
+            };
+            document.addEventListener('click', playOnInteraction);
+        });
+    }
+
+    window.addEventListener('DOMContentLoaded', tryAutoplay);
+
+    // Toggle Play / Pause
+    musicBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (isPlaying) {
+            music.pause();
+            updateMusicUI(false);
+        } else {
+            music.play();
+            updateMusicUI(true);
+        }
+    });
+
+    // Toggle Expand / Collapse (Lebarkan / Kecilkan)
+    resizeBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        isMinimized = !isMinimized;
+        const resizeIcon = resizeBtn.querySelector('.material-symbols-outlined');
+
+        if (isMinimized) {
+            // Mode Minimize (Hanya tombol kontrol dan resize)
+            textInfo.classList.add('opacity-0');
+            setTimeout(() => {
+                textInfo.classList.add('hidden');
+            }, 150);
+
+            playerBar.style.width = "110px";
+            resizeIcon.textContent = 'chevron_right'; // Panah menunjuk ke kanan (buka)
+        } else {
+            // Mode Maximize / Lebar (Memperlihatkan Judul & Penyanyi)
+            textInfo.classList.remove('hidden');
+            
+            // Mengikuti lebar responsive agar tetap rapi di mobile maupun desktop
+            if (window.innerWidth < 640) {
+                playerBar.style.width = "calc(100% - 32px)";
+            } else {
+                playerBar.style.width = "280px";
+            }
+            
+            setTimeout(() => {
+                textInfo.classList.remove('opacity-0');
+            }, 100);
+            
+            resizeIcon.textContent = 'chevron_left'; // Panah menunjuk ke kiri (tutup)
+        }
+    });
+
+    // Menjaga akurasi lebar saat resize layar browser dalam kondisi terbuka
+    window.addEventListener('resize', () => {
+        if (!isMinimized) {
+            if (window.innerWidth < 640) {
+                playerBar.style.width = "calc(100% - 32px)";
+            } else {
+                playerBar.style.width = "280px";
+            }
+        }
     });
 
     // ── Modal ──
