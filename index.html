@@ -395,11 +395,12 @@
     let isPlaying = false;
     let isMinimized = true; // Set awal ke true agar default-nya mengecil
 
-    // Fungsi update UI tombol play/pause (Segitiga & Garis Dua)
     function updateMusicUI(playing) {
+        if (!musicBtn) return;
         isPlaying = playing;
         const iconEl = musicBtn.querySelector('.material-symbols-outlined');
-        
+        if (!iconEl) return;
+
         if (playing) {
             iconEl.textContent = 'pause';
             musicBtn.classList.add('bg-primary', 'text-white');
@@ -411,69 +412,76 @@
         }
     }
 
-    // Autoplay Handler
     function tryAutoplay() {
+        if (!music || !music.play) return;
         music.play().then(() => {
             updateMusicUI(true);
         }).catch(error => {
             console.log("Autoplay ditahan browser. Menunggu interaksi user.");
             const playOnInteraction = () => {
-                music.play().then(() => {
-                    updateMusicUI(true);
-                    document.removeEventListener('click', playOnInteraction);
-                });
+                if (music && music.play) {
+                    music.play().then(() => {
+                        updateMusicUI(true);
+                        document.removeEventListener('click', playOnInteraction);
+                    });
+                }
             };
             document.addEventListener('click', playOnInteraction);
         });
     }
 
-    window.addEventListener('DOMContentLoaded', tryAutoplay);
+    if (music) {
+        window.addEventListener('DOMContentLoaded', tryAutoplay);
+    }
 
-    // Toggle Play / Pause
-    musicBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        if (isPlaying) {
-            music.pause();
-            updateMusicUI(false);
-        } else {
-            music.play();
-            updateMusicUI(true);
-        }
-    });
-
-    // Toggle Expand / Collapse (Lebarkan / Kecilkan)
-    resizeBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        isMinimized = !isMinimized;
-        const resizeIcon = resizeBtn.querySelector('.material-symbols-outlined');
-
-        if (isMinimized) {
-            // Mode Minimize (Hanya tombol kontrol dan resize)
-            textInfo.classList.add('opacity-0');
-            setTimeout(() => {
-                textInfo.classList.add('hidden');
-            }, 150);
-
-            playerBar.style.width = "110px";
-            resizeIcon.textContent = 'chevron_right'; // Panah menunjuk ke kanan (buka)
-        } else {
-            // Mode Maximize / Lebar (Memperlihatkan Judul & Penyanyi)
-            textInfo.classList.remove('hidden');
-            
-            // Mengikuti lebar responsive agar tetap rapi di mobile maupun desktop
-            if (window.innerWidth < 640) {
-                playerBar.style.width = "calc(100% - 32px)";
+    if (musicBtn) {
+        musicBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (!music) return;
+            if (isPlaying) {
+                music.pause();
+                updateMusicUI(false);
             } else {
-                playerBar.style.width = "280px";
+                music.play();
+                updateMusicUI(true);
             }
-            
-            setTimeout(() => {
-                textInfo.classList.remove('opacity-0');
-            }, 100);
-            
-            resizeIcon.textContent = 'chevron_left'; // Panah menunjuk ke kiri (tutup)
-        }
-    });
+        });
+    }
+
+    if (resizeBtn) {
+        resizeBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            isMinimized = !isMinimized;
+            const resizeIcon = resizeBtn.querySelector('.material-symbols-outlined');
+
+            if (isMinimized) {
+                // Mode Minimize (Hanya tombol kontrol dan resize)
+                textInfo.classList.add('opacity-0');
+                setTimeout(() => {
+                    textInfo.classList.add('hidden');
+                }, 150);
+
+                playerBar.style.width = "110px";
+                resizeIcon.textContent = 'chevron_right'; // Panah menunjuk ke kanan (buka)
+            } else {
+                // Mode Maximize / Lebar (Memperlihatkan Judul & Penyanyi)
+                textInfo.classList.remove('hidden');
+                
+                // Mengikuti lebar responsive agar tetap rapi di mobile maupun desktop
+                if (window.innerWidth < 640) {
+                    playerBar.style.width = "calc(100% - 32px)";
+                } else {
+                    playerBar.style.width = "280px";
+                }
+                
+                setTimeout(() => {
+                    textInfo.classList.remove('opacity-0');
+                }, 100);
+                
+                resizeIcon.textContent = 'chevron_left'; // Panah menunjuk ke kiri (tutup)
+            }
+        });
+    }
 
     // Menjaga akurasi lebar saat resize layar browser dalam kondisi terbuka
     window.addEventListener('resize', () => {
@@ -487,10 +495,18 @@
     });
 
     // ── Modal ──
-    const overlay = document.getElementById('modalOverlay');
-    const modalBox = document.getElementById('modalBox');
-    let currentPost = null;
-    let likedPosts = JSON.parse(localStorage.getItem('likedPosts') || '[]');
+    var overlay = document.getElementById('modalOverlay');
+    var modalBox = document.getElementById('modalBox');
+    var currentPost = null;
+    var likedPosts = [];
+    try {
+        const storedLikes = localStorage.getItem('likedPosts');
+        likedPosts = storedLikes ? JSON.parse(storedLikes) : [];
+        if (!Array.isArray(likedPosts)) likedPosts = [];
+    } catch (err) {
+        likedPosts = [];
+        console.warn('likedPosts localStorage invalid, reset to []');
+    }
 
     function openModal(data, id) {
         currentPost = { data, id };
@@ -503,7 +519,10 @@
         const nama   = esc(data.nama   || 'Anonim');
         const tujuan = esc(data.tujuan || 'Seseorang');
         document.getElementById('modalHeader').innerHTML = `${nama} <span class="to-label">ke</span> ${tujuan}`;
-        document.getElementById('modalMsg').textContent = `"${data.pesan || ''}"`;
+        const modalMessage = data.pesan && String(data.pesan).trim()
+            ? `"${data.pesan}"`
+            : (isPhotobox ? 'Foto tanpa pesan.' : '');
+        document.getElementById('modalMsg').textContent = modalMessage;
 
         const photo = document.getElementById('modalPhoto');
         if (data.photoUrl) { photo.src = data.photoUrl; photo.style.display = 'block'; }
@@ -518,21 +537,51 @@
 
         const loveBtn = document.getElementById('modalLoveBtn');
         const likeCount = document.getElementById('modalLikeCount');
-        likeCount.textContent = data.likes || 0;
-        loveBtn.disabled = likedPosts.includes(id);
+        const overlayEl = document.getElementById('modalOverlay');
 
-        overlay.classList.add('show');
+        likeCount.textContent = data.likes || 0;
+        loveBtn.disabled = Array.isArray(likedPosts) && likedPosts.includes(id);
+
+        if (!overlayEl) {
+            console.warn('modalOverlay element not found');
+            return;
+        }
+        overlayEl.classList.add('show');
     }
 
     function closeModal() {
-        overlay.classList.remove('show');
-        document.getElementById('modalAudio').pause();
+        const overlayEl = document.getElementById('modalOverlay');
+        if (overlayEl) {
+            overlayEl.classList.remove('show');
+        }
+        const modalAudio = document.getElementById('modalAudio');
+        if (modalAudio) {
+            modalAudio.pause();
+        }
     }
 
-    document.getElementById('modalClose').addEventListener('click', closeModal);
-    overlay.addEventListener('click', e => { if (e.target === overlay) closeModal(); });
+    const modalCloseButton = document.getElementById('modalClose');
+    if (modalCloseButton) {
+        modalCloseButton.addEventListener('click', (e) => {
+            console.log('modalClose clicked', e.target);
+            closeModal();
+        });
+    }
 
-    document.getElementById('modalLoveBtn').addEventListener('click', async () => {
+    document.body.addEventListener('click', (e) => {
+        if (e.target.closest('#modalClose')) {
+            closeModal();
+        }
+    });
+
+    document.getElementById('modalOverlay')?.addEventListener('click', e => {
+        if (e.target === e.currentTarget) {
+            console.log('overlay clicked');
+            closeModal();
+        }
+    });
+
+    document.getElementById('modalLoveBtn')?.addEventListener('click', async () => {
         if (!currentPost || likedPosts.includes(currentPost.id)) return;
         if (window._incrementLike) await window._incrementLike(currentPost.id);
         likedPosts.push(currentPost.id);
@@ -547,54 +596,42 @@
     });
 
     // ── Drag & Drop Engine (Mouse + Touch) ──
-    let activeContainer = null;
-    let startX, startY, initialLeft, initialTop;
-    let isMoving = false;
+    var activeContainer = null;
+    var startX, startY, initialLeft, initialTop;
+    var isMoving = false;
 
     function setupDragAndDrop(containerEl) {
-        // Event handler awal sentuhan/klik
         const onStart = (e) => {
-            // Abaikan jika klik berasal dari komponen tombol internal (jika ada)
-            if(e.target.closest('.bubble-likes')) return;
+            if (e.target.closest('.bubble-likes')) return;
 
             activeContainer = containerEl;
             isMoving = false;
 
-            const clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
-            const clientY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
-
-            startX = clientX;
-            startY = clientY;
-
+            startX = e.clientX;
+            startY = e.clientY;
             initialLeft = parseFloat(activeContainer.style.left);
             initialTop = parseFloat(activeContainer.style.top);
 
             activeContainer.classList.add('dragging');
-            
-            document.addEventListener('mousemove', onMove, { passive: false });
-            document.addEventListener('mouseup', onEnd);
-            document.addEventListener('touchmove', onMove, { passive: false });
-            document.addEventListener('touchend', onEnd);
+
+            document.addEventListener('pointermove', onMove, { passive: false });
+            document.addEventListener('pointerup', onEnd);
+            document.addEventListener('pointercancel', onEnd);
         };
 
         const onMove = (e) => {
             if (!activeContainer) return;
-            
-            const clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
-            const clientY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
 
-            const dx = clientX - startX;
-            const dy = clientY - startY;
+            const dx = e.clientX - startX;
+            const dy = e.clientY - startY;
 
-            // Jika pergeseran lebih dari 4 pixel, tandai sebagai aksi drag/geser (bukan klik biasa)
             if (Math.abs(dx) > 4 || Math.abs(dy) > 4) {
                 isMoving = true;
             }
 
             activeContainer.style.left = `${initialLeft + dx}px`;
             activeContainer.style.top = `${initialTop + dy}px`;
-            
-            e.preventDefault(); // Mencegah scrolling halaman bawaan mobile saat men-drag
+            e.preventDefault();
         };
 
         const onEnd = () => {
@@ -602,14 +639,13 @@
                 activeContainer.classList.remove('dragging');
                 activeContainer = null;
             }
-            document.removeEventListener('mousemove', onMove);
-            document.removeEventListener('mouseup', onEnd);
-            document.removeEventListener('touchmove', onMove);
-            document.removeEventListener('touchend', onEnd);
+            isMoving = false;
+            document.removeEventListener('pointermove', onMove);
+            document.removeEventListener('pointerup', onEnd);
+            document.removeEventListener('pointercancel', onEnd);
         };
 
-        containerEl.addEventListener('mousedown', onStart);
-        containerEl.addEventListener('touchstart', onStart, { passive: true });
+        containerEl.addEventListener('pointerdown', onStart);
     }
 
     // ── Bubble Generator ──
@@ -675,7 +711,7 @@
                 <span class="bubble-likes">♥ ${item.likes||0}</span>
             `;
 
-            // Eksekusi buka modal hanya jika user melakukan klik murni (bukan setelah menggeser/drag)
+            // Eksekusi buka modal hanya jika user melakukan klik/pointer murni (bukan setelah menggeser/drag)
             bubble.addEventListener('click', () => {
                 if (!isMoving) {
                     openModal(item, item.id);
@@ -727,7 +763,14 @@ async function loadAllPosts() {
     try {
         const snap = await getDocs(query(collection(db,'gamon'), orderBy('waktu','desc'), limit(100)));
         const posts = [];
-        snap.forEach(d => { const data = d.data(); if (data.pesan) posts.push({ id: d.id, ...data }); });
+        snap.forEach(d => {
+            const data = d.data();
+            const shouldShowOnHome = data.showOnHome !== false;
+            if (!shouldShowOnHome) return;
+            if (data.type === 'photobox' || data.photoUrl || data.pesan) {
+                posts.push({ id: d.id, ...data });
+            }
+        });
         posts.sort((a,b) => Number(b.waktu||0) - Number(a.waktu||0));
 
         window._cachedPosts = posts;

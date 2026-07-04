@@ -55,7 +55,8 @@ export default async function handler(req, res) {
         koordinat, 
         photoBase64, 
         audioUrl, 
-        orderId 
+        orderId,
+        showOnHome
     } = req.body;
 
     if (!email || !photoBase64 || !alamat || !whatsapp) {
@@ -90,6 +91,7 @@ export default async function handler(req, res) {
             type: 'photobox',             
             latitude: lat,
             longitude: lng,
+            showOnHome: showOnHome !== false,
             createdAt: new Date(timestamp)
         });
 
@@ -107,6 +109,7 @@ export default async function handler(req, res) {
             koordinat: koordinat || '',
             photoBase64: photoBase64, 
             audioBase64: audioUrl || null,
+            showOnHome: showOnHome !== false,
             timestamp: new Date(timestamp).toISOString(),
             statusMerchandise: "PENDING_PRODUCTION" // Status alur kerja untuk diproses di panel Admin
         }, { merge: true });
