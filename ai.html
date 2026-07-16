@@ -189,6 +189,9 @@ const chat = document.getElementById("chat");
 const input = document.getElementById("input");
 const sendBtn = document.querySelector('button[onclick="send()"]');
 
+// riwayat percakapan (context memory) untuk sesi ini
+let history = [];
+
 // tambah pesan ke UI
 function addMessage(text, type) {
   const div = document.createElement("div");
@@ -235,13 +238,18 @@ async function send() {
       headers: {
         "Content-Type": "application/json"
       },
-      body: JSON.stringify({ message: text })
+      body: JSON.stringify({ message: text, history })
     });
 
     const data = await res.json();
 
     hideTyping();
     addMessage(data.reply || "AI tidak merespon", "ai");
+
+    // simpan ke history supaya AI ingat konteks percakapan
+    history.push({ role: "user", content: text });
+    history.push({ role: "assistant", content: data.reply || "" });
+
   } catch (error) {
     hideTyping();
     addMessage("Maaf, terjadi kesalahan. Coba lagi nanti.", "ai");
