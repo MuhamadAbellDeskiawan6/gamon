@@ -35,20 +35,43 @@ export default async function handler(req, res) {
         return res.status(405).json({ success: false, message: 'Method Not Allowed' });
     }
 
-    const { orderId } = req.query;
-    if (!orderId) {
-        return res.status(400).json({ success: false, message: 'Order ID required' });
+    const { phone } = req.query;
+    if (!phone) {
+        return res.status(400).json({ success: false, message: 'Nomor HP wajib diisi' });
     }
 
     try {
         const db = getDb();
-        const doc = await db.collection('cafe_vouchers').doc(orderId).get();
         
-        if (!doc.exists) {
-            return res.status(404).json({ success: false, message: 'Voucher tidak ditemukan di database' });
+        // Cari voucher berdasarkan customerPhone di Firestore
+        const snapshot = await db.collection('cafe_vouchers')
+            .where('customerPhone', '==', phone.trim())
+            .get();
+
+        if (snapshot.empty) {
+            return res.status(404).json({ success: false, message: 'Voucher tidak ditemukan' });
         }
 
-        return res.status(200).json({ success: true, data: doc.data() });
+        // Cari prioritas voucher yang statusnya PAID atau PENDING/REDEEMED terbaru
+        let targetDoc = null;
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            // Ambil yang statusnya PAID atau yang aktif
+            if (data.status === 'PAID' || data.status === 'PENDING' || data.status === 'REDEEMED') {
+                targetDoc = data;
+            }
+        });
+
+        if (!targetDoc) {
+            targetDoc = snapshot.docs[0].data(); // Ambil data pertama jika tidak ada yang spesifik
+        }
+
+        return res.status(200).json({ 
+            success: true, 
+            orderId: targetDoc.orderId,
+            data: targetDoc 
+        });
+
     } catch (error) {
         console.error("Get voucher error:", error.message);
         return res.status(500).json({ success: false, message: error.message });
