@@ -35,42 +35,50 @@ export default async function handler(req, res) {
         return res.status(405).json({ success: false, message: 'Method Not Allowed' });
     }
 
-    const { phone } = req.query;
-    if (!phone) {
-        return res.status(400).json({ success: false, message: 'Nomor HP wajib diisi' });
-    }
+    const { orderId, phone } = req.query;
+    const db = getDb();
 
     try {
-        const db = getDb();
-        
-        // Cari voucher berdasarkan customerPhone di Firestore
-        const snapshot = await db.collection('cafe_vouchers')
-            .where('customerPhone', '==', phone.trim())
-            .get();
-
-        if (snapshot.empty) {
-            return res.status(404).json({ success: false, message: 'Voucher tidak ditemukan' });
-        }
-
-        // Cari prioritas voucher yang statusnya PAID atau PENDING/REDEEMED terbaru
-        let targetDoc = null;
-        snapshot.forEach(doc => {
-            const data = doc.data();
-            // Ambil yang statusnya PAID atau yang aktif
-            if (data.status === 'PAID' || data.status === 'PENDING' || data.status === 'REDEEMED') {
-                targetDoc = data;
+        // SKENARIO 1: Dicari berdasarkan orderId (Digunakan oleh cafe-success.html)
+        if (orderId) {
+            const doc = await db.collection('cafe_vouchers').doc(orderId).get();
+            if (!doc.exists) {
+                return res.status(404).json({ success: false, message: 'Voucher tidak ditemukan di database' });
             }
-        });
-
-        if (!targetDoc) {
-            targetDoc = snapshot.docs[0].data(); // Ambil data pertama jika tidak ada yang spesifik
+            return res.status(200).json({ success: true, orderId: doc.id, data: doc.data() });
         }
 
-        return res.status(200).json({ 
-            success: true, 
-            orderId: targetDoc.orderId,
-            data: targetDoc 
-        });
+        // SKENARIO 2: Dicari berdasarkan nomor HP (Digunakan oleh fitur lacak pesanan di cafe.html)
+        if (phone) {
+            const snapshot = await db.collection('cafe_vouchers')
+                .where('customerPhone', '==', phone.trim())
+                .get();
+
+            if (snapshot.empty) {
+                return res.status(404).json({ success: false, message: 'Voucher tidak ditemukan' });
+            }
+
+            let targetDoc = null;
+            snapshot.forEach(doc => {
+                const data = doc.data();
+                // Prioritaskan yang PAID, PENDING, atau REDEEMED
+                if (data.status === 'PAID' || data.status === 'PENDING' || data.status === 'REDEEMED') {
+                    targetDoc = data;
+                }
+            });
+
+            if (!targetDoc) {
+                targetDoc = snapshot.docs[0].data();
+            }
+
+            return res.status(200).json({ 
+                success: true, 
+                orderId: targetDoc.orderId,
+                data: targetDoc 
+            });
+        }
+
+        return res.status(400).json({ success: false, message: 'Parameter orderId atau phone wajib diisi' });
 
     } catch (error) {
         console.error("Get voucher error:", error.message);
