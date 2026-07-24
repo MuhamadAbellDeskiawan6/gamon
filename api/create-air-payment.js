@@ -47,16 +47,17 @@ export default async function handler(req, res) {
         }
 
         const db = getDb();
+        const trimmedPhone = customerPhone.trim();
 
-        // 1. PENCEGAHAN PEMBELIAN GANDA (Anti-Spam Berdasarkan Nomor HP)
+        // 1. PENCEGAHAN PEMBELIAN GANDA (Hanya block jika statusnya benar-benar PAID atau REDEEMED)
+        // Status PENDING diabaikan agar jika user batal bayar, mereka bisa pesan/generate ulang.
         const existingQuery = await db.collection('air_vouchers')
-            .where('customerPhone', '==', customerPhone.trim())
-            .where('status', '==', 'PAID')
+            .where('customerPhone', '==', trimmedPhone)
+            .where('status', 'in', ['PAID', 'REDEEMED'])
             .get();
 
         if (!existingQuery.empty) {
             const existingData = existingQuery.docs[0].data();
-            // Jika nomor HP sudah punya voucher aktif, langsung kembalikan URL suksesnya
             return res.status(200).json({
                 response: {
                     payment: {
@@ -87,11 +88,11 @@ export default async function handler(req, res) {
             },
             additional_info: {
                 override_notification_url: `${baseUrl}/api/air-notify`,
-                airName: airName || "Air Partner",
+                airName: airName || "Gamon Tawing Depot",
                 voucherName: voucherName || "Air Mineral 1 Dus (Isi 24 Botol/Gelas)",
                 redeemCode: redeemCode,
                 customerName: customerName || "Pelanggan",
-                customerPhone: customerPhone
+                customerPhone: trimmedPhone
             }
         };
 
@@ -135,10 +136,10 @@ export default async function handler(req, res) {
                     orderId,
                     redeemCode,
                     amount: Number(amount),
-                    airName: airName || "Air Partner",
+                    airName: airName || "Gamon Tawing Depot",
                     voucherName: voucherName || "Air Mineral 1 Dus (Isi 24 Botol/Gelas)",
                     customerName: customerName || "Pelanggan",
-                    customerPhone: customerPhone || "-",
+                    customerPhone: trimmedPhone,
                     status: "PENDING",
                     createdAt: new Date(),
                     paymentUrl: data.response.payment.url

@@ -48,27 +48,28 @@ export default async function handler(req, res) {
             return res.status(200).json({ success: true, orderId: doc.id, data: doc.data() });
         }
 
-        // SKENARIO 2: Dicari berdasarkan nomor HP (Digunakan oleh fitur lacak pesanan di air.html)
+        // SKENARIO 2: Dicari berdasarkan nomor HP (Fitur lacak pesanan)
         if (phone) {
             const snapshot = await db.collection('air_vouchers')
                 .where('customerPhone', '==', phone.trim())
                 .get();
 
             if (snapshot.empty) {
-                return res.status(404).json({ success: false, message: 'Voucher tidak ditemukan' });
+                return res.status(404).json({ success: false, message: 'Voucher aktif tidak ditemukan' });
             }
 
             let targetDoc = null;
             snapshot.forEach(doc => {
                 const data = doc.data();
-                // Prioritaskan yang PAID, PENDING, atau REDEEMED
-                if (data.status === 'PAID' || data.status === 'PENDING' || data.status === 'REDEEMED') {
+                // HANYA ambil yang statusnya PAID atau REDEEMED. 
+                // Status PENDING diabaikan agar pesanan yang mangkrak/belum dibayar tidak memunculkan kode & QR.
+                if (data.status === 'PAID' || data.status === 'REDEEMED') {
                     targetDoc = data;
                 }
             });
 
             if (!targetDoc) {
-                targetDoc = snapshot.docs[0].data();
+                return res.status(404).json({ success: false, message: 'Belum ada voucher yang lunas/aktif untuk nomor ini.' });
             }
 
             return res.status(200).json({ 
