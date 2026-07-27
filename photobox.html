@@ -1151,8 +1151,8 @@ if (audioBase64) {
                 ctx.fillText(line, 80, currentY);
             }
 
-           const polaroidBase64 =
-polaroidCanvas.toDataURL("image/png");
+          const polaroidBase64 =
+polaroidCanvas.toDataURL("image/jpeg", 0.9);
             btnKirim.innerText = "Mengirim Pesanan...";
 
             Swal.fire({
