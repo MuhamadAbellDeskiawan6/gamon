@@ -1,173 +1,256 @@
-import { initializeApp, cert, getApps } from 'firebase-admin/app';
-import { getFirestore } from 'firebase-admin/firestore';
-import fs from 'fs';
-import path from 'path';
-import nodemailer from 'nodemailer';
+import { initializeApp, cert, getApps } from "firebase-admin/app";
+import { getFirestore } from "firebase-admin/firestore";
+import fs from "fs";
+import path from "path";
+import nodemailer from "nodemailer";
 
-// Load Environment secara manual untuk environment lokal development
-if (!process.env.FIREBASE_SERVICE_ACCOUNT) {
-    try {
-        const envPath = path.join(process.cwd(), '.env.local');
-        if (fs.existsSync(envPath)) {
-            const envContent = fs.readFileSync(envPath, 'utf8');
-            
-            const firebaseMatch = envContent.match(/FIREBASE_SERVICE_ACCOUNT=['"]({[\s\S]*?})['"]/);
-            if (firebaseMatch && firebaseMatch[1]) {
-                process.env.FIREBASE_SERVICE_ACCOUNT = firebaseMatch[1].trim();
-            }
-            
-            const gmailMatch = envContent.match(/GMAIL_APP_PASSWORD=['"]?([^'"\s\n]+)['"]?/);
-            if (gmailMatch && gmailMatch[1]) {
-                process.env.GMAIL_APP_PASSWORD = gmailMatch[1].trim();
-            }
-        }
-    } catch (err) {
-        console.error("Gagal memuat konfigurasi lokal:", err.message);
+/* ======================================
+   LOAD .env.local (LOCAL ONLY)
+====================================== */
+
+if (!process.env.GMAIL_APP_PASSWORD) {
+  try {
+
+    const envPath = path.join(process.cwd(), ".env.local");
+
+    if (fs.existsSync(envPath)) {
+
+      const env = fs.readFileSync(envPath, "utf8");
+
+      const match = env.match(
+        /GMAIL_APP_PASSWORD=['"]?([^'"\n\r]+)['"]?/
+      );
+
+      if (match) {
+        process.env.GMAIL_APP_PASSWORD = match[1].trim();
+      }
+
     }
+
+  } catch(err) {
+    console.error(err);
+  }
 }
 
-// Inisialisasi Firebase Admin
+/* ======================================================
+   FIREBASE ADMIN INIT
+====================================================== */
+
 if (!getApps().length) {
-    try {
-        if (!process.env.FIREBASE_SERVICE_ACCOUNT) {
-            throw new Error("Variabel FIREBASE_SERVICE_ACCOUNT tidak ditemukan.");
-        }
-        const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-        initializeApp({ credential: cert(serviceAccount) });
-    } catch (error) {
-        console.error("Firebase Admin Error:", error.message);
+  try {
+    let serviceAccount;
+
+    // Production (Vercel)
+    if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+      serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+    } else {
+      // Local Development
+      const serviceAccountPath = path.join(
+        process.cwd(),
+        "server",
+        "serviceAccountKey.json"
+      );
+
+      serviceAccount = JSON.parse(
+        fs.readFileSync(serviceAccountPath, "utf8")
+      );
     }
+
+    initializeApp({
+      credential: cert(serviceAccount),
+    });
+
+    console.log("Firebase Admin initialized");
+  } catch (err) {
+    console.error("Firebase Admin Error:", err);
+  }
 }
+
+/* ======================================================
+   API HANDLER
+====================================================== */
 
 export default async function handler(req, res) {
-    if (req.method !== 'POST') {
-        return res.status(405).json({ message: 'Method Not Allowed' });
+  if (req.method !== "POST") {
+    return res.status(405).json({ message: "Method Not Allowed" });
+  }
+
+  const {
+    nama,
+    tujuan,
+    pesan,
+    email,
+    whatsapp,
+    alamat,
+    koordinat,
+    photoBase64,
+    audioUrl,
+    orderId,
+    showOnHome,
+  } = req.body;
+
+  if (!email || !photoBase64 || !alamat || !whatsapp) {
+    return res.status(400).json({
+      success: false,
+      message: "Data wajib belum lengkap.",
+    });
+  }
+
+  try {
+    if (!getApps().length) {
+      throw new Error("Firebase belum terinisialisasi");
     }
 
-    // 1. Destructuring data dengan menyertakan input pengiriman merchandise baru
-    const { 
-        nama, 
-        tujuan, 
-        pesan, 
-        email, 
-        whatsapp, 
-        alamat, 
-        koordinat, 
-        photoBase64, 
-        audioUrl, 
-        orderId,
-        showOnHome
-    } = req.body;
+    const db = getFirestore();
 
-    if (!email || !photoBase64 || !alamat || !whatsapp) {
-        return res.status(400).json({ message: 'Informasi esensial atau data alamat pengiriman tidak lengkap.' });
+    const timestamp = Date.now();
+    const finalOrderId = orderId || `GAMON-${timestamp}`;
+
+    /* ======================================================
+       PARSE KOORDINAT
+    ====================================================== */
+
+    let lat = -3.3167;
+    let lng = 114.5900;
+
+    if (koordinat && koordinat.includes(",")) {
+      const parts = koordinat.split(",");
+      lat = parseFloat(parts[0].trim()) || lat;
+      lng = parseFloat(parts[1].trim()) || lng;
     }
 
-    try {
-        const db = getFirestore();
-        const timestamp = Date.now();
-        const finalOrderId = orderId || 'GAMON-' + timestamp;
+    /* ======================================================
+       1. SIMPAN KE photobox_order (WAJIB)
+    ====================================================== */
 
-        // Ekstrak nilai latitude & longitude dari pin-point GPS jika tersedia
-        let lat = -3.3167; // Default koordinat
-        let lng = 114.5900;
-        if (koordinat && koordinat.includes(',')) {
-            const parts = koordinat.split(',');
-            lat = parseFloat(parts[0].trim()) || lat;
-            lng = parseFloat(parts[1].trim()) || lng;
-        }
+    await db.collection("photobox_order").doc(finalOrderId).set({
+      orderId: finalOrderId,
+      nama: nama || "Anonim",
+      tujuan: tujuan || "Seseorang",
+      pesan: pesan || "",
+      email,
+      whatsapp,
+      alamat,
+      koordinat: koordinat || "",
+      latitude: lat,
+      longitude: lng,
+      photoBase64,
+      audioUrl: audioUrl || null,
+      showOnHome: showOnHome !== false,
+      statusMerchandise: "PENDING_PRODUCTION",
+      createdAt: timestamp,
+    });
 
-        // 2. Simpan ke koleksi 'gamon' untuk peta / index utama platform
-        await db.collection('gamon').add({
-            nama: nama || 'Anonim',       
-            tujuan: tujuan || 'Seseorang', 
-            pesan: pesan || '',           
-            waktu: timestamp,             
-            email: email,
-            whatsapp: whatsapp,
-            alamat: alamat,
-            photoUrl: photoBase64,        
-            audioUrl: audioUrl || null, 
-            type: 'photobox',             
-            latitude: lat,
-            longitude: lng,
-            showOnHome: showOnHome !== false,
-            createdAt: new Date(timestamp)
-        });
+    /* ======================================================
+       2. UPDATE / MERGE KE orders
+       Sinkron dengan webhook pembayaran
+    ====================================================== */
 
-        // 3. Simpan atau perbarui log transaksi di doc 'orders' berdasarkan ID unik pembayaran/transaksi
-        // Menggunakan doc(finalOrderId) agar tersinkronisasi dengan status PAID dari webhook payment gateway
-        const orderRef = db.collection('orders').doc(finalOrderId);
-        await orderRef.set({
-            orderId: finalOrderId,
-            nama: nama || 'Anonim',
-            tujuan: tujuan || 'Seseorang',
-            pesan: pesan || '',
-            email: email,
-            whatsapp: whatsapp,
-            alamat: alamat,
-            koordinat: koordinat || '',
-            photoBase64: photoBase64, 
-            audioBase64: audioUrl || null,
-            showOnHome: showOnHome !== false,
-            timestamp: new Date(timestamp).toISOString(),
-            statusMerchandise: "PENDING_PRODUCTION" // Status alur kerja untuk diproses di panel Admin
-        }, { merge: true });
+    await db.collection("orders").doc(finalOrderId).set(
+      {
+        orderId: finalOrderId,
+        email,
+        whatsapp,
+        alamat,
+        statusMerchandise: "PENDING_PRODUCTION",
+        updatedAt: timestamp,
+      },
+      { merge: true }
+    );
 
-        // 4. PROSES KIRIM EMAIL VIA NODEMAILER (GMAIL SMTP)
-        const base64Content = photoBase64.replace(/^data:image\/[a-z]+;base64,/, "");
+    /* ======================================================
+       3. TAMPILKAN DI INDEX JIKA showOnHome = true
+    ====================================================== */
 
-        const transporter = nodemailer.createTransport({
-            service: 'gmail',
-            auth: {
-                user: 'muhamadabelldeskiawan@gmail.com',
-                pass: process.env.GMAIL_APP_PASSWORD     
+    if (showOnHome !== false) {
+      await db.collection("gamon").add({
+        nama: nama || "Anonim",
+        tujuan: tujuan || "Seseorang",
+        pesan: pesan || "",
+        photoUrl: photoBase64,
+        audioUrl: audioUrl || null,
+        type: "photobox",
+        likes: 0,
+        waktu: timestamp,
+        latitude: lat,
+        longitude: lng,
+        showOnHome: true,
+        createdAt: timestamp,
+      });
+    }
+
+    /* ======================================================
+       4. KIRIM EMAIL
+    ====================================================== */
+
+    if (!process.env.GMAIL_APP_PASSWORD) {
+      console.warn("GMAIL_APP_PASSWORD belum diset, email dilewati.");
+    } else {
+      const base64Content = photoBase64.replace(
+        /^data:image\/[a-z]+;base64,/,
+        ""
+      );
+
+      const transporter = nodemailer.createTransport({
+        service: "gmail",
+        auth: {
+          user: "muhamadabelldeskiawan@gmail.com",
+          pass: process.env.GMAIL_APP_PASSWORD,
+        },
+      });
+
+      await transporter.sendMail({
+        from: '"Gamon Tawing Booth" <muhamadabelldeskiawan@gmail.com>',
+        to: email,
+        subject: `📸 Pesanan Photobox Berhasil - ${finalOrderId}`,
+        html: `
+          <div style="font-family:Arial,sans-serif;max-width:520px;margin:auto;padding:24px;border:1px solid #eee;border-radius:16px">
+            <h2 style="color:#6b5a60;margin-top:0">Pesanan Berhasil 🎉</h2>
+            <p>Halo <b>${nama || "Anonim"}</b>,</p>
+            <p>Pesanan photobox kamu berhasil diterima dan masuk antrean produksi.</p>
+
+            <table style="width:100%;font-size:14px;border-collapse:collapse;margin:16px 0">
+              <tr><td style="padding:6px 0"><b>ID Pesanan</b></td><td style="padding:6px 0">${finalOrderId}</td></tr>
+              <tr><td style="padding:6px 0"><b>Penerima</b></td><td style="padding:6px 0">${tujuan || "-"}</td></tr>
+              <tr><td style="padding:6px 0"><b>WhatsApp</b></td><td style="padding:6px 0">${whatsapp}</td></tr>
+            </table>
+
+            <p style="margin-bottom:6px"><b>Alamat Pengiriman:</b></p>
+            <div style="background:#f8f8f8;padding:12px;border-radius:12px;font-size:14px;white-space:pre-wrap">${alamat}</div>
+
+            ${
+              audioUrl
+                ? '<p style="color:#6d28d9;font-size:14px;margin-top:16px">🎵 Audio berhasil disimpan dan akan diintegrasikan ke QR Code pada desain photobox.</p>'
+                : ""
             }
-        });
 
-        const mailOptions = {
-            from: '"Gamon Tawing Booth" <muhamadabelldeskiawan@gmail.com>',
-            to: email, 
-            subject: `📸 Polaroid & Merchandise Gantungan Kunci Terdaftar! - ${nama || 'Kamu'}`,
-            html: `
-                <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 25px; border: 1px solid #f0f0f0; border-radius: 16px; background-color: #fffafb; text-align: left;">
-                    <div style="text-align: center; margin-bottom: 20px;">
-                        <h2 style="color: #db2777; margin-bottom: 5px; font-weight: 700;">Gamon Booth 📸</h2>
-                        <p style="font-size: 14px; color: #64748b; margin-top: 0;">Kenangan virtual & fisikmu telah aman tersimpan!</p>
-                    </div>
-                    
-                    <div style="background: #ffffff; padding: 15px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #f1f5f9;">
-                        <p style="font-size: 13px; color: #475569; margin: 0 0 8px 0;"><strong>ID Pesanan:</strong> ${finalOrderId}</p>
-                        <p style="font-size: 13px; color: #475569; margin: 0 0 8px 0;"><strong>Softfile Digital:</strong> Telah kami lampirkan di bawah ini.</p>
-                        ${audioUrl ? '<p style="font-size: 13px; color: #db2777; font-weight: bold; margin: 0;">🎵 QR Code berisi pesan suara (VN) telah terintegrasi di dalam desain Polaroid!</p>' : ''}
-                    </div>
-
-                    <div style="background: #fff5f7; padding: 15px; border-radius: 12px; border: 1px solid #fce4ec; margin-bottom: 20px;">
-                        <h4 style="color: #c2185b; margin: 0 0 8px 0; font-size: 14px;">📦 Info Pengiriman Gantungan Kunci Fisik:</h4>
-                        <p style="font-size: 12px; color: #5c5c5c; margin: 0 0 4px 0;"><strong>Alamat Rumah:</strong> ${alamat}</p>
-                        <p style="font-size: 12px; color: #5c5c5c; margin: 0;"><strong>No. WhatsApp:</strong> ${whatsapp}</p>
-                    </div>
-                    
-                    <p style="font-size: 11px; color: #94a3b8; text-align: center; line-height: 1.5; margin: 0;">
-                        Gantungan kunci fisik Polaroid Anda akan masuk antrean cetak dan segera dirakit oleh tim Admin kami. Terima kasih sudah mengabadikan ceritamu!
-                    </p>
-                </div>
-            `,
-            attachments: [
-                {
-                    filename: `polaroid-gamon-${timestamp}.jpg`,
-                    content: base64Content,
-                    encoding: 'base64' 
-                }
-            ]
-        };
-
-        await transporter.sendMail(mailOptions);
-
-        return res.status(200).json({ success: true, message: 'Sukses mendaftarkan pengiriman merchandise dan mengirim email softfile!' });
-
-    } catch (error) {
-        console.error("Internal Server Error:", error.message);
-        return res.status(500).json({ message: 'Terjadi kegagalan server internal.', error: error.message });
+            <p style="font-size:13px;color:#666;margin-top:20px">
+              Terima kasih sudah mengabadikan kenangan bersama Gamon Tawing 💜
+            </p>
+          </div>
+        `,
+        attachments: [
+          {
+            filename: `photobox-${finalOrderId}.jpg`,
+            content: base64Content,
+            encoding: "base64",
+          },
+        ],
+      });
     }
+
+    return res.status(200).json({
+      success: true,
+      orderId: finalOrderId,
+      message: "Pesanan berhasil diproses.",
+    });
+  } catch (error) {
+    console.error("Submit Photobox Error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Terjadi kegagalan server internal.",
+      error: error.message,
+    });
+  }
 }

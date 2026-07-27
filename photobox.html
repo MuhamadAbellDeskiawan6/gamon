@@ -41,6 +41,32 @@
         .animate-float-reverse {
             animation: float-reverse 6s ease-in-out infinite;
         }
+        .frame-thumb{
+    transition:.2s;
+}
+
+.frame-thumb.active{
+    border-color:#111827;
+    transform:scale(1.05);
+}
+
+.frame-thumb:hover{
+    transform:scale(1.03);
+}
+#outputCanvas{
+
+    width:100%;
+    height:100%;
+    object-fit:cover;
+    image-rendering:auto;
+
+}
+
+#photoPreview{
+
+    object-fit:cover;
+
+}
     </style>
 </head>
 <body class="font-['Plus_Jakarta+Sans'] flex flex-col items-center justify-center min-h-screen p-4 md:p-8 relative overflow-x-hidden select-none py-12">
@@ -87,21 +113,52 @@
                 </div>
                 
                 <!-- CAMERA SCREEN -->
-                <div class="relative w-full aspect-[3/4] bg-neutral-900 rounded-2xl mb-4 overflow-hidden flex items-center justify-center shadow-inner">
-                    <video id="video" class="hidden" autoplay playsinline></video>
-                    <canvas id="outputCanvas" class="w-full h-full object-cover"></canvas>
-                    <img id="photoPreview" class="hidden w-full h-full object-cover absolute top-0 left-0" alt="Preview"/>
-                    
-                    <div class="absolute inset-5 border border-white/10 pointer-events-none rounded-lg flex items-center justify-center">
-                        <div class="w-3 h-3 border-t border-l border-white/30 absolute top-0 left-0"></div>
-                        <div class="w-3 h-3 border-t border-r border-white/30 absolute top-0 right-0"></div>
-                        <div class="w-3 h-3 border-b border-l border-white/30 absolute bottom-0 left-0"></div>
-                        <div class="w-3 h-3 border-b border-r border-white/30 absolute bottom-0 right-0"></div>
-                    </div>
+                <!-- CAMERA SCREEN -->
+<div id="cameraContainer"
+     class="relative w-full aspect-[3/4] bg-neutral-900 rounded-2xl mb-4 overflow-hidden shadow-inner">
 
-                    <div id="flashOverlay" class="absolute inset-0 bg-white opacity-0 transition-opacity duration-100 pointer-events-none z-30"></div>
-                    <div id="countdownDisplay" class="hidden absolute text-7xl font-light text-white font-['Playfair_Display'] z-20">5</div>
-                </div>
+    <!-- video -->
+    <video id="video"
+           class="hidden absolute inset-0 w-full h-full object-cover"
+           autoplay
+           playsinline>
+    </video>
+
+    <!-- canvas hasil segmentation -->
+    <canvas id="outputCanvas"
+            class="absolute inset-0 w-full h-full">
+    </canvas>
+
+    <!-- preview sesudah foto -->
+    <img id="photoPreview"
+         class="hidden absolute inset-0 w-full h-full object-cover"
+         alt="Preview">
+
+    <!-- FRAME -->
+    <img id="frameOverlay"
+         src="image/assets/polaroid-frame-preview.png"
+         class="absolute inset-0 w-full h-full object-fill pointer-events-none z-20">
+
+    <!-- garis bantu -->
+    <div class="absolute inset-5 border border-white/10 rounded-lg pointer-events-none flex items-center justify-center z-30">
+        <div class="w-3 h-3 border-t border-l border-white/30 absolute top-0 left-0"></div>
+        <div class="w-3 h-3 border-t border-r border-white/30 absolute top-0 right-0"></div>
+        <div class="w-3 h-3 border-b border-l border-white/30 absolute bottom-0 left-0"></div>
+        <div class="w-3 h-3 border-b border-r border-white/30 absolute bottom-0 right-0"></div>
+    </div>
+
+    <!-- flash -->
+    <div id="flashOverlay"
+         class="absolute inset-0 bg-white opacity-0 transition-opacity duration-100 pointer-events-none z-40">
+    </div>
+
+    <!-- countdown -->
+    <div id="countdownDisplay"
+         class="hidden absolute inset-0 flex items-center justify-center text-7xl font-light text-white font-['Playfair_Display'] z-50">
+        5
+    </div>
+
+</div>
 
                 <!-- BACKGROUND SECTOR -->
                 <div id="backgroundSelector" class="hidden mb-4 text-left bg-white p-2 rounded-xl border border-neutral-200/60">
@@ -115,6 +172,29 @@
                         <div class="bg-thumb border border-transparent rounded-md px-3 py-1 bg-orange-50 text-amber-800 text-[11px] font-medium flex-shrink-0" data-bg="#fffbeb">Warm Vintage</div>
                     </div>
                 </div>
+
+                <!-- FRAME SELECTOR -->
+<div id="frameSelector" class="hidden mb-4 text-left bg-white p-2 rounded-xl border border-neutral-200/60">
+
+    <label class="block text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-2">
+        🖼 Pilih Frame
+    </label>
+
+    <div class="flex gap-2 overflow-x-auto pb-1">
+
+      <img
+    src="image/assets/polaroid-frame-preview.png"
+    class="frame-thumb active w-16 h-20 rounded-lg border-2 border-transparent cursor-pointer"
+    data-frame="image/assets/polaroid-frame.png">
+
+<img
+    src="image/assets/valentine-frame-preview.png"
+    class="frame-thumb w-16 h-20 rounded-lg border-2 border-transparent cursor-pointer"
+    data-frame="image/assets/valentine-frame.png">
+
+    </div>
+
+</div>
                 
                 <canvas id="canvas" class="hidden"></canvas>
                 <div id="qrcode" class="hidden"></div>
@@ -278,11 +358,72 @@
     const player = document.getElementById('player');
     const recordingStatus = document.getElementById('recordingStatus');
 
-    let localStream;
-    let rawCapturedImage = null;
-    let selfieSegmentation;
-    let currentBackground = 'original';
-    let ctxOutput = outputCanvas.getContext('2d');
+    const frameSelector = document.getElementById("frameSelector");
+    const frameOverlay =
+document.getElementById("frameOverlay");
+
+    
+
+  let localStream;
+let rawCapturedImage = null;
+let selfieSegmentation;
+let currentBackground = "original";
+
+let ctxOutput = outputCanvas.getContext("2d");
+/* ===========================
+   BACKGROUND SELECTOR
+=========================== */
+
+document.querySelectorAll(".bg-thumb").forEach(item => {
+
+    item.addEventListener("click", () => {
+
+        // ubah active
+        document.querySelectorAll(".bg-thumb")
+            .forEach(bg => bg.classList.remove("active"));
+
+        item.classList.add("active");
+
+        // simpan background aktif
+        currentBackground = item.dataset.bg;
+
+    });
+
+});
+
+/* ===============================
+   FRAME YANG DIPAKAI SAAT EXPORT
+================================= */
+
+let selectedFrame = "image/assets/polaroid-frame.png";
+
+/* ===============================
+   FRAME KHUSUS UNTUK PREVIEW
+================================= */
+
+const previewFrame = new Image();
+
+/*
+    pasangan:
+    frame besar  -> frame preview
+*/
+
+const previewFrameMap = {
+
+    "image/assets/polaroid-frame.png":
+        "image/assets/polaroid-frame-preview.png",
+
+    "image/assets/valentine-frame.png":
+        "image/assets/valentine-frame-preview.png"
+
+};
+
+/*
+    pertama kali load
+*/
+
+previewFrame.src =
+    previewFrameMap[selectedFrame];
 
     let mediaRecorder;
     let audioChunks = [];
@@ -325,60 +466,229 @@
         selfieSegmentation.onResults(onSegmentationResults);
     }
 
-    function onSegmentationResults(results) {
-        ctxOutput.save();
-        ctxOutput.clearRect(0, 0, outputCanvas.width, outputCanvas.height);
-        ctxOutput.translate(outputCanvas.width, 0);
-        ctxOutput.scale(-1, 1);
-        ctxOutput.drawImage(results.segmentationMask, 0, 0, outputCanvas.width, outputCanvas.height);
-        ctxOutput.globalCompositeOperation = 'source-in';
-        ctxOutput.drawImage(results.image, 0, 0, outputCanvas.width, outputCanvas.height);
-        ctxOutput.globalCompositeOperation = 'destination-over';
-        if (currentBackground === 'original') {
-            ctxOutput.drawImage(results.image, 0, 0, outputCanvas.width, outputCanvas.height);
-        } else {
-            ctxOutput.fillStyle = currentBackground;
-            ctxOutput.fillRect(0, 0, outputCanvas.width, outputCanvas.height);
-        }
-        ctxOutput.restore();
+  function drawCover(ctx, img, canvasW, canvasH) {
+
+    const iw = img.videoWidth || img.naturalWidth || img.width;
+    const ih = img.videoHeight || img.naturalHeight || img.height;
+
+    if (!iw || !ih) return;
+
+    const imageRatio = iw / ih;
+    const canvasRatio = canvasW / canvasH;
+
+    let sx = 0;
+    let sy = 0;
+    let sw = iw;
+    let sh = ih;
+
+    if (imageRatio > canvasRatio) {
+
+        sw = ih * canvasRatio;
+        sx = (iw - sw) / 2;
+
+    } else {
+
+        sh = iw / canvasRatio;
+        sy = (ih - sh) / 2;
+
     }
+
+    ctx.drawImage(
+        img,
+        sx,
+        sy,
+        sw,
+        sh,
+        0,
+        0,
+        canvasW,
+        canvasH
+    );
+
+}
+
+  function onSegmentationResults(results) {
+
+    const w = outputCanvas.width;
+    const h = outputCanvas.height;
+
+    ctxOutput.clearRect(0, 0, w, h);
+
+    ctxOutput.save();
+
+    // mirror selfie
+    ctxOutput.translate(w, 0);
+    ctxOutput.scale(-1, 1);
+
+    // ==========================
+    // MASK (WAJIB pakai drawCover)
+    // ==========================
+
+    drawCover(
+        ctxOutput,
+        results.segmentationMask,
+        w,
+        h
+    );
+
+    // ==========================
+    // MANUSIA
+    // ==========================
+
+    ctxOutput.globalCompositeOperation = "source-in";
+
+    drawCover(
+        ctxOutput,
+        results.image,
+        w,
+        h
+    );
+
+    // ==========================
+    // BACKGROUND
+    // ==========================
+
+    ctxOutput.globalCompositeOperation = "destination-over";
+
+    if (currentBackground === "original") {
+
+        drawCover(
+            ctxOutput,
+            results.image,
+            w,
+            h
+        );
+
+    } else {
+
+        ctxOutput.fillStyle = currentBackground;
+        ctxOutput.fillRect(0, 0, w, h);
+
+    }
+
+    ctxOutput.restore();
+
+    ctxOutput.globalCompositeOperation = "source-over";
+
+}
+
+    function drawPreviewFrame() {
+    // Frame sekarang menggunakan elemen <img id="frameOverlay">
+    // sehingga tidak perlu digambar ke canvas.
+}
 
     async function startCamera() {
         try {
             localStream = await navigator.mediaDevices.getUserMedia({ 
-                video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } } 
+               video: {
+    facingMode: "user",
+    width: {
+        ideal: 1280
+    },
+    height: {
+        ideal: 720
+    }
+}
             });
             video.srcObject = localStream;
-            video.onloadedmetadata = () => {
-                outputCanvas.width = video.videoWidth;
-                outputCanvas.height = video.videoHeight;
-                video.play();
-                updateFrameProcessing();
-            };
-            btnMulai.classList.add('hidden');
-            areaAksiFoto.classList.remove('hidden');
-            backgroundSelector.classList.remove('hidden');
-            outputCanvas.classList.remove('hidden');
-            photoPreview.classList.add('hidden');
+          video.onloadedmetadata = async () => {
+
+    await video.play();
+
+    // ukuran asli kamera
+    const vw = video.videoWidth;
+    const vh = video.videoHeight;
+
+    // rasio polaroid
+    const targetRatio = 3 / 4;
+
+    let cw;
+    let ch;
+
+    if ((vw / vh) > targetRatio) {
+
+        ch = vh;
+        cw = ch * targetRatio;
+
+    } else {
+
+        cw = vw;
+        ch = cw / targetRatio;
+
+    }
+
+    outputCanvas.width = cw;
+    outputCanvas.height = ch;
+
+    updateFrameProcessing();
+
+};
+           btnMulai.classList.add('hidden');
+
+areaAksiFoto.classList.remove('hidden');
+
+backgroundSelector.classList.remove('hidden');
+
+frameSelector.classList.remove('hidden');
+
+outputCanvas.classList.remove('hidden');
+
+photoPreview.classList.add('hidden');
         } catch (err) {
             showError("Gagal mengakses kamera: " + err.message);
         }
     }
 
-    async function updateFrameProcessing() {
-        if (!video.paused && !video.ended) {
-            await selfieSegmentation.send({ image: video });
-            requestAnimationFrame(updateFrameProcessing);
-        }
+  let processingCamera = false;
+
+async function updateFrameProcessing() {
+
+    if (processingCamera) return;
+
+    processingCamera = true;
+
+    while (
+        video.srcObject &&
+        !video.paused &&
+        !video.ended
+    ) {
+
+        await selfieSegmentation.send({
+            image: video
+        });
+
+        // sekitar 25 fps
+        await new Promise(resolve=>setTimeout(resolve,40));
+
     }
 
-    document.querySelectorAll('.bg-thumb').forEach(thumb => {
-        thumb.addEventListener('click', (e) => {
-            document.querySelectorAll('.bg-thumb').forEach(t => t.classList.remove('active'));
-            e.target.classList.add('active');
-            currentBackground = e.target.getAttribute('data-bg');
-        });
+    processingCamera=false;
+
+}
+
+ document.querySelectorAll(".frame-thumb").forEach(item=>{
+
+    item.addEventListener("click",()=>{
+
+        document.querySelectorAll(".frame-thumb")
+            .forEach(f=>f.classList.remove("active"));
+
+        item.classList.add("active");
+
+        /*
+            frame besar
+        */
+        selectedFrame = item.dataset.frame;
+
+        /*
+            load frame preview
+        */
+       frameOverlay.src = previewFrameMap[selectedFrame];
+
+
     });
+
+});
 
     const getSupportedAudioMimeType = () => {
         const types = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/x-m4a', 'audio/mpeg', 'audio/wav'];
@@ -502,22 +812,54 @@
         }
     };
 
-    function captureSnapshot() {
-        flashOverlay.classList.remove('opacity-0');
-        flashOverlay.classList.add('opacity-100');
-        setTimeout(() => {
-            flashOverlay.classList.remove('opacity-100');
-            flashOverlay.classList.add('opacity-0');
-        }, 150);
+   function captureSnapshot(){
 
-        rawCapturedImage = outputCanvas.toDataURL('image/jpeg', 0.95);
-        photoPreview.src = rawCapturedImage;
-        outputCanvas.classList.add('hidden');
-        backgroundSelector.classList.add('hidden');
-        photoPreview.classList.remove('hidden');
-        btnFoto.classList.add('hidden');
-        areaRetake.classList.remove('hidden');
-    }
+    flashOverlay.classList.remove("opacity-0");
+    flashOverlay.classList.add("opacity-100");
+
+    setTimeout(()=>{
+
+        flashOverlay.classList.remove("opacity-100");
+        flashOverlay.classList.add("opacity-0");
+
+    },150);
+
+    /*
+        FOTO TANPA FRAME
+    */
+
+   
+
+  const snapshotCanvas = document.createElement("canvas");
+snapshotCanvas.width = outputCanvas.width;
+snapshotCanvas.height = outputCanvas.height;
+
+const snapshotCtx = snapshotCanvas.getContext("2d");
+
+snapshotCtx.drawImage(
+    outputCanvas,
+    0,
+    0
+);
+
+rawCapturedImage = snapshotCanvas.toDataURL("image/png");
+
+// preview
+photoPreview.src = rawCapturedImage;
+
+    outputCanvas.classList.add("hidden");
+
+    backgroundSelector.classList.add("hidden");
+
+    frameSelector.classList.add("hidden");
+
+    photoPreview.classList.remove("hidden");
+
+    btnFoto.classList.add("hidden");
+
+    areaRetake.classList.remove("hidden");
+
+}
 
     btnFoto.onclick = () => {
         btnFoto.disabled = true;
@@ -537,25 +879,49 @@
         }, 1000);
     };
 
-    btnRetake.onclick = () => {
-        outputCanvas.classList.remove('hidden');
-        backgroundSelector.classList.remove('hidden');
-        photoPreview.classList.add('hidden');
-        btnFoto.classList.remove('hidden');
-        areaRetake.classList.add('hidden');
-        rawCapturedImage = null;
-        btnFoto.disabled = false;
-        updateFrameProcessing();
-    };
+  btnRetake.onclick = () => {
 
-    btnLanjut.onclick = () => {
-        areaAksiFoto.classList.add('hidden');
-        backgroundSelector.classList.add('hidden');
-        formData.classList.remove('hidden');
-        if (localStream) {
-            localStream.getTracks().forEach(track => track.stop());
-        }
-    };
+    outputCanvas.classList.remove("hidden");
+
+    backgroundSelector.classList.remove("hidden");
+
+    frameSelector.classList.remove("hidden");
+
+    photoPreview.classList.add("hidden");
+
+    btnFoto.classList.remove("hidden");
+
+    areaRetake.classList.add("hidden");
+
+    rawCapturedImage = null;
+
+    btnFoto.disabled = false;
+
+    updateFrameProcessing();
+
+};
+
+  btnLanjut.onclick = () => {
+
+    areaAksiFoto.classList.add('hidden');
+
+    backgroundSelector.classList.add('hidden');
+
+    frameSelector.classList.add('hidden');
+
+    formData.classList.remove('hidden');
+
+    if (localStream) {
+
+    localStream.getTracks().forEach(track => track.stop());
+
+}
+
+processingCamera = false;
+
+video.srcObject = null;
+
+};
 
     formData.onsubmit = async (e) => {
         e.preventDefault();
@@ -578,40 +944,111 @@
         polaroidCanvas.width = 1200;
         polaroidCanvas.height = 1600;
 
-        ctx.fillStyle = "#FFFFFF";
-        ctx.fillRect(0, 0, polaroidCanvas.width, polaroidCanvas.height);
+    // ============================
+// LOAD FOTO + FRAME
+// ============================
 
-        ctx.strokeStyle = "#F1F5F9";
-        ctx.lineWidth = 4;
-        ctx.strokeRect(15, 15, polaroidCanvas.width - 30, polaroidCanvas.height - 30);
+const frame = new Image();
+const img = new Image();
 
-        const img = new Image();
+await Promise.all([
+
+    new Promise((resolve,reject)=>{
+
+        frame.onload = resolve;
+        frame.onerror = reject;
+
+        frame.src = selectedFrame;
+
+    }),
+
+    new Promise((resolve,reject)=>{
+
+        img.onload = resolve;
+        img.onerror = reject;
+
         img.src = rawCapturedImage;
-        
-        img.onload = async () => {
-            const photoX = 70;
-            const photoY = 70;
-            const photoWidth = 1060;
-            const photoHeight = 1060;
 
-            const imgRatio = img.width / img.height;
-            const targetRatio = photoWidth / photoHeight;
-            let sx, sy, sw, sh;
+    })
 
-            if (imgRatio > targetRatio) {
-                sh = img.height;
-                sw = img.height * targetRatio;
-                sx = (img.width - sw) / 2;
-                sy = 0;
-            } else {
-                sw = img.width;
-                sh = img.width / targetRatio;
-                sx = 0;
-                sy = (img.height - sh) / 2;
-            }
+]);
 
-            ctx.drawImage(img, sx, sy, sw, sh, photoX, photoY, photoWidth, photoHeight);
-            await document.fonts.ready;
+
+// ============================
+// AREA FOTO
+// ============================
+
+const photoX = 70;
+const photoY = 70;
+const photoWidth = 1060;
+const photoHeight = 1060;
+
+
+// ============================
+// CROP TENGAH
+// ============================
+
+const imgRatio = img.width / img.height;
+const frameRatio = photoWidth / photoHeight;
+
+let sx,sy,sw,sh;
+
+if(imgRatio > frameRatio){
+
+    sh = img.height;
+    sw = sh * frameRatio;
+
+    sx = (img.width - sw)/2;
+    sy = 0;
+
+}else{
+
+    sw = img.width;
+    sh = sw / frameRatio;
+
+    sx = 0;
+    sy = (img.height - sh)/2;
+
+}
+
+
+// ============================
+// FOTO
+// ============================
+
+ctx.drawImage(
+
+    img,
+
+    sx,
+    sy,
+    sw,
+    sh,
+
+    photoX,
+    photoY,
+    photoWidth,
+    photoHeight
+
+);
+
+
+// ============================
+// FRAME
+// ============================
+
+ctx.drawImage(
+
+    frame,
+
+    0,
+    0,
+
+    polaroidCanvas.width,
+    polaroidCanvas.height
+
+);
+await document.fonts.ready;
 
             ctx.fillStyle = "#475569";
             ctx.font = "italic 500 36px 'Playfair Display', serif";
@@ -628,25 +1065,63 @@
             ctx.lineTo(1120, 1240);
             ctx.stroke();
 
-            if (audioBase64) {
-                document.getElementById('qrcode').innerHTML = ""; 
-                const domainProduksi = "https://gamon-tawing.vercel.app"; 
-                const listenUrl = `${domainProduksi}/suara.html?orderId=${generatedOrderId}`;
-                
-                const qrContainer = document.getElementById('qrcode');
-                new QRCode(qrContainer, {
-                    text: listenUrl,
-                    width: 160,
-                    height: 160,
-                    correctLevel: QRCode.CorrectLevel.H
-                });
+         /* ===========================================
+   GENERATE & DRAW QR AUDIO
+=========================================== */
 
-                await new Promise(resolve => setTimeout(resolve, 300));
-                const qrImgElement = qrContainer.querySelector('img');
-                if (qrImgElement) {
-                    ctx.drawImage(qrImgElement, 950, 1320, 180, 180);
-                }
-            }
+if (audioBase64) {
+
+    const qrContainer = document.getElementById("qrcode");
+
+    // Bersihkan QR sebelumnya
+    qrContainer.innerHTML = "";
+
+    const domainProduksi = "https://gamon-tawing.vercel.app";
+
+    const listenUrl =
+        `${domainProduksi}/suara.html?orderId=${generatedOrderId}`;
+
+    // Generate QR
+    new QRCode(qrContainer, {
+        text: listenUrl,
+        width: 180,
+        height: 180,
+        correctLevel: QRCode.CorrectLevel.H
+    });
+
+    // Tunggu QR selesai dirender
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    // Ambil CANVAS QR (lebih stabil daripada IMG)
+    const qrCanvas = qrContainer.querySelector("canvas");
+
+    if (qrCanvas) {
+
+        console.log("QR Canvas ditemukan.");
+
+        // Optional: garis merah agar posisi QR kelihatan
+        ctx.strokeStyle = "red";
+        ctx.lineWidth = 3;
+        ctx.strokeRect(930, 1310, 190, 190);
+
+        // Gambar QR ke canvas utama
+        ctx.drawImage(
+            qrCanvas,
+            930,   // X
+            1310,  // Y
+            190,   // Width
+            190    // Height
+        );
+
+        console.log("QR berhasil digambar.");
+
+    } else {
+
+        console.error("Canvas QR tidak ditemukan!");
+
+    }
+
+}
 
             ctx.fillStyle = "#1E293B";
             ctx.font = "italic 500 40px 'Playfair Display', serif";
@@ -676,7 +1151,8 @@
                 ctx.fillText(line, 80, currentY);
             }
 
-            const polaroidBase64 = polaroidCanvas.toDataURL('image/jpeg', 0.9);
+           const polaroidBase64 =
+polaroidCanvas.toDataURL("image/png");
             btnKirim.innerText = "Mengirim Pesanan...";
 
             Swal.fire({
@@ -706,16 +1182,21 @@
                 }
 
                 await showSuccess('Berhasil! Gantungan kunci Polaroid akan segera kami rakit dan kirim ke alamat Anda.');
-                localStorage.removeItem('tempOrderId');
+               localStorage.removeItem("tempOrderId");
+
+if(unsubscribePaymentListener){
+
+    unsubscribePaymentListener();
+
+}
                 window.location.href = 'index.html';
-            } catch (err) {
+                       } catch (err) {
                 Swal.close();
                 await showError('Gagal: ' + err.message);
                 btnKirim.innerText = "Kirim & Proses Gantungan Kunci";
                 btnKirim.disabled = false;
             }
         };
-    };
 </script>
 </body>
 </html>
