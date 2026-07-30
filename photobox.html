@@ -804,6 +804,31 @@
             orderId: generatedOrderId
         };
 
+        // try {
+        //     const response = await fetch('/api/submit-photobox', {
+        //         method: 'POST',
+        //         headers: { 'Content-Type': 'application/json' },
+        //         body: JSON.stringify(payload)
+        //     });
+        //     Swal.close();
+        //     if (!response.ok) {
+        //         const errData = await response.json();
+        //         throw new Error(errData.message || 'Gagal memproses.');
+        //     }
+
+        //     await showSuccess('Berhasil! Gantungan kunci Polaroid akan segera kami rakit dan kirim ke alamat Anda.');
+        //     localStorage.removeItem("tempOrderId");
+
+        //     if(unsubscribePaymentListener){
+        //         unsubscribePaymentListener();
+        //     }
+        //     window.location.href = 'index.html';
+        // } catch (err) {
+        //     Swal.close();
+        //     await showError('Gagal: ' + err.message);
+        //     btnKirim.innerText = "Kirim & Proses Gantungan Kunci";
+        //     btnKirim.disabled = false;
+        // }
         try {
             const response = await fetch('/api/submit-photobox', {
                 method: 'POST',
@@ -816,8 +841,10 @@
                 throw new Error(errData.message || 'Gagal memproses.');
             }
 
-            await showSuccess('Berhasil! Gantungan kunci Polaroid akan segera kami rakit dan kirim ke alamat Anda.');
+            // Hapus session/orderId segera setelah backend sukses menerima data
             localStorage.removeItem("tempOrderId");
+
+            await showSuccess('Berhasil! Gantungan kunci Polaroid akan segera kami rakit dan kirim ke alamat Anda.');
 
             if(unsubscribePaymentListener){
                 unsubscribePaymentListener();
