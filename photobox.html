@@ -92,11 +92,23 @@
                     </p>
                 </div>
                 
-                <!-- CAMERA SCREEN (Disesuaikan mengikuti rasio master polaroid 900x1350) -->
-                <div id="cameraContainer" class="relative w-full bg-white rounded-2xl overflow-hidden shadow-inner border border-neutral-200" style="aspect-ratio: 900 / 1350;">
+                <!-- CAMERA SCREEN (Disesuaikan mengikuti rasio master polaroid 900x1560) -->
+                <div id="cameraContainer" class="relative w-full bg-white rounded-2xl overflow-hidden shadow-inner border border-neutral-200" style="aspect-ratio: 900 / 1560;">
                     
-                    <!-- Area Kotak Lubang Foto Kamera (Persis sama dengan posisi X:85, Y:90, W:730, H:940 dari canvas 900x1350) -->
-                    <div class="absolute overflow-hidden" style="left: 9.44%; top: 6.66%; width: 81.11%; height: 69.63%;">
+                    <!--
+X:100
+Y:100
+W:700
+H:1000
+-->
+                   <div
+class="absolute overflow-hidden"
+style="
+left:11.11%;
+top:6.41%;
+width:77.78%;
+height:64.10%;
+">
                         <video id="video" class="hidden absolute inset-0 w-full h-full object-cover" autoplay playsinline></video>
                         <canvas id="outputCanvas" class="absolute inset-0 w-full h-full"></canvas>
                         <img id="photoPreview" class="hidden absolute inset-0 w-full h-full object-cover" alt="Preview">
@@ -413,15 +425,16 @@
     async function startCamera() {
         try {
             localStream = await navigator.mediaDevices.getUserMedia({ 
-                video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } }
+                video: { facingMode: "user", width: { ideal: 1920 }, height: { ideal: 1080 } }
             });
             video.srcObject = localStream;
             video.onloadedmetadata = async () => {
                 await video.play();
                 const vw = video.videoWidth;
                 const vh = video.videoHeight;
-                const PHOTO_WIDTH = 730;
-                const PHOTO_HEIGHT = 940;
+                
+                const PHOTO_WIDTH = 700;
+                const PHOTO_HEIGHT = 1002;
                 const targetRatio = PHOTO_WIDTH / PHOTO_HEIGHT;
                 let cw, ch;
 
@@ -672,7 +685,7 @@
         const ctx = polaroidCanvas.getContext('2d');
         
         polaroidCanvas.width = 900;
-        polaroidCanvas.height = 1350;
+        polaroidCanvas.height = 1560;
 
         const frame = new Image();
         const img = new Image();
@@ -690,10 +703,10 @@
             })
         ]);
 
-        const photoX = 85;
-        const photoY = 90;
-        const photoWidth = 730;
-        const photoHeight = 940;
+        const photoX = 100;
+        const photoY = 100;
+        const photoWidth = 700;
+        const photoHeight = 1002; // Disesuaikan menjadi 1002 agar pas tanpa ada celah garis hitam
 
         const imgRatio = img.width / img.height;
         const frameRatio = photoWidth / photoHeight;
@@ -720,19 +733,19 @@
         ctx.font = "italic 500 22px 'Playfair Display', serif";
         
         ctx.textAlign = "left";
-        ctx.fillText(`Dear: ${tujuan}`, 85, 1065);
+        ctx.fillText(`Dear: ${tujuan}`, 100, 1145);
 
         ctx.textAlign = "right";
-        ctx.fillText(`— Dari: ${nama}`, 815, 1065);
+        ctx.fillText(`— Dari: ${nama}`, 800, 1145);
 
         ctx.strokeStyle = "#CBD5E1";
         ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.moveTo(85, 1085);
-        ctx.lineTo(815, 1085);
+        ctx.moveTo(100, 1165);
+        ctx.lineTo(800, 1165);
         ctx.stroke();
 
-        let textMaxWidth = 730;
+        let textMaxWidth = 700;
         if (audioBase64) {
             const qrContainer = document.getElementById("qrcode");
             qrContainer.innerHTML = "";
@@ -751,10 +764,10 @@
 
             if (qrCanvas) {
                 const qrSize = 120;
-                const qrX = 680;
-                const qrY = 1105;
+                const qrX = 650;
+                const qrY = 1195;
                 ctx.drawImage(qrCanvas, qrX, qrY, qrSize, qrSize);
-                textMaxWidth = 570; 
+                textMaxWidth = 520;
             }
         }
 
@@ -766,14 +779,14 @@
             const words = pesan.split(' ');
             let line = '';
             let lineCount = 0;
-            let currentY = 1135;
+            let currentY = 1200;
             const lineHeight = 34;
 
             for (let n = 0; n < words.length; n++) {
                 let testLine = line + words[n] + ' ';
                 let metrics = ctx.measureText(testLine);
                 if (metrics.width > textMaxWidth && n > 0) {
-                    ctx.fillText(line, 85, currentY);
+                    ctx.fillText(line, 100, currentY);
                     line = words[n] + ' ';
                     currentY += lineHeight;
                     lineCount++;
@@ -783,7 +796,7 @@
                 }
             }
             if (lineCount < 3) {
-                ctx.fillText(line, 85, currentY);
+                ctx.fillText(line, 100, currentY);
             }
         }
 
