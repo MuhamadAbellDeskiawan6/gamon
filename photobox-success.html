@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sukses Order Photobox</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
+</head>
+<body class="bg-slate-100 flex items-center justify-center min-h-screen p-4">
+    <div class="bg-white rounded-3xl shadow-xl max-w-lg w-full p-6 text-center space-y-6">
+        <div id="loadingState" class="py-12 space-y-4">
+            <div class="inline-block animate-spin rounded-full h-10 w-10 border-4 border-slate-600 border-t-transparent"></div>
+            <p class="text-sm text-slate-500">Memuat detail pesanan Anda...</p>
+        </div>
+
+        <div id="successContent" class="hidden space-y-6">
+            <div class="space-y-2">
+                <div class="inline-flex items-center justify-center w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full text-2xl mb-2">
+                    ✅
+                </div>
+                <h1 class="text-2xl font-bold text-slate-800">Pesanan Photobox Berhasil!</h1>
+                <p class="text-xs text-slate-500">Tunjukkan halaman ini saat mengambil merchandise di lokasi kami.</p>
+            </div>
+
+            <div class="bg-slate-50 rounded-2xl p-4 text-left space-y-3 border border-slate-200">
+                <div class="flex justify-between items-center text-xs border-b pb-2">
+                    <span class="text-slate-400">Status Pesanan</span>
+                    <span id="badgeStatus" class="font-bold px-2 py-0.5 rounded-full text-[10px]"></span>
+                </div>
+                <div class="grid grid-cols-2 gap-2 text-xs">
+                    <div>
+                        <span class="text-slate-400 block">Order ID</span>
+                        <span id="txtOrderId" class="font-mono font-semibold text-slate-700"></span>
+                    </div>
+                    <div>
+                        <span class="text-slate-400 block">Nama Pemesan</span>
+                        <span id="txtCustomer" class="font-semibold text-slate-700"></span>
+                    </div>
+                </div>
+            </div>
+
+            <p class="text-xs text-slate-500">Jika halaman ini tertutup, buka kembali link konfirmasi yang dikirim ke email Anda atau gunakan Order ID di bawah.</p>
+
+            <div class="bg-white border-2 border-dashed border-slate-200 rounded-2xl p-6 space-y-4">
+                <div id="qrcode" class="flex justify-center"></div>
+                <div>
+                    <span class="text-[10px] text-slate-400 uppercase tracking-wider block mb-1">Kode Pesanan</span>
+                    <span id="txtRedeemCode" class="text-xl font-mono font-extrabold text-slate-900 tracking-widest">---</span>
+                </div>
+            </div>
+
+            <div class="bg-blue-50 border border-blue-200 rounded-2xl p-4 text-left space-y-3">
+                <div class="flex items-center space-x-2 text-blue-900 font-bold text-xs">
+                    <span>📍 Lokasi Pengambilan</span>
+                </div>
+                <p class="text-xs text-blue-800 leading-relaxed">
+                    Jl. Kelayan A Gg. Sidodadi No.75 RT.009 RW.001, Kel. Murung Raya, Kec. Banjarmasin Selatan, Kota Banjarmasin
+                </p>
+                <p class="text-xs text-blue-700 font-semibold">Buka setiap hari. Tunjukkan order ID ini saat datang.</p>
+                <div class="pt-1">
+                    <a href="https://maps.google.com/?q=-3.341675686710689,114.5969296323192" target="_blank" class="inline-flex items-center justify-center w-full bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold py-2.5 rounded-xl transition shadow-sm">
+                        🗺️ Buka Google Maps
+                    </a>
+                </div>
+            </div>
+
+            <button onclick="window.location.href='/'" class="w-full bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-semibold py-3 rounded-xl transition">
+                Kembali ke Beranda
+            </button>
+        </div>
+
+        <div id="errorContent" class="hidden space-y-4 py-8">
+            <div class="inline-flex items-center justify-center w-16 h-16 bg-rose-100 text-rose-600 rounded-full text-2xl mb-2">
+                ❌
+            </div>
+            <h2 id="errorTitle" class="text-lg font-bold text-slate-800">Gagal Memuat Pesanan</h2>
+            <p id="errorMessage" class="text-xs text-slate-500"></p>
+            <button onclick="location.reload()" class="bg-blue-600 text-white text-xs px-6 py-2.5 rounded-xl font-semibold">Coba Lagi</button>
+        </div>
+    </div>
+
+    <script>
+        async function fetchOrderDetail() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const orderId = urlParams.get('orderId');
+
+            if (!orderId) {
+                return showError('Parameter Order ID tidak ditemukan pada URL.');
+            }
+
+            try {
+                const response = await fetch(`/api/get-photobox-order?orderId=${encodeURIComponent(orderId)}`);
+                const result = await response.json();
+
+                if (!result.success) {
+                    return showError(result.message || 'Pesanan tidak ditemukan.');
+                }
+
+                const data = result.data;
+                document.getElementById('txtOrderId').innerText = data.orderId || orderId;
+                document.getElementById('txtCustomer').innerText = data.nama || '-';
+                document.getElementById('txtRedeemCode').innerText = data.orderId || '---';
+
+                const badge = document.getElementById('badgeStatus');
+                if (data.statusMerchandise === 'READY_PICKUP') {
+                    badge.className = 'font-bold px-2.5 py-1 rounded-full text-[10px] bg-emerald-100 text-emerald-700';
+                    badge.innerText = 'SIAP DIAMBIL';
+                } else if (data.statusMerchandise === 'PICKED_UP') {
+                    badge.className = 'font-bold px-2.5 py-1 rounded-full text-[10px] bg-slate-200 text-slate-700';
+                    badge.innerText = 'SUDAH DIAMBIL';
+                } else {
+                    badge.className = 'font-bold px-2.5 py-1 rounded-full text-[10px] bg-amber-100 text-amber-700';
+                    badge.innerText = 'DIPROSES';
+                }
+
+                const qrContainer = document.getElementById('qrcode');
+                qrContainer.innerHTML = '';
+                try {
+                    const typeNumber = 0;
+                    const errorCorrectionLevel = 'L';
+                    const qr = qrcode(typeNumber, errorCorrectionLevel);
+                    qr.addData(data.orderId || orderId);
+                    qr.make();
+                    qrContainer.innerHTML = qr.createImgTag(5, 8);
+                } catch (e) {
+                    qrContainer.innerHTML = '<span class="text-xs text-rose-500">Gagal generate QR</span>';
+                }
+
+                document.getElementById('loadingState').classList.add('hidden');
+                document.getElementById('successContent').classList.remove('hidden');
+            } catch (err) {
+                console.error(err);
+                showError('Terjadi kesalahan jaringan saat memuat data pesanan.');
+            }
+        }
+
+        function showError(msg) {
+            document.getElementById('loadingState').classList.add('hidden');
+            document.getElementById('errorContent').classList.remove('hidden');
+            document.getElementById('errorMessage').innerText = msg;
+        }
+
+        window.onload = fetchOrderDetail;
+    </script>
+</body>
+</html>

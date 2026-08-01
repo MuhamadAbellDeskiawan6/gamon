@@ -23,7 +23,7 @@
         <div class="flex justify-between items-center mb-6">
             <div>
                 <h2 class="text-2xl font-bold">Daftar Antrean Cetak & Merchandise</h2>
-                <p class="text-slate-500 text-sm">Kelola data pemesanan photobox dan status pengiriman gantungan kunci fisik.</p>
+                <p class="text-slate-500 text-sm">Kelola data pemesanan photobox dan status produksi cenderamata fisik.</p>
             </div>
             <button onclick="loadOrders()" class="bg-slate-800 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-slate-700 transition cursor-pointer">
                 Refresh Data
@@ -34,29 +34,36 @@
             <div class="overflow-x-auto">
                 <table class="w-full text-left border-collapse">
                     <thead>
-                        <tr class="bg-slate-50 border-b border-slate-200 text-slate-600 text-xs font-semibold uppercase tracking-wider">
-                            <th class="px-6 py-4">ID Pesanan / Waktu</th>
-                            <th class="px-6 py-4">Identitas & Kontak</th>
-                            <th class="px-6 py-4">Alamat Pengiriman</th>
-                            <th class="px-6 py-4">Pratinjau Polaroid</th>
-                            <th class="px-6 py-4">Aksi / Cetak</th>
+                        <tr class="bg-slate-50 border-b border-slate-200 text-slate-600 text-[11px] font-semibold uppercase tracking-wider">
+                            <th class="px-5 py-4">Order / Waktu</th>
+                            <th class="px-5 py-4">Pengirim → Penerima</th>
+                            <th class="px-5 py-4">Kontak / Email</th>
+                            <th class="px-5 py-4">Alamat</th>
+                            <th class="px-5 py-4">Status</th>
+                            <th class="px-5 py-4">Aksi</th>
                         </tr>
                     </thead>
                     <tbody id="orderTableBody" class="divide-y divide-slate-100 text-sm text-slate-700">
                         <tr>
-                            <td colspan="5" class="text-center py-8 text-slate-400">Sedang memuat data antrean rahasia...</td>
+                            <td colspan="6" class="text-center py-8 text-slate-400">Sedang memuat data antrean photobox...</td>
                         </tr>
                     </tbody>
                 </table>
             </div>
+            <div id="paginationControls" class="flex flex-col gap-2 px-5 py-4 border-t border-slate-200 bg-slate-50 sm:flex-row sm:items-center sm:justify-between"></div>
         </div>
     </main>
 
     <script>
+        const PAGE_SIZE = 8;
+        let ordersData = [];
+        let currentPage = 1;
+
         window.addEventListener('DOMContentLoaded', loadOrders);
 
         async function loadOrders() {
             const tbody = document.getElementById('orderTableBody');
+            const controls = document.getElementById('paginationControls');
             
             try {
                 const response = await fetch('/api/admin/get-orders');
@@ -69,69 +76,90 @@
                 }
 
                 if (!result.success || !result.data || result.data.length === 0) {
-                    tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-slate-400">Tidak ada antrean pesanan valid saat ini.</td></tr>`;
+                    ordersData = [];
+                    renderOrders();
                     return;
                 }
 
+                ordersData = result.data;
+                currentPage = 1;
+                renderOrders();
+
+            } catch (err) {
+                console.error(err);
+                tbody.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-red-500">Gagal mengambil data dari server.</td></tr>`;
+                document.getElementById('paginationControls').innerHTML = '';
+            }
+        }
+
+        function renderOrders() {
+            const tbody = document.getElementById('orderTableBody');
+            const controls = document.getElementById('paginationControls');
+            const total = ordersData.length;
+            const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+            if (currentPage > pages) currentPage = pages;
+            const startIndex = (currentPage - 1) * PAGE_SIZE;
+            const visible = ordersData.slice(startIndex, startIndex + PAGE_SIZE);
+
+            if (!visible.length) {
+                tbody.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-slate-400">Tidak ada antrean photobox saat ini.</td></tr>`;
+            } else {
                 tbody.innerHTML = '';
-                result.data.forEach(order => {
-                    const date = order.timestamp ? new Date(order.timestamp).toLocaleString('id-ID') : '-';
+                visible.forEach(order => {
+                    const date = order.createdAt ? new Date(order.createdAt).toLocaleString('id-ID') : '-';
                     const currentStatus = order.statusMerchandise || 'PENDING_PRODUCTION';
                     const safeWhatsapp = order.whatsapp ? order.whatsapp.replace(/[^0-9]/g, '') : '';
-                    
-                    // Membuat objek string yang aman dikirim ke parameter onclick function cetak
                     const stringifiedOrder = JSON.stringify(order).replace(/"/g, '&quot;');
-
+                    
                     tbody.innerHTML += `
                         <tr class="hover:bg-slate-50 transition">
-                            <td class="px-6 py-4">
-                                <span class="font-mono text-xs block font-bold text-slate-500">${order.orderId || order.id}</span>
-                                <span class="text-xs text-slate-400">${date}</span>
+                            <td class="px-5 py-4 align-top">
+                                <div class="font-mono text-[11px] font-semibold text-slate-600">${order.orderId || order.id}</div>
+                                <div class="text-[11px] text-slate-400 mt-1">${date}</div>
                             </td>
-                            <td class="px-6 py-4">
-                                <div class="font-semibold text-slate-900">${order.nama || 'Anonim'} → ${order.tujuan || 'Seseorang'}</div>
-                                <div class="text-xs text-slate-500">📧 ${order.email || '-'}</div>
-                                ${order.whatsapp ? `
-                                    <div class="text-xs text-green-600 font-medium mt-0.5">
-                                        <a href="https://wa.me/${safeWhatsapp}" target="_blank" class="hover:underline">🟢 WA: ${order.whatsapp}</a>
-                                    </div>
-                                ` : ''}
+                            <td class="px-5 py-4 align-top">
+                                <div class="font-semibold text-slate-900 text-sm">${order.nama || 'Anonim'} → ${order.tujuan || 'Seseorang'}</div>
+                                <div class="text-[11px] text-slate-500 mt-1">${order.pesan ? `“${order.pesan}”` : 'Tanpa pesan'}</div>
                             </td>
-                            <td class="px-6 py-4 max-w-xs">
-                                <p class="text-xs line-clamp-2" title="${order.alamat || '-'}">${order.alamat || 'Tidak ada alamat'}</p>
-                                ${order.koordinat ? `<a href="https://maps.google.com/?q=${order.koordinat}" target="_blank" class="text-[11px] text-pink-500 font-bold hover:underline block mt-1">📍 Lihat Maps</a>` : ''}
+                            <td class="px-5 py-4 align-top">
+                                <div class="text-[11px] text-slate-600">📧 ${order.email || '-'}</div>
+                                ${order.whatsapp ? `<div class="text-[11px] text-emerald-600 font-medium mt-1"><a href="https://wa.me/${safeWhatsapp}" target="_blank" class="hover:underline">WA: ${order.whatsapp}</a></div>` : '<div class="text-[11px] text-slate-400 mt-1">WA tidak tersedia</div>'}
                             </td>
-                            <td class="px-6 py-4">
-                                ${order.photoBase64 ? `
-                                    <button onclick="openImage('${order.photoBase64}')" class="group relative block focus:outline-none">
-                                        <img src="${order.photoBase64}" class="h-14 w-10 object-cover rounded shadow-sm border border-slate-200 group-hover:scale-105 transition">
-                                        <span class="absolute bottom-0 left-0 right-0 bg-black/60 text-[9px] text-white py-0.5 text-center hidden group-hover:block rounded-b">Buka</span>
-                                    </button>
-                                ` : '<span class="text-xs text-slate-400">Tidak ada foto</span>'}
+                            <td class="px-5 py-4 align-top max-w-xs">
+                                <p class="text-[11px] text-slate-600 line-clamp-2" title="${order.alamat || '-'}">${order.alamat || 'Alamat kosong'}</p>
+                                ${order.koordinat ? `<a href="https://maps.google.com/?q=${order.koordinat}" target="_blank" class="text-[11px] text-pink-500 font-bold hover:underline block mt-1">Lihat Maps</a>` : ''}
                             </td>
-                            <td class="px-6 py-4">
-                                <div class="flex items-center gap-2">
-                                    <select onchange="updateStatus('${order.id}', this.value)" 
-                                        class="px-2 py-1 text-xs font-semibold rounded-lg bg-slate-100 border border-slate-300 text-slate-700 focus:outline-none focus:border-pink-500 cursor-pointer">
-                                        <option value="PENDING_PRODUCTION" ${currentStatus === 'PENDING_PRODUCTION' ? 'selected' : ''}>⏳ Pending</option>
-                                        <option value="DIPROSES" ${currentStatus === 'DIPROSES' ? 'selected' : ''}>🛠️ Diproses</option>
-                                        <option value="DIKIRIM" ${currentStatus === 'DIKIRIM' ? 'selected' : ''}>📦 Dikirim</option>
-                                        <option value="SELESAI" ${currentStatus === 'SELESAI' ? 'selected' : ''}>✅ Selesai</option>
-                                    </select>
-                                    <button onclick="cetakResi(${stringifiedOrder})" 
-                                        class="px-2 py-1 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition cursor-pointer">
-                                        🖨️ Resi
-                                    </button>
+                            <td class="px-5 py-4 align-top">
+                                <span class="inline-flex items-center rounded-full px-3 py-1 text-[11px] font-semibold ${currentStatus === 'PENDING_PRODUCTION' ? 'bg-amber-100 text-amber-800' : currentStatus === 'DIPROSES' ? 'bg-sky-100 text-sky-800' : currentStatus === 'DIKIRIM' ? 'bg-violet-100 text-violet-800' : currentStatus === 'SELESAI' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-700'}">
+                                    ${currentStatus.replace('_', ' ')}
+                                </span>
+                            </td>
+                            <td class="px-5 py-4 align-top">
+                                <div class="flex flex-col gap-2">
+                                    <button onclick="openVerifikasi('${order.orderId || order.id}')" class="px-3 py-2 rounded-lg bg-amber-600 text-white text-[11px] font-semibold hover:bg-amber-700 transition">Verifikasi</button>
+                                    <button onclick="cetakResi(${stringifiedOrder})" class="px-3 py-2 rounded-lg bg-slate-800 text-white text-[11px] font-semibold hover:bg-slate-900 transition">Resi</button>
                                 </div>
                             </td>
                         </tr>
                     `;
                 });
-
-            } catch (err) {
-                console.error(err);
-                tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-red-500">Gagal mengambil data dari server.</td></tr>`;
             }
+
+            controls.innerHTML = `
+                <div class="text-[11px] text-slate-500">Menampilkan ${visible.length ? startIndex + 1 : 0}–${startIndex + visible.length} dari ${total} antrean</div>
+                <div class="flex items-center gap-2 justify-end">
+                    <button ${currentPage === 1 ? 'disabled' : ''} onclick="goPage(${currentPage - 1})" class="px-3 py-2 rounded-lg text-[11px] font-semibold ${currentPage === 1 ? 'bg-slate-200 text-slate-500 cursor-not-allowed' : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'}">Sebelumnya</button>
+                    <span class="text-[11px] text-slate-500">Halaman ${currentPage} dari ${pages}</span>
+                    <button ${currentPage === pages ? 'disabled' : ''} onclick="goPage(${currentPage + 1})" class="px-3 py-2 rounded-lg text-[11px] font-semibold ${currentPage === pages ? 'bg-slate-200 text-slate-500 cursor-not-allowed' : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'}">Berikutnya</button>
+                </div>
+            `;
+        }
+
+        function goPage(page) {
+            const totalPages = Math.max(1, Math.ceil(ordersData.length / PAGE_SIZE));
+            if (page < 1 || page > totalPages) return;
+            currentPage = page;
+            renderOrders();
         }
 
         async function updateStatus(orderId, statusBaru) {
@@ -146,12 +174,18 @@
                     const result = await response.json();
                     alert("Gagal mengubah status: " + result.message);
                     loadOrders();
+                } else {
+                    loadOrders();
                 }
             } catch (error) {
                 console.error(error);
                 alert("Terjadi kesalahan koneksi.");
                 loadOrders();
             }
+        }
+
+        function openVerifikasi(orderId) {
+            window.location.href = `/photobox-admin.html?orderId=${orderId}`;
         }
 
         function cetakResi(order) {
@@ -195,7 +229,7 @@
                         </div>
                         <div class="section">
                             <div class="label">ISI PAKET:</div>
-                            <div class="value" style="font-weight: normal; font-size: 11px;">1x Gantungan Kunci Polaroid Custom</div>
+                            <div class="value" style="font-weight: normal; font-size: 11px;">1x Merchandise Polaroid Custom</div>
                         </div>
                         <div class="footer">Terima kasih telah berpartisipasi di Gamon Tawing!</div>
                     </div>

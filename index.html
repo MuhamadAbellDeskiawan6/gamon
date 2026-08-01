@@ -273,6 +273,11 @@
     <div id="bubbleCanvas">
         <div id="loadingMsg">Memuat pesan-pesan rindu... ✦</div>
     </div>
+    <div class="text-center mt-6">
+        <button id="loadMorePosts" class="hidden px-6 py-3 rounded-full bg-primary text-white shadow-lg hover:bg-primary-dark transition duration-200">
+            Muat Lebih Banyak
+        </button>
+    </div>
 
 </main>
 
@@ -739,53 +744,7 @@
     });
 </script>
 
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getFirestore, collection, getDocs, query, orderBy, limit, doc, updateDoc, increment } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-
-const firebaseConfig = {
-    apiKey: "AIzaSyC247K8yyL67aWV95KNQy8CkMZsjgGCudQ",
-    authDomain: "gamon-tawing.firebaseapp.com",
-    projectId: "gamon-tawing",
-    storageBucket: "gamon-tawing.appspot.com",
-    messagingSenderId: "370162915989",
-    appId: "1:370162915989:web:76779062da83aa0c5c999c"
-};
-
-const app = initializeApp(firebaseConfig);
-const db  = getFirestore(app);
-
-window._incrementLike = async (id) => {
-    try { await updateDoc(doc(db,'gamon',id), { likes: increment(1) }); } catch(e) { console.error(e); }
-};
-
-async function loadAllPosts() {
-    try {
-        const snap = await getDocs(query(collection(db,'gamon'), orderBy('waktu','desc'), limit(100)));
-        const posts = [];
-        snap.forEach(d => {
-            const data = d.data();
-            const shouldShowOnHome = data.showOnHome !== false;
-            if (!shouldShowOnHome) return;
-            if (data.type === 'photobox' || data.photoUrl || data.pesan) {
-                posts.push({ id: d.id, ...data });
-            }
-        });
-        posts.sort((a,b) => Number(b.waktu||0) - Number(a.waktu||0));
-
-        window._cachedPosts = posts;
-        const loadingEl = document.getElementById('loadingMsg');
-        if(loadingEl) loadingEl.remove();
-        placeBubbles(posts);
-    } catch(e) {
-        console.error('Gagal load data:', e);
-        const loadingEl = document.getElementById('loadingMsg');
-        if(loadingEl) loadingEl.textContent = 'Gagal memuat pesan 😢';
-    }
-}
-
-loadAllPosts();
-</script>
+<script type="module" src="./index-main.js"></script>
 
 </body>
 </html>

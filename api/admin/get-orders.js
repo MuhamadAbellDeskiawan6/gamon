@@ -11,7 +11,20 @@ if (!getApps().length) {
         const firebaseMatch = envContent.match(/FIREBASE_SERVICE_ACCOUNT=['"]({[\s\S]*?})['"]/);
         if (firebaseMatch && firebaseMatch[1]) process.env.FIREBASE_SERVICE_ACCOUNT = firebaseMatch[1].trim();
     }
-    const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+
+    let serviceAccount;
+    if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+        serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+    } else {
+        const keyPath = path.resolve(process.cwd(), 'server', 'serviceAccountKey.json');
+        if (fs.existsSync(keyPath)) {
+            serviceAccount = JSON.parse(fs.readFileSync(keyPath, 'utf8'));
+        }
+    }
+
+    if (!serviceAccount) {
+        throw new Error('Kredensial Firebase tidak ditemukan!');
+    }
     initializeApp({ credential: cert(serviceAccount) });
 }
 
@@ -42,15 +55,13 @@ export default async function handler(req, res) {
         }
 
         const db = getFirestore();
-        // Mengambil semua data dari koleksi orders
-        const snapshot = await db.collection('orders').get();
+        // Mengambil semua data photobox dari koleksi photobox_order
+        const snapshot = await db.collection('photobox_order').get();
         
-        // Memfilter data: Hanya ambil dokumen yang memiliki field timestamp & nama (menghindari dokumen kosong seperti Gambar 2)
         const orders = snapshot.docs
             .map(doc => ({ id: doc.id, ...doc.data() }))
-            .filter(order => order.timestamp && order.nama)
-            // Urutkan manual berdasarkan waktu terbaru ke terlama
-            .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+            .filter(order => order.createdAt && order.nama)
+            .sort((a, b) => Number(b.createdAt) - Number(a.createdAt));
 
         return res.status(200).json({ success: true, data: orders });
 

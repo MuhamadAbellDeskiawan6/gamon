@@ -191,6 +191,9 @@ export default async function handler(req, res) {
         ""
       );
 
+      const baseUrl = process.env.BASE_URL || 'https://gamon-tawing.vercel.app';
+      const successUrl = `${baseUrl}/photobox-success.html?orderId=${finalOrderId}`;
+
       const transporter = nodemailer.createTransport({
         service: "gmail",
         auth: {
@@ -215,8 +218,13 @@ export default async function handler(req, res) {
               <tr><td style="padding:6px 0"><b>WhatsApp</b></td><td style="padding:6px 0">${whatsapp}</td></tr>
             </table>
 
-            <p style="margin-bottom:6px"><b>Alamat Pengiriman:</b></p>
+            <p style="margin-bottom:6px"><b>Lokasi Ambil:</b></p>
             <div style="background:#f8f8f8;padding:12px;border-radius:12px;font-size:14px;white-space:pre-wrap">${alamat}</div>
+            <p style="font-size:13px;color:#555;margin-top:10px">Silakan datang ke lokasi kami setelah pembayaran dikonfirmasi dengan menunjukkan bukti pesanan.</p>
+            <p style="font-size:13px;color:#555;margin-top:10px">
+              Jika halaman sukses tertutup, buka kembali tautan ini atau gunakan Order ID berikut:
+              <br><a href="${successUrl}" style="color:#2563eb;text-decoration:none">${successUrl}</a>
+            </p>
 
             ${
               audioUrl

@@ -58,11 +58,11 @@
     <!-- MAIN CONTAINER MACHINE WRAPPER -->
     <div class="w-full max-w-md relative z-10">
         
-        <!-- ELEMENT 1: GANTUNGAN KUNCI -->
+        <!-- ELEMENT 1: CENDERAMATA -->
         <div class="absolute -top-10 -right-4 sm:-right-6 md:-right-14 w-24 sm:w-28 md:w-24 flex flex-col items-center pointer-events-none z-20 animate-float-custom origin-bottom">
             <div class="w-4 h-4 sm:w-5 sm:h-5 rounded-full border-2 border-gray-400 bg-transparent mb-[-4px] shadow-sm z-30"></div>
             <div class="bg-white/90 backdrop-blur-sm p-1.5 pb-4 sm:p-2 sm:pb-6 rounded-lg shadow-[0_8px_20px_rgba(0,0,0,0.06)] border border-white/60 w-full text-center">
-                <img id="assetCoupleKeychain" src="https://images.unsplash.com/photo-1516589178581-6cd7833ae3b2?auto=format&fit=crop&w=300&q=80" alt="Keychain Merch" class="w-full aspect-square object-cover rounded-md grayscale-[20%]">
+                <img id="assetCoupleKeychain" src="https://images.unsplash.com/photo-1516589178581-6cd7833ae3b2?auto=format&fit=crop&w=300&q=80" alt="Merchandise Polaroid" class="w-full aspect-square object-cover rounded-md grayscale-[20%]">
                 <span class="block mt-1 sm:mt-2 font-['Playfair_Display'] italic text-[8px] sm:text-[9px] text-gray-400">core memory</span>
             </div>
         </div>
@@ -88,7 +88,7 @@
                         Remnics <span class="not-italic text-sm text-neutral-400">by Gamon Tawing</span>
                     </h1>
                     <p class="text-[11px] text-neutral-500 mt-1 max-w-xs mx-auto leading-relaxed">
-                        Abadikan foto berdua, simpan pesan rahasia, dan terima berupa fisik <span class="font-semibold text-neutral-800 underline decoration-neutral-300">Gantungan Kunci Polaroid Minimalis</span> tepat di depan rumah.
+                        Abadikan foto berdua, simpan pesan rahasia, dan terima berupa fisik <span class="font-semibold text-neutral-800 underline decoration-neutral-300">Merchandise Polaroid Minimalis</span> tepat di depan rumah.
                     </p>
                 </div>
                 
@@ -168,7 +168,7 @@ height:64.10%;
                                 Foto Ulang
                             </button>
                             <button id="btnLanjut" class="w-1/2 py-2.5 bg-neutral-900 text-white rounded-xl font-medium hover:bg-neutral-800 transition text-xs">
-                                Lanjut Pengiriman
+                                Lanjut ke Form
                             </button>
                         </div>
                     </div>
@@ -179,7 +179,7 @@ height:64.10%;
                     <div class="bg-neutral-100 border border-neutral-200 rounded-xl p-3 flex gap-2 items-start">
                         <span class="material-symbols-outlined text-neutral-600 text-lg select-none">info</span>
                         <div class="text-[10px] text-neutral-600 leading-normal">
-                            Foto berdua beserta lampiran pesan teks dan tautan QR audio (jika ada) akan dipasang presisi di dalam case akrilik gantungan kunci anti luntur.
+                            Foto berdua, pesan teks, dan QR audio akan disusun rapi dalam merchandise Polaroid. Setelah pembayaran berhasil, datang langsung ke lokasi kami untuk mengambil produk.
                         </div>
                     </div>
 
@@ -224,22 +224,14 @@ height:64.10%;
                         </label>
                     </div>
 
-                    <div class="border-t border-neutral-200/60 pt-3 space-y-2.5">
+                    <div class="border-t border-neutral-200/60 pt-3 space-y-3">
                         <h4 class="text-[10px] font-bold text-neutral-400 uppercase tracking-wider flex items-center gap-1">
-                            <span class="material-symbols-outlined text-sm">local_shipping</span> Tujuan Ekspedisi Pengiriman
+                            <span class="material-symbols-outlined text-sm">place</span> Lokasi Pengambilan
                         </h4>
-                        <div>
-                            <label class="block text-[10px] font-medium text-neutral-500 mb-1" for="shippingAddress">Alamat Rumah Lengkap</label>
-                            <textarea class="w-full border border-neutral-200 rounded-lg px-2.5 py-2 text-xs focus:outline-none focus:border-neutral-900 bg-white resize-none shadow-sm" id="shippingAddress" required placeholder="Tulis nama jalan, nomor, RT/RW, kelurahan/kecamatan, dan kota..." rows="2"></textarea>
-                        </div>
-                        <div>
-                            <label class="block text-[10px] font-medium text-neutral-500 mb-1">Verifikasi Koordinat Peta</label>
-                            <div class="flex gap-2">
-                                <input class="w-full border border-neutral-200 rounded-lg px-2.5 py-2 text-xs bg-neutral-100 text-neutral-500 focus:outline-none" id="geoCoordinates" readonly type="text" placeholder="Klik pin untuk kurir" required/>
-                                <button type="button" id="btnGetLocation" class="px-3 bg-neutral-900 text-white rounded-lg text-xs font-medium flex items-center gap-1 hover:bg-neutral-800 transition whitespace-nowrap shadow-md">
-                                    <span class="material-symbols-outlined text-sm">my_location</span> Pin Titik
-                                </button>
-                            </div>
+                        <div class="rounded-2xl border border-neutral-200 bg-slate-50 p-3 text-[11px] text-slate-700">
+                            <p class="font-semibold text-slate-800">Ambil langsung di lokasi kami:</p>
+                            <p class="mt-1 leading-relaxed">Jl. Kelayan A Gg. Sidodadi No.75 RT.009 RW.001, Kel. Murung Raya, Kec. Banjarmasin Selatan, Kota Banjarmasin</p>
+                            <p class="mt-2 text-[10px] text-slate-500">Setelah pembayaran terkonfirmasi, datang ke lokasi untuk mengambil foto dan merchandise Polaroid Anda.</p>
                         </div>
                     </div>
 
@@ -256,7 +248,7 @@ height:64.10%;
                             <div class="hidden w-full space-y-1.5" id="audioPreview">
                                 <div class="text-emerald-600 text-[10px] font-medium flex items-center gap-0.5">
                                     <span class="material-symbols-outlined text-sm" style="font-variation-settings: 'FILL' 1;">check_circle</span>
-                                    <span>Audio terkunci. QR otomatis disematkan di fisik keychain.</span>
+                                    <span>Audio terkunci. QR otomatis disematkan di fisik merchandise.</span>
                                 </div>
                                 <audio class="w-full h-8 text-xs" controls id="player"></audio>
                             </div>
@@ -264,7 +256,7 @@ height:64.10%;
                     </div>
 
                     <button type="submit" id="btnKirim" class="w-full py-3.5 bg-neutral-900 text-white rounded-lg font-medium hover:bg-neutral-800 transition mt-2 text-xs tracking-wider uppercase shadow-md">
-                        Kirim & Proses Gantungan Kunci
+                        Kirim & Proses Merchandise
                     </button>
                 </form>
             </div>
@@ -301,9 +293,8 @@ height:64.10%;
     const countdownDisplay = document.getElementById('countdownDisplay');
     const flashOverlay = document.getElementById('flashOverlay');
     const backgroundSelector = document.getElementById('backgroundSelector');
-    const btnGetLocation = document.getElementById('btnGetLocation');
-    const geoCoordinates = document.getElementById('geoCoordinates');
     const showOnHomeToggle = document.getElementById('showOnHome');
+    const pickupAddress = "Jl. Kelayan A Gg. Sidodadi No.75 RT.009 RW.001, Murung Raya, Banjarmasin";
 
     const recordBtn = document.getElementById('recordBtn');
     const recordText = document.getElementById('recordText');
@@ -350,25 +341,7 @@ height:64.10%;
         return Swal.fire({ icon: 'error', title: 'Oops...', text: message, confirmButtonColor: '#171717' });
     }
 
-    btnGetLocation.onclick = () => {
-        if (navigator.geolocation) {
-            btnGetLocation.innerText = "Mencari...";
-            navigator.geolocation.getCurrentPosition(
-                (position) => {
-                    geoCoordinates.value = `${position.coords.latitude}, ${position.coords.longitude}`;
-                    btnGetLocation.innerHTML = `<span class="material-symbols-outlined text-sm">check_circle</span> Terkunci`;
-                    btnGetLocation.className = "px-3 bg-neutral-800 text-white rounded-lg text-xs font-medium flex items-center gap-1";
-                },
-                (error) => {
-                    showError("Gagal mengambil titik lokasi: " + error.message);
-                    btnGetLocation.innerHTML = `<span class="material-symbols-outlined text-sm">my_location</span> Pin Titik`;
-                },
-                { enableHighAccuracy: true }
-            );
-        } else {
-            showError("Browser tidak mensupport deteksi lokasi.");
-        }
-    };
+
 
     function initSelfieSegmentation() {
         selfieSegmentation = new SelfieSegmentation({
@@ -676,10 +649,10 @@ height:64.10%;
         const pesan = document.getElementById('messageContent').value;
         const email = document.getElementById('email').value;
         const whatsapp = document.getElementById('whatsapp').value;
-        const alamat = document.getElementById('shippingAddress').value;
-        const koordinat = document.getElementById('geoCoordinates').value;
         const showOnHome = showOnHomeToggle ? showOnHomeToggle.checked : true;
         const generatedOrderId = localStorage.getItem('tempOrderId') || 'GAMON-' + Date.now();
+        const alamat = pickupAddress;
+        const koordinat = ""; // pickups do not need delivery coordinates
 
         const polaroidCanvas = document.createElement('canvas');
         const ctx = polaroidCanvas.getContext('2d');
@@ -805,7 +778,7 @@ height:64.10%;
 
         Swal.fire({
             title: 'Memproses...',
-            text: 'Mendaftarkan alamat & menyimpan file kenangan...',
+            text: 'Mendaftarkan order pickup dan menyimpan file kenangan...',
             allowOutsideClick: false,
             didOpen: () => { Swal.showLoading(); }
         });
@@ -817,31 +790,6 @@ height:64.10%;
             orderId: generatedOrderId
         };
 
-        // try {
-        //     const response = await fetch('/api/submit-photobox', {
-        //         method: 'POST',
-        //         headers: { 'Content-Type': 'application/json' },
-        //         body: JSON.stringify(payload)
-        //     });
-        //     Swal.close();
-        //     if (!response.ok) {
-        //         const errData = await response.json();
-        //         throw new Error(errData.message || 'Gagal memproses.');
-        //     }
-
-        //     await showSuccess('Berhasil! Gantungan kunci Polaroid akan segera kami rakit dan kirim ke alamat Anda.');
-        //     localStorage.removeItem("tempOrderId");
-
-        //     if(unsubscribePaymentListener){
-        //         unsubscribePaymentListener();
-        //     }
-        //     window.location.href = 'index.html';
-        // } catch (err) {
-        //     Swal.close();
-        //     await showError('Gagal: ' + err.message);
-        //     btnKirim.innerText = "Kirim & Proses Gantungan Kunci";
-        //     btnKirim.disabled = false;
-        // }
         try {
             const response = await fetch('/api/submit-photobox', {
                 method: 'POST',
@@ -854,21 +802,46 @@ height:64.10%;
                 throw new Error(errData.message || 'Gagal memproses.');
             }
 
-            // Hapus session/orderId segera setelah backend sukses menerima data
+            await showSuccess('Berhasil! Merchandise Polaroid sedang dirakit. Silakan datang ke lokasi kami untuk mengambil pesanan.');
             localStorage.removeItem("tempOrderId");
-
-            await showSuccess('Berhasil! Gantungan kunci Polaroid akan segera kami rakit dan kirim ke alamat Anda.');
 
             if(unsubscribePaymentListener){
                 unsubscribePaymentListener();
             }
-            window.location.href = 'index.html';
+            window.location.href = `photobox-success.html?orderId=${generatedOrderId}`;
         } catch (err) {
             Swal.close();
             await showError('Gagal: ' + err.message);
-            btnKirim.innerText = "Kirim & Proses Gantungan Kunci";
+            btnKirim.innerText = "Kirim & Proses Merchandise";
             btnKirim.disabled = false;
         }
+        // try {
+        //     const response = await fetch('/api/submit-photobox', {
+        //         method: 'POST',
+        //         headers: { 'Content-Type': 'application/json' },
+        //         body: JSON.stringify(payload)
+        //     });
+        //     Swal.close();
+        //     if (!response.ok) {
+        //         const errData = await response.json();
+        //         throw new Error(errData.message || 'Gagal memproses.');
+        //     }
+
+        //     // Hapus session/orderId segera setelah backend sukses menerima data
+        //     localStorage.removeItem("tempOrderId");
+
+        //     await showSuccess('Berhasil! Gantungan kunci Polaroid sedang dirakit. Silakan datang ke lokasi kami untuk mengambil pesanan.');
+
+        //     if(unsubscribePaymentListener){
+        //         unsubscribePaymentListener();
+        //     }
+        //     window.location.href = `photobox-success.html?orderId=${generatedOrderId}`;
+        // } catch (err) {
+        //     Swal.close();
+        //     await showError('Gagal: ' + err.message);
+        //     btnKirim.innerText = "Kirim & Proses Gantungan Kunci";
+        //     btnKirim.disabled = false;
+        // }
     };
 </script>
 </body>
