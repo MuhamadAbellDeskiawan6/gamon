@@ -87,6 +87,9 @@ export default async function handler(req, res) {
     audioUrl,
     orderId,
     showOnHome,
+    frameId,
+    frameName,
+    framePreviewImage,
   } = req.body;
 
   if (!email || !photoBase64 || !alamat || !whatsapp) {
@@ -136,6 +139,9 @@ export default async function handler(req, res) {
       longitude: lng,
       photoBase64,
       audioUrl: audioUrl || null,
+      frameId: frameId || null,
+      frameName: frameName || null,
+      framePreviewImage: framePreviewImage || null,
       showOnHome: showOnHome !== false,
       statusMerchandise: "PENDING_PRODUCTION",
       createdAt: timestamp,
@@ -152,6 +158,8 @@ export default async function handler(req, res) {
         email,
         whatsapp,
         alamat,
+        frameId: frameId || null,
+        frameName: frameName || null,
         statusMerchandise: "PENDING_PRODUCTION",
         updatedAt: timestamp,
       },
@@ -216,6 +224,7 @@ export default async function handler(req, res) {
               <tr><td style="padding:6px 0"><b>ID Pesanan</b></td><td style="padding:6px 0">${finalOrderId}</td></tr>
               <tr><td style="padding:6px 0"><b>Penerima</b></td><td style="padding:6px 0">${tujuan || "-"}</td></tr>
               <tr><td style="padding:6px 0"><b>WhatsApp</b></td><td style="padding:6px 0">${whatsapp}</td></tr>
+              <tr><td style="padding:6px 0"><b>Frame</b></td><td style="padding:6px 0">${frameName || "Default"}</td></tr>
             </table>
 
             <p style="margin-bottom:6px"><b>Lokasi Ambil:</b></p>

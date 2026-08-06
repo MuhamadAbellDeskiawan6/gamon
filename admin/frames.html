@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kelola Frame Photobox - Gamon Booth</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+</head>
+<body class="min-h-screen bg-slate-100 text-slate-800">
+    <div class="min-h-screen lg:grid lg:grid-cols-[260px_minmax(0,1fr)]">
+        <aside class="border-r border-slate-200 bg-white p-4 lg:p-6">
+            <div class="mb-6">
+                <h1 class="flex items-center gap-2 text-lg font-bold text-pink-600">
+                    <span>📸</span>
+                    <span>Gamon Admin</span>
+                </h1>
+                <p class="mt-1 text-xs text-slate-500">Panel pengelolaan photobox</p>
+            </div>
+
+            <nav class="space-y-2">
+                <a href="/admin/dashboard.html" class="block rounded-xl px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100">Dashboard Pesanan</a>
+                <a href="/admin/frames.html" class="block rounded-xl bg-pink-600 px-3 py-2 text-sm font-semibold text-white">Kelola Frame</a>
+            </nav>
+
+            <div class="mt-6 border-t border-slate-200 pt-4">
+                <p id="adminEmail" class="mb-2 text-xs text-slate-500">Memeriksa sesi...</p>
+                <button onclick="handleLogout()" class="w-full rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-600 transition hover:bg-rose-100">
+                    Keluar Sesi
+                </button>
+            </div>
+        </aside>
+
+        <main class="grid gap-6 px-4 py-8 lg:grid-cols-[420px_minmax(0,1fr)] lg:px-8">
+        <section class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div class="mb-5">
+                <h2 id="formTitle" class="text-xl font-bold text-slate-900">Upload Frame Baru</h2>
+                <p id="formDescription" class="mt-1 text-sm leading-relaxed text-slate-500">Setiap frame membutuhkan 2 file: preview kecil untuk selector dan frame utama untuk hasil cetak polaroid.</p>
+            </div>
+
+            <div class="mb-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-xs leading-relaxed text-amber-900">
+                <p class="font-semibold uppercase tracking-wide">Ukuran yang dipakai sistem</p>
+                <p class="mt-2">Preview kecil akan diubah otomatis ke 450 x 780 px.</p>
+                <p>Frame utama akan diubah otomatis ke 900 x 1560 px.</p>
+                <p>Gunakan PNG atau WebP transparan supaya area foto tetap terbuka dan hasil tidak pecah.</p>
+            </div>
+
+            <form id="frameForm" class="space-y-4">
+                <input id="editingFrameId" type="hidden">
+                <div>
+                    <label for="frameName" class="mb-1 block text-sm font-medium text-slate-700">Nama Frame</label>
+                    <input id="frameName" type="text" required placeholder="Contoh: Valentine Cream" class="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm focus:border-pink-500 focus:outline-none">
+                </div>
+
+                <div>
+                    <label for="previewFile" class="mb-1 block text-sm font-medium text-slate-700">File Preview Kecil</label>
+                    <input id="previewFile" type="file" accept="image/png,image/webp" required class="block w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm file:mr-4 file:rounded-lg file:border-0 file:bg-slate-800 file:px-3 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-slate-700">
+                    <p id="previewHint" class="mt-1 text-xs text-slate-400">Wajib diisi saat menambah frame baru.</p>
+                </div>
+
+                <div>
+                    <label for="frameFile" class="mb-1 block text-sm font-medium text-slate-700">File Frame Utama</label>
+                    <input id="frameFile" type="file" accept="image/png,image/webp" required class="block w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm file:mr-4 file:rounded-lg file:border-0 file:bg-slate-800 file:px-3 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-slate-700">
+                    <p id="frameHint" class="mt-1 text-xs text-slate-400">Wajib diisi saat menambah frame baru.</p>
+                </div>
+
+                <label class="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+                    <div>
+                        <p class="font-semibold">Langsung aktifkan frame ini</p>
+                        <p class="mt-1 text-xs text-slate-500">Kalau aktif, frame langsung muncul di photobox setelah berhasil disimpan.</p>
+                    </div>
+                    <input id="isActive" type="checkbox" checked class="h-5 w-5 accent-pink-600">
+                </label>
+
+                <div class="grid gap-3 sm:grid-cols-2">
+                    <div class="rounded-2xl border border-dashed border-slate-200 p-3">
+                        <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Preview kecil</p>
+                        <div class="flex aspect-[180/312] items-center justify-center overflow-hidden rounded-xl bg-slate-100">
+                            <img id="previewPreview" alt="Preview kecil" class="hidden h-full w-full object-cover">
+                            <span id="previewPlaceholder" class="px-4 text-center text-xs text-slate-400">Belum ada file dipilih</span>
+                        </div>
+                    </div>
+                    <div class="rounded-2xl border border-dashed border-slate-200 p-3">
+                        <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Frame utama</p>
+                        <div class="flex aspect-[900/1560] items-center justify-center overflow-hidden rounded-xl bg-slate-100">
+                            <img id="framePreview" alt="Frame utama" class="hidden h-full w-full object-cover">
+                            <span id="framePlaceholder" class="px-4 text-center text-xs text-slate-400">Belum ada file dipilih</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid gap-2 sm:grid-cols-2">
+                    <button id="saveButton" type="submit" class="w-full rounded-xl bg-pink-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-pink-700">Simpan Frame</button>
+                    <button id="cancelEditButton" type="button" class="hidden w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-100">Batal Edit</button>
+                </div>
+            </form>
+        </section>
+
+        <section class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div class="mb-5 flex items-center justify-between gap-3">
+                <div>
+                    <h2 class="text-xl font-bold text-slate-900">Daftar Frame</h2>
+                    <p class="mt-1 text-sm text-slate-500">Semua frame aktif di sini akan muncul pada pilihan frame di photobox.</p>
+                </div>
+                <button onclick="loadFrames()" class="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100">Refresh</button>
+            </div>
+
+            <div id="frameGrid" class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                <div class="rounded-2xl border border-dashed border-slate-200 p-6 text-center text-sm text-slate-400">Sedang memuat data frame...</div>
+            </div>
+        </section>
+        </main>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+        import { getAuth, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+        import { addDoc, collection, deleteDoc, doc, getDocs, getFirestore, orderBy, query, updateDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+        const firebaseConfig = {
+            apiKey: 'AIzaSyC247K8yyL67aWV95KNQy8CkMZsjgGCudQ',
+            authDomain: 'gamon-tawing.firebaseapp.com',
+            projectId: 'gamon-tawing',
+            storageBucket: 'gamon-tawing.firebasestorage.app',
+            messagingSenderId: '370162915989',
+            appId: '1:370162915989:web:76779062da83aa0c5c999c'
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        const PREVIEW_SIZE = { width: 450, height: 780 };
+        const FRAME_SIZE = { width: 900, height: 1560 };
+        const MAX_PREVIEW_BYTES = 120 * 1024;
+        const MAX_FRAME_BYTES = 520 * 1024;
+        const MAX_TOTAL_BYTES = 760 * 1024;
+
+        const frameForm = document.getElementById('frameForm');
+        const previewFileInput = document.getElementById('previewFile');
+        const frameFileInput = document.getElementById('frameFile');
+        const previewPreview = document.getElementById('previewPreview');
+        const framePreview = document.getElementById('framePreview');
+        const previewPlaceholder = document.getElementById('previewPlaceholder');
+        const framePlaceholder = document.getElementById('framePlaceholder');
+        const frameGrid = document.getElementById('frameGrid');
+        const saveButton = document.getElementById('saveButton');
+        const cancelEditButton = document.getElementById('cancelEditButton');
+        const formTitle = document.getElementById('formTitle');
+        const formDescription = document.getElementById('formDescription');
+        const editingFrameIdInput = document.getElementById('editingFrameId');
+        const previewHint = document.getElementById('previewHint');
+        const frameHint = document.getElementById('frameHint');
+        let adminReady = false;
+        let editingFrame = null;
+        let cachedFrames = [];
+
+        window.addEventListener('DOMContentLoaded', () => {
+            bindFilePreview(previewFileInput, PREVIEW_SIZE, previewPreview, previewPlaceholder);
+            bindFilePreview(frameFileInput, FRAME_SIZE, framePreview, framePlaceholder);
+        });
+
+        bootPage();
+
+        window.loadFrames = loadFrames;
+        window.toggleFrame = toggleFrame;
+        window.deleteFrame = deleteFrame;
+        window.startEditFrame = startEditFrame;
+        window.handleLogout = handleLogout;
+
+        cancelEditButton.addEventListener('click', resetFormState);
+
+        async function bootPage() {
+            const sessionOk = await verifyAdminPageSession();
+            if (!sessionOk) {
+                return;
+            }
+
+            onAuthStateChanged(auth, async (user) => {
+                if (!user) {
+                    showAuthExpired();
+                    return;
+                }
+
+                adminReady = true;
+                await loadFrames();
+            });
+        }
+
+        async function verifyAdminPageSession() {
+            try {
+                const response = await fetch('/api/admin/session');
+                const result = await response.json();
+                if (!response.ok || !result.success) {
+                    window.location.href = '/admin/login.html';
+                    return false;
+                }
+
+                const emailEl = document.getElementById('adminEmail');
+                if (emailEl) {
+                    emailEl.textContent = result.email ? `Login sebagai ${result.email}` : 'Admin terverifikasi';
+                }
+
+                return true;
+            } catch (error) {
+                window.location.href = '/admin/login.html';
+                return false;
+            }
+        }
+
+        function showAuthExpired() {
+            alert('Sesi admin tidak valid. Anda akan diarahkan ke login.');
+            window.location.href = '/admin/login.html';
+        }
+
+        function bindFilePreview(input, size, imageEl, placeholderEl) {
+            input.addEventListener('change', async () => {
+                const file = input.files?.[0];
+                if (!file) {
+                    imageEl.classList.add('hidden');
+                    placeholderEl.classList.remove('hidden');
+                    imageEl.src = '';
+                    return;
+                }
+
+                try {
+                    const dataUrl = await resizeImageToDataUrl(
+                        file,
+                        size.width,
+                        size.height,
+                        size.width === PREVIEW_SIZE.width ? MAX_PREVIEW_BYTES : MAX_FRAME_BYTES
+                    );
+                    imageEl.src = dataUrl;
+                    imageEl.classList.remove('hidden');
+                    placeholderEl.classList.add('hidden');
+                } catch (error) {
+                    input.value = '';
+                    imageEl.classList.add('hidden');
+                    placeholderEl.classList.remove('hidden');
+                    imageEl.src = '';
+                    alert(error.message || 'File terlalu besar untuk dipakai sebagai frame.');
+                }
+            });
+        }
+
+        function readFileAsDataUrl(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+
+        function loadImage(src) {
+            return new Promise((resolve, reject) => {
+                const image = new Image();
+                image.onload = () => resolve(image);
+                image.onerror = reject;
+                image.src = src;
+            });
+        }
+
+        function estimateDataUrlBytes(dataUrl) {
+            const base64 = String(dataUrl).split(',')[1] || '';
+            return Math.ceil((base64.length * 3) / 4);
+        }
+
+        async function resizeImageToDataUrl(file, targetWidth, targetHeight, maxBytes) {
+            const source = await readFileAsDataUrl(file);
+            const image = await loadImage(source);
+            const canvas = document.createElement('canvas');
+            canvas.width = targetWidth;
+            canvas.height = targetHeight;
+            const ctx = canvas.getContext('2d');
+
+            ctx.clearRect(0, 0, targetWidth, targetHeight);
+            ctx.drawImage(image, 0, 0, targetWidth, targetHeight);
+
+            let quality = 0.82;
+            let dataUrl = canvas.toDataURL('image/webp', quality);
+
+            while (estimateDataUrlBytes(dataUrl) > maxBytes && quality > 0.28) {
+                quality -= 0.08;
+                dataUrl = canvas.toDataURL('image/webp', quality);
+            }
+
+            if (estimateDataUrlBytes(dataUrl) > maxBytes) {
+                throw new Error('Ukuran gambar masih terlalu besar setelah dikompres. Coba file PNG/WebP yang lebih ringan.');
+            }
+
+            return dataUrl;
+        }
+
+        async function loadFrames() {
+            if (!adminReady) return;
+            frameGrid.innerHTML = '<div class="rounded-2xl border border-dashed border-slate-200 p-6 text-center text-sm text-slate-400 sm:col-span-2 xl:col-span-3">Sedang memuat data frame...</div>';
+
+            try {
+                const snapshot = await getDocs(query(collection(db, 'photobox_frames'), orderBy('createdAt', 'desc')));
+                const frames = snapshot.docs.map((frameDoc) => ({ id: frameDoc.id, ...frameDoc.data() }));
+                cachedFrames = frames;
+
+                if (!frames.length) {
+                    frameGrid.innerHTML = '<div class="rounded-2xl border border-dashed border-slate-200 p-6 text-center text-sm text-slate-400 sm:col-span-2 xl:col-span-3">Belum ada frame tersimpan. Upload frame pertama Anda.</div>';
+                    return;
+                }
+
+                frameGrid.innerHTML = frames.map((frame) => {
+                    const statusClass = frame.isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600';
+                    const statusText = frame.isActive ? 'Aktif' : 'Nonaktif';
+                    const dateText = frame.createdAt ? new Date(frame.createdAt).toLocaleString('id-ID') : '-';
+
+                    return `
+                        <article class="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+                            <div class="grid grid-cols-2 gap-2 bg-slate-50 p-3">
+                                <div>
+                                    <p class="mb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Preview</p>
+                                    <img src="${frame.previewImage}" alt="${frame.name}" class="aspect-[180/312] w-full rounded-xl border border-slate-200 bg-white object-cover">
+                                </div>
+                                <div>
+                                    <p class="mb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Frame utama</p>
+                                    <img src="${frame.frameImage}" alt="${frame.name}" class="aspect-[180/312] w-full rounded-xl border border-slate-200 bg-white object-cover">
+                                </div>
+                            </div>
+                            <div class="space-y-3 p-4">
+                                <div class="flex items-start justify-between gap-3">
+                                    <div>
+                                        <h3 class="text-sm font-bold text-slate-900">${escapeHtml(frame.name || 'Frame')}</h3>
+                                        <p class="mt-1 text-[11px] text-slate-400">${dateText}</p>
+                                    </div>
+                                    <span class="inline-flex rounded-full px-3 py-1 text-[11px] font-semibold ${statusClass}">${statusText}</span>
+                                </div>
+                                <div class="grid gap-2">
+                                    <button onclick="startEditFrame('${frame.id}')" class="rounded-xl bg-blue-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-blue-700">Edit Frame</button>
+                                    <button onclick="toggleFrame('${frame.id}', ${frame.isActive ? 'false' : 'true'})" class="rounded-xl bg-slate-800 px-3 py-2 text-xs font-semibold text-white transition hover:bg-slate-700">${frame.isActive ? 'Nonaktifkan' : 'Aktifkan'}</button>
+                                    <button onclick="deleteFrame('${frame.id}')" class="rounded-xl bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-600 transition hover:bg-rose-100">Hapus Frame</button>
+                                </div>
+                            </div>
+                        </article>
+                    `;
+                }).join('');
+            } catch (error) {
+                console.error(error);
+                frameGrid.innerHTML = '<div class="rounded-2xl border border-rose-200 bg-rose-50 p-6 text-center text-sm text-rose-600 sm:col-span-2 xl:col-span-3">Gagal memuat frame dari server.</div>';
+            }
+        }
+
+        function setPreviewImage(imageEl, placeholderEl, src) {
+            if (src) {
+                imageEl.src = src;
+                imageEl.classList.remove('hidden');
+                placeholderEl.classList.add('hidden');
+                return;
+            }
+
+            imageEl.src = '';
+            imageEl.classList.add('hidden');
+            placeholderEl.classList.remove('hidden');
+        }
+
+        function resetFormState() {
+            editingFrame = null;
+            editingFrameIdInput.value = '';
+            frameForm.reset();
+            previewFileInput.required = true;
+            frameFileInput.required = true;
+            formTitle.textContent = 'Upload Frame Baru';
+            formDescription.textContent = 'Setiap frame membutuhkan 2 file: preview kecil untuk selector dan frame utama untuk hasil cetak polaroid.';
+            saveButton.textContent = 'Simpan Frame';
+            cancelEditButton.classList.add('hidden');
+            previewHint.textContent = 'Wajib diisi saat menambah frame baru.';
+            frameHint.textContent = 'Wajib diisi saat menambah frame baru.';
+            setPreviewImage(previewPreview, previewPlaceholder, '');
+            setPreviewImage(framePreview, framePlaceholder, '');
+        }
+
+        function startEditFrame(frameId) {
+            const frame = cachedFrames.find((item) => item.id === frameId);
+            if (!frame) {
+                alert('Data frame tidak ditemukan.');
+                return;
+            }
+
+            editingFrame = frame;
+            editingFrameIdInput.value = frame.id;
+            document.getElementById('frameName').value = frame.name || '';
+            document.getElementById('isActive').checked = frame.isActive !== false;
+            previewFileInput.value = '';
+            frameFileInput.value = '';
+            previewFileInput.required = false;
+            frameFileInput.required = false;
+            formTitle.textContent = 'Edit Frame';
+            formDescription.textContent = 'Ubah nama frame atau ganti salah satu gambar. Jika file tidak dipilih ulang, gambar lama tetap dipakai.';
+            saveButton.textContent = 'Simpan Perubahan';
+            cancelEditButton.classList.remove('hidden');
+            previewHint.textContent = 'Kosongkan jika preview lama masih dipakai.';
+            frameHint.textContent = 'Kosongkan jika frame utama lama masih dipakai.';
+            setPreviewImage(previewPreview, previewPlaceholder, frame.previewImage || '');
+            setPreviewImage(framePreview, framePlaceholder, frame.frameImage || '');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        frameForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+
+            if (!adminReady || !auth.currentUser) {
+                showAuthExpired();
+                return;
+            }
+
+            const previewFile = previewFileInput.files?.[0];
+            const frameFile = frameFileInput.files?.[0];
+            const isEditing = Boolean(editingFrameIdInput.value && editingFrame);
+            if (!isEditing && (!previewFile || !frameFile)) {
+                alert('Preview kecil dan frame utama wajib dipilih.');
+                return;
+            }
+
+            saveButton.disabled = true;
+            saveButton.textContent = 'Menyimpan frame...';
+            cancelEditButton.disabled = true;
+
+            try {
+                const previewImage = previewFile
+                    ? await resizeImageToDataUrl(previewFile, PREVIEW_SIZE.width, PREVIEW_SIZE.height, MAX_PREVIEW_BYTES)
+                    : editingFrame?.previewImage;
+                const frameImage = frameFile
+                    ? await resizeImageToDataUrl(frameFile, FRAME_SIZE.width, FRAME_SIZE.height, MAX_FRAME_BYTES)
+                    : editingFrame?.frameImage;
+
+                if (!previewImage || !frameImage) {
+                    throw new Error('Preview kecil dan frame utama wajib tersedia.');
+                }
+
+                if (estimateDataUrlBytes(previewImage) + estimateDataUrlBytes(frameImage) > MAX_TOTAL_BYTES) {
+                    throw new Error('Ukuran gabungan preview dan frame utama masih terlalu besar. Coba frame yang lebih ringan.');
+                }
+
+                const payload = {
+                    name: document.getElementById('frameName').value.trim(),
+                    previewImage,
+                    frameImage,
+                    isActive: document.getElementById('isActive').checked,
+                    updatedAt: Date.now()
+                };
+
+                if (isEditing) {
+                    await updateDoc(doc(db, 'photobox_frames', editingFrameIdInput.value), payload);
+                } else {
+                    await addDoc(collection(db, 'photobox_frames'), {
+                        ...payload,
+                        createdAt: Date.now(),
+                        createdBy: auth.currentUser.email || null
+                    });
+                }
+
+                resetFormState();
+                alert(isEditing ? 'Frame berhasil diperbarui.' : 'Frame berhasil disimpan.');
+                await loadFrames();
+            } catch (error) {
+                console.error(error);
+                alert(error.message || 'Gagal menyimpan frame.');
+            } finally {
+                saveButton.disabled = false;
+                saveButton.textContent = editingFrame ? 'Simpan Perubahan' : 'Simpan Frame';
+                cancelEditButton.disabled = false;
+            }
+        });
+
+        async function toggleFrame(frameId, isActive) {
+            try {
+                if (!auth.currentUser) {
+                    showAuthExpired();
+                    return;
+                }
+
+                await updateDoc(doc(db, 'photobox_frames', frameId), {
+                    isActive,
+                    updatedAt: Date.now()
+                });
+
+                loadFrames();
+            } catch (error) {
+                console.error(error);
+                alert(error.message || 'Gagal memperbarui status frame.');
+            }
+        }
+
+        async function deleteFrame(frameId) {
+            if (!confirm('Hapus frame ini dari daftar?')) {
+                return;
+            }
+
+            try {
+                if (!auth.currentUser) {
+                    showAuthExpired();
+                    return;
+                }
+
+                await deleteDoc(doc(db, 'photobox_frames', frameId));
+
+                if (editingFrameIdInput.value === frameId) {
+                    resetFormState();
+                }
+
+                loadFrames();
+            } catch (error) {
+                console.error(error);
+                alert(error.message || 'Gagal menghapus frame.');
+            }
+        }
+
+        function escapeHtml(value) {
+            return String(value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        async function handleLogout() {
+            try {
+                await signOut(auth);
+            } catch (error) {
+                console.error(error);
+            }
+            try {
+                await fetch('/api/admin/logout', { method: 'POST' });
+            } catch (error) {
+                console.error(error);
+            }
+            window.location.href = '/admin/login.html';
+        }
+    </script>
+</body>
+</html>

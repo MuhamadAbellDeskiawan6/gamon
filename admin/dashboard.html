@@ -7,27 +7,43 @@
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
 </head>
 <body class="bg-slate-100 min-h-screen text-slate-800">
+    <div class="min-h-screen lg:grid lg:grid-cols-[260px_minmax(0,1fr)]">
+        <aside class="border-r border-slate-200 bg-white p-4 lg:p-6">
+            <div class="mb-6">
+                <h1 class="flex items-center gap-2 text-lg font-bold text-pink-600">
+                    <span>📸</span>
+                    <span>Gamon Admin</span>
+                </h1>
+                <p class="mt-1 text-xs text-slate-500">Panel pengelolaan photobox</p>
+            </div>
 
-    <nav class="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-50">
-        <div class="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
-            <h1 class="text-xl font-bold text-pink-600 flex items-center gap-2">
-                <span>📸</span> Gamon Admin Panel
-            </h1>
-            <button onclick="handleLogout()" class="text-sm font-medium text-red-500 hover:text-red-700 transition cursor-pointer">
-                Keluar Sesi
-            </button>
-        </div>
-    </nav>
+            <nav class="space-y-2">
+                <a href="/admin/dashboard.html" class="block rounded-xl bg-pink-600 px-3 py-2 text-sm font-semibold text-white">Dashboard Pesanan</a>
+                <a href="/admin/frames.html" class="block rounded-xl px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100">Kelola Frame</a>
+            </nav>
 
-    <main class="max-w-7xl mx-auto px-4 py-8">
+            <div class="mt-6 border-t border-slate-200 pt-4">
+                <p id="adminEmail" class="mb-2 text-xs text-slate-500">Memeriksa sesi...</p>
+                <button onclick="handleLogout()" class="w-full rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-600 transition hover:bg-rose-100">
+                    Keluar Sesi
+                </button>
+            </div>
+        </aside>
+
+        <main class="px-4 py-8 lg:px-8">
         <div class="flex justify-between items-center mb-6">
             <div>
                 <h2 class="text-2xl font-bold">Daftar Antrean Cetak & Merchandise</h2>
                 <p class="text-slate-500 text-sm">Kelola data pemesanan photobox dan status produksi cenderamata fisik.</p>
             </div>
-            <button onclick="loadOrders()" class="bg-slate-800 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-slate-700 transition cursor-pointer">
-                Refresh Data
-            </button>
+            <div class="flex items-center gap-2">
+                <a href="/admin/frames.html" class="bg-pink-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-pink-700 transition cursor-pointer">
+                    Kelola Frame
+                </a>
+                <button onclick="loadOrders()" class="bg-slate-800 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-slate-700 transition cursor-pointer">
+                    Refresh Data
+                </button>
+            </div>
         </div>
 
         <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
@@ -52,14 +68,42 @@
             </div>
             <div id="paginationControls" class="flex flex-col gap-2 px-5 py-4 border-t border-slate-200 bg-slate-50 sm:flex-row sm:items-center sm:justify-between"></div>
         </div>
-    </main>
+        </main>
+    </div>
 
     <script>
         const PAGE_SIZE = 8;
         let ordersData = [];
         let currentPage = 1;
 
-        window.addEventListener('DOMContentLoaded', loadOrders);
+        window.addEventListener('DOMContentLoaded', bootPage);
+
+        async function bootPage() {
+            const ok = await verifyAdminPageSession();
+            if (!ok) return;
+            loadOrders();
+        }
+
+        async function verifyAdminPageSession() {
+            try {
+                const response = await fetch('/api/admin/session');
+                const result = await response.json();
+                if (!response.ok || !result.success) {
+                    window.location.href = '/admin/login.html';
+                    return false;
+                }
+
+                const emailEl = document.getElementById('adminEmail');
+                if (emailEl) {
+                    emailEl.textContent = result.email ? `Login sebagai ${result.email}` : 'Admin terverifikasi';
+                }
+
+                return true;
+            } catch (error) {
+                window.location.href = '/admin/login.html';
+                return false;
+            }
+        }
 
         async function loadOrders() {
             const tbody = document.getElementById('orderTableBody');
@@ -249,8 +293,10 @@
         }
 
         function handleLogout() {
-            document.cookie = "admin_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC; SameSite=Strict;";
-            window.location.href = '/admin/login.html';
+            fetch('/api/admin/logout', { method: 'POST' })
+                .finally(() => {
+                    window.location.href = '/admin/login.html';
+                });
         }
     </script>
 </body>

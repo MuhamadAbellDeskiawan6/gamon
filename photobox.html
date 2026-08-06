@@ -78,6 +78,12 @@
         <!-- LAYAR UTAMA INTERFACE BOOTH -->
         <div class="bg-white p-2 rounded-[28px] shadow-[0_20px_50px_rgba(0,0,0,0.04)] border border-gray-100 relative z-10">
             <div class="bg-neutral-50 p-4 sm:p-5 rounded-[22px] border border-gray-50">
+                <div class="mb-4 flex justify-start">
+                    <a href="index.html" class="inline-flex items-center gap-1.5 rounded-full border border-neutral-200 bg-white px-3 py-1.5 text-[11px] font-medium text-neutral-700 shadow-sm transition hover:border-neutral-300 hover:bg-neutral-100">
+                        <span class="material-symbols-outlined text-base">arrow_back</span>
+                        <span>Kembali ke Beranda</span>
+                    </a>
+                </div>
                 
                 <!-- App Header -->
                 <div class="mb-5 text-center md:pr-4"> 
@@ -144,10 +150,8 @@ height:64.10%;
                     <label class="block text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-2">
                         🖼 Pilih Frame
                     </label>
-                    <div class="flex gap-2 overflow-x-auto pb-1">
-                        <img src="image/assets/polaroid-frame-preview.png" class="frame-thumb active w-16 h-20 rounded-lg border-2 border-transparent cursor-pointer object-cover" data-frame="image/assets/polaroid-frame.png">
-                        <img src="image/assets/valentine-frame-preview.png" class="frame-thumb w-16 h-20 rounded-lg border-2 border-transparent cursor-pointer object-cover" data-frame="image/assets/valentine-frame.png">
-                    </div>
+                    <div id="frameOptions" class="flex gap-2 overflow-x-auto pb-1"></div>
+                    <p id="frameLoadingMessage" class="mt-2 text-[10px] text-neutral-400">Memuat daftar frame...</p>
                 </div>
                 
                 <canvas id="canvas" class="hidden"></canvas>
@@ -160,6 +164,10 @@ height:64.10%;
                     </button>
 
                     <div id="areaAksiFoto" class="hidden space-y-2.5">
+                        <button id="btnSwitchCamera" type="button" class="w-full py-2.5 bg-white text-neutral-700 rounded-xl font-medium border border-neutral-200 hover:bg-neutral-50 transition text-xs flex items-center justify-center gap-1.5">
+                            <span class="material-symbols-outlined text-base">flip_camera_android</span>
+                            <span id="cameraSwitchLabel">Pakai Kamera Belakang</span>
+                        </button>
                         <button id="btnFoto" class="w-full py-3.5 bg-neutral-900 text-white rounded-xl font-medium shadow-sm hover:bg-neutral-800 transition active:scale-[0.99] text-xs tracking-wider uppercase">
                             Ambil Gambar (Timer 5 Detik)
                         </button>
@@ -281,6 +289,8 @@ height:64.10%;
 
     const btnMulai = document.getElementById('btnMulai');
     const areaAksiFoto = document.getElementById('areaAksiFoto');
+    const btnSwitchCamera = document.getElementById('btnSwitchCamera');
+    const cameraSwitchLabel = document.getElementById('cameraSwitchLabel');
     const btnFoto = document.getElementById('btnFoto');
     const areaRetake = document.getElementById('areaRetake');
     const btnRetake = document.getElementById('btnRetake');
@@ -304,12 +314,16 @@ height:64.10%;
     const recordingStatus = document.getElementById('recordingStatus');
 
     const frameSelector = document.getElementById("frameSelector");
+    const frameOptions = document.getElementById("frameOptions");
+    const frameLoadingMessage = document.getElementById("frameLoadingMessage");
     const frameOverlay = document.getElementById("frameOverlay");
 
     let localStream;
     let rawCapturedImage = null;
     let selfieSegmentation;
     let currentBackground = "original";
+    let currentFacingMode = "user";
+    let cameraSessionId = 0;
     let ctxOutput = outputCanvas.getContext("2d");
 
     document.querySelectorAll(".bg-thumb").forEach(item => {
@@ -320,13 +334,22 @@ height:64.10%;
         });
     });
 
-    let selectedFrame = "image/assets/polaroid-frame.png";
-    const previewFrame = new Image();
-    const previewFrameMap = {
-        "image/assets/polaroid-frame.png": "image/assets/polaroid-frame-preview.png",
-        "image/assets/valentine-frame.png": "image/assets/valentine-frame-preview.png"
-    };
-    previewFrame.src = previewFrameMap[selectedFrame];
+    const fallbackFrames = [
+        {
+            id: 'default-polaroid',
+            name: 'Classic Polaroid',
+            previewImage: 'image/assets/polaroid-frame-preview.png',
+            frameImage: 'image/assets/polaroid-frame.png'
+        },
+        {
+            id: 'default-valentine',
+            name: 'Valentine',
+            previewImage: 'image/assets/valentine-frame-preview.png',
+            frameImage: 'image/assets/valentine-frame.png'
+        }
+    ];
+    let availableFrames = [];
+    let selectedFrame = fallbackFrames[0];
 
     let mediaRecorder;
     let audioChunks = [];
@@ -377,8 +400,10 @@ height:64.10%;
         ctxOutput.clearRect(0, 0, w, h);
         ctxOutput.save();
 
-        ctxOutput.translate(w, 0);
-        ctxOutput.scale(-1, 1);
+        if (currentFacingMode === "user") {
+            ctxOutput.translate(w, 0);
+            ctxOutput.scale(-1, 1);
+        }
 
         drawCover(ctxOutput, results.segmentationMask, w, h);
         ctxOutput.globalCompositeOperation = "source-in";
@@ -395,13 +420,40 @@ height:64.10%;
         ctxOutput.globalCompositeOperation = "source-over";
     }
 
+    function updateSwitchCameraLabel() {
+        if (!cameraSwitchLabel) return;
+        cameraSwitchLabel.textContent = currentFacingMode === "user"
+            ? "Pakai Kamera Belakang"
+            : "Pakai Kamera Depan";
+    }
+
+    function stopCameraStream() {
+        if (localStream) {
+            localStream.getTracks().forEach(track => track.stop());
+            localStream = null;
+        }
+        video.pause();
+        video.srcObject = null;
+    }
+
     async function startCamera() {
+        const sessionId = ++cameraSessionId;
+        stopCameraStream();
+        updateSwitchCameraLabel();
+
         try {
             localStream = await navigator.mediaDevices.getUserMedia({ 
-                video: { facingMode: "user", width: { ideal: 1920 }, height: { ideal: 1080 } }
+                video: {
+                    facingMode: currentFacingMode === "environment"
+                        ? { ideal: "environment" }
+                        : "user",
+                    width: { ideal: 1920 },
+                    height: { ideal: 1080 }
+                }
             });
             video.srcObject = localStream;
             video.onloadedmetadata = async () => {
+                if (sessionId !== cameraSessionId) return;
                 await video.play();
                 const vw = video.videoWidth;
                 const vh = video.videoHeight;
@@ -428,8 +480,10 @@ height:64.10%;
             areaAksiFoto.classList.remove('hidden');
             backgroundSelector.classList.remove('hidden');
             frameSelector.classList.remove('hidden');
+            return true;
         } catch (err) {
             showError("Gagal mengakses kamera: " + err.message);
+            return false;
         }
     }
 
@@ -437,21 +491,97 @@ height:64.10%;
     async function updateFrameProcessing() {
         if (processingCamera) return;
         processingCamera = true;
+        const sessionId = cameraSessionId;
         while (video.srcObject && !video.paused && !video.ended) {
+            if (sessionId !== cameraSessionId) break;
             await selfieSegmentation.send({ image: video });
             await new Promise(resolve => setTimeout(resolve, 40));
         }
         processingCamera = false;
+
+        if (video.srcObject && !video.paused && !video.ended && sessionId !== cameraSessionId) {
+            updateFrameProcessing();
+        }
     }
 
-    document.querySelectorAll(".frame-thumb").forEach(item => {
-        item.addEventListener("click", () => {
-            document.querySelectorAll(".frame-thumb").forEach(f => f.classList.remove("active"));
-            item.classList.add("active");
-            selectedFrame = item.dataset.frame;
-            frameOverlay.src = previewFrameMap[selectedFrame];
-        });
+    btnSwitchCamera?.addEventListener('click', async () => {
+        btnSwitchCamera.disabled = true;
+        btnSwitchCamera.classList.add('opacity-60', 'cursor-wait');
+        const previousFacingMode = currentFacingMode;
+        currentFacingMode = currentFacingMode === 'user' ? 'environment' : 'user';
+
+        try {
+            const switched = await startCamera();
+            if (!switched) {
+                currentFacingMode = previousFacingMode;
+                await startCamera();
+            }
+        } finally {
+            updateSwitchCameraLabel();
+            btnSwitchCamera.disabled = false;
+            btnSwitchCamera.classList.remove('opacity-60', 'cursor-wait');
+        }
     });
+
+    function updateFrameSelectionUI() {
+        frameOptions.querySelectorAll('.frame-thumb').forEach((item) => {
+            item.classList.toggle('active', item.dataset.frameId === selectedFrame?.id);
+        });
+    }
+
+    function selectFrame(frameId) {
+        const frame = availableFrames.find((item) => item.id === frameId) || availableFrames[0] || fallbackFrames[0];
+        selectedFrame = frame;
+        frameOverlay.src = frame.previewImage;
+        updateFrameSelectionUI();
+    }
+
+    function renderFrameOptions(frames) {
+        frameOptions.innerHTML = '';
+
+        frames.forEach((frame) => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'frame-thumb flex-shrink-0 rounded-lg border-2 border-transparent bg-white p-1 text-left';
+            button.dataset.frameId = frame.id;
+
+            const image = document.createElement('img');
+            image.src = frame.previewImage;
+            image.alt = frame.name || 'Frame photobox';
+            image.className = 'w-16 h-20 rounded-md object-cover';
+
+            button.appendChild(image);
+            button.addEventListener('click', () => selectFrame(frame.id));
+            frameOptions.appendChild(button);
+        });
+
+        selectFrame(selectedFrame?.id || frames[0]?.id);
+    }
+
+    async function loadFrameOptions() {
+        frameLoadingMessage.textContent = 'Memuat daftar frame...';
+
+        try {
+            const response = await fetch('/api/get-photobox-frames');
+            const result = await response.json();
+            const framesFromDb = response.ok && result.success && Array.isArray(result.data)
+                ? result.data.filter((frame) => frame.previewImage && frame.frameImage)
+                : [];
+
+            availableFrames = framesFromDb.length ? framesFromDb : fallbackFrames;
+            renderFrameOptions(availableFrames);
+
+            frameLoadingMessage.textContent = framesFromDb.length
+                ? 'Pilih frame favoritmu.'
+                : 'Belum ada frame dari admin, memakai frame bawaan.';
+        } catch (error) {
+            availableFrames = fallbackFrames;
+            renderFrameOptions(availableFrames);
+            frameLoadingMessage.textContent = 'Gagal memuat dari server, memakai frame bawaan.';
+        }
+    }
+
+    loadFrameOptions();
 
     const getSupportedAudioMimeType = () => {
         const types = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/x-m4a', 'audio/mpeg', 'audio/wav'];
@@ -594,6 +724,7 @@ height:64.10%;
 
         outputCanvas.classList.add("hidden");
         photoPreview.classList.remove("hidden");
+        btnSwitchCamera.classList.add("hidden");
         btnFoto.classList.add("hidden");
         areaRetake.classList.remove("hidden");
     }
@@ -619,6 +750,7 @@ height:64.10%;
     btnRetake.onclick = () => {
         outputCanvas.classList.remove("hidden");
         photoPreview.classList.add("hidden");
+        btnSwitchCamera.classList.remove("hidden");
         btnFoto.classList.remove("hidden");
         areaRetake.classList.add("hidden");
         rawCapturedImage = null;
@@ -631,11 +763,8 @@ height:64.10%;
         backgroundSelector.classList.add('hidden');
         frameSelector.classList.add('hidden');
         formData.classList.remove('hidden');
-        if (localStream) {
-            localStream.getTracks().forEach(track => track.stop());
-        }
+        stopCameraStream();
         processingCamera = false;
-        video.srcObject = null;
     };
 
     formData.onsubmit = async (e) => {
@@ -667,7 +796,7 @@ height:64.10%;
             new Promise((resolve,reject)=>{
                 frame.onload = resolve;
                 frame.onerror = reject;
-                frame.src = selectedFrame;
+                frame.src = selectedFrame?.frameImage || fallbackFrames[0].frameImage;
             }),
             new Promise((resolve,reject)=>{
                 img.onload = resolve;
@@ -787,7 +916,10 @@ height:64.10%;
             nama, tujuan, pesan, email, whatsapp, alamat, koordinat, showOnHome,
             photoBase64: polaroidBase64,
             audioUrl: audioBase64, 
-            orderId: generatedOrderId
+            orderId: generatedOrderId,
+            frameId: selectedFrame?.id || null,
+            frameName: selectedFrame?.name || null,
+            framePreviewImage: selectedFrame?.previewImage || null
         };
 
         try {
