@@ -121,7 +121,7 @@ height:64.10%;
                     </div>
 
                     <!-- FRAME OVERLAY UTUH MENUTUPI SELURUH POLAROID -->
-                    <img id="frameOverlay" src="image/assets/polaroid-frame-preview.png" class="absolute inset-0 w-full h-full object-fill pointer-events-none z-20">
+                    <img id="frameOverlay" alt="Frame overlay" class="absolute inset-0 w-full h-full object-fill pointer-events-none z-20 opacity-0">
 
                     <!-- Flash -->
                     <div id="flashOverlay" class="absolute inset-0 bg-white opacity-0 transition-opacity duration-100 pointer-events-none z-40"></div>
@@ -349,7 +349,7 @@ height:64.10%;
         }
     ];
     let availableFrames = [];
-    let selectedFrame = fallbackFrames[0];
+    let selectedFrame = null;
 
     let mediaRecorder;
     let audioChunks = [];
@@ -533,6 +533,7 @@ height:64.10%;
         const frame = availableFrames.find((item) => item.id === frameId) || availableFrames[0] || fallbackFrames[0];
         selectedFrame = frame;
         frameOverlay.src = frame.previewImage;
+        frameOverlay.classList.remove('opacity-0');
         updateFrameSelectionUI();
     }
 
@@ -922,31 +923,6 @@ height:64.10%;
             framePreviewImage: selectedFrame?.previewImage || null
         };
 
-        try {
-            const response = await fetch('/api/submit-photobox', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-            Swal.close();
-            if (!response.ok) {
-                const errData = await response.json();
-                throw new Error(errData.message || 'Gagal memproses.');
-            }
-
-            await showSuccess('Berhasil! Merchandise Polaroid sedang dirakit. Silakan datang ke lokasi kami untuk mengambil pesanan.');
-            localStorage.removeItem("tempOrderId");
-
-            if(unsubscribePaymentListener){
-                unsubscribePaymentListener();
-            }
-            window.location.href = `photobox-success.html?orderId=${generatedOrderId}`;
-        } catch (err) {
-            Swal.close();
-            await showError('Gagal: ' + err.message);
-            btnKirim.innerText = "Kirim & Proses Merchandise";
-            btnKirim.disabled = false;
-        }
         // try {
         //     const response = await fetch('/api/submit-photobox', {
         //         method: 'POST',
@@ -959,10 +935,8 @@ height:64.10%;
         //         throw new Error(errData.message || 'Gagal memproses.');
         //     }
 
-        //     // Hapus session/orderId segera setelah backend sukses menerima data
+        //     await showSuccess('Berhasil! Merchandise Polaroid sedang dirakit. Silakan datang ke lokasi kami untuk mengambil pesanan.');
         //     localStorage.removeItem("tempOrderId");
-
-        //     await showSuccess('Berhasil! Gantungan kunci Polaroid sedang dirakit. Silakan datang ke lokasi kami untuk mengambil pesanan.');
 
         //     if(unsubscribePaymentListener){
         //         unsubscribePaymentListener();
@@ -971,9 +945,36 @@ height:64.10%;
         // } catch (err) {
         //     Swal.close();
         //     await showError('Gagal: ' + err.message);
-        //     btnKirim.innerText = "Kirim & Proses Gantungan Kunci";
+        //     btnKirim.innerText = "Kirim & Proses Merchandise";
         //     btnKirim.disabled = false;
         // }
+        try {
+            const response = await fetch('/api/submit-photobox', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            Swal.close();
+            if (!response.ok) {
+                const errData = await response.json();
+                throw new Error(errData.message || 'Gagal memproses.');
+            }
+
+            // Hapus session/orderId segera setelah backend sukses menerima data
+            localStorage.removeItem("tempOrderId");
+
+            await showSuccess('Berhasil! Gantungan kunci Polaroid sedang dirakit. Silakan datang ke lokasi kami untuk mengambil pesanan.');
+
+            if(unsubscribePaymentListener){
+                unsubscribePaymentListener();
+            }
+            window.location.href = `photobox-success.html?orderId=${generatedOrderId}`;
+        } catch (err) {
+            Swal.close();
+            await showError('Gagal: ' + err.message);
+            btnKirim.innerText = "Kirim & Proses Gantungan Kunci";
+            btnKirim.disabled = false;
+        }
     };
 </script>
 </body>
