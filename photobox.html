@@ -97,7 +97,7 @@
                         Abadikan foto berdua, simpan pesan rahasia, dan terima berupa fisik <span class="font-semibold text-neutral-800 underline decoration-neutral-300">Merchandise Polaroid Minimalis</span> tepat di depan rumah.
                     </p>
                 </div>
-                
+
                 <!-- CAMERA SCREEN (Disesuaikan mengikuti rasio master polaroid 900x1560) -->
                 <div id="cameraContainer" class="relative w-full bg-white rounded-2xl overflow-hidden shadow-inner border border-neutral-200" style="aspect-ratio: 900 / 1560;">
                     
@@ -130,6 +130,11 @@ height:64.10%;
                     <div id="countdownDisplay" class="hidden absolute inset-0 flex items-center justify-center text-7xl font-light text-white font-['Playfair_Display'] z-50 bg-black/30 backdrop-blur-xs">
                         5
                     </div>
+                </div>
+
+                <div id="framePreviewMeta" class="mt-2 mb-4 flex items-center justify-between gap-2 rounded-lg border border-neutral-200 bg-white px-2.5 py-1.5">
+                    <p class="text-[11px] font-medium text-neutral-700 truncate" id="framePreviewCaption">Memuat frame...</p>
+                    <div id="framePreviewDots" class="flex items-center gap-1"></div>
                 </div>
 
                 <!-- BACKGROUND SECTOR -->
@@ -317,6 +322,9 @@ height:64.10%;
     const frameOptions = document.getElementById("frameOptions");
     const frameLoadingMessage = document.getElementById("frameLoadingMessage");
     const frameOverlay = document.getElementById("frameOverlay");
+    const framePreviewMeta = document.getElementById("framePreviewMeta");
+    const framePreviewDots = document.getElementById("framePreviewDots");
+    const framePreviewCaption = document.getElementById("framePreviewCaption");
 
     let localStream;
     let rawCapturedImage = null;
@@ -350,6 +358,8 @@ height:64.10%;
     ];
     let availableFrames = [];
     let selectedFrame = null;
+    let carouselIndex = 0;
+    let carouselTimer = null;
 
     let mediaRecorder;
     let audioChunks = [];
@@ -480,6 +490,8 @@ height:64.10%;
             areaAksiFoto.classList.remove('hidden');
             backgroundSelector.classList.remove('hidden');
             frameSelector.classList.remove('hidden');
+            framePreviewMeta?.classList.add('hidden');
+            stopFrameCarouselAutoplay();
             return true;
         } catch (err) {
             showError("Gagal mengakses kamera: " + err.message);
@@ -529,12 +541,95 @@ height:64.10%;
         });
     }
 
+    function stopFrameCarouselAutoplay() {
+        if (carouselTimer) {
+            clearInterval(carouselTimer);
+            carouselTimer = null;
+        }
+    }
+
+    function updateFrameCarousel(nextIndex) {
+        if (!availableFrames.length || !frameOverlay) return;
+
+        carouselIndex = (nextIndex + availableFrames.length) % availableFrames.length;
+
+        const activeFrame = availableFrames[carouselIndex];
+        if (activeFrame) {
+            selectedFrame = activeFrame;
+            frameOverlay.src = activeFrame.previewImage;
+            frameOverlay.classList.remove('opacity-0');
+        }
+        if (framePreviewCaption) {
+            framePreviewCaption.textContent = activeFrame?.name || 'Frame photobox';
+        }
+
+        updateFrameSelectionUI();
+
+        if (framePreviewDots) {
+            framePreviewDots.querySelectorAll('[data-dot-index]').forEach((dot) => {
+                const isActive = Number(dot.dataset.dotIndex) === carouselIndex;
+                dot.classList.toggle('bg-neutral-900', isActive);
+                dot.classList.toggle('w-4', isActive);
+                dot.classList.toggle('bg-neutral-300', !isActive);
+                dot.classList.toggle('w-2', !isActive);
+            });
+        }
+    }
+
+    function startFrameCarouselAutoplay() {
+        stopFrameCarouselAutoplay();
+        if (availableFrames.length <= 1) return;
+        carouselTimer = setInterval(() => {
+            updateFrameCarousel(carouselIndex + 1);
+        }, 2500);
+    }
+
+    function renderFrameCarousel(frames) {
+        if (!framePreviewMeta || !framePreviewDots || !framePreviewCaption) return;
+
+        framePreviewDots.innerHTML = '';
+
+        if (!frames.length) {
+            framePreviewMeta.classList.add('hidden');
+            return;
+        }
+
+        framePreviewMeta.classList.remove('hidden');
+
+        frames.forEach((frame, index) => {
+            const dot = document.createElement('button');
+            dot.type = 'button';
+            dot.dataset.dotIndex = String(index);
+            dot.className = 'h-2 w-2 rounded-full bg-neutral-300 transition-all';
+            dot.addEventListener('click', () => {
+                updateFrameCarousel(index);
+                const clickedFrame = availableFrames[index];
+                if (clickedFrame) {
+                    selectedFrame = clickedFrame;
+                    updateFrameSelectionUI();
+                }
+                startFrameCarouselAutoplay();
+            });
+            framePreviewDots.appendChild(dot);
+        });
+
+        const initialIndex = Math.max(0, frames.findIndex((frame) => frame.id === selectedFrame?.id));
+        updateFrameCarousel(initialIndex);
+        startFrameCarouselAutoplay();
+    }
+
     function selectFrame(frameId) {
         const frame = availableFrames.find((item) => item.id === frameId) || availableFrames[0] || fallbackFrames[0];
         selectedFrame = frame;
         frameOverlay.src = frame.previewImage;
         frameOverlay.classList.remove('opacity-0');
         updateFrameSelectionUI();
+
+        const linkedIndex = availableFrames.findIndex((item) => item.id === frame.id);
+        if (linkedIndex >= 0) {
+            updateFrameCarousel(linkedIndex);
+            startFrameCarouselAutoplay();
+        }
     }
 
     function renderFrameOptions(frames) {
@@ -570,6 +665,7 @@ height:64.10%;
                 : [];
 
             availableFrames = framesFromDb.length ? framesFromDb : fallbackFrames;
+            renderFrameCarousel(availableFrames);
             renderFrameOptions(availableFrames);
 
             frameLoadingMessage.textContent = framesFromDb.length
@@ -577,6 +673,7 @@ height:64.10%;
                 : 'Belum ada frame dari admin, memakai frame bawaan.';
         } catch (error) {
             availableFrames = fallbackFrames;
+            renderFrameCarousel(availableFrames);
             renderFrameOptions(availableFrames);
             frameLoadingMessage.textContent = 'Gagal memuat dari server, memakai frame bawaan.';
         }
