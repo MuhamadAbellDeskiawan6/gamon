@@ -2,6 +2,14 @@ import { getAdminAuth, getAdminDb } from '../lib/firebase-admin.js';
 import { verifyAdminSession } from '../lib/admin-session.js';
 
 const OWNER_EMAIL = 'muhamadabelldeskiawan@gmail.com';
+const REDEEM_CODES_COLLECTION = 'photobox_redeem_codes';
+
+function normalizeRedeemCode(value) {
+    return String(value || '')
+        .trim()
+        .replace(/\s+/g, '')
+        .toUpperCase();
+}
 
 function shouldUseSecureCookie(req) {
     const host = String(req?.headers?.host || '');
@@ -285,6 +293,138 @@ async function handleDeleteFrame(req, res) {
     }
 }
 
+async function handleGetRedeemCodes(req, res) {
+    if (req.method !== 'GET') {
+        return res.status(405).json({ success: false, message: 'Method Not Allowed' });
+    }
+
+    const authResult = await requireAdmin(req, res);
+    if (!authResult) return;
+
+    try {
+        const snapshot = await getAdminDb().collection(REDEEM_CODES_COLLECTION).get();
+        const codes = snapshot.docs
+            .map((doc) => ({ id: doc.id, ...doc.data() }))
+            .sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0));
+
+        return res.status(200).json({ success: true, data: codes });
+    } catch (error) {
+        return res.status(500).json({ success: false, message: error.message });
+    }
+}
+
+async function handleSaveRedeemCode(req, res) {
+    if (req.method !== 'POST') {
+        return res.status(405).json({ success: false, message: 'Method Not Allowed' });
+    }
+
+    const authResult = await requireAdmin(req, res);
+    if (!authResult) return;
+
+    const { code, label, maxUses, isActive, note } = req.body || {};
+    const normalizedCode = normalizeRedeemCode(code);
+
+    if (!normalizedCode) {
+        return res.status(400).json({ success: false, message: 'Kode redeem wajib diisi.' });
+    }
+
+    const hasMaxUses = String(maxUses ?? '').trim() !== '';
+    const parsedMaxUses = Number.parseInt(maxUses, 10);
+    const safeMaxUses = hasMaxUses && Number.isFinite(parsedMaxUses) && parsedMaxUses > 0 ? parsedMaxUses : null;
+    const timestamp = Date.now();
+
+    try {
+        const db = getAdminDb();
+        const docRef = db.collection(REDEEM_CODES_COLLECTION).doc(normalizedCode);
+        const snapshot = await docRef.get();
+        const existing = snapshot.exists ? snapshot.data() : null;
+
+        const payload = {
+            code: normalizedCode,
+            label: String(label || '').trim() || normalizedCode,
+            note: String(note || '').trim(),
+            maxUses: safeMaxUses,
+            isActive: isActive !== false,
+            updatedAt: timestamp,
+            updatedBy: authResult.claims?.email || OWNER_EMAIL,
+        };
+
+        if (existing) {
+            payload.createdAt = existing.createdAt || timestamp;
+            payload.createdBy = existing.createdBy || authResult.claims?.email || OWNER_EMAIL;
+            payload.usedCount = Number(existing.usedCount || 0);
+            payload.lastRedeemedAt = existing.lastRedeemedAt || null;
+        } else {
+            payload.createdAt = timestamp;
+            payload.createdBy = authResult.claims?.email || OWNER_EMAIL;
+            payload.usedCount = 0;
+            payload.lastRedeemedAt = null;
+        }
+
+        await docRef.set(payload, { merge: true });
+
+        return res.status(200).json({
+            success: true,
+            message: existing ? 'Kode redeem berhasil diperbarui.' : 'Kode redeem berhasil ditambahkan.',
+            data: payload,
+        });
+    } catch (error) {
+        return res.status(500).json({ success: false, message: error.message });
+    }
+}
+
+async function handleToggleRedeemCode(req, res) {
+    if (req.method !== 'POST') {
+        return res.status(405).json({ success: false, message: 'Method Not Allowed' });
+    }
+
+    const authResult = await requireAdmin(req, res);
+    if (!authResult) return;
+
+    const { code, isActive } = req.body || {};
+    const normalizedCode = normalizeRedeemCode(code);
+
+    if (!normalizedCode || typeof isActive !== 'boolean') {
+        return res.status(400).json({ success: false, message: 'Kode dan status aktif wajib diisi.' });
+    }
+
+    try {
+        const docRef = getAdminDb().collection(REDEEM_CODES_COLLECTION).doc(normalizedCode);
+        await docRef.update({
+            isActive,
+            updatedAt: Date.now(),
+            updatedBy: authResult.claims?.email || OWNER_EMAIL,
+        });
+
+        return res.status(200).json({ success: true, message: 'Status kode berhasil diperbarui.' });
+    } catch (error) {
+        return res.status(500).json({ success: false, message: error.message });
+    }
+}
+
+async function handleDeleteRedeemCode(req, res) {
+    if (req.method !== 'POST') {
+        return res.status(405).json({ success: false, message: 'Method Not Allowed' });
+    }
+
+    const authResult = await requireAdmin(req, res);
+    if (!authResult) return;
+
+    const { code } = req.body || {};
+    const normalizedCode = normalizeRedeemCode(code);
+
+    if (!normalizedCode) {
+        return res.status(400).json({ success: false, message: 'Kode redeem wajib diisi.' });
+    }
+
+    try {
+        await getAdminDb().collection(REDEEM_CODES_COLLECTION).doc(normalizedCode).delete();
+        return res.status(200).json({ success: true, message: 'Kode redeem berhasil dihapus.' });
+    } catch (error) {
+        return res.status(500).json({ success: false, message: error.message });
+    }
+}
+
 export default async function handler(req, res) {
     const action = String(req?.query?.action || '').toLowerCase();
 
@@ -309,6 +449,14 @@ export default async function handler(req, res) {
             return handleToggleFrame(req, res);
         case 'delete-frame':
             return handleDeleteFrame(req, res);
+        case 'get-redeem-codes':
+            return handleGetRedeemCodes(req, res);
+        case 'save-redeem-code':
+            return handleSaveRedeemCode(req, res);
+        case 'toggle-redeem-code':
+            return handleToggleRedeemCode(req, res);
+        case 'delete-redeem-code':
+            return handleDeleteRedeemCode(req, res);
         default:
             return res.status(404).json({ success: false, message: 'Admin action tidak ditemukan.' });
     }

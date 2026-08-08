@@ -4,6 +4,33 @@ import fs from "fs";
 import path from "path";
 import nodemailer from "nodemailer";
 
+const ADMIN_EMAIL = process.env.ADMIN_NOTIFY_EMAIL || "muhamadabelldeskiawan@gmail.com";
+const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "";
+const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID || "";
+const PICKUP_LOCATION = "Jl. Kelayan A Gg. Sidodadi No.75 RT.009 RW.001, Kel. Murung Raya, Kec. Banjarmasin Selatan, Kota Banjarmasin";
+
+async function sendTelegramNotification(messageText) {
+  if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) {
+    return;
+  }
+
+  const endpoint = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      chat_id: TELEGRAM_CHAT_ID,
+      text: messageText,
+      disable_web_page_preview: true,
+    }),
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Telegram API error: ${response.status} ${text}`);
+  }
+}
+
 /* ======================================
    LOAD .env.local (LOCAL ONLY)
 ====================================== */
@@ -254,6 +281,47 @@ export default async function handler(req, res) {
           },
         ],
       });
+
+      // Notifikasi khusus admin bahwa ada order baru yang perlu disiapkan.
+      await transporter.sendMail({
+        from: '"Notifier Gamon Booth" <muhamadabelldeskiawan@gmail.com>',
+        to: ADMIN_EMAIL,
+        subject: `🔔 Pesanan Masuk - ${finalOrderId}`,
+        html: `
+          <div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;padding:24px;border:1px solid #eee;border-radius:16px">
+            <h2 style="margin-top:0;color:#111827">Halo Abell, ada pesanan masuk nihhhh 📸</h2>
+            <p style="color:#374151">Segera siapkan merchandise photobox untuk pickup.</p>
+
+            <table style="width:100%;font-size:14px;border-collapse:collapse;margin:16px 0">
+              <tr><td style="padding:6px 0"><b>Order ID</b></td><td style="padding:6px 0">${finalOrderId}</td></tr>
+              <tr><td style="padding:6px 0"><b>Nama Pemesan</b></td><td style="padding:6px 0">${nama || "Anonim"}</td></tr>
+              <tr><td style="padding:6px 0"><b>Penerima</b></td><td style="padding:6px 0">${tujuan || "-"}</td></tr>
+              <tr><td style="padding:6px 0"><b>WhatsApp</b></td><td style="padding:6px 0">${whatsapp || "-"}</td></tr>
+              <tr><td style="padding:6px 0"><b>Email</b></td><td style="padding:6px 0">${email || "-"}</td></tr>
+              <tr><td style="padding:6px 0"><b>Frame</b></td><td style="padding:6px 0">${frameName || "Default"}</td></tr>
+            </table>
+
+            <p style="margin-bottom:6px"><b>Lokasi Pickup:</b></p>
+            <div style="background:#f8fafc;padding:12px;border-radius:12px;font-size:13px;color:#334155;line-height:1.5">${PICKUP_LOCATION}</div>
+            <p style="font-size:12px;color:#64748b;margin-top:14px">Masuk dari sistem Gamon Tawing otomatis.</p>
+          </div>
+        `,
+      });
+    }
+
+    try {
+      const telegramMessage = [
+        "Halo Abell, ada pesanan masuk nihhhh 📸",
+        `Order ID: ${finalOrderId}`,
+        `Nama: ${nama || "Anonim"}`,
+        `Tujuan: ${tujuan || "-"}`,
+        `WA: ${whatsapp || "-"}`,
+        `Frame: ${frameName || "Default"}`,
+        "Status: PENDING PRODUCTION",
+      ].join("\n");
+      await sendTelegramNotification(telegramMessage);
+    } catch (notifyError) {
+      console.warn("Telegram notification failed:", notifyError.message);
     }
 
     return res.status(200).json({

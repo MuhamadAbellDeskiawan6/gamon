@@ -20,6 +20,7 @@
             <nav class="space-y-2">
                 <a href="/admin/dashboard.html" class="block rounded-xl bg-pink-600 px-3 py-2 text-sm font-semibold text-white">Dashboard Pesanan</a>
                 <a href="/admin/frames.html" class="block rounded-xl px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100">Kelola Frame</a>
+                <a href="/admin/redeem-codes.html" class="block rounded-xl px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100">Kelola Redeem</a>
             </nav>
 
             <div class="mt-6 border-t border-slate-200 pt-4">
@@ -33,12 +34,15 @@
         <main class="px-4 py-8 lg:px-8">
         <div class="flex justify-between items-center mb-6">
             <div>
-                <h2 class="text-2xl font-bold">Daftar Antrean Cetak & Merchandise</h2>
-                <p class="text-slate-500 text-sm">Kelola data pemesanan photobox dan status produksi cenderamata fisik.</p>
+                <h2 class="text-2xl font-bold">Daftar Antrean Pickup Photobox</h2>
+                <p class="text-slate-500 text-sm">Semua pesanan diambil langsung di lokasi Gamon Booth. Gunakan menu verifikasi saat pelanggan datang.</p>
             </div>
             <div class="flex items-center gap-2">
                 <a href="/admin/frames.html" class="bg-pink-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-pink-700 transition cursor-pointer">
                     Kelola Frame
+                </a>
+                <a href="/admin/redeem-codes.html" class="bg-slate-800 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-slate-700 transition cursor-pointer">
+                    Kode Redeem
                 </a>
                 <button onclick="loadOrders()" class="bg-slate-800 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-slate-700 transition cursor-pointer">
                     Refresh Data
@@ -54,7 +58,7 @@
                             <th class="px-5 py-4">Order / Waktu</th>
                             <th class="px-5 py-4">Pengirim → Penerima</th>
                             <th class="px-5 py-4">Kontak / Email</th>
-                            <th class="px-5 py-4">Alamat</th>
+                            <th class="px-5 py-4">Info Pickup</th>
                             <th class="px-5 py-4">Status</th>
                             <th class="px-5 py-4">Aksi</th>
                         </tr>
@@ -152,6 +156,7 @@
                 visible.forEach(order => {
                     const date = order.createdAt ? new Date(order.createdAt).toLocaleString('id-ID') : '-';
                     const currentStatus = order.statusMerchandise || 'PENDING_PRODUCTION';
+                    const statusLabel = String(currentStatus).replace(/_/g, ' ');
                     const safeWhatsapp = order.whatsapp ? order.whatsapp.replace(/[^0-9]/g, '') : '';
                     const stringifiedOrder = JSON.stringify(order).replace(/"/g, '&quot;');
                     
@@ -170,18 +175,18 @@
                                 ${order.whatsapp ? `<div class="text-[11px] text-emerald-600 font-medium mt-1"><a href="https://wa.me/${safeWhatsapp}" target="_blank" class="hover:underline">WA: ${order.whatsapp}</a></div>` : '<div class="text-[11px] text-slate-400 mt-1">WA tidak tersedia</div>'}
                             </td>
                             <td class="px-5 py-4 align-top max-w-xs">
-                                <p class="text-[11px] text-slate-600 line-clamp-2" title="${order.alamat || '-'}">${order.alamat || 'Alamat kosong'}</p>
-                                ${order.koordinat ? `<a href="https://maps.google.com/?q=${order.koordinat}" target="_blank" class="text-[11px] text-pink-500 font-bold hover:underline block mt-1">Lihat Maps</a>` : ''}
+                                <p class="text-[11px] font-semibold text-slate-700">Ambil di lokasi Gamon Booth</p>
+                                <p class="mt-1 text-[11px] text-slate-500">Pelanggan menunjukkan Order ID saat pickup.</p>
                             </td>
                             <td class="px-5 py-4 align-top">
-                                <span class="inline-flex items-center rounded-full px-3 py-1 text-[11px] font-semibold ${currentStatus === 'PENDING_PRODUCTION' ? 'bg-amber-100 text-amber-800' : currentStatus === 'DIPROSES' ? 'bg-sky-100 text-sky-800' : currentStatus === 'DIKIRIM' ? 'bg-violet-100 text-violet-800' : currentStatus === 'SELESAI' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-700'}">
-                                    ${currentStatus.replace('_', ' ')}
+                                <span class="inline-flex items-center rounded-full px-3 py-1 text-[11px] font-semibold ${currentStatus === 'PENDING_PRODUCTION' ? 'bg-amber-100 text-amber-800' : currentStatus === 'DIPROSES' ? 'bg-sky-100 text-sky-800' : currentStatus === 'PICKED_UP' ? 'bg-emerald-100 text-emerald-800' : currentStatus === 'SELESAI' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-700'}">
+                                    ${statusLabel}
                                 </span>
                             </td>
                             <td class="px-5 py-4 align-top">
                                 <div class="flex flex-col gap-2">
-                                    <button onclick="openVerifikasi('${order.orderId || order.id}')" class="px-3 py-2 rounded-lg bg-amber-600 text-white text-[11px] font-semibold hover:bg-amber-700 transition">Verifikasi</button>
-                                    <button onclick="cetakResi(${stringifiedOrder})" class="px-3 py-2 rounded-lg bg-slate-800 text-white text-[11px] font-semibold hover:bg-slate-900 transition">Resi</button>
+                                    <button onclick="openVerifikasi('${order.orderId || order.id}')" class="px-3 py-2 rounded-lg bg-amber-600 text-white text-[11px] font-semibold hover:bg-amber-700 transition">Konfirmasi Pickup</button>
+                                    <button onclick="cetakResi(${stringifiedOrder})" class="px-3 py-2 rounded-lg bg-slate-800 text-white text-[11px] font-semibold hover:bg-slate-900 transition">Cetak Slip</button>
                                 </div>
                             </td>
                         </tr>
@@ -238,7 +243,7 @@
                 <!DOCTYPE html>
                 <html>
                 <head>
-                    <title>Cetak Resi - ${order.orderId || order.id}</title>
+                    <title>Slip Pickup - ${order.orderId || order.id}</title>
                     <style>
                         @page { size: A6; margin: 5mm; }
                         body { font-family: Arial, sans-serif; margin: 0; padding: 10px; font-size: 12px; }
@@ -259,21 +264,26 @@
                             <span style="font-size: 10px;">ID: ${order.orderId || order.id}</span>
                         </div>
                         <div class="section">
-                            <div class="label">PENGIRIM:</div>
-                            <div class="value">GAMON BOOTH (Tawing)</div>
+                            <div class="label">JENIS PESANAN:</div>
+                            <div class="value">Pickup di Tempat</div>
                         </div>
                         <div class="section">
-                            <div class="label">PENERIMA:</div>
+                            <div class="label">PEMESAN:</div>
                             <div class="value" style="font-size: 14px;">${order.nama || 'Anonim'}</div>
                             <div class="value">📞 ${order.whatsapp || '-'}</div>
+                            <div class="value">✉️ ${order.email || '-'}</div>
                         </div>
                         <div class="section">
-                            <div class="label">ALAMAT TUJUAN:</div>
-                            <div class="alamat-box">${order.alamat || 'Tidak ada alamat lengkap'}</div>
+                            <div class="label">LOKASI PICKUP:</div>
+                            <div class="alamat-box">Jl. Kelayan A Gg. Sidodadi No.75 RT.009 RW.001, Kel. Murung Raya, Kec. Banjarmasin Selatan, Kota Banjarmasin</div>
                         </div>
                         <div class="section">
                             <div class="label">ISI PAKET:</div>
                             <div class="value" style="font-weight: normal; font-size: 11px;">1x Merchandise Polaroid Custom</div>
+                        </div>
+                        <div class="section">
+                            <div class="label">STATUS:</div>
+                            <div class="value" style="font-size: 12px;">${String(order.statusMerchandise || 'PENDING_PRODUCTION').replace(/_/g, ' ')}</div>
                         </div>
                         <div class="footer">Terima kasih telah berpartisipasi di Gamon Tawing!</div>
                     </div>

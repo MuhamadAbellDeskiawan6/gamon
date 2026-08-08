@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kelola Redeem Photobox - Gamon Booth</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+</head>
+<body class="min-h-screen bg-slate-100 text-slate-800">
+    <div class="min-h-screen lg:grid lg:grid-cols-[260px_minmax(0,1fr)]">
+        <aside class="border-r border-slate-200 bg-white p-4 lg:p-6">
+            <div class="mb-6">
+                <h1 class="flex items-center gap-2 text-lg font-bold text-pink-600">
+                    <span>📸</span>
+                    <span>Gamon Admin</span>
+                </h1>
+                <p class="mt-1 text-xs text-slate-500">Panel pengelolaan photobox</p>
+            </div>
+
+            <nav class="space-y-2">
+                <a href="/admin/dashboard.html" class="block rounded-xl px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100">Dashboard Pesanan</a>
+                <a href="/admin/frames.html" class="block rounded-xl px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100">Kelola Frame</a>
+                <a href="/admin/redeem-codes.html" class="block rounded-xl bg-pink-600 px-3 py-2 text-sm font-semibold text-white">Kelola Redeem</a>
+            </nav>
+
+            <div class="mt-6 border-t border-slate-200 pt-4">
+                <p id="adminEmail" class="mb-2 text-xs text-slate-500">Memeriksa sesi...</p>
+                <button onclick="handleLogout()" class="w-full rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-600 transition hover:bg-rose-100">
+                    Keluar Sesi
+                </button>
+            </div>
+        </aside>
+
+        <main class="grid gap-6 px-4 py-8 lg:grid-cols-[420px_minmax(0,1fr)] lg:px-8">
+        <section class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div class="mb-5">
+                <h2 id="formTitle" class="text-xl font-bold text-slate-900">Tambah Kode Redeem</h2>
+                <p id="formDescription" class="mt-1 text-sm leading-relaxed text-slate-500">Kode yang valid akan langsung mengaktifkan kamera photobox tanpa lewat pembayaran.</p>
+            </div>
+
+            <form id="redeemForm" class="space-y-4">
+                <div>
+                    <label for="redeemCode" class="mb-1 block text-sm font-medium text-slate-700">Kode Redeem</label>
+                    <input id="redeemCode" type="text" required placeholder="Contoh: GAMON-REDEEM-2026" class="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm uppercase tracking-wider focus:border-pink-500 focus:outline-none">
+                    <p class="mt-1 text-xs text-slate-400">Huruf akan dinormalisasi menjadi uppercase tanpa spasi.</p>
+                </div>
+
+                <div>
+                    <label for="redeemLabel" class="mb-1 block text-sm font-medium text-slate-700">Label / Nama Kode</label>
+                    <input id="redeemLabel" type="text" required placeholder="Contoh: Kode VIP Event" class="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm focus:border-pink-500 focus:outline-none">
+                </div>
+
+                <div>
+                    <label for="redeemNote" class="mb-1 block text-sm font-medium text-slate-700">Catatan Admin</label>
+                    <textarea id="redeemNote" rows="3" placeholder="Opsional, misal: hanya untuk event internal" class="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm focus:border-pink-500 focus:outline-none"></textarea>
+                </div>
+
+                <div class="grid gap-3 sm:grid-cols-2">
+                    <div>
+                        <label for="maxUses" class="mb-1 block text-sm font-medium text-slate-700">Batas Pakai</label>
+                        <input id="maxUses" type="number" min="1" placeholder="Kosong = tanpa batas" class="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm focus:border-pink-500 focus:outline-none">
+                    </div>
+                    <label class="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+                        <div>
+                            <p class="font-semibold">Kode aktif</p>
+                            <p class="mt-1 text-xs text-slate-500">Kalau dimatikan, kode tidak bisa dipakai user.</p>
+                        </div>
+                        <input id="isActive" type="checkbox" checked class="h-5 w-5 accent-pink-600">
+                    </label>
+                </div>
+
+                <div class="grid gap-2 sm:grid-cols-2">
+                    <button id="saveButton" type="submit" class="w-full rounded-xl bg-pink-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-pink-700">Simpan Kode</button>
+                    <button id="resetButton" type="button" class="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-100">Reset Form</button>
+                </div>
+            </form>
+        </section>
+
+        <section class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div class="mb-5 flex items-center justify-between gap-3">
+                <div>
+                    <h2 class="text-xl font-bold text-slate-900">Daftar Kode Redeem</h2>
+                    <p class="mt-1 text-sm text-slate-500">Kelola kode yang bisa dipakai user untuk membuka photobox tanpa pembayaran.</p>
+                </div>
+                <button onclick="loadRedeemCodes()" class="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100">Refresh</button>
+            </div>
+
+            <div id="redeemGrid" class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                <div class="rounded-2xl border border-dashed border-slate-200 p-6 text-center text-sm text-slate-400">Sedang memuat data redeem...</div>
+            </div>
+        </section>
+        </main>
+    </div>
+
+    <script>
+        let redeemCodes = [];
+
+        window.addEventListener('DOMContentLoaded', bootPage);
+
+        window.loadRedeemCodes = loadRedeemCodes;
+        window.handleLogout = handleLogout;
+
+        document.getElementById('redeemForm').addEventListener('submit', saveRedeemCode);
+        document.getElementById('resetButton').addEventListener('click', resetForm);
+
+        async function bootPage() {
+            const ok = await verifyAdminPageSession();
+            if (!ok) return;
+            loadRedeemCodes();
+        }
+
+        async function verifyAdminPageSession() {
+            try {
+                const response = await fetch('/api/admin/session');
+                const result = await response.json();
+                if (!response.ok || !result.success) {
+                    window.location.href = '/admin/login.html';
+                    return false;
+                }
+
+                const emailEl = document.getElementById('adminEmail');
+                if (emailEl) {
+                    emailEl.textContent = result.email ? `Login sebagai ${result.email}` : 'Admin terverifikasi';
+                }
+
+                return true;
+            } catch (error) {
+                window.location.href = '/admin/login.html';
+                return false;
+            }
+        }
+
+        async function loadRedeemCodes() {
+            const grid = document.getElementById('redeemGrid');
+
+            try {
+                const response = await fetch('/api/admin/get-redeem-codes');
+                const result = await response.json();
+
+                if (response.status === 401 || response.status === 403) {
+                    alert('Sesi tidak valid! Dikembalikan ke halaman login.');
+                    window.location.href = '/admin/login.html';
+                    return;
+                }
+
+                redeemCodes = result.success && Array.isArray(result.data) ? result.data : [];
+                renderRedeemCodes();
+            } catch (error) {
+                console.error(error);
+                grid.innerHTML = '<div class="rounded-2xl border border-rose-200 bg-rose-50 p-6 text-center text-sm text-rose-600">Gagal mengambil data kode redeem.</div>';
+            }
+        }
+
+        function renderRedeemCodes() {
+            const grid = document.getElementById('redeemGrid');
+
+            if (!redeemCodes.length) {
+                grid.innerHTML = '<div class="rounded-2xl border border-dashed border-slate-200 p-6 text-center text-sm text-slate-400">Belum ada kode redeem yang dibuat.</div>';
+                return;
+            }
+
+            grid.innerHTML = redeemCodes.map((item) => {
+                const usedCount = Number(item.usedCount || 0);
+                const hasLimit = Number.isFinite(Number(item.maxUses)) && Number(item.maxUses) > 0;
+                const maxUses = hasLimit ? Number(item.maxUses) : null;
+                const remainingUses = hasLimit ? Math.max(maxUses - usedCount, 0) : '∞';
+                const createdAt = item.createdAt ? new Date(item.createdAt).toLocaleString('id-ID') : '-';
+                const lastRedeemedAt = item.lastRedeemedAt ? new Date(item.lastRedeemedAt).toLocaleString('id-ID') : '-';
+                return `
+                    <article class="rounded-2xl border border-slate-200 bg-slate-50 p-4 shadow-sm">
+                        <div class="flex items-start justify-between gap-3">
+                            <div>
+                                <h3 class="text-base font-bold text-slate-900 break-all">${item.code}</h3>
+                                <p class="mt-1 text-sm text-slate-600">${item.label || '-'}</p>
+                            </div>
+                            <span class="inline-flex items-center rounded-full px-3 py-1 text-[11px] font-semibold ${item.isActive !== false ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-600'}">${item.isActive !== false ? 'Aktif' : 'Nonaktif'}</span>
+                        </div>
+                        <div class="mt-4 space-y-1 text-xs text-slate-500">
+                            <div><b>Pemakaian:</b> ${usedCount}/${hasLimit ? maxUses : 'Tanpa batas'} (${hasLimit ? `sisa ${remainingUses}` : 'bisa dipakai terus'})</div>
+                            <div><b>Dibuat:</b> ${createdAt}</div>
+                            <div><b>Terakhir dipakai:</b> ${lastRedeemedAt}</div>
+                            ${item.note ? `<div><b>Catatan:</b> ${item.note}</div>` : ''}
+                        </div>
+                        <div class="mt-4 flex flex-wrap gap-2">
+                            <button type="button" onclick="toggleRedeemCode('${item.code}', ${item.isActive === false})" class="rounded-lg bg-slate-800 px-3 py-2 text-xs font-semibold text-white transition hover:bg-slate-900">${item.isActive !== false ? 'Nonaktifkan' : 'Aktifkan'}</button>
+                            <button type="button" onclick="deleteRedeemCode('${item.code}')" class="rounded-lg border border-rose-200 bg-white px-3 py-2 text-xs font-semibold text-rose-600 transition hover:bg-rose-50">Hapus</button>
+                        </div>
+                    </article>
+                `;
+            }).join('');
+        }
+
+        async function saveRedeemCode(event) {
+            event.preventDefault();
+
+            const saveButton = document.getElementById('saveButton');
+            saveButton.disabled = true;
+            saveButton.innerText = 'Menyimpan...';
+
+            try {
+                const payload = {
+                    code: document.getElementById('redeemCode').value,
+                    label: document.getElementById('redeemLabel').value,
+                    note: document.getElementById('redeemNote').value,
+                    maxUses: document.getElementById('maxUses').value,
+                    isActive: document.getElementById('isActive').checked,
+                };
+
+                const response = await fetch('/api/admin/save-redeem-code', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+                if (!response.ok || !result.success) {
+                    throw new Error(result.message || 'Gagal menyimpan kode redeem.');
+                }
+
+                window.alert(result.message || 'Kode redeem berhasil ditambahkan.');
+                resetForm();
+                await loadRedeemCodes();
+            } catch (error) {
+                window.alert(error.message || 'Gagal menyimpan kode redeem.');
+            } finally {
+                saveButton.disabled = false;
+                saveButton.innerText = 'Simpan Kode';
+            }
+        }
+
+        async function toggleRedeemCode(code, currentInactive) {
+            try {
+                const response = await fetch('/api/admin/toggle-redeem-code', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code, isActive: currentInactive })
+                });
+
+                const result = await response.json();
+                if (!response.ok || !result.success) {
+                    throw new Error(result.message || 'Gagal mengubah status kode.');
+                }
+
+                await loadRedeemCodes();
+            } catch (error) {
+                alert(error.message || 'Gagal mengubah status kode.');
+            }
+        }
+
+        async function deleteRedeemCode(code) {
+            if (!confirm(`Hapus kode ${code}?`)) return;
+
+            try {
+                const response = await fetch('/api/admin/delete-redeem-code', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code })
+                });
+
+                const result = await response.json();
+                if (!response.ok || !result.success) {
+                    throw new Error(result.message || 'Gagal menghapus kode.');
+                }
+
+                await loadRedeemCodes();
+            } catch (error) {
+                alert(error.message || 'Gagal menghapus kode redeem.');
+            }
+        }
+
+        function resetForm() {
+            document.getElementById('redeemForm').reset();
+            document.getElementById('isActive').checked = true;
+            document.getElementById('redeemCode').focus();
+        }
+
+        async function handleLogout() {
+            try {
+                await fetch('/api/admin/logout', { method: 'POST' });
+            } finally {
+                window.location.href = '/admin/login.html';
+            }
+        }
+    </script>
+</body>
+</html>

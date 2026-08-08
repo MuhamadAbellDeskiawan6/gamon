@@ -158,6 +158,15 @@ height:64.10%;
                     <div id="frameOptions" class="flex gap-2 overflow-x-auto pb-1"></div>
                     <p id="frameLoadingMessage" class="mt-2 text-[10px] text-neutral-400">Memuat daftar frame...</p>
                 </div>
+
+                <div id="redeemSection" class="mb-4 rounded-2xl border border-emerald-200 bg-emerald-50/80 p-3 shadow-sm">
+                    <label class="mb-2 block text-[10px] font-bold uppercase tracking-wider text-emerald-700" for="redeemCodeInput">Punya kode redeem?</label>
+                    <div class="flex gap-2">
+                        <input id="redeemCodeInput" type="text" placeholder="Masukkan kode redeem" class="min-w-0 flex-1 rounded-xl border border-emerald-200 bg-white px-3 py-2 text-xs font-medium uppercase tracking-wider text-emerald-900 placeholder:text-emerald-400 focus:border-emerald-400 focus:outline-none">
+                        <button id="btnRedeemCode" type="button" class="rounded-xl bg-emerald-600 px-4 py-2 text-xs font-semibold uppercase tracking-wider text-white transition hover:bg-emerald-700">Redeem</button>
+                    </div>
+                    <p class="mt-2 text-[10px] leading-relaxed text-emerald-700">Kode valid akan langsung membuka kamera tanpa pembayaran.</p>
+                </div>
                 
                 <canvas id="canvas" class="hidden"></canvas>
                 <div id="qrcode" class="hidden"></div>
@@ -293,6 +302,9 @@ height:64.10%;
     const db = getFirestore(app);
 
     const btnMulai = document.getElementById('btnMulai');
+    const redeemCodeInput = document.getElementById('redeemCodeInput');
+    const btnRedeemCode = document.getElementById('btnRedeemCode');
+    const redeemSection = document.getElementById('redeemSection');
     const areaAksiFoto = document.getElementById('areaAksiFoto');
     const btnSwitchCamera = document.getElementById('btnSwitchCamera');
     const cameraSwitchLabel = document.getElementById('cameraSwitchLabel');
@@ -365,6 +377,8 @@ height:64.10%;
     let audioChunks = [];
     let audioBase64 = null;
     let unsubscribePaymentListener = null;
+    const REDEEM_SESSION_KEY = 'photoboxRedeemSession';
+    let cameraActive = false;
 
     function showSuccess(message) {
         return Swal.fire({ icon: 'success', title: 'Berhasil', text: message, confirmButtonColor: '#171717' });
@@ -437,11 +451,110 @@ height:64.10%;
             : "Pakai Kamera Depan";
     }
 
+    function setRedeemSectionVisible(isVisible) {
+        if (redeemSection) {
+            redeemSection.classList.toggle('hidden', !isVisible);
+        }
+    }
+
+    function saveRedeemSession(code, metadata = {}) {
+        localStorage.setItem(REDEEM_SESSION_KEY, JSON.stringify({
+            code: String(code || '').trim(),
+            label: metadata.label || '',
+            redeemedAt: metadata.redeemedAt || Date.now(),
+        }));
+    }
+
+    function loadRedeemSession() {
+        try {
+            const raw = localStorage.getItem(REDEEM_SESSION_KEY);
+            if (!raw) return null;
+            const parsed = JSON.parse(raw);
+            return parsed?.code ? parsed : null;
+        } catch {
+            return null;
+        }
+    }
+
+    function clearRedeemSession() {
+        localStorage.removeItem(REDEEM_SESSION_KEY);
+    }
+
+    async function resumeRedeemSession() {
+        const redeemSession = loadRedeemSession();
+        if (!redeemSession?.code) return false;
+
+        setRedeemSectionVisible(false);
+        if (unsubscribePaymentListener) {
+            unsubscribePaymentListener();
+            unsubscribePaymentListener = null;
+        }
+
+        initSelfieSegmentation();
+        const cameraReady = await startCamera();
+        if (!cameraReady) {
+            clearRedeemSession();
+            setRedeemSectionVisible(true);
+            return false;
+        }
+
+        return true;
+    }
+
+    async function handleRedeemCode() {
+        const code = redeemCodeInput?.value?.trim();
+        if (!code) {
+            showError('Masukkan kode redeem terlebih dahulu.');
+            return;
+        }
+
+        const originalLabel = btnRedeemCode?.innerText || 'Redeem';
+        btnRedeemCode.disabled = true;
+        btnRedeemCode.innerText = 'Memeriksa...';
+
+        try {
+            const response = await fetch('/api/verify-photobox-redeem-code', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ code })
+            });
+
+            const result = await response.json();
+            if (!response.ok || !result.success) {
+                throw new Error(result.message || 'Kode redeem tidak valid.');
+            }
+
+            redeemCodeInput.value = '';
+            localStorage.removeItem('tempOrderId');
+            if (unsubscribePaymentListener) {
+                unsubscribePaymentListener();
+                unsubscribePaymentListener = null;
+            }
+            saveRedeemSession(code, result.data);
+
+            await Swal.fire({
+                icon: 'success',
+                title: 'Kode berhasil ditukarkan',
+                text: 'Silakan melakukan foto sekarang.',
+                confirmButtonColor: '#171717'
+            });
+
+            initSelfieSegmentation();
+            await startCamera();
+        } catch (error) {
+            await showError(error.message || 'Gagal memverifikasi kode redeem.');
+        } finally {
+            btnRedeemCode.disabled = false;
+            btnRedeemCode.innerText = originalLabel;
+        }
+    }
+
     function stopCameraStream() {
         if (localStream) {
             localStream.getTracks().forEach(track => track.stop());
             localStream = null;
         }
+        cameraActive = false;
         video.pause();
         video.srcObject = null;
     }
@@ -492,6 +605,8 @@ height:64.10%;
             frameSelector.classList.remove('hidden');
             framePreviewMeta?.classList.add('hidden');
             stopFrameCarouselAutoplay();
+            setRedeemSectionVisible(false);
+            cameraActive = true;
             return true;
         } catch (err) {
             showError("Gagal mengakses kamera: " + err.message);
@@ -532,6 +647,14 @@ height:64.10%;
             updateSwitchCameraLabel();
             btnSwitchCamera.disabled = false;
             btnSwitchCamera.classList.remove('opacity-60', 'cursor-wait');
+        }
+    });
+
+    btnRedeemCode?.addEventListener('click', handleRedeemCode);
+    redeemCodeInput?.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            handleRedeemCode();
         }
     });
 
@@ -578,7 +701,7 @@ height:64.10%;
 
     function startFrameCarouselAutoplay() {
         stopFrameCarouselAutoplay();
-        if (availableFrames.length <= 1) return;
+        if (cameraActive || availableFrames.length <= 1) return;
         carouselTimer = setInterval(() => {
             updateFrameCarousel(carouselIndex + 1);
         }, 2500);
@@ -608,14 +731,18 @@ height:64.10%;
                     selectedFrame = clickedFrame;
                     updateFrameSelectionUI();
                 }
-                startFrameCarouselAutoplay();
+                if (!cameraActive) {
+                    startFrameCarouselAutoplay();
+                }
             });
             framePreviewDots.appendChild(dot);
         });
 
         const initialIndex = Math.max(0, frames.findIndex((frame) => frame.id === selectedFrame?.id));
         updateFrameCarousel(initialIndex);
-        startFrameCarouselAutoplay();
+        if (!cameraActive) {
+            startFrameCarouselAutoplay();
+        }
     }
 
     function selectFrame(frameId) {
@@ -628,7 +755,9 @@ height:64.10%;
         const linkedIndex = availableFrames.findIndex((item) => item.id === frame.id);
         if (linkedIndex >= 0) {
             updateFrameCarousel(linkedIndex);
-            startFrameCarouselAutoplay();
+            if (!cameraActive) {
+                startFrameCarouselAutoplay();
+            }
         }
     }
 
@@ -771,8 +900,11 @@ height:64.10%;
     const urlParams = new URLSearchParams(window.location.search);
     const orderIdFromUrl = urlParams.get('orderId');
     const storedOrderId = localStorage.getItem('tempOrderId');
+    const redeemSession = loadRedeemSession();
 
-    if (orderIdFromUrl || storedOrderId) {
+    if (redeemSession) {
+        resumeRedeemSession();
+    } else if (orderIdFromUrl || storedOrderId) {
         listenToPayment(orderIdFromUrl || storedOrderId);
     }
 
@@ -1019,32 +1151,6 @@ height:64.10%;
             frameName: selectedFrame?.name || null,
             framePreviewImage: selectedFrame?.previewImage || null
         };
-
-        // try {
-        //     const response = await fetch('/api/submit-photobox', {
-        //         method: 'POST',
-        //         headers: { 'Content-Type': 'application/json' },
-        //         body: JSON.stringify(payload)
-        //     });
-        //     Swal.close();
-        //     if (!response.ok) {
-        //         const errData = await response.json();
-        //         throw new Error(errData.message || 'Gagal memproses.');
-        //     }
-
-        //     await showSuccess('Berhasil! Merchandise Polaroid sedang dirakit. Silakan datang ke lokasi kami untuk mengambil pesanan.');
-        //     localStorage.removeItem("tempOrderId");
-
-        //     if(unsubscribePaymentListener){
-        //         unsubscribePaymentListener();
-        //     }
-        //     window.location.href = `photobox-success.html?orderId=${generatedOrderId}`;
-        // } catch (err) {
-        //     Swal.close();
-        //     await showError('Gagal: ' + err.message);
-        //     btnKirim.innerText = "Kirim & Proses Merchandise";
-        //     btnKirim.disabled = false;
-        // }
         try {
             const response = await fetch('/api/submit-photobox', {
                 method: 'POST',
@@ -1059,6 +1165,7 @@ height:64.10%;
 
             // Hapus session/orderId segera setelah backend sukses menerima data
             localStorage.removeItem("tempOrderId");
+            clearRedeemSession();
 
             await showSuccess('Berhasil! Gantungan kunci Polaroid sedang dirakit. Silakan datang ke lokasi kami untuk mengambil pesanan.');
 
