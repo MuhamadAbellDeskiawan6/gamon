@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wedding Photobooth Gratis - Gamon Tawing</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@0,500;0,600;1,500;1,600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+    <style>
+        :root {
+            --tone-rose: #ffe6ea;
+            --tone-ivory: #fffdf8;
+            --tone-neutral: #111827;
+            --tone-soft: #6b7280;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background:
+                radial-gradient(circle at 10% 15%, rgba(255, 228, 236, 0.7), transparent 38%),
+                radial-gradient(circle at 90% 5%, rgba(255, 242, 227, 0.8), transparent 35%),
+                linear-gradient(180deg, #fffefc 0%, #fff8fb 45%, #f8fafc 100%);
+            color: #111827;
+        }
+
+        .display-serif {
+            font-family: 'Playfair Display', serif;
+        }
+
+        .reveal {
+            opacity: 0;
+            transform: translateY(18px);
+            transition: opacity .6s ease, transform .6s ease;
+        }
+
+        .reveal.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .float-soft {
+            animation: floatSoft 6s ease-in-out infinite;
+        }
+
+        .float-soft-delay {
+            animation: floatSoft 7.2s ease-in-out infinite;
+            animation-delay: .6s;
+        }
+
+        @keyframes floatSoft {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-8px); }
+        }
+
+        .cta-button {
+            box-shadow: 0 12px 28px -16px rgba(17, 24, 39, 0.7);
+        }
+
+        .glass {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.7);
+        }
+
+        .error-text {
+            color: #b91c1c;
+            font-size: 11px;
+            margin-top: 6px;
+        }
+    </style>
+</head>
+<body class="text-neutral-900 selection:bg-rose-100">
+    <div class="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
+        <div class="absolute -left-12 top-24 h-40 w-40 rounded-full bg-rose-200/45 blur-3xl"></div>
+        <div class="absolute right-0 top-36 h-48 w-48 rounded-full bg-amber-100/65 blur-3xl"></div>
+        <div class="absolute left-1/2 top-[55%] h-56 w-56 -translate-x-1/2 rounded-full bg-neutral-100/80 blur-3xl"></div>
+    </div>
+
+    <main class="mx-auto w-full max-w-6xl px-4 pb-16 pt-6 sm:px-6 lg:px-8">
+        <div class="mb-5 flex items-center justify-between">
+            <a href="photobox.html" class="inline-flex items-center gap-2 rounded-full border border-neutral-200 bg-white px-3 py-1.5 text-xs font-medium text-neutral-700 shadow-sm transition hover:border-neutral-300 hover:bg-neutral-100">
+                <span class="material-symbols-outlined text-base">arrow_back</span>
+                <span>Kembali ke Photobox</span>
+            </a>
+            <a href="index.html" class="text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-500 transition hover:text-neutral-900">Gamon Tawing</a>
+        </div>
+
+        <section class="relative overflow-hidden rounded-[28px] border border-rose-100 bg-white/90 p-5 shadow-[0_20px_50px_rgba(15,23,42,0.06)] sm:p-8 lg:p-10">
+            <div class="absolute -right-8 -top-8 h-28 w-28 rounded-full border border-rose-200/70 bg-rose-100/60 float-soft"></div>
+            <div class="absolute -bottom-8 -left-8 h-24 w-24 rounded-full border border-amber-200/80 bg-amber-100/60 float-soft-delay"></div>
+
+            <div class="relative z-10 grid gap-8 lg:grid-cols-[1.2fr_.8fr] lg:items-center">
+                <div class="reveal">
+                    <span class="inline-flex items-center gap-1 rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-rose-700">
+                        <span class="material-symbols-outlined text-sm" style="font-variation-settings: 'FILL' 1, 'wght' 300, 'GRAD' 0, 'opsz' 24;">auto_awesome</span>
+                        Program Launching
+                    </span>
+                    <h1 class="mt-3 text-3xl font-semibold leading-tight text-neutral-900 sm:text-4xl lg:text-5xl display-serif">
+                        Mau Ada Photobooth di Pernikahanmu? 💍
+                    </h1>
+                    <p class="mt-4 text-sm leading-relaxed text-neutral-600 sm:text-base">
+                        Kami hadir untuk mengabadikan momen bersama orang-orang tersayang - GRATIS untuk program kerja sama Wedding Photobooth Gamon Tawing.
+                    </p>
+                    <p class="mt-4 text-sm leading-relaxed text-neutral-700 sm:text-[15px]">
+                        <span class="font-semibold">Pernikahanmu, momen mereka.</span>
+                        Biarkan orang-orang tersayang ikut mengabadikan cerita di hari spesialmu.
+                    </p>
+                    <div class="mt-6 flex flex-col gap-2.5 sm:flex-row sm:items-center">
+                        <a href="#form-pengajuan" class="cta-button inline-flex items-center justify-center gap-2 rounded-xl bg-neutral-900 px-5 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-white transition hover:bg-neutral-800">
+                            AJUKAN WEDDING PHOTOBOOTH GRATIS
+                        </a>
+                        <a href="#cara-kerja" class="inline-flex items-center justify-center gap-1 rounded-xl border border-neutral-200 bg-white px-5 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-neutral-700 transition hover:border-neutral-300 hover:bg-neutral-50">
+                            LIHAT CARA KERJA
+                        </a>
+                    </div>
+                </div>
+
+                <div class="reveal">
+                    <div class="glass rounded-2xl p-4 sm:p-5">
+                        <p class="text-[10px] font-semibold uppercase tracking-[0.16em] text-neutral-500">Preview Konsep Setup</p>
+                        <div class="mt-3 space-y-2 text-xs text-neutral-700">
+                            <div class="flex items-center gap-2 rounded-lg border border-neutral-200 bg-white px-3 py-2">
+                                <span>📱</span>
+                                <span>iPad/Tablet + Stand</span>
+                            </div>
+                            <div class="flex items-center gap-2 rounded-lg border border-neutral-200 bg-white px-3 py-2">
+                                <span>💡</span>
+                                <span>Lighting Ringan untuk Tamu</span>
+                            </div>
+                            <div class="flex items-center gap-2 rounded-lg border border-neutral-200 bg-white px-3 py-2">
+                                <span>🖼️</span>
+                                <span>Wedding Frame Digital</span>
+                            </div>
+                            <div class="flex items-center gap-2 rounded-lg border border-neutral-200 bg-white px-3 py-2">
+                                <span>🌐</span>
+                                <span>Sistem Web Photobooth Gamon</span>
+                            </div>
+                        </div>
+                        <p class="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-800">
+                            Tanpa printer. Tanpa kertas. Semua hasil foto dalam bentuk digital/soft file.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="reveal mt-10 rounded-3xl border border-neutral-200 bg-white p-5 shadow-sm sm:p-7">
+            <h2 class="text-2xl font-semibold text-neutral-900 display-serif">Wedding Photobooth dari Gamon Tawing</h2>
+            <div class="mt-4 space-y-3 text-sm leading-relaxed text-neutral-600 sm:text-[15px]">
+                <p>Pernikahan adalah tentang momen yang ingin dikenang. Karena itu, Gamon Tawing menghadirkan pengalaman photobooth digital yang bisa digunakan oleh tamu undangan di hari spesialmu.</p>
+                <p>Untuk tahap launching, Gamon Tawing membuka kesempatan kerja sama secara GRATIS untuk acara pernikahan terpilih.</p>
+                <p>Kami membawa perangkat photobooth ke lokasi acara, sehingga tamu cukup datang, berfoto, memilih frame, dan mendapatkan hasil foto secara digital.</p>
+            </div>
+        </section>
+
+        <section class="reveal mt-10">
+            <h2 class="text-2xl font-semibold text-neutral-900 display-serif">Apa yang Kamu Dapatkan?</h2>
+            <div class="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                <article class="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm">
+                    <h3 class="text-sm font-semibold text-neutral-900">📸 Digital Photobooth</h3>
+                    <p class="mt-1 text-xs leading-relaxed text-neutral-600">Tamu dapat berfoto langsung menggunakan iPad/tablet yang kami sediakan.</p>
+                </article>
+                <article class="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm">
+                    <h3 class="text-sm font-semibold text-neutral-900">🖼️ Wedding Frame</h3>
+                    <p class="mt-1 text-xs leading-relaxed text-neutral-600">Foto dapat menggunakan frame digital khusus bertema pernikahan.</p>
+                </article>
+                <article class="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm">
+                    <h3 class="text-sm font-semibold text-neutral-900">💡 Lighting</h3>
+                    <p class="mt-1 text-xs leading-relaxed text-neutral-600">Kami membawa lighting untuk membantu menghasilkan foto yang lebih terang dan menarik.</p>
+                </article>
+                <article class="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm">
+                    <h3 class="text-sm font-semibold text-neutral-900">🪄 Aesthetic Background</h3>
+                    <p class="mt-1 text-xs leading-relaxed text-neutral-600">Kami menyediakan background sederhana dan estetik sebagai area foto.</p>
+                </article>
+                <article class="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm">
+                    <h3 class="text-sm font-semibold text-neutral-900">💌 Digital Photo</h3>
+                    <p class="mt-1 text-xs leading-relaxed text-neutral-600">Hasil foto diberikan dalam bentuk digital/soft file.</p>
+                </article>
+                <article class="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm">
+                    <h3 class="text-sm font-semibold text-neutral-900">🌐 Web Photobooth</h3>
+                    <p class="mt-1 text-xs leading-relaxed text-neutral-600">Seluruh proses foto dilakukan melalui sistem photobooth digital Gamon Tawing.</p>
+                </article>
+            </div>
+        </section>
+
+        <section class="reveal mt-10 grid gap-4 lg:grid-cols-[1.1fr_.9fr]">
+            <div class="rounded-3xl border border-neutral-200 bg-white p-5 shadow-sm sm:p-6">
+                <h2 class="text-2xl font-semibold text-neutral-900 display-serif">Yang Kami Bawa</h2>
+                <ul class="mt-4 space-y-2 text-sm text-neutral-700">
+                    <li>✓ iPad/tablet sebagai kamera dan layar photobooth</li>
+                    <li>✓ Tripod/stand</li>
+                    <li>✓ Lighting</li>
+                    <li>✓ Background foto estetik</li>
+                    <li>✓ Sistem photobooth digital</li>
+                    <li>✓ Wedding frame digital</li>
+                    <li>✓ Perlengkapan pendukung photobooth</li>
+                </ul>
+                <p class="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-800">
+                    Untuk program launching ini, layanan photobooth bersifat digital sehingga belum termasuk printer, cetak foto, atau hardcopy.
+                </p>
+            </div>
+
+            <div id="cara-kerja" class="rounded-3xl border border-neutral-200 bg-white p-5 shadow-sm sm:p-6">
+                <h2 class="text-2xl font-semibold text-neutral-900 display-serif">Cara Kerjanya</h2>
+                <div class="mt-4 space-y-3">
+                    <div class="rounded-xl border border-neutral-200 bg-neutral-50 p-3">
+                        <p class="text-[11px] font-bold uppercase tracking-[0.14em] text-neutral-500">01 - Ajukan Kerja Sama</p>
+                        <p class="mt-1 text-xs text-neutral-700">Isi form pengajuan di halaman ini.</p>
+                    </div>
+                    <div class="rounded-xl border border-neutral-200 bg-neutral-50 p-3">
+                        <p class="text-[11px] font-bold uppercase tracking-[0.14em] text-neutral-500">02 - Kami Hubungi</p>
+                        <p class="mt-1 text-xs text-neutral-700">Tim Gamon Tawing akan menghubungi kamu melalui WhatsApp untuk membicarakan detail acara dan memastikan ketersediaan.</p>
+                    </div>
+                    <div class="rounded-xl border border-neutral-200 bg-neutral-50 p-3">
+                        <p class="text-[11px] font-bold uppercase tracking-[0.14em] text-neutral-500">03 - Photobooth Hadir di Acara</p>
+                        <p class="mt-1 text-xs text-neutral-700">Jika kerja sama disetujui, kami datang ke lokasi pernikahan sesuai jadwal yang telah disepakati.</p>
+                    </div>
+                    <div class="rounded-xl border border-neutral-200 bg-neutral-50 p-3">
+                        <p class="text-[11px] font-bold uppercase tracking-[0.14em] text-neutral-500">04 - Tamu Berfoto</p>
+                        <p class="mt-1 text-xs text-neutral-700">Tamu dapat berfoto, memilih frame, dan mendapatkan hasil foto secara digital.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="reveal mt-10 rounded-3xl border border-neutral-200 bg-white p-5 shadow-sm sm:p-7">
+            <h2 class="text-2xl font-semibold text-neutral-900 display-serif">Syarat & Ketentuan</h2>
+            <p class="mt-2 text-sm text-neutral-600">Ringkas, jelas, dan tetap nyaman dibaca.</p>
+
+            <div class="mt-4 space-y-2">
+                <details class="rounded-xl border border-neutral-200 bg-neutral-50 p-3" open>
+                    <summary class="cursor-pointer text-sm font-semibold text-neutral-800">Lihat ketentuan program</summary>
+                    <ul class="mt-3 space-y-2 text-xs leading-relaxed text-neutral-700">
+                        <li>- Program Wedding Photobooth GRATIS merupakan program launching/promosi Gamon Tawing.</li>
+                        <li>- Gratis berlaku untuk acara pernikahan yang memenuhi kriteria dan berdasarkan ketersediaan jadwal.</li>
+                        <li>- Lokasi acara perlu berada dalam area layanan yang dapat dijangkau oleh Gamon Tawing.</li>
+                        <li>- Waktu penggunaan photobooth disesuaikan dengan kesepakatan sebelum acara.</li>
+                        <li>- Layanan gratis ini tidak termasuk cetak foto, printer, kertas foto, atau hardcopy.</li>
+                        <li>- Hasil foto diberikan dalam bentuk digital.</li>
+                        <li>- Pasangan pengantin perlu menyediakan area yang cukup untuk setup photobooth.</li>
+                        <li>- Pasangan bersedia berkoordinasi dengan pihak Gamon Tawing terkait akses lokasi dan waktu pemasangan.</li>
+                        <li>- Karena merupakan program launching, Gamon Tawing dapat meminta izin untuk menggunakan beberapa hasil foto sebagai dokumentasi/portofolio/promosi.</li>
+                        <li>- Pengajuan kerja sama tidak otomatis berarti langsung disetujui. Setiap pengajuan akan dikonfirmasi terlebih dahulu oleh Gamon Tawing.</li>
+                    </ul>
+                </details>
+            </div>
+        </section>
+
+        <section id="form-pengajuan" class="reveal mt-10 rounded-3xl border border-neutral-200 bg-white p-5 shadow-sm sm:p-7">
+            <h2 class="text-2xl font-semibold text-neutral-900 display-serif">Tertarik Menghadirkan Photobooth di Pernikahanmu?</h2>
+            <p class="mt-2 text-sm leading-relaxed text-neutral-600">Ceritakan sedikit tentang acara kamu. Kami akan menghubungi kamu melalui WhatsApp untuk membicarakan detail kerja sama.</p>
+
+            <form id="weddingForm" class="mt-5 space-y-4" novalidate>
+                <div class="grid gap-4 sm:grid-cols-2">
+                    <div>
+                        <label for="nama" class="block text-xs font-semibold uppercase tracking-[0.14em] text-neutral-500">Nama</label>
+                        <input id="nama" name="nama" type="text" placeholder="Nama pasangan / nama kamu" class="mt-1.5 w-full rounded-xl border border-neutral-200 bg-white px-3 py-2.5 text-sm text-neutral-900 shadow-sm outline-none transition focus:border-neutral-900">
+                        <p id="error-nama" class="error-text hidden"></p>
+                    </div>
+                    <div>
+                        <label for="email" class="block text-xs font-semibold uppercase tracking-[0.14em] text-neutral-500">Email</label>
+                        <input id="email" name="email" type="email" placeholder="email@contoh.com" class="mt-1.5 w-full rounded-xl border border-neutral-200 bg-white px-3 py-2.5 text-sm text-neutral-900 shadow-sm outline-none transition focus:border-neutral-900">
+                        <p id="error-email" class="error-text hidden"></p>
+                    </div>
+                    <div>
+                        <label for="whatsapp" class="block text-xs font-semibold uppercase tracking-[0.14em] text-neutral-500">Nomor WhatsApp</label>
+                        <input id="whatsapp" name="whatsapp" type="tel" inputmode="numeric" placeholder="08xxxxxxxxxx" class="mt-1.5 w-full rounded-xl border border-neutral-200 bg-white px-3 py-2.5 text-sm text-neutral-900 shadow-sm outline-none transition focus:border-neutral-900">
+                        <p id="error-whatsapp" class="error-text hidden"></p>
+                    </div>
+                    <div>
+                        <label for="tanggal" class="block text-xs font-semibold uppercase tracking-[0.14em] text-neutral-500">Tanggal Pernikahan</label>
+                        <input id="tanggal" name="tanggal" type="date" class="mt-1.5 w-full rounded-xl border border-neutral-200 bg-white px-3 py-2.5 text-sm text-neutral-900 shadow-sm outline-none transition focus:border-neutral-900">
+                        <p id="error-tanggal" class="error-text hidden"></p>
+                    </div>
+                </div>
+
+                <div>
+                    <label for="lokasi" class="block text-xs font-semibold uppercase tracking-[0.14em] text-neutral-500">Lokasi Pernikahan</label>
+                    <input id="lokasi" name="lokasi" type="text" placeholder="Nama gedung / venue / alamat acara" class="mt-1.5 w-full rounded-xl border border-neutral-200 bg-white px-3 py-2.5 text-sm text-neutral-900 shadow-sm outline-none transition focus:border-neutral-900">
+                    <p id="error-lokasi" class="error-text hidden"></p>
+                </div>
+
+                <div>
+                    <label for="pesan" class="block text-xs font-semibold uppercase tracking-[0.14em] text-neutral-500">Pesan</label>
+                    <textarea id="pesan" name="pesan" rows="4" placeholder="Ceritakan sedikit tentang acara atau kebutuhan photobooth kamu..." class="mt-1.5 w-full resize-none rounded-xl border border-neutral-200 bg-white px-3 py-2.5 text-sm text-neutral-900 shadow-sm outline-none transition focus:border-neutral-900"></textarea>
+                </div>
+
+                <p id="formGeneralError" class="hidden rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700"></p>
+
+                <button type="submit" class="cta-button w-full rounded-xl bg-neutral-900 px-4 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-white transition hover:bg-neutral-800">
+                    AJUKAN KERJA SAMA
+                </button>
+            </form>
+        </section>
+
+        <footer class="mt-10 text-center text-[11px] text-neutral-500">
+            Gamon Tawing Wedding Photobooth Program - Launching Edition
+        </footer>
+    </main>
+
+    <script>
+        const WEDDING_SUBMIT_ENDPOINT = '/api/admin/submit-wedding-request';
+
+        const form = document.getElementById('weddingForm');
+        const generalErrorEl = document.getElementById('formGeneralError');
+
+        function setFieldError(fieldName, message) {
+            const errorEl = document.getElementById(`error-${fieldName}`);
+            if (!errorEl) return;
+            if (!message) {
+                errorEl.textContent = '';
+                errorEl.classList.add('hidden');
+                return;
+            }
+            errorEl.textContent = message;
+            errorEl.classList.remove('hidden');
+        }
+
+        function clearAllErrors() {
+            ['nama', 'email', 'whatsapp', 'tanggal', 'lokasi'].forEach((field) => setFieldError(field, ''));
+            generalErrorEl.textContent = '';
+            generalErrorEl.classList.add('hidden');
+        }
+
+        function validateEmail(email) {
+            return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+        }
+
+        function sanitizeWhatsapp(rawValue) {
+            const digits = String(rawValue || '').replace(/\D/g, '');
+            if (!digits) return '';
+            if (digits.startsWith('0')) return `62${digits.slice(1)}`;
+            if (digits.startsWith('62')) return digits;
+            return `62${digits}`;
+        }
+
+        function getFormData() {
+            return {
+                nama: document.getElementById('nama').value.trim(),
+                email: document.getElementById('email').value.trim(),
+                whatsapp: document.getElementById('whatsapp').value.trim(),
+                tanggal: document.getElementById('tanggal').value,
+                lokasi: document.getElementById('lokasi').value.trim(),
+                pesan: document.getElementById('pesan').value.trim()
+            };
+        }
+
+        function validateForm(data) {
+            clearAllErrors();
+            let hasError = false;
+
+            if (!data.nama) {
+                setFieldError('nama', 'Nama wajib diisi.');
+                hasError = true;
+            }
+            if (!data.email) {
+                setFieldError('email', 'Email wajib diisi.');
+                hasError = true;
+            } else if (!validateEmail(data.email)) {
+                setFieldError('email', 'Format email belum valid.');
+                hasError = true;
+            }
+            if (!data.whatsapp) {
+                setFieldError('whatsapp', 'Nomor WhatsApp wajib diisi.');
+                hasError = true;
+            }
+            if (!data.tanggal) {
+                setFieldError('tanggal', 'Tanggal pernikahan wajib diisi.');
+                hasError = true;
+            }
+            if (!data.lokasi) {
+                setFieldError('lokasi', 'Lokasi pernikahan wajib diisi.');
+                hasError = true;
+            }
+
+            if (hasError) {
+                generalErrorEl.textContent = 'Periksa kembali data wajib, lalu coba ajukan lagi.';
+                generalErrorEl.classList.remove('hidden');
+                return false;
+            }
+
+            return true;
+        }
+
+        form.addEventListener('submit', async (event) => {
+            event.preventDefault();
+
+            const data = getFormData();
+            if (!validateForm(data)) return;
+
+            const normalizedWa = sanitizeWhatsapp(data.whatsapp);
+            if (!normalizedWa) {
+                setFieldError('whatsapp', 'Nomor WhatsApp tidak valid.');
+                generalErrorEl.textContent = 'Periksa kembali nomor WhatsApp yang dimasukkan.';
+                generalErrorEl.classList.remove('hidden');
+                return;
+            }
+
+            const submitButton = form.querySelector('button[type="submit"]');
+            const originalButtonText = submitButton.textContent;
+            submitButton.disabled = true;
+            submitButton.textContent = 'MENGIRIM PENGAJUAN...';
+
+            try {
+                const response = await fetch(WEDDING_SUBMIT_ENDPOINT, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        nama: data.nama,
+                        email: data.email,
+                        whatsapp: normalizedWa,
+                        tanggalPernikahan: data.tanggal,
+                        lokasi: data.lokasi,
+                        pesan: data.pesan,
+                    })
+                });
+
+                const result = await response.json();
+                if (!response.ok || !result.success) {
+                    throw new Error(result.message || 'Gagal mengirim pengajuan.');
+                }
+
+                await Swal.fire({
+                    icon: 'success',
+                    title: 'Pengajuan Berhasil Dikirim! 💍',
+                    text: 'Terima kasih. Tim Gamon Tawing akan menghubungi kamu melalui WhatsApp untuk membahas detail kerja sama.',
+                    confirmButtonText: 'OK',
+                    confirmButtonColor: '#171717'
+                });
+
+                form.reset();
+            } catch (error) {
+                generalErrorEl.textContent = error.message || 'Terjadi gangguan saat mengirim pengajuan.';
+                generalErrorEl.classList.remove('hidden');
+            } finally {
+                submitButton.disabled = false;
+                submitButton.textContent = originalButtonText;
+            }
+        });
+
+        const revealElements = document.querySelectorAll('.reveal');
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach((entry) => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('show');
+                    observer.unobserve(entry.target);
+                }
+            });
+        }, { threshold: 0.12 });
+
+        revealElements.forEach((item) => observer.observe(item));
+    </script>
+</body>
+</html>

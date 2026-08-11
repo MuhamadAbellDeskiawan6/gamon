@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kelola Pengajuan Wedding - Gamon Booth</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+</head>
+<body class="bg-slate-100 min-h-screen text-slate-800">
+    <div class="min-h-screen lg:grid lg:grid-cols-[260px_minmax(0,1fr)]">
+        <aside class="border-r border-slate-200 bg-white p-4 lg:p-6">
+            <div class="mb-6">
+                <h1 class="flex items-center gap-2 text-lg font-bold text-pink-600">
+                    <span>📸</span>
+                    <span>Gamon Admin</span>
+                </h1>
+                <p class="mt-1 text-xs text-slate-500">Panel pengelolaan photobox</p>
+            </div>
+
+            <nav class="space-y-2">
+                <a href="/admin/dashboard.html" class="block rounded-xl px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100">Dashboard Pesanan</a>
+                <a href="/admin/wedding-requests.html" class="block rounded-xl bg-pink-600 px-3 py-2 text-sm font-semibold text-white">Pengajuan Wedding</a>
+                <a href="/admin/frames.html" class="block rounded-xl px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100">Kelola Frame</a>
+                <a href="/admin/redeem-codes.html" class="block rounded-xl px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100">Kelola Redeem</a>
+            </nav>
+
+            <div class="mt-6 border-t border-slate-200 pt-4">
+                <p id="adminEmail" class="mb-2 text-xs text-slate-500">Memeriksa sesi...</p>
+                <button onclick="handleLogout()" class="w-full rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-600 transition hover:bg-rose-100">
+                    Keluar Sesi
+                </button>
+            </div>
+        </aside>
+
+        <main class="px-4 py-8 lg:px-8">
+            <div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                    <h2 class="text-2xl font-bold">Daftar Pengajuan Wedding Photobooth</h2>
+                    <p class="text-sm text-slate-500">Semua lead dari halaman wedding akan muncul di sini. Gunakan tombol WA untuk kontak cepat.</p>
+                </div>
+                <button onclick="loadWeddingRequests()" class="rounded-lg bg-slate-800 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700">
+                    Refresh Data
+                </button>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-50 border-b border-slate-200 text-slate-600 text-[11px] font-semibold uppercase tracking-wider">
+                                <th class="px-5 py-4">ID / Waktu</th>
+                                <th class="px-5 py-4">Nama</th>
+                                <th class="px-5 py-4">Kontak</th>
+                                <th class="px-5 py-4">Tanggal & Lokasi</th>
+                                <th class="px-5 py-4">Pesan</th>
+                                <th class="px-5 py-4">Status</th>
+                                <th class="px-5 py-4">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="weddingTableBody" class="divide-y divide-slate-100 text-sm text-slate-700">
+                            <tr>
+                                <td colspan="7" class="text-center py-8 text-slate-400">Sedang memuat data pengajuan wedding...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div id="paginationControls" class="flex flex-col gap-2 px-5 py-4 border-t border-slate-200 bg-slate-50 sm:flex-row sm:items-center sm:justify-between"></div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const PAGE_SIZE = 8;
+        const STATUS_OPTIONS = ['NEW', 'CONTACTED', 'APPROVED', 'REJECTED', 'DONE'];
+        let requestsData = [];
+        let currentPage = 1;
+
+        window.addEventListener('DOMContentLoaded', bootPage);
+
+        async function bootPage() {
+            const ok = await verifyAdminPageSession();
+            if (!ok) return;
+            loadWeddingRequests();
+        }
+
+        async function verifyAdminPageSession() {
+            try {
+                const response = await fetch('/api/admin/session');
+                const result = await response.json();
+                if (!response.ok || !result.success) {
+                    window.location.href = '/admin/login.html';
+                    return false;
+                }
+
+                const emailEl = document.getElementById('adminEmail');
+                if (emailEl) {
+                    emailEl.textContent = result.email ? `Login sebagai ${result.email}` : 'Admin terverifikasi';
+                }
+
+                return true;
+            } catch (error) {
+                window.location.href = '/admin/login.html';
+                return false;
+            }
+        }
+
+        function normalizeWa(value) {
+            const digits = String(value || '').replace(/\D/g, '');
+            if (!digits) return '';
+            if (digits.startsWith('0')) return `62${digits.slice(1)}`;
+            if (digits.startsWith('62')) return digits;
+            return `62${digits}`;
+        }
+
+        function escapeHtml(value) {
+            return String(value || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        async function loadWeddingRequests() {
+            const tbody = document.getElementById('weddingTableBody');
+
+            try {
+                const response = await fetch('/api/admin/get-wedding-requests');
+                const result = await response.json();
+
+                if (response.status === 401 || response.status === 403) {
+                    alert('Sesi tidak valid! Dikembalikan ke halaman login.');
+                    window.location.href = '/admin/login.html';
+                    return;
+                }
+
+                requestsData = result.success && Array.isArray(result.data) ? result.data : [];
+                currentPage = 1;
+                renderTable();
+            } catch (error) {
+                console.error(error);
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center py-8 text-red-500">Gagal mengambil data dari server.</td></tr>';
+                document.getElementById('paginationControls').innerHTML = '';
+            }
+        }
+
+        function getStatusBadgeClass(status) {
+            if (status === 'NEW') return 'bg-amber-100 text-amber-800';
+            if (status === 'CONTACTED') return 'bg-sky-100 text-sky-800';
+            if (status === 'APPROVED') return 'bg-emerald-100 text-emerald-800';
+            if (status === 'REJECTED') return 'bg-rose-100 text-rose-800';
+            if (status === 'DONE') return 'bg-slate-800 text-white';
+            return 'bg-slate-100 text-slate-700';
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('weddingTableBody');
+            const controls = document.getElementById('paginationControls');
+            const total = requestsData.length;
+            const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+            if (currentPage > pages) currentPage = pages;
+
+            const startIndex = (currentPage - 1) * PAGE_SIZE;
+            const visible = requestsData.slice(startIndex, startIndex + PAGE_SIZE);
+
+            if (!visible.length) {
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center py-8 text-slate-400">Belum ada pengajuan wedding.</td></tr>';
+            } else {
+                tbody.innerHTML = '';
+                visible.forEach((item) => {
+                    const requestId = item.requestId || item.id || '-';
+                    const requestIdForJs = String(requestId).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+                    const dateText = item.createdAt ? new Date(item.createdAt).toLocaleString('id-ID') : '-';
+                    const status = String(item.status || 'NEW').toUpperCase();
+                    const safeWa = normalizeWa(item.whatsapp || item.whatsappRaw || '');
+                    const venueText = escapeHtml(item.lokasi || '-');
+                    const messageText = escapeHtml(item.pesan || '-');
+                    const nameText = escapeHtml(item.nama || '-');
+                    const emailText = escapeHtml(item.email || '-');
+                    const waText = escapeHtml(item.whatsappRaw || item.whatsapp || safeWa);
+                    const tanggalText = escapeHtml(item.tanggalPernikahan || '-');
+                    const requestIdText = escapeHtml(requestId);
+
+                    const statusSelect = `
+                        <select onchange="handleStatusChange('${requestIdForJs}', this.value)" class="rounded-lg border border-slate-200 bg-white px-2 py-1 text-[11px] font-medium text-slate-700 focus:outline-none focus:border-slate-500">
+                            ${STATUS_OPTIONS.map((opt) => `<option value="${opt}" ${opt === status ? 'selected' : ''}>${opt}</option>`).join('')}
+                        </select>
+                    `;
+
+                    tbody.innerHTML += `
+                        <tr class="hover:bg-slate-50 transition">
+                            <td class="px-5 py-4 align-top">
+                                <div class="font-mono text-[11px] font-semibold text-slate-600">${requestIdText}</div>
+                                <div class="mt-1 text-[11px] text-slate-400">${dateText}</div>
+                            </td>
+                            <td class="px-5 py-4 align-top">
+                                <div class="font-semibold text-slate-900 text-sm">${nameText}</div>
+                            </td>
+                            <td class="px-5 py-4 align-top">
+                                <div class="text-[11px] text-slate-600">📧 ${emailText}</div>
+                                ${safeWa ? `<a href="https://wa.me/${safeWa}" target="_blank" class="mt-1 inline-flex text-[11px] font-medium text-emerald-600 hover:underline">WA: ${waText}</a>` : '<div class="mt-1 text-[11px] text-slate-400">WA tidak tersedia</div>'}
+                            </td>
+                            <td class="px-5 py-4 align-top max-w-xs">
+                                <div class="text-[11px] font-semibold text-slate-700">${tanggalText}</div>
+                                <div class="mt-1 text-[11px] text-slate-500">${venueText}</div>
+                            </td>
+                            <td class="px-5 py-4 align-top max-w-xs">
+                                <div class="text-[11px] text-slate-600 line-clamp-4">${messageText}</div>
+                            </td>
+                            <td class="px-5 py-4 align-top">
+                                <span class="inline-flex items-center rounded-full px-3 py-1 text-[11px] font-semibold ${getStatusBadgeClass(status)}">${status}</span>
+                                <div class="mt-2">${statusSelect}</div>
+                            </td>
+                            <td class="px-5 py-4 align-top">
+                                <div class="flex flex-col gap-2">
+                                    ${safeWa ? `<a href="https://wa.me/${safeWa}" target="_blank" class="rounded-lg bg-emerald-600 px-3 py-2 text-center text-[11px] font-semibold text-white transition hover:bg-emerald-700">Hubungi WA</a>` : ''}
+                                    <button onclick="copyRequestId('${requestIdForJs}')" class="rounded-lg bg-slate-800 px-3 py-2 text-[11px] font-semibold text-white transition hover:bg-slate-900">Copy ID</button>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                });
+            }
+
+            controls.innerHTML = `
+                <div class="text-[11px] text-slate-500">Menampilkan ${visible.length ? startIndex + 1 : 0}-${startIndex + visible.length} dari ${total} pengajuan</div>
+                <div class="flex items-center gap-2 justify-end">
+                    <button ${currentPage === 1 ? 'disabled' : ''} onclick="goPage(${currentPage - 1})" class="px-3 py-2 rounded-lg text-[11px] font-semibold ${currentPage === 1 ? 'bg-slate-200 text-slate-500 cursor-not-allowed' : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'}">Sebelumnya</button>
+                    <span class="text-[11px] text-slate-500">Halaman ${currentPage} dari ${pages}</span>
+                    <button ${currentPage === pages ? 'disabled' : ''} onclick="goPage(${currentPage + 1})" class="px-3 py-2 rounded-lg text-[11px] font-semibold ${currentPage === pages ? 'bg-slate-200 text-slate-500 cursor-not-allowed' : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'}">Berikutnya</button>
+                </div>
+            `;
+        }
+
+        function goPage(page) {
+            const totalPages = Math.max(1, Math.ceil(requestsData.length / PAGE_SIZE));
+            if (page < 1 || page > totalPages) return;
+            currentPage = page;
+            renderTable();
+        }
+
+        async function handleStatusChange(requestId, status) {
+            try {
+                const response = await fetch('/api/admin/update-wedding-request-status', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ requestId, status })
+                });
+
+                const result = await response.json();
+                if (!response.ok || !result.success) {
+                    throw new Error(result.message || 'Gagal mengubah status.');
+                }
+
+                const index = requestsData.findIndex((item) => (item.requestId || item.id) === requestId);
+                if (index >= 0) {
+                    requestsData[index].status = status;
+                    requestsData[index].updatedAt = Date.now();
+                }
+                renderTable();
+            } catch (error) {
+                alert(error.message || 'Gagal memperbarui status pengajuan.');
+                loadWeddingRequests();
+            }
+        }
+
+        async function copyRequestId(requestId) {
+            try {
+                await navigator.clipboard.writeText(requestId);
+                alert('ID pengajuan berhasil disalin.');
+            } catch (error) {
+                alert('Gagal menyalin ID pengajuan.');
+            }
+        }
+
+        async function handleLogout() {
+            try {
+                await fetch('/api/admin/logout', { method: 'POST' });
+            } finally {
+                window.location.href = '/admin/login.html';
+            }
+        }
+
+        window.handleStatusChange = handleStatusChange;
+        window.copyRequestId = copyRequestId;
+        window.goPage = goPage;
+        window.handleLogout = handleLogout;
+        window.loadWeddingRequests = loadWeddingRequests;
+    </script>
+</body>
+</html>
