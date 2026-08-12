@@ -51,6 +51,26 @@
         .frame-thumb:hover{
             transform:scale(1.03);
         }
+        .frame-watermark {
+            pointer-events: none;
+            background: rgba(255, 255, 255, 0.02);
+            opacity: 0.9;
+            overflow: hidden;
+        }
+        .frame-watermark .watermark-word {
+            position: absolute;
+            display: block;
+            white-space: nowrap;
+            font-size: clamp(9px, 1.15vw, 17px);
+            line-height: 1;
+            font-weight: 800;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            color: rgba(255, 255, 255, 0.22);
+            text-shadow: 0 0 8px rgba(0, 0, 0, 0.08);
+            mix-blend-mode: screen;
+            transform-origin: center;
+        }
     </style>
 </head>
 <body class="font-['Plus_Jakarta+Sans'] flex flex-col items-center justify-center min-h-screen p-4 md:p-8 relative overflow-x-hidden select-none py-12">
@@ -122,7 +142,7 @@ height:64.10%;
 
                     <!-- FRAME OVERLAY UTUH MENUTUPI SELURUH POLAROID -->
                     <img id="frameOverlay" alt="Frame overlay" class="absolute inset-0 w-full h-full object-fill pointer-events-none z-20 opacity-0">
-                    <div id="frameWatermark" class="frame-watermark pointer-events-none absolute inset-0 z-30 flex items-end justify-end p-3 text-[8px] font-semibold uppercase tracking-[0.34em] text-white/70 opacity-70">Gamon Tawing</div>
+                    <div id="frameWatermark" class="frame-watermark absolute inset-0 z-30 hidden"></div>
 
                     <!-- Flash -->
                     <div id="flashOverlay" class="absolute inset-0 bg-white opacity-0 transition-opacity duration-100 pointer-events-none z-40"></div>
@@ -683,6 +703,8 @@ height:64.10%;
                 updateFrameProcessing();
             };
 
+            renderFrameWatermark();
+            frameWatermark?.classList.remove('hidden');
             btnMulai.classList.add('hidden');
             areaAksiFoto.classList.remove('hidden');
             backgroundSelector.classList.remove('hidden');
@@ -843,6 +865,26 @@ height:64.10%;
         }, 2500);
     }
 
+    function renderFrameWatermark() {
+        const layer = document.getElementById('frameWatermark');
+        if (!layer) return;
+
+        const watermarkWords = ['GAMON TAWING', 'FRAME BARU', 'PHOTO BOOTH'];
+        const positions = [
+            { x: 4, y: 8, r: -19 }, { x: 22, y: 12, r: 17 }, { x: 40, y: 10, r: -18 }, { x: 58, y: 13, r: 16 }, { x: 75, y: 9, r: -18 },
+            { x: 10, y: 26, r: 18 }, { x: 29, y: 29, r: -17 }, { x: 47, y: 27, r: 18 }, { x: 68, y: 30, r: -18 }, { x: 82, y: 25, r: 18 },
+            { x: 4, y: 45, r: -16 }, { x: 22, y: 48, r: 16 }, { x: 40, y: 45, r: -17 }, { x: 58, y: 49, r: 18 }, { x: 76, y: 46, r: -16 },
+            { x: 12, y: 64, r: 18 }, { x: 30, y: 67, r: -18 }, { x: 48, y: 65, r: 17 }, { x: 66, y: 68, r: -17 }, { x: 82, y: 64, r: 18 },
+            { x: 4, y: 83, r: -18 }, { x: 23, y: 85, r: 18 }, { x: 41, y: 83, r: -18 }, { x: 60, y: 86, r: 18 }, { x: 78, y: 83, r: -17 }
+        ];
+
+        layer.innerHTML = positions.map((pos, index) => {
+            const word = watermarkWords[index % watermarkWords.length];
+            const opacity = 0.2 + ((index % 3) * 0.06);
+            return `<span class="watermark-word" style="left:${pos.x}%; top:${pos.y}%; transform: rotate(${pos.r}deg); opacity:${opacity};">${word}</span>`;
+        }).join('');
+    }
+
     function renderFrameCarousel(frames) {
         if (!framePreviewMeta || !framePreviewDots || !framePreviewCaption) return;
 
@@ -950,6 +992,7 @@ height:64.10%;
     }
 
     loadFrameOptions();
+    renderFrameWatermark();
 
     const getSupportedAudioMimeType = () => {
         const types = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/x-m4a', 'audio/mpeg', 'audio/wav'];
@@ -1214,6 +1257,7 @@ height:64.10%;
         areaRetake.classList.add("hidden");
         rawCapturedImage = null;
         btnFoto.disabled = false;
+        frameWatermark?.classList.remove('hidden');
         updateFrameProcessing();
     };
 
@@ -1225,6 +1269,7 @@ height:64.10%;
         setRedeemSectionVisible(true);
         stopCameraStream();
         processingCamera = false;
+        frameWatermark?.classList.remove('hidden');
     };
 
     formData.onsubmit = async (e) => {
@@ -1241,6 +1286,8 @@ height:64.10%;
             await showError('Silakan ambil foto terlebih dahulu sebelum melanjutkan.');
             return;
         }
+
+        frameWatermark?.classList.remove('hidden');
 
         if (!nama || !tujuan || !email || !whatsapp) {
             await showError('Lengkapi semua data identitas dan kontak sebelum lanjut ke pembayaran.');
@@ -1448,6 +1495,14 @@ height:64.10%;
             await showError('Gagal: ' + err.message);
             btnKirim.innerText = getPaymentAmount() === 0 ? 'Kirim & Gratis' : 'Kirim & Bayar 5K';
             btnKirim.disabled = false;
+        }
+    };
+
+    const originalPageBeforeSubmit = window.onbeforeunload;
+    window.onbeforeunload = function () {
+        frameWatermark?.classList.add('hidden');
+        if (typeof originalPageBeforeSubmit === 'function') {
+            return originalPageBeforeSubmit();
         }
     };
 </script>
