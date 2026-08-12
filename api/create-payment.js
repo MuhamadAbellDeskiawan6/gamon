@@ -13,6 +13,20 @@ const secretKey = "SK-NgMsKzkHcLlY95v7wsju";
     try {
         const { amount, orderId } = req.body;
 
+        if (Number(amount) <= 0) {
+            return res.status(200).json({
+                success: true,
+                freeOrder: true,
+                message: "Order gratis, tidak perlu membuka halaman DOKU.",
+                response: {
+                    payment: {
+                        url: null,
+                        freeOrder: true
+                    }
+                }
+            });
+        }
+
        const timestamp = new Date().toISOString().split('.')[0] + "Z";
 
      // Di dalam api/create-payment.js
@@ -24,7 +38,7 @@ const requestBody = {
     },
     payment: {
         payment_due_date: 60,
-        return_url: "https://gamon-fawn.vercel.app/photobox.html",
+        return_url: `https://gamon-fawn.vercel.app/photobox.html?orderId=${encodeURIComponent(orderId)}`,
 
         // paksa QRIS
         payment_method_types: ["QRIS"]

@@ -122,6 +122,7 @@ height:64.10%;
 
                     <!-- FRAME OVERLAY UTUH MENUTUPI SELURUH POLAROID -->
                     <img id="frameOverlay" alt="Frame overlay" class="absolute inset-0 w-full h-full object-fill pointer-events-none z-20 opacity-0">
+                    <div id="frameWatermark" class="frame-watermark pointer-events-none absolute inset-0 z-30 flex items-end justify-end p-3 text-[8px] font-semibold uppercase tracking-[0.34em] text-white/70 opacity-70">Gamon Tawing</div>
 
                     <!-- Flash -->
                     <div id="flashOverlay" class="absolute inset-0 bg-white opacity-0 transition-opacity duration-100 pointer-events-none z-40"></div>
@@ -185,22 +186,13 @@ height:64.10%;
                     </div>
                 </section>
 
-                <div id="redeemSection" class="mb-4 rounded-2xl border border-emerald-200 bg-emerald-50/80 p-3 shadow-sm">
-                    <label class="mb-2 block text-[10px] font-bold uppercase tracking-wider text-emerald-700" for="redeemCodeInput">Punya kode redeem?</label>
-                    <div class="flex gap-2">
-                        <input id="redeemCodeInput" type="text" placeholder="Masukkan kode redeem" class="min-w-0 flex-1 rounded-xl border border-emerald-200 bg-white px-3 py-2 text-xs font-medium uppercase tracking-wider text-emerald-900 placeholder:text-emerald-400 focus:border-emerald-400 focus:outline-none">
-                        <button id="btnRedeemCode" type="button" class="rounded-xl bg-emerald-600 px-4 py-2 text-xs font-semibold uppercase tracking-wider text-white transition hover:bg-emerald-700">Redeem</button>
-                    </div>
-                    <p class="mt-2 text-[10px] leading-relaxed text-emerald-700">Kode valid akan langsung membuka kamera tanpa pembayaran.</p>
-                </div>
-                
                 <canvas id="canvas" class="hidden"></canvas>
                 <div id="qrcode" class="hidden"></div>
                 
                 <!-- CTAS -->
                 <div class="relative pb-4">
                     <button id="btnMulai" class="w-full py-3.5 bg-neutral-900 text-white rounded-xl font-medium shadow-sm hover:bg-neutral-800 transition active:scale-[0.99] text-xs tracking-wider uppercase">
-                        Mulai Cetak Kenangan (5k)
+                        Mulai Buat Kenangan
                     </button>
 
                     <div id="areaAksiFoto" class="hidden space-y-2.5">
@@ -303,8 +295,17 @@ height:64.10%;
                         </div>
                     </div>
 
-                    <button type="submit" id="btnKirim" class="w-full py-3.5 bg-neutral-900 text-white rounded-lg font-medium hover:bg-neutral-800 transition mt-2 text-xs tracking-wider uppercase shadow-md">
-                        Kirim & Proses Merchandise
+                    <div id="redeemSection" class="rounded-2xl border border-emerald-200 bg-emerald-50/80 p-3 shadow-sm">
+                        <label class="mb-2 block text-[10px] font-bold uppercase tracking-wider text-emerald-700" for="redeemCodeInput">Punya kode redeem?</label>
+                        <div class="flex gap-2">
+                            <input id="redeemCodeInput" type="text" placeholder="Masukkan kode redeem" class="min-w-0 flex-1 rounded-xl border border-emerald-200 bg-white px-3 py-2 text-xs font-medium uppercase tracking-wider text-emerald-900 placeholder:text-emerald-400 focus:border-emerald-400 focus:outline-none">
+                            <button id="btnRedeemCode" type="button" class="rounded-xl bg-emerald-600 px-4 py-2 text-xs font-semibold uppercase tracking-wider text-white transition hover:bg-emerald-700">Redeem</button>
+                        </div>
+                        <p class="mt-2 text-[10px] leading-relaxed text-emerald-700">Kode valid akan mengurangi total biaya menjadi gratis.</p>
+                    </div>
+
+                    <button type="submit" id="btnKirim" class="w-full py-3.5 bg-neutral-900 text-white rounded-lg font-medium hover:bg-neutral-800 transition mt-3 text-xs tracking-wider uppercase shadow-md">
+                        Kirim & Bayar 5K
                     </button>
                 </form>
             </div>
@@ -404,8 +405,20 @@ height:64.10%;
     let audioBase64 = null;
     let unsubscribePaymentListener = null;
     const REDEEM_SESSION_KEY = 'photoboxRedeemSession';
+    const PENDING_SUBMISSION_KEY = 'photoboxPendingSubmission';
     let cameraActive = false;
     let frameTextColor = '#1F2937';
+    const PHOTBOX_PRICE = 5000;
+
+    function getPaymentAmount() {
+        return loadRedeemSession() ? 0 : PHOTBOX_PRICE;
+    }
+
+    function syncSubmitButtonLabel() {
+        const btnKirim = document.getElementById('btnKirim');
+        if (!btnKirim) return;
+        btnKirim.innerText = getPaymentAmount() === 0 ? 'Kirim & Gratis' : 'Kirim & Bayar 5K';
+    }
 
     function showSuccess(message) {
         return Swal.fire({ icon: 'success', title: 'Berhasil', text: message, confirmButtonColor: '#171717' });
@@ -507,6 +520,25 @@ height:64.10%;
         localStorage.removeItem(REDEEM_SESSION_KEY);
     }
 
+    function savePendingSubmission(payload) {
+        localStorage.setItem(PENDING_SUBMISSION_KEY, JSON.stringify(payload));
+    }
+
+    function loadPendingSubmission() {
+        try {
+            const raw = localStorage.getItem(PENDING_SUBMISSION_KEY);
+            if (!raw) return null;
+            const parsed = JSON.parse(raw);
+            return parsed && Object.keys(parsed).length ? parsed : null;
+        } catch {
+            return null;
+        }
+    }
+
+    function clearPendingSubmission() {
+        localStorage.removeItem(PENDING_SUBMISSION_KEY);
+    }
+
     async function resumeRedeemSession() {
         const redeemSession = loadRedeemSession();
         if (!redeemSession?.code) return false;
@@ -552,22 +584,16 @@ height:64.10%;
             }
 
             redeemCodeInput.value = '';
-            localStorage.removeItem('tempOrderId');
-            if (unsubscribePaymentListener) {
-                unsubscribePaymentListener();
-                unsubscribePaymentListener = null;
-            }
             saveRedeemSession(code, result.data);
+            setRedeemSectionVisible(false);
+            syncSubmitButtonLabel();
 
             await Swal.fire({
                 icon: 'success',
                 title: 'Kode berhasil ditukarkan',
-                text: 'Silakan melakukan foto sekarang.',
+                text: 'Biaya photobox Anda berubah menjadi gratis.',
                 confirmButtonColor: '#171717'
             });
-
-            initSelfieSegmentation();
-            await startCamera();
         } catch (error) {
             await showError(error.message || 'Gagal memverifikasi kode redeem.');
         } finally {
@@ -947,36 +973,74 @@ height:64.10%;
         }
     });
 
+    async function finalizePaidPhotobox(orderId) {
+        const pendingPayload = loadPendingSubmission();
+        if (!pendingPayload) {
+            window.location.href = `photobox-success.html?orderId=${orderId}`;
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/submit-photobox', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ...pendingPayload, orderId })
+            });
+
+            const result = await response.json().catch(() => ({}));
+            if (!response.ok || !result.success) {
+                throw new Error(result.message || 'Gagal menyimpan data photobox setelah pembayaran.');
+            }
+
+            clearPendingSubmission();
+            localStorage.removeItem('tempOrderId');
+            clearRedeemSession();
+
+            await Swal.fire({
+                icon: 'success',
+                title: 'Pembayaran Berhasil',
+                text: 'Data pesanan Anda sudah dibuat dan siap diproses.',
+                confirmButtonColor: '#171717'
+            });
+
+            window.location.href = `photobox-success.html?orderId=${orderId}`;
+        } catch (error) {
+            await showError('Gagal: ' + error.message);
+            btnMulai.innerText = 'Mulai Buat Kenangan';
+            btnMulai.disabled = false;
+        }
+    }
+
     function listenToPayment(orderId) {
-        btnMulai.innerText = "Mengecek Status Pembayaran...";
+        if (!orderId) return;
+
+        let finalized = false;
+        btnMulai.innerText = "Mengecek status pembayaran...";
         btnMulai.disabled = true;
 
         if (unsubscribePaymentListener) {
             unsubscribePaymentListener();
         }
 
-        unsubscribePaymentListener = onSnapshot(doc(db, "orders", orderId), (docSnapshot) => {
-           if (docSnapshot.exists() && docSnapshot.data().status === "PAID") {
+        unsubscribePaymentListener = onSnapshot(doc(db, "orders", orderId), async (docSnapshot) => {
+           const orderData = docSnapshot.data() || {};
+           const paymentStatus = orderData.status;
+
+           if (paymentStatus === "PAID" && !finalized) {
+                finalized = true;
                 if (unsubscribePaymentListener) {
                     unsubscribePaymentListener();
                     unsubscribePaymentListener = null;
                 }
 
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Pembayaran Berhasil',
-                    text: 'Silakan ambil foto Anda',
-                    confirmButtonColor: '#171717'
-                }).then(() => {
-                    initSelfieSegmentation();
-                    startCamera();
-                });
-            } else {
-                btnMulai.innerText = "Mulai Pembayaran (5k)";
-                btnMulai.disabled = false;
+                await finalizePaidPhotobox(orderId);
+                return;
             }
-        }, (error) => {
-            btnMulai.innerText = "Mulai Pembayaran (5k)";
+
+            btnMulai.innerText = 'Mulai Buat Kenangan';
+            btnMulai.disabled = false;
+        }, () => {
+            btnMulai.innerText = 'Mulai Buat Kenangan';
             btnMulai.disabled = false;
         });
     }
@@ -987,35 +1051,26 @@ height:64.10%;
     const redeemSession = loadRedeemSession();
 
     if (redeemSession) {
-        resumeRedeemSession();
-    } else if (orderIdFromUrl || storedOrderId) {
+        syncSubmitButtonLabel();
+    }
+
+    if (orderIdFromUrl || storedOrderId) {
         listenToPayment(orderIdFromUrl || storedOrderId);
     }
 
     btnMulai.onclick = async () => {
-        btnMulai.innerText = "Memproses...";
+        btnMulai.innerText = 'Memuat kamera...';
         btnMulai.disabled = true;
         try {
-            const orderId = 'GAMON-' + Date.now();
-            localStorage.setItem('tempOrderId', orderId);
-            await setDoc(doc(db, "orders", orderId), { status: "PENDING" });
-
-            const response = await fetch('/api/create-payment', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ amount: 5000, orderId: orderId })
-            });
-
-            const data = await response.json();
-            if (data.response?.payment?.url) {
-                window.location.replace(data.response.payment.url);
-            } else {
-                throw new Error("Gagal mendapatkan link pembayaran.");
+            initSelfieSegmentation();
+            const started = await startCamera();
+            if (!started) {
+                throw new Error('Kamera tidak bisa diaktifkan.');
             }
         } catch (err) {
-           showError("Kesalahan: " + err.message);
-           btnMulai.innerText = "Mulai Pembayaran (5k)";
-           btnMulai.disabled = false;
+            showError('Kesalahan: ' + err.message);
+            btnMulai.innerText = 'Mulai Buat Kenangan';
+            btnMulai.disabled = false;
         }
     };
 
@@ -1077,6 +1132,7 @@ height:64.10%;
         backgroundSelector.classList.add('hidden');
         frameSelector.classList.add('hidden');
         formData.classList.remove('hidden');
+        setRedeemSectionVisible(true);
         stopCameraStream();
         processingCamera = false;
     };
@@ -1084,25 +1140,39 @@ height:64.10%;
     formData.onsubmit = async (e) => {
         e.preventDefault();
         const btnKirim = document.getElementById('btnKirim');
-        btnKirim.innerText = "Mengolah Polaroid...";
-        btnKirim.disabled = true;
-
-        const nama = document.getElementById('senderName').value;
-        const tujuan = document.getElementById('receiverName').value;
-        const pesan = document.getElementById('messageContent').value;
-        const email = document.getElementById('email').value;
-        const whatsapp = document.getElementById('whatsapp').value;
+        const nama = document.getElementById('senderName').value.trim();
+        const tujuan = document.getElementById('receiverName').value.trim();
+        const pesan = document.getElementById('messageContent').value.trim();
+        const email = document.getElementById('email').value.trim();
+        const whatsapp = document.getElementById('whatsapp').value.trim();
         const showOnHome = showOnHomeToggle ? showOnHomeToggle.checked : true;
+
+        if (!rawCapturedImage) {
+            await showError('Silakan ambil foto terlebih dahulu sebelum melanjutkan.');
+            return;
+        }
+
+        if (!nama || !tujuan || !email || !whatsapp) {
+            await showError('Lengkapi semua data identitas dan kontak sebelum lanjut ke pembayaran.');
+            return;
+        }
+
+        const redeemSession = loadRedeemSession();
+        const paymentAmount = getPaymentAmount();
         const generatedOrderId = localStorage.getItem('tempOrderId') || 'GAMON-' + Date.now();
-        const alamat = pickupAddress;
-        const koordinat = ""; // pickups do not need delivery coordinates
+        if (!localStorage.getItem('tempOrderId')) {
+            localStorage.setItem('tempOrderId', generatedOrderId);
+        }
+
+        btnKirim.innerText = paymentAmount === 0 ? 'Menyelesaikan order gratis...' : 'Memproses pembayaran...';
+        btnKirim.disabled = true;
 
         const polaroidCanvas = document.createElement('canvas');
         const ctx = polaroidCanvas.getContext('2d');
         const selectedFrameSource = selectedFrame?.frameImage || selectedFrame?.previewImage || fallbackFrames[0].frameImage;
         const frameTextColorResolved = await resolveFrameTextColor(selectedFrameSource);
         frameTextColor = frameTextColorResolved;
-        
+
         polaroidCanvas.width = 900;
         polaroidCanvas.height = 1560;
 
@@ -1110,12 +1180,12 @@ height:64.10%;
         const img = new Image();
 
         await Promise.all([
-            new Promise((resolve,reject)=>{
+            new Promise((resolve, reject) => {
                 frame.onload = resolve;
                 frame.onerror = reject;
                 frame.src = selectedFrame?.frameImage || fallbackFrames[0].frameImage;
             }),
-            new Promise((resolve,reject)=>{
+            new Promise((resolve, reject) => {
                 img.onload = resolve;
                 img.onerror = reject;
                 img.src = rawCapturedImage;
@@ -1125,32 +1195,32 @@ height:64.10%;
         const photoX = 100;
         const photoY = 100;
         const photoWidth = 700;
-        const photoHeight = 1002; // Disesuaikan menjadi 1002 agar pas tanpa ada celah garis hitam
+        const photoHeight = 1002;
 
         const imgRatio = img.width / img.height;
         const frameRatio = photoWidth / photoHeight;
         let sx, sy, sw, sh;
 
-        if(imgRatio > frameRatio){
+        if (imgRatio > frameRatio) {
             sh = img.height;
             sw = sh * frameRatio;
-            sx = (img.width - sw)/2;
+            sx = (img.width - sw) / 2;
             sy = 0;
-        }else{
+        } else {
             sw = img.width;
             sh = sw / frameRatio;
             sx = 0;
-            sy = (img.height - sh)/2;
+            sy = (img.height - sh) / 2;
         }
 
         ctx.drawImage(img, sx, sy, sw, sh, photoX, photoY, photoWidth, photoHeight);
         ctx.drawImage(frame, 0, 0, polaroidCanvas.width, polaroidCanvas.height);
-        
+
         await document.fonts.ready;
 
         ctx.fillStyle = frameTextColor;
         ctx.font = "italic 500 22px 'Playfair Display', serif";
-        
+
         ctx.textAlign = "left";
         ctx.fillText(`Dear: ${tujuan}`, 100, 1145);
 
@@ -1166,9 +1236,9 @@ height:64.10%;
 
         let textMaxWidth = 700;
         if (audioBase64) {
-            const qrContainer = document.getElementById("qrcode");
-            qrContainer.innerHTML = "";
-            const domainProduksi = "https://gamon-tawing.vercel.app";
+            const qrContainer = document.getElementById('qrcode');
+            qrContainer.innerHTML = '';
+            const domainProduksi = 'https://gamon-tawing.vercel.app';
             const listenUrl = `${domainProduksi}/suara.html?orderId=${generatedOrderId}`;
 
             new QRCode(qrContainer, {
@@ -1179,7 +1249,7 @@ height:64.10%;
             });
 
             await new Promise(resolve => setTimeout(resolve, 400));
-            const qrCanvas = qrContainer.querySelector("canvas");
+            const qrCanvas = qrContainer.querySelector('canvas');
 
             if (qrCanvas) {
                 const qrSize = 120;
@@ -1190,11 +1260,11 @@ height:64.10%;
             }
         }
 
-        if (pesan && pesan.trim() !== "") {
+        if (pesan && pesan.trim() !== '') {
             ctx.fillStyle = frameTextColor;
             ctx.font = "italic 500 24px 'Playfair Display', serif";
-            ctx.textAlign = "left";
-            
+            ctx.textAlign = 'left';
+
             const words = pesan.split(' ');
             let line = '';
             let lineCount = 0;
@@ -1202,14 +1272,14 @@ height:64.10%;
             const lineHeight = 34;
 
             for (let n = 0; n < words.length; n++) {
-                let testLine = line + words[n] + ' ';
-                let metrics = ctx.measureText(testLine);
+                const testLine = line + words[n] + ' ';
+                const metrics = ctx.measureText(testLine);
                 if (metrics.width > textMaxWidth && n > 0) {
                     ctx.fillText(line, 100, currentY);
                     line = words[n] + ' ';
                     currentY += lineHeight;
                     lineCount++;
-                    if(lineCount >= 3) break;
+                    if (lineCount >= 3) break;
                 } else {
                     line = testLine;
                 }
@@ -1219,51 +1289,67 @@ height:64.10%;
             }
         }
 
-        const polaroidBase64 = polaroidCanvas.toDataURL("image/jpeg", 0.92);
-        btnKirim.innerText = "Mengirim Pesanan...";
-
-        Swal.fire({
-            title: 'Memproses...',
-            text: 'Mendaftarkan order pickup dan menyimpan file kenangan...',
-            allowOutsideClick: false,
-            didOpen: () => { Swal.showLoading(); }
-        });
-        
+        const polaroidBase64 = polaroidCanvas.toDataURL('image/jpeg', 0.92);
         const payload = {
-            nama, tujuan, pesan, email, whatsapp, alamat, koordinat, showOnHome,
+            nama, tujuan, pesan, email, whatsapp, alamat: pickupAddress, koordinat: '', showOnHome,
             photoBase64: polaroidBase64,
-            audioUrl: audioBase64, 
+            audioUrl: audioBase64,
             orderId: generatedOrderId,
             frameId: selectedFrame?.id || null,
             frameName: selectedFrame?.name || null,
-            framePreviewImage: selectedFrame?.previewImage || null
+            framePreviewImage: selectedFrame?.previewImage || null,
+            paymentAmount: paymentAmount,
+            status: paymentAmount === 0 ? 'PAID' : 'PENDING_PAYMENT',
+            paymentStatus: paymentAmount === 0 ? 'PAID' : 'PENDING_PAYMENT',
+            redeemCode: redeemSession?.code || null,
+            paidAt: paymentAmount === 0 ? Date.now() : null,
         };
+
         try {
-            const response = await fetch('/api/submit-photobox', {
+            if (paymentAmount === 0) {
+                clearPendingSubmission();
+                localStorage.removeItem('tempOrderId');
+
+                const successResponse = await fetch('/api/submit-photobox', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const successResult = await successResponse.json().catch(() => ({}));
+                if (!successResponse.ok || !successResult.success) {
+                    throw new Error(successResult.message || 'Gagal menyimpan data photobox gratis.');
+                }
+
+                clearRedeemSession();
+                await showSuccess('Berhasil! Pesanan photobox Anda sudah dibuat dan gratis karena kode redeem aktif.');
+                window.location.href = `photobox-success.html?orderId=${generatedOrderId}`;
+                return;
+            }
+
+            savePendingSubmission(payload);
+            await setDoc(doc(db, "orders", generatedOrderId), {
+                orderId: generatedOrderId,
+                status: 'PENDING',
+                paymentStatus: 'PENDING',
+                amount: paymentAmount,
+                updatedAt: Date.now(),
+            }, { merge: true });
+
+            const paymentResponse = await fetch('/api/create-payment', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
+                body: JSON.stringify({ amount: paymentAmount, orderId: generatedOrderId })
             });
-            Swal.close();
-            if (!response.ok) {
-                const errData = await response.json();
-                throw new Error(errData.message || 'Gagal memproses.');
+
+            const paymentData = await paymentResponse.json();
+            if (!paymentResponse.ok || !paymentData.response?.payment?.url) {
+                throw new Error(paymentData.message || paymentData.error || 'Gagal mendapatkan link pembayaran.');
             }
 
-            // Hapus session/orderId segera setelah backend sukses menerima data
-            localStorage.removeItem("tempOrderId");
-            clearRedeemSession();
-
-            await showSuccess('Berhasil! Gantungan kunci Polaroid sedang dirakit. Silakan datang ke lokasi kami untuk mengambil pesanan.');
-
-            if(unsubscribePaymentListener){
-                unsubscribePaymentListener();
-            }
-            window.location.href = `photobox-success.html?orderId=${generatedOrderId}`;
+            window.location.replace(paymentData.response.payment.url);
         } catch (err) {
-            Swal.close();
             await showError('Gagal: ' + err.message);
-            btnKirim.innerText = "Kirim & Proses Gantungan Kunci";
+            btnKirim.innerText = getPaymentAmount() === 0 ? 'Kirim & Gratis' : 'Kirim & Bayar 5K';
             btnKirim.disabled = false;
         }
     };

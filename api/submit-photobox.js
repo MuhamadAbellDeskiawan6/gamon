@@ -117,6 +117,11 @@ export default async function handler(req, res) {
     frameId,
     frameName,
     framePreviewImage,
+    paymentAmount,
+    paymentStatus,
+    redeemCode,
+    status,
+    paidAt,
   } = req.body;
 
   if (!email || !photoBase64 || !alamat || !whatsapp) {
@@ -153,6 +158,9 @@ export default async function handler(req, res) {
        1. SIMPAN KE photobox_order (WAJIB)
     ====================================================== */
 
+    const normalizedPaymentAmount = Number(paymentAmount) || 0;
+    const normalizedPaymentStatus = paymentStatus || status || (normalizedPaymentAmount === 0 ? "PAID" : "PENDING_PAYMENT");
+
     await db.collection("photobox_order").doc(finalOrderId).set({
       orderId: finalOrderId,
       nama: nama || "Anonim",
@@ -170,9 +178,14 @@ export default async function handler(req, res) {
       frameName: frameName || null,
       framePreviewImage: framePreviewImage || null,
       showOnHome: showOnHome !== false,
+      amount: normalizedPaymentAmount,
+      paymentStatus: normalizedPaymentStatus,
+      status: normalizedPaymentStatus,
+      redeemCode: redeemCode || null,
+      paidAt: paidAt || null,
       statusMerchandise: "PENDING_PRODUCTION",
       createdAt: timestamp,
-    });
+    }, { merge: true });
 
     /* ======================================================
        2. UPDATE / MERGE KE orders
@@ -187,6 +200,11 @@ export default async function handler(req, res) {
         alamat,
         frameId: frameId || null,
         frameName: frameName || null,
+        amount: normalizedPaymentAmount,
+        paymentStatus: normalizedPaymentStatus,
+        status: normalizedPaymentStatus,
+        redeemCode: redeemCode || null,
+        paidAt: paidAt || null,
         statusMerchandise: "PENDING_PRODUCTION",
         updatedAt: timestamp,
       },

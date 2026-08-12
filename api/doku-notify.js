@@ -26,11 +26,21 @@ export default async function handler(req, res) {
         if (orderId && (status === 'SUCCESS' || status === 'PAID')) {
             const db = getFirestore();
             try {
-                // Update status menjadi PAID
-                await db.collection('orders').doc(orderId).update({ 
+                const paidAt = Date.now();
+                await db.collection('orders').doc(orderId).set({
                     status: "PAID",
-                    updatedAt: new Date() 
-                });
+                    paymentStatus: "PAID",
+                    paidAt,
+                    updatedAt: paidAt,
+                }, { merge: true });
+
+                await db.collection('photobox_order').doc(orderId).set({
+                    status: "PAID",
+                    paymentStatus: "PAID",
+                    paidAt,
+                    updatedAt: paidAt,
+                }, { merge: true });
+
                 console.log(`Order ${orderId} berhasil diupdate ke PAID`);
                 return res.status(200).send("OK");
             } catch (e) {
