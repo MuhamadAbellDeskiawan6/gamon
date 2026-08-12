@@ -312,6 +312,15 @@ height:64.10%;
         </div>
     </div>
 
+    <div id="returnLoadingOverlay" class="hidden fixed inset-0 z-[60] flex items-center justify-center bg-white/80 backdrop-blur-sm">
+        <div class="flex w-[92%] max-w-sm flex-col items-center justify-center rounded-2xl border border-neutral-200 bg-white px-6 py-8 text-center shadow-[0_25px_60px_rgba(0,0,0,0.08)]">
+            <div class="mb-5 h-12 w-12 animate-spin rounded-full border-4 border-neutral-200 border-t-neutral-900"></div>
+            <p class="text-[12px] font-semibold uppercase tracking-[0.18em] text-neutral-500">Memproses</p>
+            <h3 id="returnLoadingTitle" class="mt-2 text-xl font-semibold text-neutral-900">Menyelesaikan pembayaran...</h3>
+            <p id="returnLoadingSubtitle" class="mt-2 text-[12px] leading-relaxed text-neutral-500">Sedang menyiapkan pesanan Anda...</p>
+        </div>
+    </div>
+
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
     import { getFirestore, doc, onSnapshot, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
@@ -332,6 +341,9 @@ height:64.10%;
     const redeemCodeInput = document.getElementById('redeemCodeInput');
     const btnRedeemCode = document.getElementById('btnRedeemCode');
     const redeemSection = document.getElementById('redeemSection');
+    const returnLoadingOverlay = document.getElementById('returnLoadingOverlay');
+    const returnLoadingTitle = document.getElementById('returnLoadingTitle');
+    const returnLoadingSubtitle = document.getElementById('returnLoadingSubtitle');
     const areaAksiFoto = document.getElementById('areaAksiFoto');
     const btnSwitchCamera = document.getElementById('btnSwitchCamera');
     const cameraSwitchLabel = document.getElementById('cameraSwitchLabel');
@@ -428,7 +440,17 @@ height:64.10%;
         return Swal.fire({ icon: 'error', title: 'Oops...', text: message, confirmButtonColor: '#171717' });
     }
 
+    function showReturnLoading(title = 'Menyelesaikan pembayaran...', subtitle = 'Sedang menyiapkan pesanan Anda...') {
+        if (!returnLoadingOverlay || !returnLoadingTitle || !returnLoadingSubtitle) return;
+        returnLoadingTitle.textContent = title;
+        returnLoadingSubtitle.textContent = subtitle;
+        returnLoadingOverlay.classList.remove('hidden');
+    }
 
+    function hideReturnLoading() {
+        if (!returnLoadingOverlay) return;
+        returnLoadingOverlay.classList.add('hidden');
+    }
 
     function initSelfieSegmentation() {
         selfieSegmentation = new SelfieSegmentation({
@@ -976,9 +998,12 @@ height:64.10%;
     async function finalizePaidPhotobox(orderId) {
         const pendingPayload = loadPendingSubmission();
         if (!pendingPayload) {
+            showReturnLoading('Menyelesaikan pesanan...', 'Sedang menyiapkan halaman sukses...');
             window.location.href = `photobox-success.html?orderId=${orderId}`;
             return;
         }
+
+        showReturnLoading('Menyelesaikan pembayaran...', 'Sedang menyimpan data pesanan dan menyiapkan halaman sukses...');
 
         try {
             const response = await fetch('/api/submit-photobox', {
@@ -1002,6 +1027,7 @@ height:64.10%;
             clearPendingSubmission();
             localStorage.removeItem('tempOrderId');
             clearRedeemSession();
+            hideReturnLoading();
 
             await Swal.fire({
                 icon: 'success',
@@ -1012,6 +1038,7 @@ height:64.10%;
 
             window.location.href = `photobox-success.html?orderId=${orderId}`;
         } catch (error) {
+            hideReturnLoading();
             await showError('Gagal: ' + error.message);
             btnMulai.innerText = 'Mulai Buat Kenangan';
             btnMulai.disabled = false;
@@ -1080,6 +1107,7 @@ height:64.10%;
         const pendingPayload = loadPendingSubmission();
 
         if (pendingPayload) {
+            showReturnLoading('Menyelesaikan pembayaran...', 'Sedang menyiapkan pesanan Anda...');
             setTimeout(async () => {
                 await finalizePaidPhotobox(activeOrderId);
             }, 300);
