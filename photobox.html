@@ -984,7 +984,14 @@ height:64.10%;
             const response = await fetch('/api/submit-photobox', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ...pendingPayload, orderId })
+                body: JSON.stringify({
+                    ...pendingPayload,
+                    orderId,
+                    status: 'PAID',
+                    paymentStatus: 'PAID',
+                    paidAt: Date.now(),
+                    redeemCode: pendingPayload.redeemCode || loadRedeemSession()?.code || null,
+                })
             });
 
             const result = await response.json().catch(() => ({}));
@@ -1022,18 +1029,22 @@ height:64.10%;
             unsubscribePaymentListener();
         }
 
+        const finalizeIfPaid = async () => {
+            if (finalized) return;
+            finalized = true;
+            if (unsubscribePaymentListener) {
+                unsubscribePaymentListener();
+                unsubscribePaymentListener = null;
+            }
+            await finalizePaidPhotobox(orderId);
+        };
+
         unsubscribePaymentListener = onSnapshot(doc(db, "orders", orderId), async (docSnapshot) => {
            const orderData = docSnapshot.data() || {};
            const paymentStatus = orderData.status;
 
-           if (paymentStatus === "PAID" && !finalized) {
-                finalized = true;
-                if (unsubscribePaymentListener) {
-                    unsubscribePaymentListener();
-                    unsubscribePaymentListener = null;
-                }
-
-                await finalizePaidPhotobox(orderId);
+           if (paymentStatus === "PAID") {
+                await finalizeIfPaid();
                 return;
             }
 
@@ -1043,6 +1054,16 @@ height:64.10%;
             btnMulai.innerText = 'Mulai Buat Kenangan';
             btnMulai.disabled = false;
         });
+
+        const pendingPayload = loadPendingSubmission();
+        if (pendingPayload && !finalized) {
+            setTimeout(async () => {
+                const currentOrder = localStorage.getItem('tempOrderId');
+                if (currentOrder === orderId) {
+                    await finalizeIfPaid();
+                }
+            }, 1200);
+        }
     }
 
     const urlParams = new URLSearchParams(window.location.search);
@@ -1055,7 +1076,16 @@ height:64.10%;
     }
 
     if (orderIdFromUrl || storedOrderId) {
-        listenToPayment(orderIdFromUrl || storedOrderId);
+        const activeOrderId = orderIdFromUrl || storedOrderId;
+        const pendingPayload = loadPendingSubmission();
+
+        if (pendingPayload) {
+            setTimeout(async () => {
+                await finalizePaidPhotobox(activeOrderId);
+            }, 300);
+        } else {
+            listenToPayment(activeOrderId);
+        }
     }
 
     btnMulai.onclick = async () => {
