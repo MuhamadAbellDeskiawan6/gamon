@@ -415,6 +415,8 @@ height:64.10%;
     let selectedFrameImageLoadPromise = null;
     let countdownFrameAsset = null;
     let countdownAnimationFrame = null;
+    let countdownStillImage = null;
+    let countdownStillImageElement = null;
     const COUNTDOWN_SECONDS = 5;
 
     document.querySelectorAll(".bg-thumb").forEach(item => {
@@ -543,17 +545,37 @@ height:64.10%;
         const photoWidth = isIOS ? 420 : 536;
         const photoHeight = isIOS ? 680 : 836;
 
-        targetCtx.drawImage(
-            outputCanvas,
-            0,
-            0,
-            outputCanvas.width,
-            outputCanvas.height,
-            photoX,
-            photoY,
-            photoWidth,
-            photoHeight
-        );
+        const sourceCanvas = countdownStillImage ? countdownStillImageElement || outputCanvas : outputCanvas;
+        if (countdownStillImage && !countdownStillImageElement) {
+            countdownStillImageElement = new Image();
+            countdownStillImageElement.src = countdownStillImage;
+        }
+
+        if (countdownStillImageElement && countdownStillImageElement.complete) {
+            targetCtx.drawImage(
+                countdownStillImageElement,
+                0,
+                0,
+                countdownStillImageElement.width,
+                countdownStillImageElement.height,
+                photoX,
+                photoY,
+                photoWidth,
+                photoHeight
+            );
+        } else {
+            targetCtx.drawImage(
+                outputCanvas,
+                0,
+                0,
+                outputCanvas.width,
+                outputCanvas.height,
+                photoX,
+                photoY,
+                photoWidth,
+                photoHeight
+            );
+        }
 
         try {
             const frameSource = selectedFrame?.frameImage || selectedFrame?.previewImage || fallbackFrames[0].frameImage;
@@ -1310,6 +1332,8 @@ height:64.10%;
         snapshotCtx.drawImage(outputCanvas, 0, 0);
 
         rawCapturedImage = snapshotCanvas.toDataURL("image/png");
+        countdownStillImage = rawCapturedImage;
+        countdownStillImageElement = null;
         photoPreview.src = rawCapturedImage;
 
         outputCanvas.classList.add("hidden");
@@ -1462,6 +1486,14 @@ height:64.10%;
                 clearInterval(countdownVideoRecordingInterval);
                 countdownVideoRecordingInterval = null;
                 countdownDisplay.classList.add('hidden');
+
+                const freezeFrameCanvas = document.createElement('canvas');
+                freezeFrameCanvas.width = outputCanvas.width;
+                freezeFrameCanvas.height = outputCanvas.height;
+                freezeFrameCanvas.getContext('2d').drawImage(outputCanvas, 0, 0);
+                countdownStillImage = freezeFrameCanvas.toDataURL('image/png');
+                countdownStillImageElement = null;
+
                 renderCountdownVideoFrame();
                 stopCountdownVideoRecording().then(() => {
                     captureSnapshot();
