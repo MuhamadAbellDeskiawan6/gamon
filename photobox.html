@@ -757,20 +757,13 @@ height:64.10%;
         updateSwitchCameraLabel();
 
         try {
-            const isIOS = /iPad|iPhone|iPod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-            localStream = await navigator.mediaDevices.getUserMedia({
+            localStream = await navigator.mediaDevices.getUserMedia({ 
                 video: {
                     facingMode: currentFacingMode === "environment"
                         ? { ideal: "environment" }
-                        : { ideal: "user" },
-                    width: { ideal: isIOS ? 1280 : 1920 },
-                    height: { ideal: isIOS ? 720 : 1080 },
-                    aspectRatio: { ideal: 1.333333 },
-                    frameRate: { ideal: 30, max: 30 },
-                    advanced: [
-                        { zoom: 1.0 },
-                        { focusMode: 'continuous' }
-                    ]
+                        : "user",
+                    width: { ideal: 1920 },
+                    height: { ideal: 1080 }
                 }
             });
             video.srcObject = localStream;
@@ -779,7 +772,7 @@ height:64.10%;
                 await video.play();
                 const vw = video.videoWidth;
                 const vh = video.videoHeight;
-
+                
                 const PHOTO_WIDTH = 700;
                 const PHOTO_HEIGHT = 1002;
                 const targetRatio = PHOTO_WIDTH / PHOTO_HEIGHT;
@@ -793,8 +786,8 @@ height:64.10%;
                     ch = cw / targetRatio;
                 }
 
-                outputCanvas.width = Math.max(1, Math.round(cw));
-                outputCanvas.height = Math.max(1, Math.round(ch));
+                outputCanvas.width = cw;
+                outputCanvas.height = ch;
                 updateFrameProcessing();
             };
 
