@@ -417,7 +417,7 @@ height:64.10%;
     let countdownAnimationFrame = null;
     const COUNTDOWN_SECONDS = 5;
     const COUNTDOWN_VIDEO_WIDTH = 420;
-    const COUNTDOWN_VIDEO_HEIGHT = 720;
+    const COUNTDOWN_VIDEO_HEIGHT = 600;
     const COUNTDOWN_VIDEO_FPS = 15;
 
     document.querySelectorAll(".bg-thumb").forEach(item => {
@@ -540,14 +540,11 @@ height:64.10%;
         targetCtx.fillStyle = '#ffffff';
         targetCtx.fillRect(0, 0, countdownVideoCanvas.width, countdownVideoCanvas.height);
 
-        const paddingX = 24;
-        const paddingY = 28;
-        const availableWidth = countdownVideoCanvas.width - (paddingX * 2);
-        const availableHeight = countdownVideoCanvas.height - (paddingY * 2);
-        const scale = Math.min(
-            availableWidth / outputCanvas.width,
-            availableHeight / outputCanvas.height
-        );
+        const canvasRatio = countdownVideoCanvas.width / countdownVideoCanvas.height;
+        const photoRatio = outputCanvas.width / outputCanvas.height;
+        const scale = canvasRatio > photoRatio
+            ? countdownVideoCanvas.width / outputCanvas.width
+            : countdownVideoCanvas.height / outputCanvas.height;
 
         const photoWidth = outputCanvas.width * scale;
         const photoHeight = outputCanvas.height * scale;
