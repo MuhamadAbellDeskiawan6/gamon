@@ -414,6 +414,7 @@ height:64.10%;
     let selectedFrameImage = null;
     let selectedFrameImageLoadPromise = null;
     let countdownFrameAsset = null;
+    let countdownSourceImage = null;
     let countdownAnimationFrame = null;
     const COUNTDOWN_SECONDS = 5;
 
@@ -530,7 +531,7 @@ height:64.10%;
     }
 
     function renderCountdownVideoFrame() {
-        if (!countdownVideoCanvas || !outputCanvas || !selectedFrame) return;
+        if (!countdownVideoCanvas || !selectedFrame) return;
 
         const targetCtx = countdownVideoCanvas.getContext('2d');
         targetCtx.clearRect(0, 0, countdownVideoCanvas.width, countdownVideoCanvas.height);
@@ -543,32 +544,36 @@ height:64.10%;
         const photoWidth = isIOS ? 420 : 536;
         const photoHeight = isIOS ? 680 : 836;
 
-        const sourceCanvas = outputCanvas;
-        const sourceRatio = sourceCanvas.width / sourceCanvas.height;
+        const sourceImg = rawCapturedImage ? (() => {
+            if (!countdownSourceImage || countdownSourceImage.src !== rawCapturedImage) {
+                countdownSourceImage = new Image();
+                countdownSourceImage.src = rawCapturedImage;
+            }
+            return countdownSourceImage;
+        })() : outputCanvas;
+
+        const sourceCanvas = sourceImg instanceof HTMLCanvasElement ? sourceImg : null;
+        const baseWidth = sourceCanvas ? sourceCanvas.width : (sourceImg?.width || outputCanvas?.width || 1);
+        const baseHeight = sourceCanvas ? sourceCanvas.height : (sourceImg?.height || outputCanvas?.height || 1);
+        const sourceRatio = baseWidth / baseHeight;
         const targetRatio = photoWidth / photoHeight;
-        let sx = 0; let sy = 0; let sw = sourceCanvas.width; let sh = sourceCanvas.height;
+        let sx = 0; let sy = 0; let sw = baseWidth; let sh = baseHeight;
 
         if (sourceRatio > targetRatio) {
-            sh = sourceCanvas.height;
+            sh = baseHeight;
             sw = sh * targetRatio;
-            sx = (sourceCanvas.width - sw) / 2;
+            sx = (baseWidth - sw) / 2;
         } else {
-            sw = sourceCanvas.width;
+            sw = baseWidth;
             sh = sw / targetRatio;
-            sy = (sourceCanvas.height - sh) / 2;
+            sy = (baseHeight - sh) / 2;
         }
 
-        targetCtx.drawImage(
-            sourceCanvas,
-            sx,
-            sy,
-            sw,
-            sh,
-            photoX,
-            photoY,
-            photoWidth,
-            photoHeight
-        );
+        if (sourceCanvas) {
+            targetCtx.drawImage(sourceCanvas, sx, sy, sw, sh, photoX, photoY, photoWidth, photoHeight);
+        } else if (sourceImg && sourceImg.complete) {
+            targetCtx.drawImage(sourceImg, sx, sy, sw, sh, photoX, photoY, photoWidth, photoHeight);
+        }
 
         try {
             const frameSource = selectedFrame?.frameImage || selectedFrame?.previewImage || fallbackFrames[0].frameImage;
