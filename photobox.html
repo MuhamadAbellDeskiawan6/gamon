@@ -537,16 +537,22 @@ height:64.10%;
         targetCtx.fillStyle = '#ffffff';
         targetCtx.fillRect(0, 0, countdownVideoCanvas.width, countdownVideoCanvas.height);
 
+        const isIOS = /iPad|iPhone|iPod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+        const photoX = isIOS ? 30 : 52;
+        const photoY = isIOS ? 32 : 56;
+        const photoWidth = isIOS ? 420 : 536;
+        const photoHeight = isIOS ? 680 : 836;
+
         targetCtx.drawImage(
             outputCanvas,
             0,
             0,
             outputCanvas.width,
             outputCanvas.height,
-            0,
-            0,
-            countdownVideoCanvas.width,
-            countdownVideoCanvas.height
+            photoX,
+            photoY,
+            photoWidth,
+            photoHeight
         );
 
         try {
@@ -1352,8 +1358,8 @@ height:64.10%;
 
         const isIOS = /iPad|iPhone|iPod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
         countdownVideoCanvas = document.createElement('canvas');
-        countdownVideoCanvas.width = outputCanvas.width || 720;
-        countdownVideoCanvas.height = outputCanvas.height || 1000;
+        countdownVideoCanvas.width = isIOS ? 480 : 640;
+        countdownVideoCanvas.height = isIOS ? 820 : 1100;
 
         const stream = countdownVideoCanvas.captureStream ? countdownVideoCanvas.captureStream(isIOS ? 12 : 24) : null;
         if (!stream) {
