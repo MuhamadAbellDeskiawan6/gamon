@@ -414,7 +414,6 @@ height:64.10%;
     let selectedFrameImage = null;
     let selectedFrameImageLoadPromise = null;
     let countdownFrameAsset = null;
-    let countdownSourceImage = null;
     let countdownAnimationFrame = null;
     const COUNTDOWN_SECONDS = 5;
 
@@ -531,7 +530,7 @@ height:64.10%;
     }
 
     function renderCountdownVideoFrame() {
-        if (!countdownVideoCanvas || !selectedFrame) return;
+        if (!countdownVideoCanvas || !outputCanvas || !selectedFrame) return;
 
         const targetCtx = countdownVideoCanvas.getContext('2d');
         targetCtx.clearRect(0, 0, countdownVideoCanvas.width, countdownVideoCanvas.height);
@@ -544,36 +543,17 @@ height:64.10%;
         const photoWidth = isIOS ? 420 : 536;
         const photoHeight = isIOS ? 680 : 836;
 
-        const sourceImg = rawCapturedImage ? (() => {
-            if (!countdownSourceImage || countdownSourceImage.src !== rawCapturedImage) {
-                countdownSourceImage = new Image();
-                countdownSourceImage.src = rawCapturedImage;
-            }
-            return countdownSourceImage;
-        })() : outputCanvas;
-
-        const sourceCanvas = sourceImg instanceof HTMLCanvasElement ? sourceImg : null;
-        const baseWidth = sourceCanvas ? sourceCanvas.width : (sourceImg?.width || outputCanvas?.width || 1);
-        const baseHeight = sourceCanvas ? sourceCanvas.height : (sourceImg?.height || outputCanvas?.height || 1);
-        const sourceRatio = baseWidth / baseHeight;
-        const targetRatio = photoWidth / photoHeight;
-        let sx = 0; let sy = 0; let sw = baseWidth; let sh = baseHeight;
-
-        if (sourceRatio > targetRatio) {
-            sh = baseHeight;
-            sw = sh * targetRatio;
-            sx = (baseWidth - sw) / 2;
-        } else {
-            sw = baseWidth;
-            sh = sw / targetRatio;
-            sy = (baseHeight - sh) / 2;
-        }
-
-        if (sourceCanvas) {
-            targetCtx.drawImage(sourceCanvas, sx, sy, sw, sh, photoX, photoY, photoWidth, photoHeight);
-        } else if (sourceImg && sourceImg.complete) {
-            targetCtx.drawImage(sourceImg, sx, sy, sw, sh, photoX, photoY, photoWidth, photoHeight);
-        }
+        targetCtx.drawImage(
+            outputCanvas,
+            0,
+            0,
+            outputCanvas.width,
+            outputCanvas.height,
+            photoX,
+            photoY,
+            photoWidth,
+            photoHeight
+        );
 
         try {
             const frameSource = selectedFrame?.frameImage || selectedFrame?.previewImage || fallbackFrames[0].frameImage;
@@ -777,19 +757,14 @@ height:64.10%;
         updateSwitchCameraLabel();
 
         try {
-            const isIOS = /iPad|iPhone|iPod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-            const videoConstraint = {
-                facingMode: currentFacingMode === "environment"
-                    ? { ideal: "environment" }
-                    : "user",
-                width: { ideal: isIOS ? 1280 : 1920 },
-                height: { ideal: isIOS ? 720 : 1080 },
-                aspectRatio: 0.67
-            };
-
-            localStream = await navigator.mediaDevices.getUserMedia({
-                video: videoConstraint,
-                audio: false
+            localStream = await navigator.mediaDevices.getUserMedia({ 
+                video: {
+                    facingMode: currentFacingMode === "environment"
+                        ? { ideal: "environment" }
+                        : "user",
+                    width: { ideal: 1920 },
+                    height: { ideal: 1080 }
+                }
             });
             video.srcObject = localStream;
             video.onloadedmetadata = async () => {
@@ -797,7 +772,7 @@ height:64.10%;
                 await video.play();
                 const vw = video.videoWidth;
                 const vh = video.videoHeight;
-
+                
                 const PHOTO_WIDTH = 700;
                 const PHOTO_HEIGHT = 1002;
                 const targetRatio = PHOTO_WIDTH / PHOTO_HEIGHT;
@@ -1320,54 +1295,7 @@ height:64.10%;
         }
     };
 
-    async function buildPreparedCaptureDataUrl() {
-        const previewCanvas = document.createElement('canvas');
-        previewCanvas.width = 900;
-        previewCanvas.height = 1560;
-        const previewCtx = previewCanvas.getContext('2d');
-        const frameSource = selectedFrame?.frameImage || selectedFrame?.previewImage || fallbackFrames[0].frameImage;
-
-        const [frame, img] = await Promise.all([
-            new Promise((resolve, reject) => {
-                const imgEl = new Image();
-                imgEl.onload = () => resolve(imgEl);
-                imgEl.onerror = reject;
-                imgEl.src = frameSource;
-            }),
-            new Promise((resolve, reject) => {
-                const imgEl = new Image();
-                imgEl.onload = () => resolve(imgEl);
-                imgEl.onerror = reject;
-                imgEl.src = outputCanvas.toDataURL('image/png');
-            })
-        ]);
-
-        const photoX = 100;
-        const photoY = 100;
-        const photoWidth = 700;
-        const photoHeight = 1002;
-
-        const imgRatio = img.width / img.height;
-        const frameRatio = photoWidth / photoHeight;
-        let sx = 0; let sy = 0; let sw = img.width; let sh = img.height;
-
-        if (imgRatio > frameRatio) {
-            sh = img.height;
-            sw = sh * frameRatio;
-            sx = (img.width - sw) / 2;
-        } else {
-            sw = img.width;
-            sh = sw / frameRatio;
-            sy = (img.height - sh) / 2;
-        }
-
-        previewCtx.drawImage(img, sx, sy, sw, sh, photoX, photoY, photoWidth, photoHeight);
-        previewCtx.drawImage(frame, 0, 0, previewCanvas.width, previewCanvas.height);
-
-        return previewCanvas.toDataURL('image/jpeg', 0.92);
-    }
-
-    async function captureSnapshot(){
+    function captureSnapshot(){
         flashOverlay.classList.remove("opacity-0");
         flashOverlay.classList.add("opacity-100");
         setTimeout(()=>{
@@ -1375,7 +1303,13 @@ height:64.10%;
             flashOverlay.classList.add("opacity-0");
         },150);
 
-        rawCapturedImage = await buildPreparedCaptureDataUrl();
+        const snapshotCanvas = document.createElement("canvas");
+        snapshotCanvas.width = outputCanvas.width;
+        snapshotCanvas.height = outputCanvas.height;
+        const snapshotCtx = snapshotCanvas.getContext("2d");
+        snapshotCtx.drawImage(outputCanvas, 0, 0);
+
+        rawCapturedImage = snapshotCanvas.toDataURL("image/png");
         photoPreview.src = rawCapturedImage;
 
         outputCanvas.classList.add("hidden");
