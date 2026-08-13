@@ -540,10 +540,19 @@ height:64.10%;
         targetCtx.fillStyle = '#ffffff';
         targetCtx.fillRect(0, 0, countdownVideoCanvas.width, countdownVideoCanvas.height);
 
-        const photoX = 52;
-        const photoY = 56;
-        const photoWidth = 536;
-        const photoHeight = 836;
+        const paddingX = 24;
+        const paddingY = 28;
+        const availableWidth = countdownVideoCanvas.width - (paddingX * 2);
+        const availableHeight = countdownVideoCanvas.height - (paddingY * 2);
+        const scale = Math.min(
+            availableWidth / outputCanvas.width,
+            availableHeight / outputCanvas.height
+        );
+
+        const photoWidth = outputCanvas.width * scale;
+        const photoHeight = outputCanvas.height * scale;
+        const photoX = (countdownVideoCanvas.width - photoWidth) / 2;
+        const photoY = (countdownVideoCanvas.height - photoHeight) / 2;
 
         targetCtx.drawImage(
             outputCanvas,
