@@ -562,6 +562,9 @@ height:64.10%;
         } catch (error) {
             console.warn('Countdown frame render failed:', error);
         }
+
+        // Keep the live UI watermark only in the browser preview layer.
+        // Do not render it into the exported countdown video so the softfile stays clean.
     }
 
     function startCountdownRenderLoop() {
@@ -1350,9 +1353,9 @@ height:64.10%;
         const isIOS = /iPad|iPhone|iPod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
         countdownVideoCanvas = document.createElement('canvas');
         countdownVideoCanvas.width = outputCanvas.width || 720;
-        countdownVideoCanvas.height = outputCanvas.height || 1020;
+        countdownVideoCanvas.height = outputCanvas.height || 1000;
 
-        const stream = countdownVideoCanvas.captureStream ? countdownVideoCanvas.captureStream(12) : null;
+        const stream = countdownVideoCanvas.captureStream ? countdownVideoCanvas.captureStream(isIOS ? 12 : 24) : null;
         if (!stream) {
             countdownVideoBase64 = null;
             countdownVideoDataReady = Promise.resolve(null);
