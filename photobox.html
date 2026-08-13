@@ -756,15 +756,27 @@ height:64.10%;
         stopCameraStream();
         updateSwitchCameraLabel();
 
+        const isIOS = /iPad|iPhone|iPod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+        const videoConstraints = {
+            facingMode: currentFacingMode === "environment"
+                ? { ideal: "environment" }
+                : { ideal: "user" },
+            width: { ideal: isIOS ? 1280 : 1920 },
+            height: { ideal: isIOS ? 960 : 1080 },
+            aspectRatio: { ideal: 0.75 },
+            frameRate: { ideal: isIOS ? 24 : 30, max: isIOS ? 24 : 30 },
+            ...(isIOS ? {
+                advanced: [
+                    { zoom: 1.0 },
+                    { focusMode: 'continuous' },
+                    { exposureMode: 'continuous' }
+                ]
+            } : {})
+        };
+
         try {
-            localStream = await navigator.mediaDevices.getUserMedia({ 
-                video: {
-                    facingMode: currentFacingMode === "environment"
-                        ? { ideal: "environment" }
-                        : "user",
-                    width: { ideal: 1920 },
-                    height: { ideal: 1080 }
-                }
+            localStream = await navigator.mediaDevices.getUserMedia({
+                video: videoConstraints
             });
             video.srcObject = localStream;
             video.onloadedmetadata = async () => {
@@ -772,7 +784,7 @@ height:64.10%;
                 await video.play();
                 const vw = video.videoWidth;
                 const vh = video.videoHeight;
-                
+
                 const PHOTO_WIDTH = 700;
                 const PHOTO_HEIGHT = 1002;
                 const targetRatio = PHOTO_WIDTH / PHOTO_HEIGHT;
@@ -786,8 +798,8 @@ height:64.10%;
                     ch = cw / targetRatio;
                 }
 
-                outputCanvas.width = cw;
-                outputCanvas.height = ch;
+                outputCanvas.width = Math.max(1, Math.round(cw));
+                outputCanvas.height = Math.max(1, Math.round(ch));
                 updateFrameProcessing();
             };
 
