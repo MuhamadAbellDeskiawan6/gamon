@@ -416,6 +416,9 @@ height:64.10%;
     let countdownFrameAsset = null;
     let countdownAnimationFrame = null;
     const COUNTDOWN_SECONDS = 5;
+    const COUNTDOWN_VIDEO_WIDTH = 420;
+    const COUNTDOWN_VIDEO_HEIGHT = 720;
+    const COUNTDOWN_VIDEO_FPS = 15;
 
     document.querySelectorAll(".bg-thumb").forEach(item => {
         item.addEventListener("click", () => {
@@ -1320,10 +1323,11 @@ height:64.10%;
 
     function getSupportedVideoMimeType() {
         const types = [
+            'video/mp4',
+            'video/mp4;codecs=avc1.42E01E,mp4a.40.2',
             'video/webm;codecs=vp9,opus',
             'video/webm;codecs=vp8,opus',
             'video/webm',
-            'video/mp4',
             'video/x-matroska'
         ];
 
@@ -1348,10 +1352,10 @@ height:64.10%;
         }
 
         countdownVideoCanvas = document.createElement('canvas');
-        countdownVideoCanvas.width = 640;
-        countdownVideoCanvas.height = 1100;
+        countdownVideoCanvas.width = COUNTDOWN_VIDEO_WIDTH;
+        countdownVideoCanvas.height = COUNTDOWN_VIDEO_HEIGHT;
 
-        const stream = countdownVideoCanvas.captureStream ? countdownVideoCanvas.captureStream(24) : null;
+        const stream = countdownVideoCanvas.captureStream ? countdownVideoCanvas.captureStream(COUNTDOWN_VIDEO_FPS) : null;
         if (!stream) {
             countdownVideoBase64 = null;
             countdownVideoDataReady = Promise.resolve(null);
