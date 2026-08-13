@@ -416,9 +416,6 @@ height:64.10%;
     let countdownFrameAsset = null;
     let countdownAnimationFrame = null;
     const COUNTDOWN_SECONDS = 5;
-    const COUNTDOWN_VIDEO_WIDTH = 420;
-    const COUNTDOWN_VIDEO_HEIGHT = 600;
-    const COUNTDOWN_VIDEO_FPS = 15;
 
     document.querySelectorAll(".bg-thumb").forEach(item => {
         item.addEventListener("click", () => {
@@ -540,16 +537,11 @@ height:64.10%;
         targetCtx.fillStyle = '#ffffff';
         targetCtx.fillRect(0, 0, countdownVideoCanvas.width, countdownVideoCanvas.height);
 
-        const canvasRatio = countdownVideoCanvas.width / countdownVideoCanvas.height;
-        const photoRatio = outputCanvas.width / outputCanvas.height;
-        const scale = canvasRatio > photoRatio
-            ? countdownVideoCanvas.width / outputCanvas.width
-            : countdownVideoCanvas.height / outputCanvas.height;
-
-        const photoWidth = outputCanvas.width * scale;
-        const photoHeight = outputCanvas.height * scale;
-        const photoX = (countdownVideoCanvas.width - photoWidth) / 2;
-        const photoY = (countdownVideoCanvas.height - photoHeight) / 2;
+        const isIOS = /iPad|iPhone|iPod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+        const photoX = isIOS ? 30 : 52;
+        const photoY = isIOS ? 32 : 56;
+        const photoWidth = isIOS ? 420 : 536;
+        const photoHeight = isIOS ? 680 : 836;
 
         targetCtx.drawImage(
             outputCanvas,
@@ -1328,14 +1320,21 @@ height:64.10%;
     }
 
     function getSupportedVideoMimeType() {
-        const types = [
-            'video/mp4',
-            'video/mp4;codecs=avc1.42E01E,mp4a.40.2',
-            'video/webm;codecs=vp9,opus',
-            'video/webm;codecs=vp8,opus',
-            'video/webm',
-            'video/x-matroska'
-        ];
+        const isIOS = /iPad|iPhone|iPod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+        const types = isIOS
+            ? [
+                'video/mp4',
+                'video/quicktime',
+                'video/webm',
+                'video/x-matroska'
+            ]
+            : [
+                'video/webm;codecs=vp9,opus',
+                'video/webm;codecs=vp8,opus',
+                'video/webm',
+                'video/mp4',
+                'video/x-matroska'
+            ];
 
         if (!window.MediaRecorder || typeof MediaRecorder.isTypeSupported !== 'function') {
             return '';
@@ -1357,11 +1356,12 @@ height:64.10%;
             return;
         }
 
+        const isIOS = /iPad|iPhone|iPod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
         countdownVideoCanvas = document.createElement('canvas');
-        countdownVideoCanvas.width = COUNTDOWN_VIDEO_WIDTH;
-        countdownVideoCanvas.height = COUNTDOWN_VIDEO_HEIGHT;
+        countdownVideoCanvas.width = isIOS ? 480 : 640;
+        countdownVideoCanvas.height = isIOS ? 820 : 1100;
 
-        const stream = countdownVideoCanvas.captureStream ? countdownVideoCanvas.captureStream(COUNTDOWN_VIDEO_FPS) : null;
+        const stream = countdownVideoCanvas.captureStream ? countdownVideoCanvas.captureStream(isIOS ? 12 : 24) : null;
         if (!stream) {
             countdownVideoBase64 = null;
             countdownVideoDataReady = Promise.resolve(null);
@@ -1372,7 +1372,7 @@ height:64.10%;
         countdownVideoRecorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
         countdownVideoChunks = [];
         countdownVideoBase64 = null;
-        countdownVideoMimeType = countdownVideoRecorder.mimeType || 'video/webm';
+        countdownVideoMimeType = countdownVideoRecorder.mimeType || (isIOS ? 'video/mp4' : 'video/webm');
 
         countdownVideoDataReady = new Promise((resolve) => {
             countdownVideoRecorder.ondataavailable = (event) => {
