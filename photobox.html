@@ -543,12 +543,27 @@ height:64.10%;
         const photoWidth = isIOS ? 420 : 536;
         const photoHeight = isIOS ? 680 : 836;
 
+        const sourceCanvas = outputCanvas;
+        const sourceRatio = sourceCanvas.width / sourceCanvas.height;
+        const targetRatio = photoWidth / photoHeight;
+        let sx = 0; let sy = 0; let sw = sourceCanvas.width; let sh = sourceCanvas.height;
+
+        if (sourceRatio > targetRatio) {
+            sh = sourceCanvas.height;
+            sw = sh * targetRatio;
+            sx = (sourceCanvas.width - sw) / 2;
+        } else {
+            sw = sourceCanvas.width;
+            sh = sw / targetRatio;
+            sy = (sourceCanvas.height - sh) / 2;
+        }
+
         targetCtx.drawImage(
-            outputCanvas,
-            0,
-            0,
-            outputCanvas.width,
-            outputCanvas.height,
+            sourceCanvas,
+            sx,
+            sy,
+            sw,
+            sh,
             photoX,
             photoY,
             photoWidth,
@@ -756,27 +771,20 @@ height:64.10%;
         stopCameraStream();
         updateSwitchCameraLabel();
 
-        const isIOS = /iPad|iPhone|iPod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-        const videoConstraints = {
-            facingMode: currentFacingMode === "environment"
-                ? { ideal: "environment" }
-                : { ideal: "user" },
-            width: { ideal: isIOS ? 1280 : 1920 },
-            height: { ideal: isIOS ? 960 : 1080 },
-            aspectRatio: { ideal: 0.75 },
-            frameRate: { ideal: isIOS ? 24 : 30, max: isIOS ? 24 : 30 },
-            ...(isIOS ? {
-                advanced: [
-                    { zoom: 1.0 },
-                    { focusMode: 'continuous' },
-                    { exposureMode: 'continuous' }
-                ]
-            } : {})
-        };
-
         try {
+            const isIOS = /iPad|iPhone|iPod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+            const videoConstraint = {
+                facingMode: currentFacingMode === "environment"
+                    ? { ideal: "environment" }
+                    : "user",
+                width: { ideal: isIOS ? 1280 : 1920 },
+                height: { ideal: isIOS ? 720 : 1080 },
+                aspectRatio: 0.67
+            };
+
             localStream = await navigator.mediaDevices.getUserMedia({
-                video: videoConstraints
+                video: videoConstraint,
+                audio: false
             });
             video.srcObject = localStream;
             video.onloadedmetadata = async () => {
@@ -798,8 +806,8 @@ height:64.10%;
                     ch = cw / targetRatio;
                 }
 
-                outputCanvas.width = Math.max(1, Math.round(cw));
-                outputCanvas.height = Math.max(1, Math.round(ch));
+                outputCanvas.width = cw;
+                outputCanvas.height = ch;
                 updateFrameProcessing();
             };
 
