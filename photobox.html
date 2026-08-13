@@ -404,6 +404,18 @@ height:64.10%;
     let currentFacingMode = "user";
     let cameraSessionId = 0;
     let ctxOutput = outputCanvas.getContext("2d");
+    let countdownVideoRecorder = null;
+    let countdownVideoChunks = [];
+    let countdownVideoBase64 = null;
+    let countdownVideoMimeType = 'video/webm';
+    let countdownVideoRecordingInterval = null;
+    let countdownVideoCanvas = null;
+    let countdownVideoDataReady = Promise.resolve(null);
+    let selectedFrameImage = null;
+    let selectedFrameImageLoadPromise = null;
+    let countdownFrameAsset = null;
+    let countdownAnimationFrame = null;
+    const COUNTDOWN_SECONDS = 5;
 
     document.querySelectorAll(".bg-thumb").forEach(item => {
         item.addEventListener("click", () => {
@@ -498,6 +510,81 @@ height:64.10%;
         }
 
         ctx.drawImage(img, sx, sy, sw, sh, 0, 0, canvasW, canvasH);
+    }
+
+    async function ensureSelectedFrameImage() {
+        if (selectedFrameImage) return selectedFrameImage;
+        if (!selectedFrameImageLoadPromise) {
+            selectedFrameImageLoadPromise = new Promise((resolve, reject) => {
+                const img = new Image();
+                img.onload = () => {
+                    selectedFrameImage = img;
+                    resolve(img);
+                };
+                img.onerror = () => reject(new Error('Gagal memuat frame untuk video countdown.'));
+                img.src = selectedFrame?.frameImage || selectedFrame?.previewImage || fallbackFrames[0].frameImage;
+            });
+        }
+
+        return selectedFrameImageLoadPromise;
+    }
+
+    function renderCountdownVideoFrame() {
+        if (!countdownVideoCanvas || !outputCanvas || !selectedFrame) return;
+
+        const targetCtx = countdownVideoCanvas.getContext('2d');
+        targetCtx.clearRect(0, 0, countdownVideoCanvas.width, countdownVideoCanvas.height);
+        targetCtx.fillStyle = '#ffffff';
+        targetCtx.fillRect(0, 0, countdownVideoCanvas.width, countdownVideoCanvas.height);
+
+        const photoX = 52;
+        const photoY = 56;
+        const photoWidth = 536;
+        const photoHeight = 836;
+
+        targetCtx.drawImage(
+            outputCanvas,
+            0,
+            0,
+            outputCanvas.width,
+            outputCanvas.height,
+            photoX,
+            photoY,
+            photoWidth,
+            photoHeight
+        );
+
+        try {
+            const frameSource = selectedFrame?.frameImage || selectedFrame?.previewImage || fallbackFrames[0].frameImage;
+            if (!countdownFrameAsset) {
+                countdownFrameAsset = new Image();
+                countdownFrameAsset.src = frameSource;
+            }
+
+            if (countdownFrameAsset && countdownFrameAsset.complete) {
+                targetCtx.drawImage(countdownFrameAsset, 0, 0, countdownVideoCanvas.width, countdownVideoCanvas.height);
+            }
+        } catch (error) {
+            console.warn('Countdown frame render failed:', error);
+        }
+
+        // Keep the live UI watermark only in the browser preview layer.
+        // Do not render it into the exported countdown video so the softfile stays clean.
+    }
+
+    function startCountdownRenderLoop() {
+        if (countdownAnimationFrame) {
+            cancelAnimationFrame(countdownAnimationFrame);
+        }
+
+        const tick = () => {
+            renderCountdownVideoFrame();
+            if (countdownVideoRecorder && countdownVideoRecorder.state === 'recording') {
+                countdownAnimationFrame = requestAnimationFrame(tick);
+            }
+        };
+
+        countdownAnimationFrame = requestAnimationFrame(tick);
     }
 
     function onSegmentationResults(results) {
@@ -1231,18 +1318,144 @@ height:64.10%;
         areaRetake.classList.remove("hidden");
     }
 
-    btnFoto.onclick = () => {
+    function getSupportedVideoMimeType() {
+        const types = [
+            'video/webm;codecs=vp9,opus',
+            'video/webm;codecs=vp8,opus',
+            'video/webm',
+            'video/mp4',
+            'video/x-matroska'
+        ];
+
+        if (!window.MediaRecorder || typeof MediaRecorder.isTypeSupported !== 'function') {
+            return '';
+        }
+
+        for (const type of types) {
+            if (MediaRecorder.isTypeSupported(type)) {
+                return type;
+            }
+        }
+
+        return '';
+    }
+
+    async function startCountdownVideoRecording() {
+        if (!window.MediaRecorder || !selectedFrame) {
+            countdownVideoBase64 = null;
+            countdownVideoDataReady = Promise.resolve(null);
+            return;
+        }
+
+        countdownVideoCanvas = document.createElement('canvas');
+        countdownVideoCanvas.width = 640;
+        countdownVideoCanvas.height = 1100;
+
+        const stream = countdownVideoCanvas.captureStream ? countdownVideoCanvas.captureStream(24) : null;
+        if (!stream) {
+            countdownVideoBase64 = null;
+            countdownVideoDataReady = Promise.resolve(null);
+            return;
+        }
+
+        const mimeType = getSupportedVideoMimeType();
+        countdownVideoRecorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+        countdownVideoChunks = [];
+        countdownVideoBase64 = null;
+        countdownVideoMimeType = countdownVideoRecorder.mimeType || 'video/webm';
+
+        countdownVideoDataReady = new Promise((resolve) => {
+            countdownVideoRecorder.ondataavailable = (event) => {
+                if (event.data && event.data.size > 0) {
+                    countdownVideoChunks.push(event.data);
+                }
+            };
+
+            countdownVideoRecorder.onstop = () => {
+                const blob = new Blob(countdownVideoChunks, { type: countdownVideoMimeType });
+                if (!blob.size) {
+                    countdownVideoBase64 = null;
+                    resolve(null);
+                    return;
+                }
+
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    countdownVideoBase64 = reader.result;
+                    resolve(reader.result);
+                };
+                reader.readAsDataURL(blob);
+            };
+        });
+
+        const frameAsset = selectedFrame?.frameImage || selectedFrame?.previewImage || fallbackFrames[0].frameImage;
+        countdownFrameAsset = new Image();
+        countdownFrameAsset.src = frameAsset;
+
+        await new Promise((resolve, reject) => {
+            countdownFrameAsset.onload = resolve;
+            countdownFrameAsset.onerror = reject;
+        });
+
+        countdownVideoRecorder.start(250);
+        startCountdownRenderLoop();
+        renderCountdownVideoFrame();
+    }
+
+    function stopCountdownVideoRecording() {
+        return new Promise((resolve) => {
+            if (countdownAnimationFrame) {
+                cancelAnimationFrame(countdownAnimationFrame);
+                countdownAnimationFrame = null;
+            }
+
+            if (countdownVideoRecorder && countdownVideoRecorder.state !== 'inactive') {
+                const finalize = () => {
+                    if (countdownVideoRecordingInterval) {
+                        clearInterval(countdownVideoRecordingInterval);
+                        countdownVideoRecordingInterval = null;
+                    }
+                    resolve(countdownVideoDataReady);
+                };
+
+                const previousStopHandler = countdownVideoRecorder.onstop;
+                countdownVideoRecorder.onstop = () => {
+                    if (typeof previousStopHandler === 'function') {
+                        previousStopHandler();
+                    }
+                    finalize();
+                };
+
+                countdownVideoRecorder.stop();
+                return;
+            }
+
+            if (countdownVideoRecordingInterval) {
+                clearInterval(countdownVideoRecordingInterval);
+                countdownVideoRecordingInterval = null;
+            }
+            resolve(countdownVideoDataReady);
+        });
+    }
+
+    btnFoto.onclick = async () => {
         btnFoto.disabled = true;
-        let timeLeft = 5;
+        let timeLeft = COUNTDOWN_SECONDS;
         countdownDisplay.innerText = timeLeft;
         countdownDisplay.classList.remove('hidden');
+        await startCountdownVideoRecording();
 
-        const timer = setInterval(() => {
+        countdownVideoRecordingInterval = setInterval(() => {
+            renderCountdownVideoFrame();
             timeLeft--;
             if (timeLeft <= 0) {
-                clearInterval(timer);
+                clearInterval(countdownVideoRecordingInterval);
+                countdownVideoRecordingInterval = null;
                 countdownDisplay.classList.add('hidden');
-                captureSnapshot();
+                renderCountdownVideoFrame();
+                stopCountdownVideoRecording().then(() => {
+                    captureSnapshot();
+                });
             } else {
                 countdownDisplay.innerText = timeLeft;
             }
@@ -1429,10 +1642,20 @@ height:64.10%;
         }
 
         const polaroidBase64 = polaroidCanvas.toDataURL('image/jpeg', 0.92);
+        const countdownVideoData = await countdownVideoDataReady;
+        const normalizedCountdownVideo = (() => {
+            const value = countdownVideoData || countdownVideoBase64 || null;
+            if (!value || typeof value !== 'string') return null;
+            if (value.startsWith('data:')) return value;
+            return `data:${countdownVideoMimeType || 'video/webm'};base64,${value.replace(/\s+/g, '')}`;
+        })();
+
         const payload = {
             nama, tujuan, pesan, email, whatsapp, alamat: pickupAddress, koordinat: '', showOnHome,
             photoBase64: polaroidBase64,
             audioUrl: audioBase64,
+            countdownVideoBase64: normalizedCountdownVideo,
+            countdownVideoMimeType: countdownVideoMimeType || 'video/webm',
             orderId: generatedOrderId,
             frameId: selectedFrame?.id || null,
             frameName: selectedFrame?.name || null,

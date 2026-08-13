@@ -7,11 +7,18 @@ function getDb() {
     if (!getApps().length) {
         let serviceAccount;
         if (process.env.FIREBASE_SERVICE_ACCOUNT) {
-            let envVal = process.env.FIREBASE_SERVICE_ACCOUNT;
-            if (envVal.startsWith('"') && envVal.endsWith('"')) {
-                envVal = envVal.slice(1, -1);
+            try {
+                let envVal = process.env.FIREBASE_SERVICE_ACCOUNT;
+                if (envVal.startsWith('"') && envVal.endsWith('"')) {
+                    envVal = envVal.slice(1, -1);
+                }
+                serviceAccount = JSON.parse(envVal);
+            } catch (error) {
+                const keyPath = path.resolve(process.cwd(), 'server', 'serviceAccountKey.json');
+                if (fs.existsSync(keyPath)) {
+                    serviceAccount = JSON.parse(fs.readFileSync(keyPath, 'utf8'));
+                }
             }
-            serviceAccount = JSON.parse(envVal);
         } else {
             const keyPath = path.resolve(process.cwd(), 'server', 'serviceAccountKey.json');
             if (fs.existsSync(keyPath)) {

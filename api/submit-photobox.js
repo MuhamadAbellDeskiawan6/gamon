@@ -1,5 +1,6 @@
 import { initializeApp, cert, getApps } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
+import { getStorage } from "firebase-admin/storage";
 import fs from "fs";
 import path from "path";
 import nodemailer from "nodemailer";
@@ -7,6 +8,7 @@ import nodemailer from "nodemailer";
 const ADMIN_EMAIL = process.env.ADMIN_NOTIFY_EMAIL || "muhamadabelldeskiawan@gmail.com";
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "";
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID || "";
+const USE_FIREBASE_STORAGE = String(process.env.USE_FIREBASE_STORAGE || "").toLowerCase() === "true";
 const PICKUP_LOCATION = "Jl. Kelayan A Gg. Sidodadi No.75 RT.009 RW.001, Kel. Murung Raya, Kec. Banjarmasin Selatan, Kota Banjarmasin";
 
 async function sendTelegramNotification(messageText) {
@@ -31,31 +33,71 @@ async function sendTelegramNotification(messageText) {
   }
 }
 
+async function uploadBase64ToStorage(dataUrl, folderName, fileNamePrefix) {
+  if (!dataUrl || !USE_FIREBASE_STORAGE || !process.env.FIREBASE_STORAGE_BUCKET) {
+    return null;
+  }
+
+  try {
+    const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/i);
+    if (!match) {
+      return null;
+    }
+
+    const bucketName = process.env.FIREBASE_STORAGE_BUCKET;
+    const bucket = getStorage().bucket(bucketName);
+    const buffer = Buffer.from(match[2], "base64");
+    const safeFileName = `${folderName}/${fileNamePrefix}-${Date.now()}`;
+    const file = bucket.file(safeFileName);
+
+    await file.save(buffer, {
+      metadata: {
+        contentType: match[1],
+      },
+      public: true,
+    });
+
+    await file.makePublic();
+    return `https://storage.googleapis.com/${bucketName}/${safeFileName}`;
+  } catch (error) {
+    console.warn(`Storage upload failed for ${folderName}:`, error.message);
+    return null;
+  }
+}
+
 /* ======================================
    LOAD .env.local (LOCAL ONLY)
 ====================================== */
 
-if (!process.env.GMAIL_APP_PASSWORD) {
-  try {
+const loadEnvValue = (envText, key) => {
+  const match = envText.match(new RegExp(`${key}=['\"]?([^'\"\n\r]+)['\"]?`));
+  return match ? match[1].trim() : null;
+};
 
-    const envPath = path.join(process.cwd(), ".env.local");
+const envKeysToLoad = [
+  "GMAIL_APP_PASSWORD",
+  "ADMIN_NOTIFY_EMAIL",
+  "BASE_URL",
+  "TELEGRAM_BOT_TOKEN",
+  "TELEGRAM_CHAT_ID",
+  "FIREBASE_STORAGE_BUCKET",
+  "FIREBASE_SERVICE_ACCOUNT",
+];
 
-    if (fs.existsSync(envPath)) {
-
-      const env = fs.readFileSync(envPath, "utf8");
-
-      const match = env.match(
-        /GMAIL_APP_PASSWORD=['"]?([^'"\n\r]+)['"]?/
-      );
-
-      if (match) {
-        process.env.GMAIL_APP_PASSWORD = match[1].trim();
+for (const key of envKeysToLoad) {
+  if (!process.env[key]) {
+    try {
+      const envPath = path.join(process.cwd(), ".env.local");
+      if (fs.existsSync(envPath)) {
+        const env = fs.readFileSync(envPath, "utf8");
+        const value = loadEnvValue(env, key);
+        if (value) {
+          process.env[key] = value;
+        }
       }
-
+    } catch (err) {
+      console.error(err);
     }
-
-  } catch(err) {
-    console.error(err);
   }
 }
 
@@ -67,11 +109,24 @@ if (!getApps().length) {
   try {
     let serviceAccount;
 
-    // Production (Vercel)
-    if (process.env.FIREBASE_SERVICE_ACCOUNT) {
-      serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+    const rawServiceAccount = process.env.FIREBASE_SERVICE_ACCOUNT;
+    if (rawServiceAccount) {
+      try {
+        serviceAccount = JSON.parse(rawServiceAccount);
+      } catch (jsonError) {
+        const serviceAccountPath = path.join(
+          process.cwd(),
+          "server",
+          "serviceAccountKey.json"
+        );
+
+        if (fs.existsSync(serviceAccountPath)) {
+          serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, "utf8"));
+        } else {
+          throw jsonError;
+        }
+      }
     } else {
-      // Local Development
       const serviceAccountPath = path.join(
         process.cwd(),
         "server",
@@ -83,8 +138,11 @@ if (!getApps().length) {
       );
     }
 
+    const storageBucket = process.env.FIREBASE_STORAGE_BUCKET;
+
     initializeApp({
       credential: cert(serviceAccount),
+      ...(storageBucket ? { storageBucket } : {}),
     });
 
     console.log("Firebase Admin initialized");
@@ -112,6 +170,8 @@ export default async function handler(req, res) {
     koordinat,
     photoBase64,
     audioUrl,
+    countdownVideoBase64,
+    countdownVideoMimeType,
     orderId,
     showOnHome,
     frameId,
@@ -161,6 +221,9 @@ export default async function handler(req, res) {
     const normalizedPaymentAmount = Number(paymentAmount) || 0;
     const normalizedPaymentStatus = paymentStatus || status || (normalizedPaymentAmount === 0 ? "PAID" : "PENDING_PAYMENT");
 
+    const photoStorageUrl = await uploadBase64ToStorage(photoBase64, "photobox-softfile", "photo-final");
+    const videoStorageUrl = await uploadBase64ToStorage(countdownVideoBase64, "photobox-softfile", "countdown-video");
+
     await db.collection("photobox_order").doc(finalOrderId).set({
       orderId: finalOrderId,
       nama: nama || "Anonim",
@@ -172,12 +235,14 @@ export default async function handler(req, res) {
       koordinat: koordinat || "",
       latitude: lat,
       longitude: lng,
-      photoBase64,
       audioUrl: audioUrl || null,
+      countdownVideoMimeType: countdownVideoMimeType || 'video/webm',
+      softfilePhotoUrl: photoStorageUrl || null,
+      softfileVideoUrl: videoStorageUrl || null,
       frameId: frameId || null,
       frameName: frameName || null,
       framePreviewImage: framePreviewImage || null,
-      showOnHome: showOnHome !== false,
+      showOnHome: showOnHome !== false && Boolean(photoStorageUrl),
       amount: normalizedPaymentAmount,
       paymentStatus: normalizedPaymentStatus,
       status: normalizedPaymentStatus,
@@ -215,12 +280,12 @@ export default async function handler(req, res) {
        3. TAMPILKAN DI INDEX JIKA showOnHome = true
     ====================================================== */
 
-    if (showOnHome !== false) {
+    if (showOnHome !== false && photoStorageUrl) {
       await db.collection("gamon").add({
         nama: nama || "Anonim",
         tujuan: tujuan || "Seseorang",
         pesan: pesan || "",
-        photoUrl: photoBase64,
+        photoUrl: photoStorageUrl,
         audioUrl: audioUrl || null,
         type: "photobox",
         likes: 0,
@@ -243,6 +308,62 @@ export default async function handler(req, res) {
         /^data:image\/[a-z]+;base64,/,
         ""
       );
+
+      const decodeDataUrl = (dataUrl, fallbackExt = 'dat', fallbackMime = 'application/octet-stream') => {
+        if (!dataUrl || typeof dataUrl !== 'string') return null;
+
+        const normalized = dataUrl.trim();
+        const base64Payload = normalized.startsWith('data:')
+          ? normalized
+          : `data:${fallbackMime};base64,${normalized.replace(/\s+/g, '')}`;
+
+        const marker = ';base64,';
+        const markerIndex = base64Payload.indexOf(marker);
+        if (markerIndex === -1) {
+          return null;
+        }
+
+        const header = base64Payload.slice(5, markerIndex);
+        const mimeType = (header.split(';').find((part) => !part.includes('=')) || fallbackMime).trim();
+        const content = base64Payload.slice(markerIndex + marker.length);
+
+        if (!content) {
+          return null;
+        }
+
+        let fileExt = fallbackExt;
+
+        if (mimeType.includes('video')) {
+          if (mimeType.includes('webm')) fileExt = 'webm';
+          else if (mimeType.includes('mp4')) fileExt = 'mp4';
+          else if (mimeType.includes('quicktime')) fileExt = 'mov';
+          else if (mimeType.includes('x-matroska')) fileExt = 'mkv';
+        } else if (mimeType.includes('image')) {
+          fileExt = 'jpg';
+        }
+
+        return {
+          mimeType,
+          fileExt,
+          content,
+        };
+      };
+
+      const videoAttachmentPayload = decodeDataUrl(
+        countdownVideoBase64,
+        'webm',
+        countdownVideoMimeType || 'video/webm'
+      );
+
+      console.log('PHOTOBOX_EMAIL_DEBUG', {
+        hasPhoto: Boolean(photoBase64),
+        hasVideo: Boolean(countdownVideoBase64),
+        videoLength: String(countdownVideoBase64 || '').length,
+        videoMime: countdownVideoMimeType || 'video/webm',
+        attachmentVideoAttached: Boolean(videoAttachmentPayload),
+      });
+      const finalPhotoDownloadUrl = photoStorageUrl || null;
+      const countdownVideoDownloadUrl = videoStorageUrl || null;
 
       const baseUrl = process.env.BASE_URL || 'https://gamon-tawing.vercel.app';
       const successUrl = `${baseUrl}/photobox-success.html?orderId=${finalOrderId}`;
@@ -280,6 +401,13 @@ export default async function handler(req, res) {
               <br><a href="${successUrl}" style="color:#2563eb;text-decoration:none">${successUrl}</a>
             </p>
 
+            <p style="color:#6d28d9;font-size:14px;margin-top:16px">
+              📸 Softfile Anda sudah termasuk foto final dan video momen countdown 5 detik yang dibuat dengan frame photobox yang sama.
+            </p>
+
+            ${finalPhotoDownloadUrl ? `<p style="font-size:13px;margin-top:14px"><a href="${finalPhotoDownloadUrl}" style="color:#2563eb;text-decoration:none">Unduh foto final</a></p>` : ''}
+            ${countdownVideoDownloadUrl ? `<p style="font-size:13px;margin-top:6px"><a href="${countdownVideoDownloadUrl}" style="color:#2563eb;text-decoration:none">Unduh video countdown 5 detik</a></p>` : ''}
+
             ${
               audioUrl
                 ? '<p style="color:#6d28d9;font-size:14px;margin-top:16px">🎵 Audio berhasil disimpan dan akan diintegrasikan ke QR Code pada desain photobox.</p>'
@@ -297,6 +425,13 @@ export default async function handler(req, res) {
             content: base64Content,
             encoding: "base64",
           },
+          ...(videoAttachmentPayload
+            ? [{
+                filename: `photobox-${finalOrderId}-countdown.${videoAttachmentPayload.fileExt}`,
+                content: videoAttachmentPayload.content,
+                encoding: "base64",
+              }]
+            : []),
         ],
       });
 

@@ -9,18 +9,26 @@ function loadServiceAccount() {
 
     if (!process.env.FIREBASE_SERVICE_ACCOUNT && fs.existsSync(envPath)) {
         const envContent = fs.readFileSync(envPath, 'utf8');
-        const firebaseMatch = envContent.match(/FIREBASE_SERVICE_ACCOUNT=['"]({[\s\S]*?})['"]/);
+        const firebaseMatch = envContent.match(/FIREBASE_SERVICE_ACCOUNT=['"]?([\s\S]*?)['"]?\s*$/m);
         if (firebaseMatch && firebaseMatch[1]) {
             process.env.FIREBASE_SERVICE_ACCOUNT = firebaseMatch[1].trim();
         }
     }
 
     if (process.env.FIREBASE_SERVICE_ACCOUNT) {
-        let envValue = process.env.FIREBASE_SERVICE_ACCOUNT;
-        if (envValue.startsWith('"') && envValue.endsWith('"')) {
-            envValue = envValue.slice(1, -1);
+        try {
+            let envValue = process.env.FIREBASE_SERVICE_ACCOUNT;
+            if (envValue.startsWith('"') && envValue.endsWith('"')) {
+                envValue = envValue.slice(1, -1);
+            }
+            return JSON.parse(envValue);
+        } catch (error) {
+            const keyPath = path.resolve(process.cwd(), 'server', 'serviceAccountKey.json');
+            if (fs.existsSync(keyPath)) {
+                return JSON.parse(fs.readFileSync(keyPath, 'utf8'));
+            }
+            throw error;
         }
-        return JSON.parse(envValue);
     }
 
     const keyPath = path.resolve(process.cwd(), 'server', 'serviceAccountKey.json');
