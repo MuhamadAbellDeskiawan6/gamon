@@ -1528,6 +1528,12 @@ height:64.10%;
 
         btnKirim.innerText = paymentAmount === 0 ? 'Menyelesaikan order gratis...' : 'Memproses pembayaran...';
         btnKirim.disabled = true;
+        showReturnLoading(
+            paymentAmount === 0 ? 'Mengirim softfile...' : 'Mempersiapkan pembayaran...',
+            paymentAmount === 0
+                ? 'Sedang mengunggah foto dan video ke email Anda...'
+                : 'Sedang menyiapkan data pesanan dan link pembayaran...'
+        );
 
         const polaroidCanvas = document.createElement('canvas');
         const ctx = polaroidCanvas.getContext('2d');
@@ -1693,6 +1699,7 @@ height:64.10%;
                 }
 
                 clearRedeemSession();
+                hideReturnLoading();
                 await showSuccess('Berhasil! Pesanan photobox Anda sudah dibuat dan gratis karena kode redeem aktif.');
                 window.location.href = `photobox-success.html?orderId=${generatedOrderId}`;
                 return;
@@ -1725,6 +1732,7 @@ height:64.10%;
 
             window.location.replace(paymentData.response.payment.url);
         } catch (err) {
+            hideReturnLoading();
             await showError('Gagal: ' + err.message);
             btnKirim.innerText = getPaymentAmount() === 0 ? 'Kirim & Gratis' : 'Kirim & Bayar 5K';
             btnKirim.disabled = false;
