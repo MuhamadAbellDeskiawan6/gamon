@@ -417,6 +417,20 @@ height:64.10%;
     let countdownAnimationFrame = null;
     const COUNTDOWN_SECONDS = 5;
 
+    // Window foto pada layout master polaroid (900x1560): X:100 Y:100 W:700 H:1002
+    // Dipakai bersama oleh: hasil foto final (canvas polaroid) DAN video countdown,
+    // supaya keduanya menampilkan area foto yang identik (tidak zoom/crop berbeda).
+    const MASTER_CANVAS_WIDTH = 900;
+    const MASTER_CANVAS_HEIGHT = 1560;
+    const PHOTO_WINDOW_X = 100;
+    const PHOTO_WINDOW_Y = 100;
+    const PHOTO_WINDOW_W = 700;
+    const PHOTO_WINDOW_H = 1002;
+    const PHOTO_X_RATIO = PHOTO_WINDOW_X / MASTER_CANVAS_WIDTH;
+    const PHOTO_Y_RATIO = PHOTO_WINDOW_Y / MASTER_CANVAS_HEIGHT;
+    const PHOTO_W_RATIO = PHOTO_WINDOW_W / MASTER_CANVAS_WIDTH;
+    const PHOTO_H_RATIO = PHOTO_WINDOW_H / MASTER_CANVAS_HEIGHT;
+
     document.querySelectorAll(".bg-thumb").forEach(item => {
         item.addEventListener("click", () => {
             document.querySelectorAll(".bg-thumb").forEach(bg => bg.classList.remove("active"));
@@ -537,11 +551,16 @@ height:64.10%;
         targetCtx.fillStyle = '#ffffff';
         targetCtx.fillRect(0, 0, countdownVideoCanvas.width, countdownVideoCanvas.height);
 
-        const isIOS = /iPad|iPhone|iPod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-        const photoX = isIOS ? 30 : 52;
-        const photoY = isIOS ? 32 : 56;
-        const photoWidth = isIOS ? 420 : 536;
-        const photoHeight = isIOS ? 680 : 836;
+        // PENTING: posisi & ukuran window foto dihitung PROPORSIONAL terhadap
+        // ukuran countdownVideoCanvas yang sebenarnya (bukan angka pixel tetap),
+        // memakai rasio yang SAMA dengan window foto final di polaroid
+        // (X:100 Y:100 W:700 H:1002 dari kanvas master 900x1560).
+        // Ini memastikan video countdown menampilkan foto secara utuh sampai
+        // dagu, sama persis seperti hasil foto final, tidak ke-zoom/terpotong.
+        const photoX = countdownVideoCanvas.width * PHOTO_X_RATIO;
+        const photoY = countdownVideoCanvas.height * PHOTO_Y_RATIO;
+        const photoWidth = countdownVideoCanvas.width * PHOTO_W_RATIO;
+        const photoHeight = countdownVideoCanvas.height * PHOTO_H_RATIO;
 
         targetCtx.drawImage(
             outputCanvas,
@@ -1358,8 +1377,13 @@ height:64.10%;
 
         const isIOS = /iPad|iPhone|iPod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
         countdownVideoCanvas = document.createElement('canvas');
+        // Ukuran kanvas video mengikuti rasio yang sama dengan kanvas master polaroid
+        // (900x1560), supaya window foto proporsional (PHOTO_X_RATIO dkk) selalu
+        // pas dengan area transparan pada frame, tidak peduli device iOS/non-iOS.
         countdownVideoCanvas.width = isIOS ? 480 : 640;
-        countdownVideoCanvas.height = isIOS ? 820 : 1100;
+        countdownVideoCanvas.height = Math.round(
+            countdownVideoCanvas.width * (MASTER_CANVAS_HEIGHT / MASTER_CANVAS_WIDTH)
+        );
 
         const stream = countdownVideoCanvas.captureStream ? countdownVideoCanvas.captureStream(isIOS ? 12 : 24) : null;
         if (!stream) {
@@ -1541,8 +1565,8 @@ height:64.10%;
         const frameTextColorResolved = await resolveFrameTextColor(selectedFrameSource);
         frameTextColor = frameTextColorResolved;
 
-        polaroidCanvas.width = 900;
-        polaroidCanvas.height = 1560;
+        polaroidCanvas.width = MASTER_CANVAS_WIDTH;
+        polaroidCanvas.height = MASTER_CANVAS_HEIGHT;
 
         const frame = new Image();
         const img = new Image();
@@ -1560,10 +1584,10 @@ height:64.10%;
             })
         ]);
 
-        const photoX = 100;
-        const photoY = 100;
-        const photoWidth = 700;
-        const photoHeight = 1002;
+        const photoX = PHOTO_WINDOW_X;
+        const photoY = PHOTO_WINDOW_Y;
+        const photoWidth = PHOTO_WINDOW_W;
+        const photoHeight = PHOTO_WINDOW_H;
 
         const imgRatio = img.width / img.height;
         const frameRatio = photoWidth / photoHeight;
