@@ -7,7 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Playfair+Display:ital,wght=1,500;1,600&display=swap" rel="stylesheet">
-    
+
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/selfie_segmentation.js" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -71,63 +71,110 @@
             mix-blend-mode: screen;
             transform-origin: center;
         }
+        /* Booth (camera) card keeps a comfortable, capped width even on very
+           wide desktop screens so the polaroid ratio never looks stretched. */
+        #boothColumn {
+            max-width: 420px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        @media (min-width: 1024px) {
+            #boothColumn {
+                margin-left: 0;
+                margin-right: 0;
+            }
+        }
+        /* Decorative floating stickers: keep them out of the way on small
+           screens so they never overlap form fields or buttons. */
+        .booth-sticker {
+            display: none;
+        }
+        @media (min-width: 640px) {
+            .booth-sticker {
+                display: flex;
+            }
+        }
+        html {
+            scroll-behavior: smooth;
+        }
+        #btnScrollTop {
+            opacity: 0;
+            transform: translateY(12px) scale(0.9);
+            pointer-events: none;
+            transition: opacity 0.25s ease, transform 0.25s ease;
+        }
+        #btnScrollTop.visible {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+            pointer-events: auto;
+        }
     </style>
 </head>
-<body class="font-['Plus_Jakarta+Sans'] flex flex-col items-center justify-center min-h-screen p-4 md:p-8 relative overflow-x-hidden select-none py-12">
-    
-    <!-- MAIN CONTAINER MACHINE WRAPPER -->
-    <div class="w-full max-w-md relative z-10">
-        
-        <!-- ELEMENT 1: CENDERAMATA -->
-        <div class="absolute -top-10 -right-4 sm:-right-6 md:-right-14 w-24 sm:w-28 md:w-24 flex flex-col items-center pointer-events-none z-20 animate-float-custom origin-bottom">
-            <div class="w-4 h-4 sm:w-5 sm:h-5 rounded-full border-2 border-gray-400 bg-transparent mb-[-4px] shadow-sm z-30"></div>
-            <div class="bg-white/90 backdrop-blur-sm p-1.5 pb-4 sm:p-2 sm:pb-6 rounded-lg shadow-[0_8px_20px_rgba(0,0,0,0.06)] border border-white/60 w-full text-center">
-                <img id="assetCoupleKeychain" src="https://images.unsplash.com/photo-1516589178581-6cd7833ae3b2?auto=format&fit=crop&w=300&q=80" alt="Merchandise Polaroid" class="w-full aspect-square object-cover rounded-md grayscale-[20%]">
-                <span class="block mt-1 sm:mt-2 font-['Playfair_Display'] italic text-[8px] sm:text-[9px] text-gray-400">core memory</span>
-            </div>
-        </div>
+<body class="font-['Plus_Jakarta+Sans'] flex flex-col items-center min-h-screen p-3 sm:p-6 lg:p-10 relative overflow-x-hidden select-none py-10">
 
-        <!-- ELEMENT 2: KAMERA POLAROID -->
-        <div class="absolute -bottom-12 -left-6 w-24 sm:w-28 md:w-28 flex flex-col items-center pointer-events-none z-20 animate-float-reverse origin-bottom">
-            <div class="bg-white/90 backdrop-blur-sm p-1.5 pb-4 sm:p-2 sm:pb-6 rounded-lg shadow-[0_8px_20px_rgba(0,0,0,0.06)] border border-white/60 w-full text-center">
-                <img id="assetPolaroidCamera" src="https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?auto=format&fit=crop&w=300&q=80" alt="Polaroid Camera Physical" class="w-full aspect-square object-cover rounded-md">
-                <span class="block mt-1 sm:mt-2 font-['Playfair_Display'] italic text-[8px] sm:text-[9px] text-gray-400">instax 90s</span>
-            </div>
-        </div>
+    <!-- MAIN PAGE WRAPPER -->
+    <div class="w-full max-w-6xl relative z-10">
 
-        <!-- LAYAR UTAMA INTERFACE BOOTH -->
-        <div class="bg-white p-2 rounded-[28px] shadow-[0_20px_50px_rgba(0,0,0,0.04)] border border-gray-100 relative z-10">
-            <div class="bg-neutral-50 p-4 sm:p-5 rounded-[22px] border border-gray-50">
-                <div class="mb-4 flex justify-start">
-                    <a href="index.html" class="inline-flex items-center gap-1.5 rounded-full border border-neutral-200 bg-white px-3 py-1.5 text-[11px] font-medium text-neutral-700 shadow-sm transition hover:border-neutral-300 hover:bg-neutral-100">
-                        <span class="material-symbols-outlined text-base">arrow_back</span>
-                        <span>Kembali ke Beranda</span>
-                    </a>
+        <!-- PAGE HEADER (shared across both columns) -->
+        <div class="mb-5 lg:mb-8">
+            <div class="mb-4 flex justify-start">
+                <a href="index.html" class="inline-flex items-center gap-1.5 rounded-full border border-neutral-200 bg-white px-3 py-1.5 text-[11px] font-medium text-neutral-700 shadow-sm transition hover:border-neutral-300 hover:bg-neutral-100">
+                    <span class="material-symbols-outlined text-base">arrow_back</span>
+                    <span>Kembali ke Beranda</span>
+                </a>
+            </div>
+
+            <div class="text-center max-w-xl mx-auto">
+                <div class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-neutral-200/60 text-neutral-700 font-medium text-[10px] tracking-wider uppercase mb-2">
+                    🔒 Secure Payment Verified
                 </div>
-                
-                <!-- App Header -->
-                <div class="mb-5 text-center md:pr-4"> 
-                    <div class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-neutral-200/60 text-neutral-700 font-medium text-[10px] tracking-wider uppercase mb-2">
-                        🔒 Secure Payment Verified
+                <h1 class="text-2xl sm:text-3xl font-bold text-neutral-900 tracking-tight font-['Playfair_Display'] italic">
+                    Remnics <span class="not-italic text-sm text-neutral-400">by Gamon Tawing</span>
+                </h1>
+                <p class="text-[11px] sm:text-xs text-neutral-500 mt-1.5 max-w-sm mx-auto leading-relaxed">
+                    Abadikan foto berdua, simpan pesan rahasia, dan terima berupa fisik <span class="font-semibold text-neutral-800 underline decoration-neutral-300">Merchandise Polaroid Minimalis</span> tepat di depan rumah.
+                </p>
+            </div>
+        </div>
+
+        <!-- RESPONSIVE 2 KOLOM: KIRI = KAMERA & FRAME, KANAN = OPSI / FORM / TOMBOL -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 lg:gap-8 gap-6 items-start">
+
+            <!-- ====================== KOLOM KIRI: BOOTH KAMERA ====================== -->
+            <div class="lg:col-span-5">
+                <div id="boothColumn" class="relative lg:sticky lg:top-8">
+
+                    <!-- ELEMENT 1: CENDERAMATA -->
+                    <div class="booth-sticker absolute -top-10 -right-4 sm:-right-6 md:-right-10 w-24 sm:w-28 md:w-24 flex-col items-center pointer-events-none z-20 animate-float-custom origin-bottom">
+                        <div class="w-4 h-4 sm:w-5 sm:h-5 rounded-full border-2 border-gray-400 bg-transparent mb-[-4px] shadow-sm z-30"></div>
+                        <div class="bg-white/90 backdrop-blur-sm p-1.5 pb-4 sm:p-2 sm:pb-6 rounded-lg shadow-[0_8px_20px_rgba(0,0,0,0.06)] border border-white/60 w-full text-center">
+                            <img id="assetCoupleKeychain" src="https://images.unsplash.com/photo-1516589178581-6cd7833ae3b2?auto=format&fit=crop&w=300&q=80" alt="Merchandise Polaroid" class="w-full aspect-square object-cover rounded-md grayscale-[20%]">
+                            <span class="block mt-1 sm:mt-2 font-['Playfair_Display'] italic text-[8px] sm:text-[9px] text-gray-400">core memory</span>
+                        </div>
                     </div>
-                    <h1 class="text-2xl font-bold text-neutral-900 tracking-tight font-['Playfair_Display'] italic">
-                        Remnics <span class="not-italic text-sm text-neutral-400">by Gamon Tawing</span>
-                    </h1>
-                    <p class="text-[11px] text-neutral-500 mt-1 max-w-xs mx-auto leading-relaxed">
-                        Abadikan foto berdua, simpan pesan rahasia, dan terima berupa fisik <span class="font-semibold text-neutral-800 underline decoration-neutral-300">Merchandise Polaroid Minimalis</span> tepat di depan rumah.
-                    </p>
-                </div>
 
-                <!-- CAMERA SCREEN (Disesuaikan mengikuti rasio master polaroid 900x1560) -->
-                <div id="cameraContainer" class="relative w-full bg-white rounded-2xl overflow-hidden shadow-inner border border-neutral-200" style="aspect-ratio: 900 / 1560;">
-                    
-                    <!--
+                    <!-- ELEMENT 2: KAMERA POLAROID -->
+                    <div class="booth-sticker absolute -bottom-10 -left-6 w-24 sm:w-28 md:w-28 flex-col items-center pointer-events-none z-20 animate-float-reverse origin-bottom">
+                        <div class="bg-white/90 backdrop-blur-sm p-1.5 pb-4 sm:p-2 sm:pb-6 rounded-lg shadow-[0_8px_20px_rgba(0,0,0,0.06)] border border-white/60 w-full text-center">
+                            <img id="assetPolaroidCamera" src="https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?auto=format&fit=crop&w=300&q=80" alt="Polaroid Camera Physical" class="w-full aspect-square object-cover rounded-md">
+                            <span class="block mt-1 sm:mt-2 font-['Playfair_Display'] italic text-[8px] sm:text-[9px] text-gray-400">instax 90s</span>
+                        </div>
+                    </div>
+
+                    <!-- LAYAR UTAMA INTERFACE BOOTH -->
+                    <div class="bg-white p-2 rounded-[28px] shadow-[0_20px_50px_rgba(0,0,0,0.04)] border border-gray-100 relative z-10">
+                        <div class="bg-neutral-50 p-4 sm:p-5 rounded-[22px] border border-gray-50">
+
+                            <!-- CAMERA SCREEN (Disesuaikan mengikuti rasio master polaroid 900x1560) -->
+                            <div id="cameraContainer" class="relative w-full bg-white rounded-2xl overflow-hidden shadow-inner border border-neutral-200" style="aspect-ratio: 900 / 1560;">
+
+                                <!--
 X:100
 Y:100
 W:700
 H:1000
 -->
-                   <div
+                               <div
 class="absolute overflow-hidden"
 style="
 left:11.11%;
@@ -135,52 +182,99 @@ top:6.41%;
 width:77.78%;
 height:64.10%;
 ">
-                        <video id="video" class="hidden absolute inset-0 w-full h-full object-cover" autoplay playsinline></video>
-                        <canvas id="outputCanvas" class="absolute inset-0 w-full h-full"></canvas>
-                        <img id="photoPreview" class="hidden absolute inset-0 w-full h-full object-cover" alt="Preview">
+                                    <video id="video" class="hidden absolute inset-0 w-full h-full object-cover" autoplay playsinline></video>
+                                    <canvas id="outputCanvas" class="absolute inset-0 w-full h-full"></canvas>
+                                    <img id="photoPreview" class="hidden absolute inset-0 w-full h-full object-cover" alt="Preview">
+                                </div>
+
+                                <!-- FRAME OVERLAY UTUH MENUTUPI SELURUH POLAROID -->
+                                <img id="frameOverlay" alt="Frame overlay" class="absolute inset-0 w-full h-full object-fill pointer-events-none z-20 opacity-0">
+                                <div id="frameWatermark" class="frame-watermark absolute inset-0 z-30 hidden"></div>
+
+                                <!-- Flash -->
+                                <div id="flashOverlay" class="absolute inset-0 bg-white opacity-0 transition-opacity duration-100 pointer-events-none z-40"></div>
+
+                                <!-- Countdown -->
+                                <div id="countdownDisplay" class="hidden absolute inset-0 flex items-center justify-center text-7xl font-light text-white font-['Playfair_Display'] z-50 bg-black/30 backdrop-blur-xs">
+                                    5
+                                </div>
+                            </div>
+
+                            <div id="framePreviewMeta" class="mt-2 flex items-center justify-between gap-2 rounded-lg border border-neutral-200 bg-white px-2.5 py-1.5">
+                                <p class="text-[11px] font-medium text-neutral-700 truncate" id="framePreviewCaption">Memuat frame...</p>
+                                <div id="framePreviewDots" class="flex items-center gap-1"></div>
+                            </div>
+
+                        </div>
+                    </div>
+                    <!-- /LAYAR UTAMA INTERFACE BOOTH -->
+                </div>
+            </div>
+            <!-- ====================== /KOLOM KIRI ====================== -->
+
+            <!-- ====================== KOLOM KANAN: OPSI, TOMBOL & FORM ====================== -->
+            <div class="lg:col-span-7 space-y-5">
+
+                <!-- CARD: OPSI & KONTROL KAMERA -->
+                <div class="bg-white rounded-2xl border border-neutral-100 shadow-[0_10px_30px_rgba(0,0,0,0.03)] p-4 sm:p-5">
+                    <h2 class="text-[11px] font-bold text-neutral-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                        <span class="material-symbols-outlined text-sm">tune</span> Pengaturan Foto
+                    </h2>
+
+                    <!-- BACKGROUND SECTOR -->
+                    <div id="backgroundSelector" class="hidden mb-4 text-left">
+                        <label class="block text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                            <span class="material-symbols-outlined text-sm">filter_hdr</span> Studio Aura Mood:
+                        </label>
+                        <div class="flex gap-2 overflow-x-auto pb-0.5">
+                            <div class="bg-thumb active border border-transparent rounded-md px-3 py-1 bg-neutral-100 text-[11px] font-medium flex-shrink-0" data-bg="original">Original</div>
+                            <div class="bg-thumb border border-transparent rounded-md px-3 py-1 bg-pink-50 text-pink-700 text-[11px] font-medium flex-shrink-0" data-bg="#fdf2f8">Soft Pink</div>
+                            <div class="bg-thumb border border-transparent rounded-md px-3 py-1 bg-neutral-800 text-white text-[11px] font-medium flex-shrink-0" data-bg="#171717">Warm Dark</div>
+                            <div class="bg-thumb border border-transparent rounded-md px-3 py-1 bg-orange-50 text-amber-800 text-[11px] font-medium flex-shrink-0" data-bg="#fffbeb">Warm Vintage</div>
+                        </div>
                     </div>
 
-                    <!-- FRAME OVERLAY UTUH MENUTUPI SELURUH POLAROID -->
-                    <img id="frameOverlay" alt="Frame overlay" class="absolute inset-0 w-full h-full object-fill pointer-events-none z-20 opacity-0">
-                    <div id="frameWatermark" class="frame-watermark absolute inset-0 z-30 hidden"></div>
+                    <!-- FRAME SELECTOR -->
+                    <div id="frameSelector" class="hidden mb-1 text-left">
+                        <label class="block text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-2">
+                            🖼 Pilih Frame
+                        </label>
+                        <div id="frameOptions" class="flex gap-2 overflow-x-auto pb-1"></div>
+                        <p id="frameLoadingMessage" class="mt-2 text-[10px] text-neutral-400">Memuat daftar frame...</p>
+                    </div>
 
-                    <!-- Flash -->
-                    <div id="flashOverlay" class="absolute inset-0 bg-white opacity-0 transition-opacity duration-100 pointer-events-none z-40"></div>
+                    <canvas id="canvas" class="hidden"></canvas>
+                    <div id="qrcode" class="hidden"></div>
 
-                    <!-- Countdown -->
-                    <div id="countdownDisplay" class="hidden absolute inset-0 flex items-center justify-center text-7xl font-light text-white font-['Playfair_Display'] z-50 bg-black/30 backdrop-blur-xs">
-                        5
+                    <!-- CTAS -->
+                    <div class="relative mt-4">
+                        <button id="btnMulai" class="w-full py-3.5 bg-neutral-900 text-white rounded-xl font-medium shadow-sm hover:bg-neutral-800 transition active:scale-[0.99] text-xs tracking-wider uppercase">
+                            Mulai Buat Kenangan
+                        </button>
+
+                        <div id="areaAksiFoto" class="hidden space-y-2.5">
+                            <button id="btnSwitchCamera" type="button" class="w-full py-2.5 bg-white text-neutral-700 rounded-xl font-medium border border-neutral-200 hover:bg-neutral-50 transition text-xs flex items-center justify-center gap-1.5">
+                                <span class="material-symbols-outlined text-base">flip_camera_android</span>
+                                <span id="cameraSwitchLabel">Pakai Kamera Belakang</span>
+                            </button>
+                            <button id="btnFoto" class="w-full py-3.5 bg-neutral-900 text-white rounded-xl font-medium shadow-sm hover:bg-neutral-800 transition active:scale-[0.99] text-xs tracking-wider uppercase">
+                                Ambil Gambar (Timer 5 Detik)
+                            </button>
+                            <div id="areaRetake" class="hidden flex gap-2">
+                                <button id="btnRetake" class="w-1/2 py-2.5 bg-white text-neutral-600 rounded-xl font-medium border border-neutral-200 hover:bg-neutral-50 transition text-xs">
+                                    Foto Ulang
+                                </button>
+                                <button id="btnLanjut" class="w-1/2 py-2.5 bg-neutral-900 text-white rounded-xl font-medium hover:bg-neutral-800 transition text-xs">
+                                    Lanjut ke Form
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
+                <!-- /CARD: OPSI & KONTROL KAMERA -->
 
-                <div id="framePreviewMeta" class="mt-2 mb-4 flex items-center justify-between gap-2 rounded-lg border border-neutral-200 bg-white px-2.5 py-1.5">
-                    <p class="text-[11px] font-medium text-neutral-700 truncate" id="framePreviewCaption">Memuat frame...</p>
-                    <div id="framePreviewDots" class="flex items-center gap-1"></div>
-                </div>
-
-                <!-- BACKGROUND SECTOR -->
-                <div id="backgroundSelector" class="hidden mt-4 mb-4 text-left bg-white p-2 rounded-xl border border-neutral-200/60">
-                    <label class="block text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1.5 flex items-center gap-1">
-                        <span class="material-symbols-outlined text-sm">filter_hdr</span> Studio Aura Mood:
-                    </label>
-                    <div class="flex gap-2 overflow-x-auto pb-0.5">
-                        <div class="bg-thumb active border border-transparent rounded-md px-3 py-1 bg-neutral-100 text-[11px] font-medium flex-shrink-0" data-bg="original">Original</div>
-                        <div class="bg-thumb border border-transparent rounded-md px-3 py-1 bg-pink-50 text-pink-700 text-[11px] font-medium flex-shrink-0" data-bg="#fdf2f8">Soft Pink</div>
-                        <div class="bg-thumb border border-transparent rounded-md px-3 py-1 bg-neutral-800 text-white text-[11px] font-medium flex-shrink-0" data-bg="#171717">Warm Dark</div>
-                        <div class="bg-thumb border border-transparent rounded-md px-3 py-1 bg-orange-50 text-amber-800 text-[11px] font-medium flex-shrink-0" data-bg="#fffbeb">Warm Vintage</div>
-                    </div>
-                </div>
-
-                <!-- FRAME SELECTOR -->
-                <div id="frameSelector" class="hidden mb-4 text-left bg-white p-2 rounded-xl border border-neutral-200/60">
-                    <label class="block text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-2">
-                        🖼 Pilih Frame
-                    </label>
-                    <div id="frameOptions" class="flex gap-2 overflow-x-auto pb-1"></div>
-                    <p id="frameLoadingMessage" class="mt-2 text-[10px] text-neutral-400">Memuat daftar frame...</p>
-                </div>
-
-                <section class="mb-4 overflow-hidden rounded-2xl border border-rose-100 bg-gradient-to-br from-rose-50 via-white to-amber-50 p-3 shadow-sm">
+                <!-- CARD TERPISAH: WEDDING PHOTOBOOTH PROMO -->
+                <section class="overflow-hidden rounded-2xl border border-rose-100 bg-gradient-to-br from-rose-50 via-white to-amber-50 p-4 sm:p-5 shadow-sm">
                     <div class="relative">
                         <div class="pointer-events-none absolute -right-7 -top-8 h-20 w-20 rounded-full bg-rose-200/40 blur-2xl"></div>
                         <div class="pointer-events-none absolute -left-7 -bottom-8 h-20 w-20 rounded-full bg-amber-200/40 blur-2xl"></div>
@@ -189,53 +283,30 @@ height:64.10%;
                                 <span class="material-symbols-outlined text-xs" style="font-variation-settings: 'FILL' 1, 'wght' 300, 'GRAD' 0, 'opsz' 24;">diamond</span>
                                 Program Launching
                             </span>
-                            <h2 class="text-[18px] font-semibold leading-tight text-neutral-900 font-['Playfair_Display'] italic">
+                            <h2 class="text-[18px] sm:text-[20px] font-semibold leading-tight text-neutral-900 font-['Playfair_Display'] italic">
                                 Mau Ada Photobooth di Pernikahanmu? 💍
                             </h2>
-                            <p class="mt-1 text-[11px] font-medium leading-relaxed text-neutral-700">
+                            <p class="mt-1 text-[11px] sm:text-xs font-medium leading-relaxed text-neutral-700">
                                 Gamon Tawing sedang membuka kerja sama Wedding Photobooth GRATIS untuk acara pernikahan terpilih.
                             </p>
-                            <p class="mt-1.5 text-[10px] leading-relaxed text-neutral-500">
+                            <p class="mt-1.5 text-[10px] sm:text-[11px] leading-relaxed text-neutral-500">
                                 Kami datang ke lokasi pernikahanmu dan menyediakan pengalaman photobooth digital untuk tamu undangan. Tanpa printer, tanpa kertas - cukup foto, pilih frame, dan dapatkan hasilnya secara digital.
                             </p>
-                            <a href="wedding-photobooth.html" class="mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-neutral-900 px-3 py-2.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-white transition hover:bg-neutral-800">
+                            <a href="wedding-photobooth.html" class="mt-3 inline-flex w-full sm:w-auto items-center justify-center gap-1.5 rounded-xl bg-neutral-900 px-4 py-2.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-white transition hover:bg-neutral-800">
                                 <span>AJUKAN KERJA SAMA</span>
                                 <span class="material-symbols-outlined text-sm">north_east</span>
                             </a>
                         </div>
                     </div>
                 </section>
+                <!-- /CARD TERPISAH: WEDDING PHOTOBOOTH PROMO -->
 
-                <canvas id="canvas" class="hidden"></canvas>
-                <div id="qrcode" class="hidden"></div>
-                
-                <!-- CTAS -->
-                <div class="relative pb-4">
-                    <button id="btnMulai" class="w-full py-3.5 bg-neutral-900 text-white rounded-xl font-medium shadow-sm hover:bg-neutral-800 transition active:scale-[0.99] text-xs tracking-wider uppercase">
-                        Mulai Buat Kenangan
-                    </button>
+                <!-- CARD TERPISAH: DATA COMPACT FORM -->
+                <form id="formData" class="hidden text-left space-y-3.5 bg-white rounded-2xl border border-neutral-100 shadow-[0_10px_30px_rgba(0,0,0,0.03)] p-4 sm:p-5 animate-fadeIn">
+                    <h2 class="text-[11px] font-bold text-neutral-400 uppercase tracking-wider flex items-center gap-1.5">
+                        <span class="material-symbols-outlined text-sm">edit_note</span> Identitas & Isi Surat
+                    </h2>
 
-                    <div id="areaAksiFoto" class="hidden space-y-2.5">
-                        <button id="btnSwitchCamera" type="button" class="w-full py-2.5 bg-white text-neutral-700 rounded-xl font-medium border border-neutral-200 hover:bg-neutral-50 transition text-xs flex items-center justify-center gap-1.5">
-                            <span class="material-symbols-outlined text-base">flip_camera_android</span>
-                            <span id="cameraSwitchLabel">Pakai Kamera Belakang</span>
-                        </button>
-                        <button id="btnFoto" class="w-full py-3.5 bg-neutral-900 text-white rounded-xl font-medium shadow-sm hover:bg-neutral-800 transition active:scale-[0.99] text-xs tracking-wider uppercase">
-                            Ambil Gambar (Timer 5 Detik)
-                        </button>
-                        <div id="areaRetake" class="hidden flex gap-2">
-                            <button id="btnRetake" class="w-1/2 py-2.5 bg-white text-neutral-600 rounded-xl font-medium border border-neutral-200 hover:bg-neutral-50 transition text-xs">
-                                Foto Ulang
-                            </button>
-                            <button id="btnLanjut" class="w-1/2 py-2.5 bg-neutral-900 text-white rounded-xl font-medium hover:bg-neutral-800 transition text-xs">
-                                Lanjut ke Form
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- DATA COMPACT FORM -->
-                <form id="formData" class="hidden text-left space-y-3.5 mt-2 border-t border-neutral-200/80 pt-4 animate-fadeIn">
                     <div class="bg-neutral-100 border border-neutral-200 rounded-xl p-3 flex gap-2 items-start">
                         <span class="material-symbols-outlined text-neutral-600 text-lg select-none">info</span>
                         <div class="text-[10px] text-neutral-600 leading-normal">
@@ -243,9 +314,7 @@ height:64.10%;
                         </div>
                     </div>
 
-                    <h3 class="font-semibold text-neutral-800 text-xs tracking-wide uppercase">Identitas & Isi Surat</h3>
-                    
-                    <div class="grid grid-cols-2 gap-2.5">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                         <div>
                             <label class="block text-[10px] font-medium text-neutral-500 mb-1" for="senderName">Pengirim</label>
                             <input class="w-full border border-neutral-200 rounded-lg px-2.5 py-2 text-xs focus:outline-none focus:border-neutral-900 bg-white shadow-sm" id="senderName" required type="text" placeholder="Nama kamu"/>
@@ -255,8 +324,8 @@ height:64.10%;
                             <input class="w-full border border-neutral-200 rounded-lg px-2.5 py-2 text-xs focus:outline-none focus:border-neutral-900 bg-white shadow-sm" id="receiverName" required type="text" placeholder="Nama pasangan"/>
                         </div>
                     </div>
-                    
-                    <div class="grid grid-cols-2 gap-2.5">
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                         <div>
                             <label class="block text-[10px] font-medium text-neutral-500 mb-1" for="email">Softfile Email</label>
                             <input class="w-full border border-neutral-200 rounded-lg px-2.5 py-2 text-xs focus:outline-none focus:border-neutral-900 bg-white shadow-sm" id="email" required type="email" placeholder="nama@domain.com"/>
@@ -266,7 +335,7 @@ height:64.10%;
                             <input class="w-full border border-neutral-200 rounded-lg px-2.5 py-2 text-xs focus:outline-none focus:border-neutral-900 bg-white shadow-sm" id="whatsapp" required type="tel" placeholder="08xxxxxxxxxx"/>
                         </div>
                     </div>
-                    
+
                     <div>
                         <label class="block text-[10px] font-medium text-neutral-500 mb-1" for="messageContent">Catatan Singkat di Bawah Foto (Opsional, Maks 150 Karakter)</label>
                         <textarea class="w-full border border-neutral-200 rounded-lg px-2.5 py-2 text-xs focus:outline-none focus:border-neutral-900 bg-white resize-none shadow-sm" id="messageContent" placeholder="Tuliskan tanggal jadian, kutipan bermakna, atau pesan kecil..." rows="2" maxlength="150"></textarea>
@@ -277,7 +346,7 @@ height:64.10%;
                             <label class="block text-[10px] font-semibold uppercase tracking-wide text-neutral-600" for="showOnHome">Tampilkan di halaman utama</label>
                             <p class="mt-1 text-[10px] leading-relaxed text-neutral-500">Kalau dimatikan, fotomu hanya akan dikirim dan disimpan tanpa muncul di halaman Gamon Tawing.</p>
                         </div>
-                        <label class="relative inline-flex cursor-pointer items-center">
+                        <label class="relative inline-flex cursor-pointer items-center shrink-0">
                             <input id="showOnHome" type="checkbox" class="peer sr-only" checked>
                             <div class="h-6 w-11 rounded-full bg-neutral-300 transition peer-checked:bg-neutral-900"></div>
                             <div class="absolute left-1 top-1 h-4 w-4 rounded-full bg-white transition peer-checked:translate-x-5"></div>
@@ -317,7 +386,7 @@ height:64.10%;
 
                     <div id="redeemSection" class="rounded-2xl border border-emerald-200 bg-emerald-50/80 p-3 shadow-sm">
                         <label class="mb-2 block text-[10px] font-bold uppercase tracking-wider text-emerald-700" for="redeemCodeInput">Punya kode redeem?</label>
-                        <div class="flex gap-2">
+                        <div class="flex flex-col sm:flex-row gap-2">
                             <input id="redeemCodeInput" type="text" placeholder="Masukkan kode redeem" class="min-w-0 flex-1 rounded-xl border border-emerald-200 bg-white px-3 py-2 text-xs font-medium uppercase tracking-wider text-emerald-900 placeholder:text-emerald-400 focus:border-emerald-400 focus:outline-none">
                             <button id="btnRedeemCode" type="button" class="rounded-xl bg-emerald-600 px-4 py-2 text-xs font-semibold uppercase tracking-wider text-white transition hover:bg-emerald-700">Redeem</button>
                         </div>
@@ -328,9 +397,21 @@ height:64.10%;
                         Kirim & Bayar 5K
                     </button>
                 </form>
+                <!-- /CARD TERPISAH: DATA COMPACT FORM -->
+
             </div>
+            <!-- ====================== /KOLOM KANAN ====================== -->
+
         </div>
+        <!-- /GRID 2 KOLOM -->
+
     </div>
+    <!-- /MAIN PAGE WRAPPER -->
+
+    <!-- SCROLL TO TOP -->
+    <button id="btnScrollTop" type="button" aria-label="Kembali ke atas" class="fixed bottom-5 right-5 sm:bottom-7 sm:right-7 z-50 flex h-11 w-11 sm:h-12 sm:w-12 items-center justify-center rounded-full bg-neutral-900 text-white shadow-[0_10px_25px_rgba(0,0,0,0.25)] hover:bg-neutral-800 active:scale-95 transition-colors">
+        <span class="material-symbols-outlined text-xl">arrow_upward</span>
+    </button>
 
     <div id="returnLoadingOverlay" class="hidden fixed inset-0 z-[60] flex items-center justify-center bg-white/80 backdrop-blur-sm">
         <div class="flex w-[92%] max-w-sm flex-col items-center justify-center rounded-2xl border border-neutral-200 bg-white px-6 py-8 text-center shadow-[0_25px_60px_rgba(0,0,0,0.08)]">
@@ -1517,6 +1598,7 @@ height:64.10%;
         stopCameraStream();
         processingCamera = false;
         frameWatermark?.classList.remove('hidden');
+        formData.scrollIntoView({ behavior: 'smooth', block: 'start' });
     };
 
     formData.onsubmit = async (e) => {
@@ -1762,6 +1844,19 @@ height:64.10%;
             btnKirim.disabled = false;
         }
     };
+
+    // SCROLL TO TOP BUTTON
+    const btnScrollTop = document.getElementById('btnScrollTop');
+    if (btnScrollTop) {
+        const toggleScrollTopVisibility = () => {
+            btnScrollTop.classList.toggle('visible', window.scrollY > 320);
+        };
+        toggleScrollTopVisibility();
+        window.addEventListener('scroll', toggleScrollTopVisibility, { passive: true });
+        btnScrollTop.addEventListener('click', () => {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+    }
 
     const originalPageBeforeSubmit = window.onbeforeunload;
     window.onbeforeunload = function () {
