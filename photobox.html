@@ -4,50 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Remnics By Gamon Tawing</title>
-    <script>
-        (() => {
-            const params = new URLSearchParams(window.location.search);
-            const allowAccess = params.get('maintenance') === 'off';
-            const MAINTENANCE_MODE = true; // set ke false saat siap dipakai publik.
-
-            if (MAINTENANCE_MODE && !allowAccess) {
-                document.open();
-                document.write(`
-                    <!DOCTYPE html>
-                    <html lang="id">
-                    <head>
-                        <meta charset="UTF-8">
-                        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                        <title>Remnics Maintenance</title>
-                        <script src="https://cdn.tailwindcss.com"><\/script>
-                        <style>
-                            body {
-                                background: linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%);
-                                font-family: 'Plus Jakarta Sans', sans-serif;
-                            }
-                        </style>
-                    </head>
-                    <body class="min-h-screen flex items-center justify-center p-6">
-                        <div class="w-full max-w-md rounded-3xl border border-slate-200 bg-white px-6 py-8 text-center shadow-xl">
-                            <div class="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-amber-100 text-3xl">🛠️</div>
-                            <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">Remnics</p>
-                            <h1 class="mt-3 text-3xl font-black tracking-tight text-slate-900">Sedang Maintenance</h1>
-                            <p class="mt-4 text-sm leading-relaxed text-slate-600">
-                                Halaman photobox sedang dalam proses perbaikan dan penyesuaian fitur.
-                                Silakan coba beberapa saat lagi.
-                            </p>
-                            <div class="mt-6 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-600">
-                                Kami sedang menyiapkan pengalaman terbaik untuk Anda.
-                            </div>
-                        </div>
-                    </body>
-                    </html>
-                `);
-                document.close();
-                return;
-            }
-        })();
-    </script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Playfair+Display:ital,wght=1,500;1,600&display=swap" rel="stylesheet">
