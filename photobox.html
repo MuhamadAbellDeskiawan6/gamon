@@ -4,6 +4,50 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Remnics By Gamon Tawing</title>
+    <script>
+        (() => {
+            const params = new URLSearchParams(window.location.search);
+            const allowAccess = params.get('maintenance') === 'off';
+            const MAINTENANCE_MODE = true; // set ke false saat siap dipakai publik.
+
+            if (MAINTENANCE_MODE && !allowAccess) {
+                document.open();
+                document.write(`
+                    <!DOCTYPE html>
+                    <html lang="id">
+                    <head>
+                        <meta charset="UTF-8">
+                        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                        <title>Remnics Maintenance</title>
+                        <script src="https://cdn.tailwindcss.com"><\/script>
+                        <style>
+                            body {
+                                background: linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%);
+                                font-family: 'Plus Jakarta Sans', sans-serif;
+                            }
+                        </style>
+                    </head>
+                    <body class="min-h-screen flex items-center justify-center p-6">
+                        <div class="w-full max-w-md rounded-3xl border border-slate-200 bg-white px-6 py-8 text-center shadow-xl">
+                            <div class="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-amber-100 text-3xl">🛠️</div>
+                            <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">Remnics</p>
+                            <h1 class="mt-3 text-3xl font-black tracking-tight text-slate-900">Sedang Maintenance</h1>
+                            <p class="mt-4 text-sm leading-relaxed text-slate-600">
+                                Halaman photobox sedang dalam proses perbaikan dan penyesuaian fitur.
+                                Silakan coba beberapa saat lagi.
+                            </p>
+                            <div class="mt-6 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-600">
+                                Kami sedang menyiapkan pengalaman terbaik untuk Anda.
+                            </div>
+                        </div>
+                    </body>
+                    </html>
+                `);
+                document.close();
+                return;
+            }
+        })();
+    </script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Playfair+Display:ital,wght=1,500;1,600&display=swap" rel="stylesheet">
@@ -183,6 +227,7 @@ width:77.78%;
 height:64.10%;
 ">
                                     <video id="video" class="hidden absolute inset-0 w-full h-full object-cover" autoplay playsinline></video>
+                                    <video id="remoteBgVideo" class="hidden absolute inset-0 w-full h-full object-cover" autoplay playsinline muted></video>
                                     <canvas id="outputCanvas" class="absolute inset-0 w-full h-full"></canvas>
                                     <img id="photoPreview" class="hidden absolute inset-0 w-full h-full object-cover" alt="Preview">
                                 </div>
@@ -228,6 +273,7 @@ height:64.10%;
                         </label>
                         <div class="flex gap-2 overflow-x-auto pb-0.5">
                             <div class="bg-thumb active border border-transparent rounded-md px-3 py-1 bg-neutral-100 text-[11px] font-medium flex-shrink-0" data-bg="original">Original</div>
+                            <div class="bg-thumb border border-transparent rounded-md px-3 py-1 bg-blue-50 text-blue-700 text-[11px] font-medium flex-shrink-0" data-bg="remote">Live dari Rumah 🏠</div>
                             <div class="bg-thumb border border-transparent rounded-md px-3 py-1 bg-pink-50 text-pink-700 text-[11px] font-medium flex-shrink-0" data-bg="#fdf2f8">Soft Pink</div>
                             <div class="bg-thumb border border-transparent rounded-md px-3 py-1 bg-neutral-800 text-white text-[11px] font-medium flex-shrink-0" data-bg="#171717">Warm Dark</div>
                             <div class="bg-thumb border border-transparent rounded-md px-3 py-1 bg-orange-50 text-amber-800 text-[11px] font-medium flex-shrink-0" data-bg="#fffbeb">Warm Vintage</div>
@@ -424,7 +470,7 @@ height:64.10%;
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getFirestore, doc, getDoc, onSnapshot, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { getFirestore, doc, getDoc, onSnapshot, setDoc, collection, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
     const firebaseConfig = {
         apiKey: "AIzaSyC247K8yyL67aWV95KNQy8CkMZsjgGCudQ",
@@ -454,6 +500,7 @@ height:64.10%;
     const btnLanjut = document.getElementById('btnLanjut');
     const formData = document.getElementById('formData');
     const video = document.getElementById('video');
+    const remoteBgVideo = document.getElementById('remoteBgVideo');
     const canvas = document.getElementById('canvas');
     const outputCanvas = document.getElementById('outputCanvas');
     const photoPreview = document.getElementById('photoPreview');
@@ -483,6 +530,12 @@ height:64.10%;
     let selfieSegmentation;
     let currentBackground = "original";
     let currentFacingMode = "user";
+    let remotePeerConnection = null;
+    let remoteSessionId = null;
+    let remoteSessionUnsubscribe = null;
+    let remoteCandidatesUnsubscribe = null;
+    let remoteBackgroundConnected = false;
+    let remoteCandidateIds = new Set();
     let cameraSessionId = 0;
     let ctxOutput = outputCanvas.getContext("2d");
     let countdownVideoRecorder = null;
@@ -512,11 +565,193 @@ height:64.10%;
     const PHOTO_W_RATIO = PHOTO_WINDOW_W / MASTER_CANVAS_WIDTH;
     const PHOTO_H_RATIO = PHOTO_WINDOW_H / MASTER_CANVAS_HEIGHT;
 
+    function showToast(message, type = 'info') {
+        const toast = document.createElement('div');
+        const palette = {
+            info: 'bg-slate-900 text-white',
+            success: 'bg-emerald-600 text-white',
+            warning: 'bg-amber-500 text-slate-900'
+        };
+        toast.className = `pointer-events-none fixed bottom-4 right-4 z-[80] max-w-xs rounded-xl px-3 py-2 text-[11px] font-medium shadow-lg ${palette[type] || palette.info}`;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+        setTimeout(() => {
+            toast.classList.add('opacity-0', 'transition-opacity', 'duration-300');
+            setTimeout(() => toast.remove(), 300);
+        }, 2200);
+    }
+
+    function updateBackgroundSelectionUI() {
+        document.querySelectorAll('.bg-thumb').forEach((bg) => {
+            bg.classList.toggle('active', bg.dataset.bg === currentBackground);
+        });
+    }
+
+    function getRtcSessionIdFromUrl() {
+        const params = new URLSearchParams(window.location.search);
+        const sessionId = (params.get('sessionId') || localStorage.getItem('gamonRemoteSessionId') || '').trim();
+        if (sessionId) {
+            localStorage.setItem('gamonRemoteSessionId', sessionId);
+        }
+        return sessionId;
+    }
+
+    async function cleanupRtcSession(sessionId) {
+        if (!sessionId) return;
+        try {
+            const candidateSnapshot = await getDocs(collection(db, 'rtcSessions', sessionId, 'candidates'));
+            await Promise.all(candidateSnapshot.docs.map((candidateDoc) => deleteDoc(candidateDoc.ref)));
+            await deleteDoc(doc(db, 'rtcSessions', sessionId));
+        } catch (error) {
+            console.warn('Gagal membersihkan sesi RTC:', error);
+        }
+    }
+
+    function resetRemoteBackgroundState({ keepCurrentBackground = false } = {}) {
+        if (remotePeerConnection) {
+            remotePeerConnection.close();
+            remotePeerConnection = null;
+        }
+        if (remoteSessionUnsubscribe) {
+            remoteSessionUnsubscribe();
+            remoteSessionUnsubscribe = null;
+        }
+        if (remoteCandidatesUnsubscribe) {
+            remoteCandidatesUnsubscribe();
+            remoteCandidatesUnsubscribe = null;
+        }
+        remoteCandidateIds.clear();
+        remoteBackgroundConnected = false;
+        if (remoteBgVideo) {
+            remoteBgVideo.pause();
+            remoteBgVideo.srcObject = null;
+            remoteBgVideo.classList.add('hidden');
+        }
+        if (!keepCurrentBackground && currentBackground === 'remote') {
+            currentBackground = 'original';
+            updateBackgroundSelectionUI();
+        }
+    }
+
+    async function connectRemoteBackground(sessionId) {
+        remoteSessionId = sessionId;
+        if (!sessionId) return;
+
+        if (remotePeerConnection) {
+            resetRemoteBackgroundState({ keepCurrentBackground: true });
+        }
+
+        const rtcConfig = {
+            iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+            // TODO: tambahkan TURN server di sini nanti jika diperlukan untuk NAT traversal di produksi.
+        };
+
+        const peerConnection = new RTCPeerConnection(rtcConfig);
+        remotePeerConnection = peerConnection;
+
+        peerConnection.ontrack = (event) => {
+            const [stream] = event.streams;
+            if (!stream || !remoteBgVideo) return;
+            remoteBgVideo.srcObject = stream;
+            remoteBgVideo.muted = true;
+            remoteBgVideo.playsInline = true;
+            remoteBgVideo.classList.remove('hidden');
+            remoteBgVideo.play().catch(() => {});
+        };
+
+        peerConnection.onicecandidate = async (event) => {
+            if (!event.candidate) return;
+            const candidateId = `booth-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+            if (remoteCandidateIds.has(candidateId)) return;
+            remoteCandidateIds.add(candidateId);
+
+            await setDoc(doc(db, 'rtcSessions', sessionId, 'candidates', candidateId), {
+                role: 'booth',
+                candidate: event.candidate.toJSON(),
+                createdAt: Date.now(),
+            });
+        };
+
+        peerConnection.oniceconnectionstatechange = () => {
+            const state = peerConnection.iceConnectionState;
+            if (['disconnected', 'failed', 'closed'].includes(state)) {
+                showToast('Koneksi live background rumah terputus. Kembali ke background original.', 'warning');
+                currentBackground = 'original';
+                updateBackgroundSelectionUI();
+                resetRemoteBackgroundState({ keepCurrentBackground: true });
+                cleanupRtcSession(sessionId);
+                return;
+            }
+
+            if (state === 'connected') {
+                remoteBackgroundConnected = true;
+                showToast('Live background rumah terhubung.', 'success');
+            }
+        };
+
+        const sessionDoc = doc(db, 'rtcSessions', sessionId);
+        remoteSessionUnsubscribe = onSnapshot(sessionDoc, async (snapshot) => {
+            const data = snapshot.data() || {};
+            if (!data.offer || peerConnection.remoteDescription) return;
+
+            try {
+                await peerConnection.setRemoteDescription(new RTCSessionDescription(data.offer));
+                const answer = await peerConnection.createAnswer();
+                await peerConnection.setLocalDescription(answer);
+
+                await setDoc(sessionDoc, {
+                    answer: peerConnection.localDescription.toJSON(),
+                    role: 'booth',
+                    updatedAt: Date.now(),
+                    status: 'answer-sent'
+                }, { merge: true });
+
+                showToast('Menerima live background dari rumah…', 'info');
+            } catch (error) {
+                console.error('Gagal membentuk answer WebRTC:', error);
+                showToast('Tidak dapat menerima stream live background.', 'warning');
+            }
+        });
+
+        remoteCandidatesUnsubscribe = onSnapshot(collection(db, 'rtcSessions', sessionId, 'candidates'), async (snapshot) => {
+            const pendingCandidates = snapshot.docs.filter((candidateDoc) => {
+                const data = candidateDoc.data();
+                return data?.role === 'broadcaster' && data?.candidate && !remoteCandidateIds.has(candidateDoc.id);
+            });
+
+            for (const candidateDoc of pendingCandidates) {
+                const data = candidateDoc.data();
+                try {
+                    await peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
+                    remoteCandidateIds.add(candidateDoc.id);
+                } catch (error) {
+                    console.warn('Gagal menambahkan ICE candidate dari broadcaster:', error);
+                }
+            }
+        });
+
+        window.addEventListener('beforeunload', () => cleanupRtcSession(sessionId), { once: true });
+    }
+
     document.querySelectorAll(".bg-thumb").forEach(item => {
-        item.addEventListener("click", () => {
+        item.addEventListener("click", async () => {
+            const bgValue = item.dataset.bg;
+            if (bgValue === 'remote') {
+                const sessionId = getRtcSessionIdFromUrl();
+                if (!sessionId) {
+                    showToast('Buka halaman dengan ?sessionId=... agar live background rumah bisa terhubung.', 'warning');
+                    return;
+                }
+                currentBackground = 'remote';
+                updateBackgroundSelectionUI();
+                await connectRemoteBackground(sessionId);
+                return;
+            }
+
+            resetRemoteBackgroundState({ keepCurrentBackground: true });
             document.querySelectorAll(".bg-thumb").forEach(bg => bg.classList.remove("active"));
             item.classList.add("active");
-            currentBackground = item.dataset.bg;
+            currentBackground = bgValue;
         });
     });
 
@@ -706,6 +941,12 @@ height:64.10%;
         ctxOutput.globalCompositeOperation = "destination-over";
         if (currentBackground === "original") {
             drawCover(ctxOutput, results.image, w, h);
+        } else if (currentBackground === "remote") {
+            if (remoteBgVideo && remoteBgVideo.readyState >= 2) {
+                drawCover(ctxOutput, remoteBgVideo, w, h);
+            } else {
+                drawCover(ctxOutput, results.image, w, h);
+            }
         } else {
             ctxOutput.fillStyle = currentBackground;
             ctxOutput.fillRect(0, 0, w, h);
@@ -893,6 +1134,9 @@ height:64.10%;
 
             renderFrameWatermark();
             frameWatermark?.classList.remove('hidden');
+            video.classList.remove('hidden');
+            outputCanvas.classList.remove('hidden');
+            photoPreview?.classList.add('hidden');
             btnMulai.classList.add('hidden');
             areaAksiFoto.classList.remove('hidden');
             backgroundSelector.classList.remove('hidden');
@@ -1181,6 +1425,23 @@ height:64.10%;
 
     loadFrameOptions();
     renderFrameWatermark();
+
+    const initialRemoteSessionId = getRtcSessionIdFromUrl();
+    if (initialRemoteSessionId) {
+        currentBackground = 'remote';
+        updateBackgroundSelectionUI();
+
+        initSelfieSegmentation();
+        startCamera().catch((error) => {
+            console.error('Gagal memulai kamera booth untuk test lokal:', error);
+            showToast('Kamera booth gagal dimulai. Klik tombol Mulai Buat Kenangan bila perlu.', 'warning');
+        });
+
+        connectRemoteBackground(initialRemoteSessionId).catch((error) => {
+            console.error('Gagal menghubungkan live background dari rumah:', error);
+            showToast('Gagal menghubungkan live background rumah.', 'warning');
+        });
+    }
 
     const getSupportedAudioMimeType = () => {
         const types = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/x-m4a', 'audio/mpeg', 'audio/wav'];

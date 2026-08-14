@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Broadcaster Live Background</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background: linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4 text-slate-800">
+    <div class="w-full max-w-md rounded-3xl border border-slate-200 bg-white/90 p-5 shadow-xl backdrop-blur-sm">
+        <div class="mb-4 text-center">
+            <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">Live Remote Background</p>
+            <h1 class="mt-2 text-2xl font-bold text-slate-900">Broadcaster Rumah</h1>
+        </div>
+
+        <div class="relative overflow-hidden rounded-2xl border border-slate-200 bg-slate-100">
+            <video id="localVideo" class="h-72 w-full object-cover" autoplay playsinline muted></video>
+            <div id="cameraPlaceholder" class="absolute inset-0 flex items-center justify-center bg-slate-200 text-center text-xs font-medium text-slate-500">
+                Kamera sedang dimulai...
+            </div>
+        </div>
+
+        <div class="mt-4 space-y-3">
+            <label class="block text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500" for="sessionIdInput">Session ID</label>
+            <div class="flex gap-2">
+                <input id="sessionIdInput" type="text" placeholder="Masukkan sessionId yang sama dengan booth" class="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:border-slate-400 focus:outline-none" />
+                <button id="connectBtn" class="rounded-xl bg-slate-900 px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-white transition hover:bg-slate-800">Hubungkan</button>
+            </div>
+        </div>
+
+        <div class="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3 text-[11px] text-slate-600">
+            <div class="flex items-center justify-between gap-3">
+                <span class="font-semibold text-slate-700">Status koneksi</span>
+                <span id="connectionStatus" class="rounded-full bg-slate-200 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-slate-600">Belum aktif</span>
+            </div>
+            <p id="statusText" class="mt-2 leading-relaxed text-slate-600">Siap mengirim stream video live dari rumah ke booth.</p>
+        </div>
+
+        <button id="disconnectBtn" type="button" class="mt-4 hidden w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-slate-700 transition hover:bg-slate-50">
+            Hentikan sesi
+        </button>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore, doc, onSnapshot, setDoc, deleteDoc, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyC247K8yyL67aWV95KNQy8CkMZsjgGCudQ",
+            authDomain: "gamon-tawing.firebaseapp.com",
+            projectId: "gamon-tawing",
+            storageBucket: "gamon-tawing.firebasestorage.app",
+            messagingSenderId: "370162915989",
+            appId: "1:370162915989:web:76779062da83aa0c5c999c"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        const sessionIdInput = document.getElementById('sessionIdInput');
+        const connectBtn = document.getElementById('connectBtn');
+        const disconnectBtn = document.getElementById('disconnectBtn');
+        const localVideo = document.getElementById('localVideo');
+        const cameraPlaceholder = document.getElementById('cameraPlaceholder');
+        const connectionStatus = document.getElementById('connectionStatus');
+        const statusText = document.getElementById('statusText');
+
+        let localStream = null;
+        let peerConnection = null;
+        let activeSessionId = '';
+        let sessionDocUnsubscribe = null;
+        let candidateUnsubscribe = null;
+        let candidateIds = new Set();
+
+        function setStatus(label, tone = 'neutral', text = '') {
+            connectionStatus.textContent = label;
+            connectionStatus.className = 'rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-wide';
+            const toneMap = {
+                neutral: 'bg-slate-200 text-slate-600',
+                info: 'bg-sky-100 text-sky-700',
+                success: 'bg-emerald-100 text-emerald-700',
+                warning: 'bg-amber-100 text-amber-700',
+                error: 'bg-rose-100 text-rose-700'
+            };
+            connectionStatus.classList.add(toneMap[tone] || toneMap.neutral);
+            if (text) {
+                statusText.textContent = text;
+            }
+        }
+
+        async function cleanupRtcSession(sessionId) {
+            if (!sessionId) return;
+            try {
+                const candidateSnapshot = await getDocs(collection(db, 'rtcSessions', sessionId, 'candidates'));
+                await Promise.all(candidateSnapshot.docs.map((candidateDoc) => deleteDoc(candidateDoc.ref)));
+                await deleteDoc(doc(db, 'rtcSessions', sessionId));
+            } catch (error) {
+                console.warn('Gagal membersihkan sesi RTC broadcaster:', error);
+            }
+        }
+
+        function stopCurrentSession({ keepUi = false } = {}) {
+            if (peerConnection) {
+                peerConnection.close();
+                peerConnection = null;
+            }
+            if (sessionDocUnsubscribe) {
+                sessionDocUnsubscribe();
+                sessionDocUnsubscribe = null;
+            }
+            if (candidateUnsubscribe) {
+                candidateUnsubscribe();
+                candidateUnsubscribe = null;
+            }
+            candidateIds.clear();
+
+            if (localStream) {
+                localStream.getTracks().forEach((track) => track.stop());
+                localStream = null;
+            }
+
+            if (localVideo) {
+                localVideo.srcObject = null;
+                localVideo.pause();
+            }
+
+            if (!keepUi) {
+                setStatus('Belum aktif', 'neutral', 'Siap mengirim stream video live dari rumah ke booth.');
+                disconnectBtn.classList.add('hidden');
+                cameraPlaceholder.classList.remove('hidden');
+            }
+        }
+
+        async function openCamera() {
+            if (localStream) {
+                localStream.getTracks().forEach((track) => track.stop());
+                localStream = null;
+            }
+
+            try {
+                localStream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: { ideal: 'environment' },
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    },
+                    audio: false
+                });
+
+                localVideo.srcObject = localStream;
+                localVideo.muted = true;
+                localVideo.playsInline = true;
+                cameraPlaceholder.classList.add('hidden');
+                await localVideo.play().catch(() => {});
+                return true;
+            } catch (error) {
+                console.error('Gagal mengakses kamera broadcaster:', error);
+                setStatus('Error', 'error', 'Kamera rumah tidak bisa dibuka. Pastikan izin kamera sudah disetujui.');
+                return false;
+            }
+        }
+
+        async function startBroadcast(sessionId) {
+            if (!sessionId) {
+                setStatus('Perlu input', 'warning', 'Masukkan sessionId yang sama dengan booth terlebih dahulu.');
+                return;
+            }
+
+            stopCurrentSession({ keepUi: true });
+            connectBtn.disabled = true;
+            connectBtn.textContent = 'Menyambung...';
+            activeSessionId = sessionId;
+
+            const cameraReady = await openCamera();
+            if (!cameraReady) {
+                connectBtn.disabled = false;
+                connectBtn.textContent = 'Hubungkan';
+                return;
+            }
+
+            const rtcConfig = {
+                iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+                // TODO: tambahkan TURN server di sini nanti jika diperlukan untuk NAT traversal di produksi.
+            };
+
+            const pc = new RTCPeerConnection(rtcConfig);
+            peerConnection = pc;
+
+            localStream.getTracks().forEach((track) => pc.addTrack(track, localStream));
+
+            pc.onicecandidate = async (event) => {
+                if (!event.candidate) return;
+                const candidateId = `broadcaster-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+                if (candidateIds.has(candidateId)) return;
+                candidateIds.add(candidateId);
+
+                await setDoc(doc(db, 'rtcSessions', sessionId, 'candidates', candidateId), {
+                    role: 'broadcaster',
+                    candidate: event.candidate.toJSON(),
+                    createdAt: Date.now(),
+                });
+            };
+
+            pc.oniceconnectionstatechange = () => {
+                const state = pc.iceConnectionState;
+                if (state === 'connected' || state === 'completed') {
+                    setStatus('Terhubung', 'success', 'Stream live dari rumah sudah tersambung ke booth.');
+                    disconnectBtn.classList.remove('hidden');
+                    return;
+                }
+
+                if (['disconnected', 'failed', 'closed'].includes(state)) {
+                    setStatus('Terputus', 'warning', 'Koneksi stream ke booth terputus. Silakan sambungkan ulang.');
+                    if (state !== 'closed') {
+                        cleanupRtcSession(sessionId);
+                    }
+                }
+            };
+
+            const sessionDoc = doc(db, 'rtcSessions', sessionId);
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+
+            await setDoc(sessionDoc, {
+                sessionId,
+                offer: pc.localDescription.toJSON(),
+                status: 'offer-created',
+                role: 'broadcaster',
+                createdAt: Date.now(),
+                updatedAt: Date.now(),
+            }, { merge: true });
+
+            setStatus('Mengirim offer', 'info', 'Sedang mengirim SDP offer dan ICE candidate ke booth...');
+
+            sessionDocUnsubscribe = onSnapshot(sessionDoc, async (snapshot) => {
+                const data = snapshot.data() || {};
+                if (!data.answer || pc.remoteDescription) return;
+
+                try {
+                    await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+                    setStatus('Menunggu sinkron', 'info', 'Answer dari booth diterima. Sinkronisasi ICE candidate sedang berjalan.');
+                } catch (error) {
+                    console.error('Gagal mengatur remote description pada broadcaster:', error);
+                    setStatus('Error', 'error', 'Answer dari booth gagal diproses. Coba ulang koneksi.');
+                }
+            });
+
+            candidateUnsubscribe = onSnapshot(collection(db, 'rtcSessions', sessionId, 'candidates'), async (snapshot) => {
+                const pendingCandidates = snapshot.docs.filter((candidateDoc) => {
+                    const data = candidateDoc.data();
+                    return data?.role === 'booth' && data?.candidate && !candidateIds.has(candidateDoc.id);
+                });
+
+                for (const candidateDoc of pendingCandidates) {
+                    const data = candidateDoc.data();
+                    try {
+                        await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+                        candidateIds.add(candidateDoc.id);
+                    } catch (error) {
+                        console.warn('Gagal menambahkan ICE candidate dari booth:', error);
+                    }
+                }
+            });
+
+            window.addEventListener('beforeunload', () => cleanupRtcSession(sessionId), { once: true });
+            connectBtn.disabled = false;
+            connectBtn.textContent = 'Hubungkan';
+        }
+
+        connectBtn.addEventListener('click', async () => {
+            const sessionId = sessionIdInput.value.trim();
+            if (!sessionId) {
+                setStatus('Perlu input', 'warning', 'Masukkan sessionId yang sama dengan booth.');
+                return;
+            }
+            await startBroadcast(sessionId);
+        });
+
+        disconnectBtn.addEventListener('click', async () => {
+            if (activeSessionId) {
+                await cleanupRtcSession(activeSessionId);
+            }
+            stopCurrentSession();
+            activeSessionId = '';
+            sessionIdInput.value = '';
+        });
+
+        sessionIdInput.addEventListener('keydown', async (event) => {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                const sessionId = sessionIdInput.value.trim();
+                if (!sessionId) {
+                    setStatus('Perlu input', 'warning', 'Masukkan sessionId yang sama dengan booth.');
+                    return;
+                }
+                await startBroadcast(sessionId);
+            }
+        });
+
+        window.addEventListener('load', async () => {
+            const savedSessionId = localStorage.getItem('gamonRemoteSessionId');
+            if (savedSessionId) {
+                sessionIdInput.value = savedSessionId;
+            }
+            await openCamera();
+        });
+    </script>
+</body>
+</html>
