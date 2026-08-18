@@ -800,7 +800,9 @@ const voice = {
   lastUtteranceText: "",
   listenStartedAt: 0,
   permissionRequestInFlight: false,
-  speakTimer: null
+  speakTimer: null,
+  aiReplyInProgress: false,
+  shouldResumeListening: !isIOS
 };
 
 if (!voiceInputSupported || !voiceOutputSupported) {
@@ -855,16 +857,24 @@ function setupRecognition() {
   recognition.maxAlternatives = 1;
 
   recognition.onstart = () => {
+    if (voice.aiReplyInProgress || voice.state === "processing" || voice.state === "speaking") {
+      stopRecognitionQuietly();
+      return;
+    }
     setVoiceState("listening");
   };
 
   recognition.onspeechstart = () => {
-    if (voice.overlayOpen && !voice.paused) {
+    if (voice.overlayOpen && !voice.paused && !voice.aiReplyInProgress) {
       setVoiceState("listening");
     }
   };
 
   recognition.onresult = (event) => {
+    if (voice.aiReplyInProgress || voice.state === "processing" || voice.state === "speaking") {
+      return;
+    }
+
     let finalText = "";
     let interimText = "";
 
@@ -888,8 +898,12 @@ function setupRecognition() {
   recognition.onerror = (event) => {
     removeLiveTranscript();
 
+    if (voice.state === "processing" || voice.state === "speaking") {
+      return;
+    }
+
     if (event.error === "no-speech" || event.error === "aborted") {
-      if (voice.overlayOpen && !voice.paused) {
+      if (voice.overlayOpen && !voice.paused && !voice.aiReplyInProgress) {
         voiceOverlayStatus.textContent = "Saya tidak menangkap suara. Coba bicara lebih jelas atau tap mic lagi.";
         scheduleRestart();
       } else {
@@ -907,12 +921,12 @@ function setupRecognition() {
 
     if (event.error === "audio-capture" || event.error === "network") {
       voiceOverlayStatus.textContent = "Mic sedang tidak siap. Coba tap mic lagi setelah beberapa detik.";
-      if (voice.overlayOpen && !voice.paused) scheduleRestart();
+      if (voice.overlayOpen && !voice.paused && !voice.aiReplyInProgress) scheduleRestart();
       else setVoiceState("idle");
       return;
     }
 
-    if (voice.overlayOpen && !voice.paused) {
+    if (voice.overlayOpen && !voice.paused && !voice.aiReplyInProgress) {
       scheduleRestart();
       voiceOverlayStatus.textContent = "Voice AI terputus. Tap mic untuk mulai lagi.";
     } else {
@@ -922,12 +936,18 @@ function setupRecognition() {
 
   recognition.onend = () => {
     removeLiveTranscript();
-    if (voice.overlayOpen && !voice.paused) {
+    if (voice.overlayOpen && !voice.paused && !voice.aiReplyInProgress) {
       if (voice.state === "listening") {
         setVoiceState("idle");
+        if (isIOS) {
+          voiceOverlayStatus.textContent = "Mic sedang siap. Tap tombol mic untuk mulai lagi.";
+          return;
+        }
         voiceOverlayStatus.textContent = "Saya berhenti mendengarkan. Tap mic untuk mulai lagi.";
       }
-      scheduleRestart();
+      if (voice.state !== "processing" && voice.state !== "speaking") {
+        scheduleRestart();
+      }
     }
   };
 
@@ -941,6 +961,8 @@ function openVoiceOverlay() {
 
   voice.overlayOpen = true;
   voice.paused = false;
+  voice.aiReplyInProgress = false;
+  voice.shouldResumeListening = !isIOS;
 
   voiceOverlay.hidden = false;
   document.body.classList.add("voice-open");
@@ -953,10 +975,12 @@ function openVoiceOverlay() {
   ensureSpeechReady();
 
   if (isIOS) {
-    voiceOverlayStatus.textContent = "iPhone Safari mungkin perlu tap mic lagi. Saya akan coba aktifkan mic untuk Anda.";
+    voiceOverlayStatus.textContent = "iPhone perlu tap tombol mic dulu. Setelah AI selesai bicara, tap mic lagi untuk lanjut.";
   }
 
-  startRecognition();
+  if (!isIOS) {
+    startRecognition();
+  }
 }
 
 function closeVoiceOverlay() {
@@ -991,8 +1015,10 @@ function onVoiceMicToggleClick() {
 
   if (voice.state === "speaking") {
     // Barge-in: let the user interrupt the AI and start talking right away.
+    voice.aiReplyInProgress = false;
     window.speechSynthesis.cancel();
     voice.paused = false;
+    setVoiceState("idle");
     startRecognition();
     return;
   }
@@ -1007,6 +1033,7 @@ function onVoiceMicToggleClick() {
 
   // idle / paused / error -> resume listening.
   voice.paused = false;
+  voice.aiReplyInProgress = false;
   startRecognition();
 }
 
@@ -1014,6 +1041,8 @@ function onVoiceMicToggleClick() {
 
 function startRecognition() {
   if (!voice.overlayOpen || !voice.recognition) return;
+  if (voice.aiReplyInProgress || voice.state === "processing" || voice.state === "speaking") return;
+
   clearTimeout(voice.restartTimer);
   voice.paused = false;
   voice.listenStartedAt = Date.now();
@@ -1026,9 +1055,8 @@ function startRecognition() {
       voice.recognition.start();
     }
   } catch (err) {
-    // Browser may reject restart if a previous start is still settling.
     setTimeout(() => {
-      if (voice.overlayOpen && !voice.paused && voice.state !== "processing") {
+      if (voice.overlayOpen && !voice.paused && !voice.aiReplyInProgress && voice.state !== "processing" && voice.state !== "speaking") {
         try {
           voice.recognition.start();
         } catch (retryErr) {}
@@ -1081,20 +1109,18 @@ async function handleVoiceUtterance(text) {
 
 function speakThenListen(text) {
   if (!text || !("speechSynthesis" in window)) {
-    if (voice.overlayOpen && !voice.paused) startRecognition();
+    if (voice.overlayOpen && !voice.paused && !isIOS) startRecognition();
     return;
   }
 
+  voice.aiReplyInProgress = true;
+  voice.shouldResumeListening = !isIOS;
+  stopRecognitionQuietly();
+  clearTimeout(voice.restartTimer);
+  clearTimeout(voice.speakTimer);
+
   voice.lastUtteranceText = text;
   setVoiceState("speaking");
-
-  clearTimeout(voice.speakTimer);
-  voice.speakTimer = setTimeout(() => {
-    if (voice.overlayOpen && !voice.paused && voice.state === "speaking") {
-      setVoiceState("idle");
-      startRecognition();
-    }
-  }, 2200);
 
   try {
     window.speechSynthesis.cancel();
@@ -1117,30 +1143,51 @@ function speakThenListen(text) {
   }
 
   utterance.onend = () => {
+    voice.aiReplyInProgress = false;
     clearTimeout(voice.speakTimer);
-    if (voice.overlayOpen && !voice.paused) {
-      startRecognition();
+    if (voice.overlayOpen && !voice.paused && !isIOS) {
+      setVoiceState("idle");
+      setTimeout(() => {
+        if (voice.overlayOpen && !voice.paused && !voice.aiReplyInProgress) {
+          startRecognition();
+        }
+      }, 300);
     } else {
       setVoiceState("idle");
+      if (isIOS) {
+        voiceOverlayStatus.textContent = "AI sudah selesai bicara. Tap tombol mic untuk lanjut bertanya lagi.";
+      }
     }
   };
+
   utterance.onerror = () => {
+    voice.aiReplyInProgress = false;
     clearTimeout(voice.speakTimer);
-    if (voice.overlayOpen && !voice.paused) {
+    if (voice.overlayOpen && !voice.paused && !isIOS) {
       setVoiceState("idle");
-      startRecognition();
+      setTimeout(() => {
+        if (voice.overlayOpen && !voice.paused && !voice.aiReplyInProgress) {
+          startRecognition();
+        }
+      }, 300);
     } else {
       setVoiceState("idle");
+      if (isIOS) {
+        voiceOverlayStatus.textContent = "AI sudah selesai bicara. Tap tombol mic untuk lanjut bertanya lagi.";
+      }
     }
   };
 
   try {
     window.speechSynthesis.speak(utterance);
   } catch (err) {
+    voice.aiReplyInProgress = false;
     clearTimeout(voice.speakTimer);
-    if (voice.overlayOpen && !voice.paused) {
+    if (voice.overlayOpen && !voice.paused && !isIOS) {
       setVoiceState("idle");
       startRecognition();
+    } else {
+      setVoiceState("idle");
     }
   }
 }
