@@ -773,7 +773,10 @@ const SpeechRecognitionImpl =
   ("webkitSpeechRecognition" in window && window.webkitSpeechRecognition) ||
   null;
 
-const speechSupported = !!SpeechRecognitionImpl && "speechSynthesis" in window;
+const isMobile = /(Android|iPhone|iPad|iPod)/i.test(navigator.userAgent || "");
+const voiceInputSupported = !!SpeechRecognitionImpl && !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+const voiceOutputSupported = "speechSynthesis" in window;
+const speechSupported = voiceInputSupported && voiceOutputSupported;
 
 function getPreferredSpeechLang() {
   const navLang = (navigator.language || navigator.languages?.[0] || "id-ID").toLowerCase();
@@ -793,14 +796,19 @@ const voice = {
   audioCtx: null,
   analyser: null,
   volumeRaf: null,
-  lastUtteranceText: ""
+  lastUtteranceText: "",
+  listenStartedAt: 0,
+  permissionRequestInFlight: false
 };
 
-if (!speechSupported) {
+if (!voiceInputSupported || !voiceOutputSupported) {
   openVoiceBtn.classList.add("unsupported");
-  openVoiceBtn.title = "Browser ini tidak mendukung Voice AI. Coba pakai Chrome.";
+  openVoiceBtn.title = "Voice AI belum didukung di browser ini. Gunakan Chrome/Edge di Android atau desktop.";
   openVoiceBtn.addEventListener("click", () => {
-    addMessage("Voice AI belum didukung di browser ini. Coba buka Gamon Tawing lewat Chrome, ya.", "ai");
+    const message = !voiceInputSupported
+      ? "Voice AI di browser ini tidak bisa menangkap suara. Coba pakai Chrome/Edge di Android atau desktop."
+      : "Voice AI bisa dipakai di browser ini, tapi output suara belum tersedia. Coba browser lain yang mendukung TTS.";
+    addMessage(message, "ai");
   });
 } else {
   setupRecognition();
@@ -848,6 +856,12 @@ function setupRecognition() {
     setVoiceState("listening");
   };
 
+  recognition.onspeechstart = () => {
+    if (voice.overlayOpen && !voice.paused) {
+      setVoiceState("listening");
+    }
+  };
+
   recognition.onresult = (event) => {
     let finalText = "";
     let interimText = "";
@@ -872,11 +886,10 @@ function setupRecognition() {
   recognition.onerror = (event) => {
     removeLiveTranscript();
 
-    // "no-speech" / "aborted" just mean silence or an intentional stop —
-    // keep the hands-free loop alive instead of treating it as fatal.
     if (event.error === "no-speech" || event.error === "aborted") {
       if (voice.overlayOpen && !voice.paused) {
-        scheduleRestart();
+        voiceOverlayStatus.textContent = "Saya tidak menangkap suara. Coba bicara lebih jelas atau tap mic lagi.";
+        setVoiceState("idle");
       } else {
         setVoiceState("idle");
       }
@@ -886,13 +899,19 @@ function setupRecognition() {
     if (event.error === "not-allowed" || event.error === "service-not-allowed") {
       voice.paused = true;
       setVoiceState("error");
-      voiceOverlayStatus.textContent = "Akses mikrofon ditolak. Izinkan mic di pengaturan browser, lalu tap mic untuk coba lagi.";
+      voiceOverlayStatus.textContent = "Akses mikrofon ditolak. Buka pengaturan browser lalu izinkan mic dan buka lagi Voice AI.";
       return;
     }
 
-    // Any other error: try to recover the loop once.
+    if (event.error === "audio-capture" || event.error === "network") {
+      voiceOverlayStatus.textContent = "Mic sedang tidak siap. Coba tap mic lagi setelah beberapa detik.";
+      setVoiceState("idle");
+      return;
+    }
+
     if (voice.overlayOpen && !voice.paused) {
-      scheduleRestart();
+      setVoiceState("idle");
+      voiceOverlayStatus.textContent = "Voice AI terputus. Tap mic untuk mulai lagi.";
     } else {
       setVoiceState("idle");
     }
@@ -900,10 +919,14 @@ function setupRecognition() {
 
   recognition.onend = () => {
     removeLiveTranscript();
-    // If we're still supposed to be listening (e.g. the browser ended the
-    // session on its own without a result), restart automatically.
-    if (voice.overlayOpen && voice.state === "listening" && !voice.paused) {
-      scheduleRestart();
+    if (voice.overlayOpen && !voice.paused && voice.state === "listening") {
+      try {
+        if (voice.recognition && !isMobile) {
+          voice.recognition.start();
+        }
+      } catch (err) {
+        // browser can reject restart after a recent stop
+      }
     }
   };
 
@@ -921,17 +944,24 @@ function openVoiceOverlay() {
   voiceOverlay.hidden = false;
   document.body.classList.add("voice-open");
   glassCard.style.filter = "blur(6px)";
-  // Force a reflow so the "open" transition actually animates in.
   void voiceOverlay.offsetWidth;
   voiceOverlay.classList.add("open");
 
   setVoiceState("idle");
   voiceOverlayStatus.textContent = "Aku siap mendengarkan.";
   ensureSpeechReady();
+
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    voice.paused = true;
+    setVoiceState("error");
+    voiceOverlayStatus.textContent = "Browser ini tidak punya akses mikrofon. Gunakan Chrome/Edge terbaru.";
+    return;
+  }
+
   requestMicPermission().then(() => startRecognition()).catch(() => {
     voice.paused = true;
     setVoiceState("error");
-    voiceOverlayStatus.textContent = "Izinkan akses mikrofon agar Voice AI bisa menangkap suaramu di ponsel.";
+    voiceOverlayStatus.textContent = "Izinkan akses mikrofon agar Voice AI bisa menangkap suaramu.";
   });
 }
 
@@ -994,15 +1024,10 @@ function requestMicPermission() {
 
   return navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
     if (voice.micStream) {
-      voice.micStream.getTracks().forEach((track) => track.stop());
+      voice.micStream.getTracks().forEach(track => track.stop());
     }
     voice.micStream = stream;
     return stream;
-  }).catch((error) => {
-    if (error && error.name === "NotAllowedError") {
-      throw error;
-    }
-    throw error;
   });
 }
 
@@ -1010,15 +1035,33 @@ function startRecognition() {
   if (!voice.overlayOpen || !voice.recognition) return;
   clearTimeout(voice.restartTimer);
   voice.paused = false;
+  voice.listenStartedAt = Date.now();
 
   try {
+    if (voice.recognition.state === "listening" || voice.recognition.state === "starting") {
+      return;
+    }
     if (voice.state !== "processing" && voice.state !== "speaking") {
       voice.recognition.start();
     }
   } catch (err) {
-    // start() throws if already started — safe to ignore.
-    scheduleRestart();
+    setTimeout(() => {
+      if (voice.overlayOpen && !voice.paused && voice.state !== "processing") {
+        try {
+          voice.recognition.start();
+        } catch (retryErr) {}
+      }
+    }, 250);
   }
+
+  clearTimeout(voice.restartTimer);
+  voice.restartTimer = setTimeout(() => {
+    if (voice.overlayOpen && !voice.paused && voice.state === "listening") {
+      stopRecognitionQuietly();
+      setVoiceState("idle");
+      voiceOverlayStatus.textContent = "Saya tidak menangkap suara. Tap mic lagi untuk coba lagi.";
+    }
+  }, 9000);
 }
 
 function stopRecognitionQuietly() {
@@ -1074,7 +1117,14 @@ function speakThenListen(text) {
   utterance.lang = getPreferredSpeechLang();
   utterance.rate = 1.0;
   utterance.pitch = 1.0;
-  if (voice.idVoice) utterance.voice = voice.idVoice;
+  utterance.volume = 1;
+  if (voice.idVoice && voice.idVoice.lang) {
+    try {
+      utterance.voice = voice.idVoice;
+    } catch (err) {
+      // Safari/iOS sometimes rejects a specific voice object; ignore and use default voice
+    }
+  }
 
   utterance.onend = () => {
     if (voice.overlayOpen && !voice.paused) {
@@ -1126,11 +1176,11 @@ function removeLiveTranscript() {
 /* ---------- Orb volume reactivity (best-effort; never blocks the loop) ---------- */
 
 async function startVolumeMonitor() {
-  if (voice.analyser) return;
+  if (isMobile || voice.analyser) return;
   try {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     if (!voice.overlayOpen || voice.state !== "listening") {
-      // Overlay was closed / state changed while the permission prompt was up.
       stream.getTracks().forEach(t => t.stop());
       return;
     }
