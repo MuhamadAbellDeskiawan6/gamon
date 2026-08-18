@@ -775,8 +775,8 @@ const SpeechRecognitionImpl =
 
 const isMobile = /(Android|iPhone|iPad|iPod)/i.test(navigator.userAgent || "");
 const isIOS = /(iPhone|iPad|iPod)/i.test(navigator.userAgent || "");
-const voiceInputSupported = !!SpeechRecognitionImpl && !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
-const voiceOutputSupported = "speechSynthesis" in window;
+const voiceInputSupported = !isIOS && !!SpeechRecognitionImpl && !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+const voiceOutputSupported = !isIOS && "speechSynthesis" in window;
 const speechSupported = voiceInputSupported && voiceOutputSupported;
 
 function getPreferredSpeechLang() {
@@ -807,11 +807,22 @@ const voice = {
 
 if (!voiceInputSupported || !voiceOutputSupported) {
   openVoiceBtn.classList.add("unsupported");
-  openVoiceBtn.title = "Voice AI belum didukung di browser ini. Coba Chrome/Edge terbaru atau ketik pesan saja.";
+  openVoiceBtn.disabled = true;
+  openVoiceBtn.setAttribute("aria-disabled", "true");
+
+  if (isIOS) {
+    openVoiceBtn.innerHTML = '<span class="material-symbols-outlined">mic_off</span><span>Voice AI tidak stabil di iPhone</span>';
+    openVoiceBtn.title = "Voice AI belum stabil di iPhone Safari. Silakan ketik, atau coba Chrome/Edge terbaru.";
+  } else {
+    openVoiceBtn.title = "Voice AI belum didukung di browser ini. Coba Chrome/Edge terbaru atau ketik pesan saja.";
+  }
+
   openVoiceBtn.addEventListener("click", () => {
-    const message = !voiceInputSupported
-      ? "Voice AI di browser ini tidak bisa menangkap suara. Coba Chrome/Edge terbaru atau ketik saja."
-      : "Voice AI bisa dipakai di browser ini, tapi output suara belum tersedia. Coba browser lain yang mendukung TTS.";
+    const message = isIOS
+      ? "Voice AI belum stabil di iPhone Safari. Silakan ketik, atau coba Chrome/Edge terbaru."
+      : !voiceInputSupported
+        ? "Voice AI di browser ini tidak bisa menangkap suara. Coba Chrome/Edge terbaru atau ketik saja."
+        : "Voice AI bisa dipakai di browser ini, tapi output suara belum tersedia. Coba browser lain yang mendukung TTS.";
     addMessage(message, "ai");
   });
 } else {
@@ -957,6 +968,11 @@ function setupRecognition() {
 /* ---------- Overlay open / close (the "room" lifecycle) ---------- */
 
 function openVoiceOverlay() {
+  if (isIOS) {
+    addMessage("Voice AI belum stabil di iPhone Safari. Silakan ketik, atau coba Chrome/Edge terbaru.", "ai");
+    return;
+  }
+
   if (voice.overlayOpen) return;
 
   voice.overlayOpen = true;
@@ -974,13 +990,7 @@ function openVoiceOverlay() {
   voiceOverlayStatus.textContent = "Aku siap mendengarkan.";
   ensureSpeechReady();
 
-  if (isIOS) {
-    voiceOverlayStatus.textContent = "iPhone perlu tap tombol mic dulu. Setelah AI selesai bicara, tap mic lagi untuk lanjut.";
-  }
-
-  if (!isIOS) {
-    startRecognition();
-  }
+  startRecognition();
 }
 
 function closeVoiceOverlay() {
