@@ -96,50 +96,98 @@
         }
     </script>
 <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+        }
         body {
             background: linear-gradient(135deg, #fff5f8 0%, #f3e8ff 50%, #ffffff 100%);
-            overflow-x: hidden;
+            overflow: hidden;
             min-height: 100vh;
-            overflow-x: hidden;
+            font-family: Inter, sans-serif;
+        }
+        .app-shell {
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+            box-sizing: border-box;
         }
         .glass-card {
-            background: rgba(255, 255, 255, 0.5);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.4);
-            box-shadow: 0 10px 30px -10px rgba(107, 90, 96, 0.1);
+            width: min(100%, 760px);
+            height: min(85vh, 820px);
+            background: rgba(255, 255, 255, 0.52);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.45);
+            box-shadow: 0 18px 40px -22px rgba(107, 90, 96, 0.28);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            transition: filter 0.3s ease;
         }
         .chat-box {
-            max-height: calc(100vh - 17rem);
-            min-height: 18rem;
+            flex: 1;
+            min-height: 0;
             overflow-y: auto;
+            overscroll-behavior: contain;
             scroll-behavior: smooth;
+            padding: 1rem;
+            background: rgba(248, 242, 244, 0.58);
+        }
+        .chat-box::-webkit-scrollbar {
+            width: 8px;
+        }
+        .chat-box::-webkit-scrollbar-thumb {
+            background: rgba(107, 90, 96, 0.28);
+            border-radius: 999px;
+        }
+        .chat-box::-webkit-scrollbar-track {
+            background: transparent;
         }
         .msg {
-            max-width: 80%;
+            width: fit-content;
+            max-width: min(85%, 38rem);
             padding: 12px 16px;
-            border-radius: 16px;
+            border-radius: 18px;
             margin-bottom: 12px;
-            animation: fadeIn 0.3s ease-in;
-        }
-        @media (max-width: 768px) {
-            .chat-box {
-                max-height: calc(100vh - 16rem);
-            }
-            .msg {
-                max-width: 100%;
-            }
+            line-height: 1.6;
+            white-space: pre-wrap;
+            word-break: break-word;
+            animation: fadeIn 0.25s ease;
         }
         .me {
-            background: linear-gradient(135deg, #d7c1c8, #f4dce4);
             margin-left: auto;
+            background: linear-gradient(135deg, #d7c1c8, #f4dce4);
             color: #25181e;
+            border-bottom-right-radius: 8px;
         }
         .ai {
             background: #f2ecee;
             color: #1d1b1d;
+            border-bottom-left-radius: 8px;
+        }
+        .typing {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            min-width: 150px;
+        }
+        @media (max-width: 768px) {
+            .app-shell {
+                padding: 0.5rem;
+            }
+            .glass-card {
+                width: 100%;
+                height: 100%;
+                border-radius: 0;
+            }
+            .msg {
+                max-width: 90%;
+            }
         }
         @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
+            from { opacity: 0; transform: translateY(8px); }
             to { opacity: 1; transform: translateY(0); }
         }
         .input-focus:focus {
@@ -147,133 +195,907 @@
             border-color: #d7c1c8;
         }
         .send-btn:hover {
-            transform: scale(1.05);
+            transform: translateY(-1px) scale(1.01);
         }
         .send-btn:active {
-            transform: scale(0.95);
+            transform: scale(0.98);
+        }
+        textarea {
+            resize: none;
+        }
+
+        /* ===== Voice AI launcher (toolbar button) ===== */
+        .voice-ai-launcher {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            height: 52px;
+            padding: 0 18px;
+            border-radius: 9999px;
+            background: linear-gradient(135deg, #f4dce4, #ecdeee);
+            border: 1px solid #d7c1c8;
+            color: #4d3a41;
+            font-weight: 600;
+            font-size: 14px;
+            white-space: nowrap;
+            cursor: pointer;
+            transition: transform 0.15s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+        }
+        .voice-ai-launcher .material-symbols-outlined {
+            font-size: 20px;
+        }
+        .voice-ai-launcher:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 10px 20px -12px rgba(107, 90, 96, 0.4);
+        }
+        .voice-ai-launcher:active {
+            transform: scale(0.97);
+        }
+        .voice-ai-launcher.unsupported {
+            opacity: 0.45;
+            cursor: not-allowed;
+        }
+        .voice-ai-launcher.unsupported:hover {
+            transform: none;
+            box-shadow: none;
+        }
+
+        /* ===== Voice AI overlay ===== */
+        .voice-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 50;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+        .voice-overlay[hidden] {
+            display: none;
+        }
+        .voice-overlay-backdrop {
+            position: absolute;
+            inset: 0;
+            background: rgba(37, 24, 30, 0.38);
+            backdrop-filter: blur(2px);
+            opacity: 0;
+            transition: opacity 0.28s ease;
+        }
+        .voice-overlay.open .voice-overlay-backdrop {
+            opacity: 1;
+        }
+        .voice-panel {
+            position: relative;
+            width: min(420px, 100%);
+            max-height: 90vh;
+            background: linear-gradient(160deg, rgba(255,255,255,0.86), rgba(252,228,236,0.78));
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            border-radius: 32px;
+            box-shadow: 0 30px 60px -20px rgba(107, 90, 96, 0.35);
+            padding: 2.25rem 1.75rem 1.75rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            gap: 0.35rem;
+            transform: translateY(16px) scale(0.97);
+            opacity: 0;
+            transition: transform 0.3s ease, opacity 0.3s ease;
+        }
+        .voice-overlay.open .voice-panel {
+            transform: translateY(0) scale(1);
+            opacity: 1;
+        }
+        @media (max-width: 640px) {
+            .voice-overlay {
+                padding: 0;
+            }
+            .voice-panel {
+                width: 100%;
+                height: 100%;
+                max-height: 100%;
+                border-radius: 0;
+                justify-content: center;
+                padding: 2rem 1.5rem;
+            }
+        }
+        .voice-close-x {
+            position: absolute;
+            top: 14px;
+            right: 14px;
+            width: 36px;
+            height: 36px;
+            border-radius: 9999px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 255, 255, 0.65);
+            border: 1px solid rgba(255, 255, 255, 0.7);
+            color: #6b5a60;
+            cursor: pointer;
+        }
+        .voice-close-x:hover {
+            background: rgba(255, 255, 255, 0.9);
+        }
+        .voice-panel-eyebrow {
+            font-size: 12px;
+            letter-spacing: 0.14em;
+            font-weight: 700;
+            color: #a3818c;
+            text-transform: uppercase;
+        }
+        .voice-overlay-status {
+            font-size: 15px;
+            color: #4d4447;
+            min-height: 22px;
+            margin-top: 4px;
+            max-width: 300px;
+        }
+        .voice-live-transcript {
+            font-size: 13px;
+            color: #a09499;
+            font-style: italic;
+            min-height: 18px;
+            max-width: 280px;
+        }
+        .voice-controls {
+            margin: 0.85rem 0 0.35rem;
+        }
+        .voice-close-btn {
+            margin-top: 0.5rem;
+            padding: 10px 22px;
+            border-radius: 9999px;
+            background: rgba(107, 90, 96, 0.08);
+            color: #6b5a60;
+            font-weight: 600;
+            font-size: 14px;
+            border: 1px solid rgba(107, 90, 96, 0.15);
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+        .voice-close-btn:hover {
+            background: rgba(107, 90, 96, 0.14);
+        }
+
+        /* ===== AI Orb ===== */
+        .orb-wrap {
+            margin: 1rem 0;
+        }
+        .orb {
+            --vol: 1;
+            position: relative;
+            width: 140px;
+            height: 140px;
+            border-radius: 9999px;
+            background: radial-gradient(circle at 32% 28%, #ffffff 0%, #f4dce4 35%, #d7c1c8 70%, #b6cad2 100%);
+            box-shadow: 0 20px 45px -18px rgba(107, 90, 96, 0.45), inset 0 0 30px rgba(255, 255, 255, 0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transform: scale(var(--vol, 1));
+            transition: background 0.4s ease;
+            animation: orbBreatheIdle 4s ease-in-out infinite;
+        }
+        .orb-core {
+            width: 46%;
+            height: 46%;
+            border-radius: 9999px;
+            background: rgba(255, 255, 255, 0.55);
+            filter: blur(1px);
+        }
+        .orb-ring {
+            position: absolute;
+            inset: 0;
+            border-radius: 9999px;
+            border: 1.5px solid rgba(255, 255, 255, 0.55);
+            opacity: 0;
+        }
+        @keyframes orbBreatheIdle {
+            0%, 100% { transform: scale(calc(var(--vol, 1) * 1)); }
+            50% { transform: scale(calc(var(--vol, 1) * 1.045)); }
+        }
+        .orb-listening {
+            animation: orbBreatheListening 1.6s ease-in-out infinite;
+        }
+        @keyframes orbBreatheListening {
+            0%, 100% { transform: scale(calc(var(--vol, 1) * 1)); }
+            50% { transform: scale(calc(var(--vol, 1) * 1.08)); }
+        }
+        .orb-listening .orb-ring.r1 {
+            opacity: 1;
+            animation: ringExpand 1.8s ease-out infinite;
+        }
+        .orb-listening .orb-ring.r2 {
+            opacity: 1;
+            animation: ringExpand 1.8s ease-out infinite 0.55s;
+        }
+        @keyframes ringExpand {
+            0% { transform: scale(0.85); opacity: 0.55; }
+            100% { transform: scale(1.5); opacity: 0; }
+        }
+        .orb-processing {
+            background: radial-gradient(circle at 32% 28%, #ffffff 0%, #ecdeee 35%, #cfc2d2 70%, #b6cad2 100%);
+            animation: orbProcessing 1.2s ease-in-out infinite;
+        }
+        @keyframes orbProcessing {
+            0%, 100% { transform: scale(0.96) rotate(0deg); }
+            50% { transform: scale(1.03) rotate(5deg); }
+        }
+        .orb-speaking {
+            background: radial-gradient(circle at 32% 28%, #ffffff 0%, #d2e6ef 35%, #b6cad2 70%, #9fb7c0 100%);
+            animation: orbSpeaking 0.55s ease-in-out infinite;
+        }
+        @keyframes orbSpeaking {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.09); }
+        }
+        .orb-error {
+            background: radial-gradient(circle at 32% 28%, #ffffff 0%, #ffdad6 40%, #ffb4a9 100%);
+        }
+
+        /* ===== Voice mic control inside overlay ===== */
+        .mic-btn {
+            position: relative;
+            width: 64px;
+            height: 64px;
+            min-width: 64px;
+            border-radius: 9999px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #ffffff;
+            border: 1px solid #d0c3c7;
+            color: #6b5a60;
+            transition: background 0.25s ease, color 0.25s ease, border-color 0.25s ease, transform 0.15s ease;
+            cursor: pointer;
+        }
+        .mic-btn:active {
+            transform: scale(0.96);
+        }
+        .mic-btn .ring {
+            position: absolute;
+            inset: -6px;
+            border-radius: 9999px;
+            border: 2px solid rgba(186, 26, 26, 0.45);
+            opacity: 0;
+            pointer-events: none;
+        }
+        .mic-btn.state-listening {
+            background: #ba1a1a;
+            border-color: #ba1a1a;
+            color: #ffffff;
+        }
+        .mic-btn.state-listening .ring {
+            opacity: 1;
+            animation: micPulse 1.4s ease-out infinite;
+        }
+        .mic-btn.state-processing {
+            background: #6b5a60;
+            border-color: #6b5a60;
+            color: #ffffff;
+        }
+        .mic-btn.state-speaking {
+            background: #4f6169;
+            border-color: #4f6169;
+            color: #ffffff;
+        }
+        .mic-btn.state-speaking .ring {
+            opacity: 1;
+            border-color: rgba(79, 97, 105, 0.45);
+            animation: micPulse 1.1s ease-out infinite;
+        }
+        @keyframes micPulse {
+            0%   { transform: scale(0.9); opacity: 0.7; }
+            70%  { transform: scale(1.35); opacity: 0; }
+            100% { transform: scale(1.35); opacity: 0; }
+        }
+
+        .voice-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 11px;
+            opacity: 0.65;
+            margin-top: 4px;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .orb, .orb-listening, .orb-processing, .orb-speaking,
+            .orb-ring, .mic-btn .ring {
+                animation: none !important;
+            }
         }
     </style>
 </head>
 
 <body class="font-body-md text-on-surface selection:bg-primary-container selection:text-on-primary-container">
-<main class="relative z-10 flex flex-col items-center justify-center min-h-screen px-margin-mobile md:px-container-padding py-section-gap">
-<!-- Back Link -->
-<a class="self-start mb-unit flex items-center gap-2 text-on-surface-variant hover:text-primary transition-colors duration-200 group" href="index.html">
-<span class="material-symbols-outlined transition-transform group-hover:-translate-x-1">arrow_back</span>
-<span class="font-label-md text-label-md">Kembali ke Beranda</span>
-</a>
+<main class="app-shell relative z-10">
+  <section id="glass-card" class="glass-card rounded-[28px] p-4 md:p-5">
+    <div class="mb-4 text-center">
+      <h1 class="font-display-lg text-headline-md md:text-display-lg text-primary mb-2">💔 AI Curhat Gamon</h1>
+      <p class="font-body-md text-on-surface-variant">Curhatlah dengan AI yang penuh empati tentang perasaanmu.</p>
+    </div>
 
-<!-- Chat Container -->
-<section class="glass-card w-full max-w-2xl p-gutter md:p-container-padding rounded-xl flex flex-col h-auto md:h-[70vh]">
-<div class="mb-gutter text-center">
-<h1 class="font-display-lg text-headline-md md:text-display-lg text-primary mb-2">💔 AI Curhat Gamon</h1>
-<p class="font-body-md text-on-surface-variant">Curhatlah dengan AI yang penuh empati tentang perasaanmu.</p>
-</div>
+    <div id="chat" class="chat-box rounded-2xl"></div>
 
-<!-- CHAT BOX -->
-<div id="chat" class="chat-box flex-1 bg-surface-container-low/50 rounded-lg p-4 mb-4 overflow-y-auto"></div>
+    <p id="hint-text" class="text-center text-[13px] text-on-surface-variant mt-2 mb-1">
+      Tulis curhatanmu, atau ketuk <strong>Voice AI</strong> untuk ngobrol langsung pakai suara.
+    </p>
 
-<!-- INPUT -->
-<div class="flex flex-col sm:flex-row gap-3">
-  <input id="input" class="flex-1 bg-surface-container-lowest border border-outline-variant rounded-full px-gutter py-3 text-on-surface focus:outline-none input-focus transition-all w-full" placeholder="Tulis curhatanmu..." />
-  <button onclick="send()" class="bg-primary text-on-primary px-6 py-3 rounded-full font-semibold hover:brightness-110 shadow-lg shadow-primary/20 transition-all duration-300 send-btn flex items-center justify-center gap-2 w-full sm:w-auto">
-    <span class="material-symbols-outlined">send</span>
-    <span>Kirim</span>
-  </button>
-</div>
-</section>
+    <div class="mt-1 flex flex-col sm:flex-row gap-3 items-end">
+      <button id="open-voice-btn" type="button" class="voice-ai-launcher order-1 sm:order-none" title="Ngobrol dengan Voice AI">
+        <span class="material-symbols-outlined">mic</span>
+        <span>Voice AI</span>
+      </button>
+
+      <textarea id="input" rows="1" class="flex-1 bg-surface-container-lowest border border-outline-variant rounded-2xl px-4 py-3 text-on-surface focus:outline-none input-focus transition-all w-full min-h-[52px] max-h-[140px] leading-6 order-2 sm:order-none" placeholder="Tulis curhatanmu..."></textarea>
+
+      <button onclick="send()" class="bg-primary text-on-primary px-5 py-3 rounded-2xl font-semibold hover:brightness-110 shadow-lg shadow-primary/20 transition-all duration-300 send-btn flex items-center justify-center gap-2 w-full sm:w-auto min-w-[120px] h-[52px] order-3 sm:order-none">
+        <span class="material-symbols-outlined">send</span>
+        <span>Kirim</span>
+      </button>
+    </div>
+  </section>
 </main>
 
+<!-- ===== Voice AI overlay: a temporary "room" layered on top of the chat.
+     Closing it never navigates away or reloads — it just tears down the
+     voice session and reveals the same chat/history underneath. ===== -->
+<div id="voice-overlay" class="voice-overlay" hidden>
+  <div class="voice-overlay-backdrop"></div>
+  <div class="voice-panel" role="dialog" aria-modal="true" aria-label="Voice AI">
+    <button id="voice-close-x" type="button" class="voice-close-x" aria-label="Tutup Voice AI">
+      <span class="material-symbols-outlined">close</span>
+    </button>
+
+    <p class="voice-panel-eyebrow">AI Curhat</p>
+
+    <div class="orb-wrap">
+      <div id="orb" class="orb orb-idle">
+        <div class="orb-ring r1"></div>
+        <div class="orb-ring r2"></div>
+        <div class="orb-core"></div>
+      </div>
+    </div>
+
+    <p id="voice-overlay-status" class="voice-overlay-status">Aku siap mendengarkan.</p>
+    <p id="voice-live-transcript" class="voice-live-transcript" aria-live="polite"></p>
+
+    <div class="voice-controls">
+      <button id="voice-mic-toggle" type="button" class="mic-btn" title="Jeda mendengarkan" aria-label="Jeda atau lanjutkan mendengarkan">
+        <span class="ring"></span>
+        <span class="material-symbols-outlined" id="voice-mic-icon">mic</span>
+      </button>
+    </div>
+
+    <button id="voice-close-btn" type="button" class="voice-close-btn">Tutup Voice AI</button>
+  </div>
+</div>
+
 <script>
+/* =========================================================
+   Shared refs
+   ========================================================= */
 const chat = document.getElementById("chat");
 const input = document.getElementById("input");
 const sendBtn = document.querySelector('button[onclick="send()"]');
+const glassCard = document.getElementById("glass-card");
 
-// riwayat percakapan (context memory) untuk sesi ini
+const openVoiceBtn = document.getElementById("open-voice-btn");
+const voiceOverlay = document.getElementById("voice-overlay");
+const voiceCloseX = document.getElementById("voice-close-x");
+const voiceCloseBtn = document.getElementById("voice-close-btn");
+const voiceMicToggle = document.getElementById("voice-mic-toggle");
+const voiceMicIcon = document.getElementById("voice-mic-icon");
+const voiceOverlayStatus = document.getElementById("voice-overlay-status");
+const voiceLiveTranscript = document.getElementById("voice-live-transcript");
+const orbEl = document.getElementById("orb");
+
 let history = [];
 
-// tambah pesan ke UI
-function addMessage(text, type) {
+/* =========================================================
+   Chat helpers (shared by typed messages AND Voice AI)
+   ========================================================= */
+
+function scrollChatToBottom() {
+  requestAnimationFrame(() => {
+    chat.scrollTop = chat.scrollHeight;
+  });
+}
+
+function autoResizeInput() {
+  input.style.height = 'auto';
+  const maxHeight = 140;
+  const nextHeight = Math.min(input.scrollHeight, maxHeight);
+  input.style.height = nextHeight + 'px';
+}
+
+function addMessage(text, type, opts = {}) {
   const div = document.createElement("div");
   div.className = "msg " + type;
   div.innerText = text;
+
+  if (opts.viaVoice) {
+    const tag = document.createElement("div");
+    tag.className = "voice-tag";
+    tag.innerHTML = '<span class="material-symbols-outlined" style="font-size:13px;">graphic_eq</span> Voice AI';
+    div.appendChild(tag);
+  }
+
   chat.appendChild(div);
-  chat.scrollTop = chat.scrollHeight;
+  scrollChatToBottom();
+  return div;
 }
 
-// tampilkan typing indicator
 function showTyping() {
   const typingDiv = document.createElement("div");
   typingDiv.className = "msg ai typing";
   typingDiv.innerHTML = '<div class="flex items-center gap-2"><div class="flex gap-1"><div class="w-2 h-2 bg-primary rounded-full animate-bounce"></div><div class="w-2 h-2 bg-primary rounded-full animate-bounce" style="animation-delay: 0.1s"></div><div class="w-2 h-2 bg-primary rounded-full animate-bounce" style="animation-delay: 0.2s"></div></div><span class="text-sm text-on-surface-variant">AI sedang mengetik...</span></div>';
   typingDiv.id = "typing-indicator";
   chat.appendChild(typingDiv);
-  chat.scrollTop = chat.scrollHeight;
+  scrollChatToBottom();
 }
 
-// sembunyikan typing indicator
 function hideTyping() {
   const typingDiv = document.getElementById("typing-indicator");
   if (typingDiv) typingDiv.remove();
 }
 
-// kirim ke backend
+/**
+ * Core send logic shared between the text box and Voice AI.
+ * Same backend contract as before: POST /api/chat { message, history }.
+ * Returns the AI reply text (or a fallback string) so Voice AI can
+ * decide what to speak next.
+ */
+async function sendMessage(text, { viaVoice = false } = {}) {
+  if (!text) return null;
+
+  addMessage(text, "me", { viaVoice });
+  history.push({ role: "user", content: text });
+
+  showTyping();
+
+  let reply = null;
+  try {
+    const res = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: text, history: history.slice(0, -1) })
+    });
+
+    const data = await res.json();
+    reply = data.reply || "AI tidak merespon";
+
+    hideTyping();
+    addMessage(reply, "ai");
+    history.push({ role: "assistant", content: reply });
+  } catch (error) {
+    hideTyping();
+    reply = "Maaf, terjadi kesalahan. Coba lagi nanti.";
+    addMessage(reply, "ai");
+  }
+
+  return reply;
+}
+
 async function send() {
   const text = input.value.trim();
   if (!text) return;
 
-  // disable input dan button
   input.disabled = true;
   sendBtn.disabled = true;
   sendBtn.innerHTML = '<span class="animate-spin material-symbols-outlined">progress_activity</span>';
 
-  addMessage(text, "me");
   input.value = "";
+  autoResizeInput();
 
-  showTyping();
+  await sendMessage(text, { viaVoice: false });
 
-  try {
-    const res = await fetch("/api/chat", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({ message: text, history })
-    });
-
-    const data = await res.json();
-
-    hideTyping();
-    addMessage(data.reply || "AI tidak merespon", "ai");
-
-    // simpan ke history supaya AI ingat konteks percakapan
-    history.push({ role: "user", content: text });
-    history.push({ role: "assistant", content: data.reply || "" });
-
-  } catch (error) {
-    hideTyping();
-    addMessage("Maaf, terjadi kesalahan. Coba lagi nanti.", "ai");
-  }
-
-  // enable kembali
   input.disabled = false;
   sendBtn.disabled = false;
   sendBtn.innerHTML = '<span class="material-symbols-outlined">send</span><span>Kirim</span>';
   input.focus();
 }
 
-// enter key support
-input.addEventListener('keypress', function(e) {
+input.addEventListener('input', autoResizeInput);
+input.addEventListener('keydown', function(e) {
   if (e.key === 'Enter' && !e.shiftKey) {
     e.preventDefault();
     send();
   }
 });
 
-// welcome message
 setTimeout(() => {
   addMessage("Halo! Saya di sini untuk mendengarkan curhatanmu. Apa yang sedang kamu rasakan? 💕", "ai");
 }, 500);
+
+/* =========================================================
+   VOICE AI — a real-time voice CONVERSATION, not dictation.
+   It opens as an overlay on top of the same chat/history,
+   listens continuously, and speaks its replies out loud.
+   States: idle -> listening -> processing -> speaking -> listening ...
+   ========================================================= */
+
+const SpeechRecognitionImpl = window.SpeechRecognition || window.webkitSpeechRecognition;
+const speechSupported = !!SpeechRecognitionImpl && "speechSynthesis" in window;
+
+const voice = {
+  overlayOpen: false,   // is the Voice AI overlay currently shown?
+  paused: false,        // user tapped the mic to pause listening (overlay stays open)
+  state: "idle",         // idle | listening | processing | speaking | error
+  recognition: null,
+  restartTimer: null,
+  liveBubble: null,      // live "..." bubble in the main chat while user is talking
+  idVoice: null,         // cached Indonesian TTS voice, once available
+  micStream: null,       // separate mic stream used only for the orb's volume meter
+  audioCtx: null,
+  analyser: null,
+  volumeRaf: null
+};
+
+if (!speechSupported) {
+  openVoiceBtn.classList.add("unsupported");
+  openVoiceBtn.title = "Browser ini tidak mendukung Voice AI. Coba pakai Chrome.";
+  openVoiceBtn.addEventListener("click", () => {
+    addMessage("Voice AI belum didukung di browser ini. Coba buka Gamon Tawing lewat Chrome, ya.", "ai");
+  });
+} else {
+  setupRecognition();
+  openVoiceBtn.addEventListener("click", openVoiceOverlay);
+  voiceCloseX.addEventListener("click", closeVoiceOverlay);
+  voiceCloseBtn.addEventListener("click", closeVoiceOverlay);
+  voiceOverlay.querySelector(".voice-overlay-backdrop").addEventListener("click", closeVoiceOverlay);
+  voiceMicToggle.addEventListener("click", onVoiceMicToggleClick);
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && voice.overlayOpen) closeVoiceOverlay();
+  });
+
+  // Pre-warm the voices list (some browsers load it async).
+  window.speechSynthesis.onvoiceschanged = pickIndonesianVoice;
+  pickIndonesianVoice();
+}
+
+function pickIndonesianVoice() {
+  const voices = window.speechSynthesis.getVoices();
+  voice.idVoice =
+    voices.find(v => v.lang && v.lang.toLowerCase().startsWith("id")) ||
+    voices.find(v => /indones/i.test(v.name)) ||
+    null;
+}
+
+function setupRecognition() {
+  const recognition = new SpeechRecognitionImpl();
+  recognition.lang = "id-ID";
+  recognition.continuous = false;      // one utterance per session; we restart it ourselves
+  recognition.interimResults = true;   // so we can show a live "..." bubble
+  recognition.maxAlternatives = 1;
+
+  recognition.onstart = () => {
+    setVoiceState("listening");
+  };
+
+  recognition.onresult = (event) => {
+    let finalText = "";
+    let interimText = "";
+
+    for (let i = event.resultIndex; i < event.results.length; i++) {
+      const transcript = event.results[i][0].transcript;
+      if (event.results[i].isFinal) {
+        finalText += transcript;
+      } else {
+        interimText += transcript;
+      }
+    }
+
+    if (interimText) showLiveTranscript(interimText);
+
+    if (finalText.trim()) {
+      removeLiveTranscript();
+      handleVoiceUtterance(finalText.trim());
+    }
+  };
+
+  recognition.onerror = (event) => {
+    removeLiveTranscript();
+
+    // "no-speech" / "aborted" just mean silence or an intentional stop —
+    // keep the hands-free loop alive instead of treating it as fatal.
+    if (event.error === "no-speech" || event.error === "aborted") {
+      if (voice.overlayOpen && !voice.paused) {
+        scheduleRestart();
+      } else {
+        setVoiceState("idle");
+      }
+      return;
+    }
+
+    if (event.error === "not-allowed" || event.error === "service-not-allowed") {
+      voice.paused = true;
+      setVoiceState("error");
+      voiceOverlayStatus.textContent = "Akses mikrofon ditolak. Izinkan mic di pengaturan browser, lalu tap mic untuk coba lagi.";
+      return;
+    }
+
+    // Any other error: try to recover the loop once.
+    if (voice.overlayOpen && !voice.paused) {
+      scheduleRestart();
+    } else {
+      setVoiceState("idle");
+    }
+  };
+
+  recognition.onend = () => {
+    removeLiveTranscript();
+    // If we're still supposed to be listening (e.g. the browser ended the
+    // session on its own without a result), restart automatically.
+    if (voice.overlayOpen && voice.state === "listening" && !voice.paused) {
+      scheduleRestart();
+    }
+  };
+
+  voice.recognition = recognition;
+}
+
+/* ---------- Overlay open / close (the "room" lifecycle) ---------- */
+
+function openVoiceOverlay() {
+  if (voice.overlayOpen) return;
+
+  voice.overlayOpen = true;
+  voice.paused = false;
+
+  voiceOverlay.hidden = false;
+  document.body.classList.add("voice-open");
+  glassCard.style.filter = "blur(6px)";
+  // Force a reflow so the "open" transition actually animates in.
+  void voiceOverlay.offsetWidth;
+  voiceOverlay.classList.add("open");
+
+  setVoiceState("idle");
+  voiceOverlayStatus.textContent = "Aku siap mendengarkan.";
+  startRecognition();
+}
+
+function closeVoiceOverlay() {
+  if (!voice.overlayOpen) return;
+
+  voice.overlayOpen = false;
+  voice.paused = false;
+
+  clearTimeout(voice.restartTimer);
+  window.speechSynthesis.cancel();
+  stopRecognitionQuietly();
+  stopVolumeMonitor();
+  removeLiveTranscript();
+  setVoiceState("idle");
+
+  voiceOverlay.classList.remove("open");
+  glassCard.style.filter = "";
+  document.body.classList.remove("voice-open");
+
+  // Wait for the closing transition, then actually hide it.
+  // History and the chat underneath are left completely untouched.
+  setTimeout(() => {
+    if (!voice.overlayOpen) voiceOverlay.hidden = true;
+  }, 260);
+}
+
+/* ---------- Mic control inside the overlay (pause / resume / barge-in) ---------- */
+
+function onVoiceMicToggleClick() {
+  if (!voice.overlayOpen) return;
+
+  if (voice.state === "speaking") {
+    // Barge-in: let the user interrupt the AI and start talking right away.
+    window.speechSynthesis.cancel();
+    voice.paused = false;
+    startRecognition();
+    return;
+  }
+
+  if (voice.state === "listening") {
+    // Pause listening, but keep the overlay open.
+    voice.paused = true;
+    stopRecognitionQuietly();
+    setVoiceState("idle");
+    return;
+  }
+
+  // idle / paused / error -> resume listening.
+  voice.paused = false;
+  startRecognition();
+}
+
+/* ---------- Recognition control ---------- */
+
+function startRecognition() {
+  if (!voice.overlayOpen) return;
+  clearTimeout(voice.restartTimer);
+  voice.paused = false;
+  try {
+    voice.recognition.start();
+  } catch (err) {
+    // start() throws if already started — safe to ignore.
+  }
+}
+
+function stopRecognitionQuietly() {
+  try {
+    voice.recognition.stop();
+  } catch (err) {
+    /* no-op */
+  }
+}
+
+function scheduleRestart() {
+  clearTimeout(voice.restartTimer);
+  voice.restartTimer = setTimeout(() => {
+    if (voice.overlayOpen && !voice.paused) startRecognition();
+  }, 350);
+}
+
+/* ---------- The actual voice conversation turn ---------- */
+
+async function handleVoiceUtterance(text) {
+  if (!voice.overlayOpen) return;
+
+  setVoiceState("processing");
+
+  const reply = await sendMessage(text, { viaVoice: true });
+
+  if (!voice.overlayOpen) return; // user closed Voice AI while we were waiting
+
+  if (reply) {
+    speakThenListen(reply);
+  } else {
+    startRecognition();
+  }
+}
+
+function speakThenListen(text) {
+  setVoiceState("speaking");
+  window.speechSynthesis.cancel();
+
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.lang = "id-ID";
+  utterance.rate = 1.02;
+  utterance.pitch = 1.0;
+  if (voice.idVoice) utterance.voice = voice.idVoice;
+
+  utterance.onend = () => {
+    if (voice.overlayOpen && !voice.paused) {
+      startRecognition();
+    } else {
+      setVoiceState("idle");
+    }
+  };
+  utterance.onerror = () => {
+    if (voice.overlayOpen && !voice.paused) {
+      startRecognition();
+    } else {
+      setVoiceState("idle");
+    }
+  };
+
+  window.speechSynthesis.speak(utterance);
+}
+
+/* ---------- Live transcript bubble (shown in the chat behind the overlay) ---------- */
+
+function showLiveTranscript(text) {
+  if (!voice.liveBubble) {
+    voice.liveBubble = document.createElement("div");
+    voice.liveBubble.className = "msg me";
+    voice.liveBubble.style.fontStyle = "italic";
+    voice.liveBubble.style.color = "#a09499";
+    chat.appendChild(voice.liveBubble);
+  }
+  voice.liveBubble.innerText = text + " …";
+  voiceLiveTranscript.textContent = text + " …";
+  scrollChatToBottom();
+}
+
+function removeLiveTranscript() {
+  if (voice.liveBubble) {
+    voice.liveBubble.remove();
+    voice.liveBubble = null;
+  }
+  voiceLiveTranscript.textContent = "";
+}
+
+/* ---------- Orb volume reactivity (best-effort; never blocks the loop) ---------- */
+
+async function startVolumeMonitor() {
+  if (voice.analyser) return;
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    if (!voice.overlayOpen || voice.state !== "listening") {
+      // Overlay was closed / state changed while the permission prompt was up.
+      stream.getTracks().forEach(t => t.stop());
+      return;
+    }
+    voice.micStream = stream;
+    voice.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const source = voice.audioCtx.createMediaStreamSource(stream);
+    voice.analyser = voice.audioCtx.createAnalyser();
+    voice.analyser.fftSize = 256;
+    source.connect(voice.analyser);
+    monitorVolume();
+  } catch (err) {
+    // Non-fatal: the orb just won't react to volume.
+  }
+}
+
+function monitorVolume() {
+  if (!voice.analyser) return;
+  const data = new Uint8Array(voice.analyser.frequencyBinCount);
+  voice.analyser.getByteFrequencyData(data);
+  const avg = data.reduce((a, b) => a + b, 0) / data.length;
+  const level = Math.min(1, avg / 90);
+  orbEl.style.setProperty("--vol", (1 + level * 0.35).toFixed(3));
+  voice.volumeRaf = requestAnimationFrame(monitorVolume);
+}
+
+function stopVolumeMonitor() {
+  if (voice.volumeRaf) cancelAnimationFrame(voice.volumeRaf);
+  voice.volumeRaf = null;
+  if (voice.micStream) {
+    voice.micStream.getTracks().forEach(t => t.stop());
+    voice.micStream = null;
+  }
+  if (voice.audioCtx) {
+    voice.audioCtx.close().catch(() => {});
+    voice.audioCtx = null;
+  }
+  voice.analyser = null;
+  orbEl.style.removeProperty("--vol");
+}
+
+/* ---------- Central state setter: drives orb + mic button + status text ---------- */
+
+function setVoiceState(state) {
+  voice.state = state;
+
+  orbEl.classList.remove("orb-idle", "orb-listening", "orb-processing", "orb-speaking", "orb-error");
+  orbEl.classList.add("orb-" + state);
+
+  voiceMicToggle.classList.remove("state-listening", "state-processing", "state-speaking");
+
+  if (state === "listening") {
+    voiceMicToggle.classList.add("state-listening");
+    voiceMicIcon.textContent = "mic";
+    voiceMicToggle.title = "Jeda mendengarkan";
+    voiceOverlayStatus.textContent = "Aku sedang mendengarkan...";
+    startVolumeMonitor();
+  } else {
+    stopVolumeMonitor();
+
+    if (state === "processing") {
+      voiceMicToggle.classList.add("state-processing");
+      voiceMicIcon.textContent = "hourglass_top";
+      voiceMicToggle.title = "Sedang memproses";
+      voiceOverlayStatus.textContent = "Sebentar, aku pikirkan dulu...";
+    } else if (state === "speaking") {
+      voiceMicToggle.classList.add("state-speaking");
+      voiceMicIcon.textContent = "graphic_eq";
+      voiceMicToggle.title = "Tap untuk memotong";
+      voiceOverlayStatus.textContent = "Aku sedang bicara — ketuk mic untuk motong.";
+    } else if (state === "error") {
+      voiceMicIcon.textContent = "mic_off";
+      voiceMicToggle.title = "Coba lagi";
+      // status text for "error" is set by the caller (more specific message)
+    } else {
+      // idle
+      voiceMicIcon.textContent = voice.paused ? "mic_off" : "mic";
+      voiceMicToggle.title = voice.paused ? "Lanjutkan mendengarkan" : "Mulai mendengarkan";
+      voiceOverlayStatus.textContent = voice.paused
+        ? "Dijeda — ketuk mic untuk lanjut ngobrol."
+        : "Aku siap mendengarkan.";
+    }
+  }
+}
 </script>
 
 </body>

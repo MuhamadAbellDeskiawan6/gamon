@@ -26,22 +26,43 @@ export default async function handler(req, res) {
       { role: "user", content: message }
     ];
 
-    const response = await fetch(
-      "https://api.groq.com/openai/v1/chat/completions",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${process.env.GROQ_API_KEY}`
-        },
-        body: JSON.stringify({
-          model: "llama-3.1-8b-instant",
-          messages,
-          temperature: 0.8,
-          max_tokens: 350
-        })
-      }
-    );
+    const defaultGroqModel = process.env.GROQ_MODEL || "openai/gpt-oss-20b";
+    const isDeprecatedGroqModel = (model) => {
+      const normalized = (model || "").toLowerCase();
+      return normalized.includes("llama") && normalized.includes("8b") && normalized.includes("instant");
+    };
+
+    const getSafeGroqModel = () => {
+      const model = defaultGroqModel || "openai/gpt-oss-20b";
+      return isDeprecatedGroqModel(model) ? "openai/gpt-oss-20b" : model;
+    };
+
+    const callGroq = async (model) => {
+      return fetch(
+        "https://api.groq.com/openai/v1/chat/completions",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${process.env.GROQ_API_KEY}`
+          },
+          body: JSON.stringify({
+            model,
+            messages,
+            temperature: 0.8,
+            max_tokens: 350
+          })
+        }
+      );
+    };
+
+    let selectedModel = getSafeGroqModel();
+    let response = await callGroq(selectedModel);
+
+    if (!response.ok && selectedModel !== "openai/gpt-oss-20b") {
+      selectedModel = "openai/gpt-oss-20b";
+      response = await callGroq(selectedModel);
+    }
 
     const data = await response.json();
 
