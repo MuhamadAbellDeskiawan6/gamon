@@ -775,7 +775,7 @@ const SpeechRecognitionImpl =
 
 const isMobile = /(Android|iPhone|iPad|iPod)/i.test(navigator.userAgent || "");
 const isIOS = /(iPhone|iPad|iPod)/i.test(navigator.userAgent || "");
-const voiceInputSupported = !!SpeechRecognitionImpl && !isIOS;
+const voiceInputSupported = !!SpeechRecognitionImpl && !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
 const voiceOutputSupported = "speechSynthesis" in window;
 const speechSupported = voiceInputSupported && voiceOutputSupported;
 
@@ -799,20 +799,17 @@ const voice = {
   volumeRaf: null,
   lastUtteranceText: "",
   listenStartedAt: 0,
-  permissionRequestInFlight: false
+  permissionRequestInFlight: false,
+  speakTimer: null
 };
 
 if (!voiceInputSupported || !voiceOutputSupported) {
   openVoiceBtn.classList.add("unsupported");
-  openVoiceBtn.title = isIOS
-    ? "iPhone Safari belum mendukung Voice AI native. Gunakan Chrome/Edge terbaru di Android atau ketik saja."
-    : "Voice AI belum didukung di browser ini. Gunakan Chrome/Edge di Android atau desktop.";
+  openVoiceBtn.title = "Voice AI belum didukung di browser ini. Coba Chrome/Edge terbaru atau ketik pesan saja.";
   openVoiceBtn.addEventListener("click", () => {
-    const message = isIOS
-      ? "Voice AI belum stabil di iPhone Safari. Silakan ketik, atau coba Chrome/Edge terbaru."
-      : (!voiceInputSupported
-        ? "Voice AI di browser ini tidak bisa menangkap suara. Coba pakai Chrome/Edge di Android atau desktop."
-        : "Voice AI bisa dipakai di browser ini, tapi output suara belum tersedia. Coba browser lain yang mendukung TTS.");
+    const message = !voiceInputSupported
+      ? "Voice AI di browser ini tidak bisa menangkap suara. Coba Chrome/Edge terbaru atau ketik saja."
+      : "Voice AI bisa dipakai di browser ini, tapi output suara belum tersedia. Coba browser lain yang mendukung TTS.";
     addMessage(message, "ai");
   });
 } else {
@@ -894,7 +891,7 @@ function setupRecognition() {
     if (event.error === "no-speech" || event.error === "aborted") {
       if (voice.overlayOpen && !voice.paused) {
         voiceOverlayStatus.textContent = "Saya tidak menangkap suara. Coba bicara lebih jelas atau tap mic lagi.";
-        setVoiceState("idle");
+        scheduleRestart();
       } else {
         setVoiceState("idle");
       }
@@ -910,12 +907,13 @@ function setupRecognition() {
 
     if (event.error === "audio-capture" || event.error === "network") {
       voiceOverlayStatus.textContent = "Mic sedang tidak siap. Coba tap mic lagi setelah beberapa detik.";
-      setVoiceState("idle");
+      if (voice.overlayOpen && !voice.paused) scheduleRestart();
+      else setVoiceState("idle");
       return;
     }
 
     if (voice.overlayOpen && !voice.paused) {
-      setVoiceState("idle");
+      scheduleRestart();
       voiceOverlayStatus.textContent = "Voice AI terputus. Tap mic untuk mulai lagi.";
     } else {
       setVoiceState("idle");
@@ -924,9 +922,12 @@ function setupRecognition() {
 
   recognition.onend = () => {
     removeLiveTranscript();
-    if (voice.overlayOpen && !voice.paused && voice.state === "listening") {
-      setVoiceState("idle");
-      voiceOverlayStatus.textContent = "Saya berhenti mendengarkan. Tap mic untuk mulai lagi.";
+    if (voice.overlayOpen && !voice.paused) {
+      if (voice.state === "listening") {
+        setVoiceState("idle");
+        voiceOverlayStatus.textContent = "Saya berhenti mendengarkan. Tap mic untuk mulai lagi.";
+      }
+      scheduleRestart();
     }
   };
 
@@ -937,11 +938,6 @@ function setupRecognition() {
 
 function openVoiceOverlay() {
   if (voice.overlayOpen) return;
-
-  if (isIOS) {
-    addMessage("Voice AI belum stabil di iPhone Safari. Silakan ketik pesan atau coba Chrome/Edge yang lebih cocok untuk suara.", "ai");
-    return;
-  }
 
   voice.overlayOpen = true;
   voice.paused = false;
@@ -955,6 +951,11 @@ function openVoiceOverlay() {
   setVoiceState("idle");
   voiceOverlayStatus.textContent = "Aku siap mendengarkan.";
   ensureSpeechReady();
+
+  if (isIOS) {
+    voiceOverlayStatus.textContent = "iPhone Safari mungkin perlu tap mic lagi. Saya akan coba aktifkan mic untuk Anda.";
+  }
+
   startRecognition();
 }
 
@@ -965,6 +966,7 @@ function closeVoiceOverlay() {
   voice.paused = false;
 
   clearTimeout(voice.restartTimer);
+  clearTimeout(voice.speakTimer);
   window.speechSynthesis.cancel();
   stopRecognitionQuietly();
   stopVolumeMonitor();
@@ -1086,6 +1088,14 @@ function speakThenListen(text) {
   voice.lastUtteranceText = text;
   setVoiceState("speaking");
 
+  clearTimeout(voice.speakTimer);
+  voice.speakTimer = setTimeout(() => {
+    if (voice.overlayOpen && !voice.paused && voice.state === "speaking") {
+      setVoiceState("idle");
+      startRecognition();
+    }
+  }, 2200);
+
   try {
     window.speechSynthesis.cancel();
     if (window.speechSynthesis.paused) window.speechSynthesis.resume();
@@ -1107,6 +1117,7 @@ function speakThenListen(text) {
   }
 
   utterance.onend = () => {
+    clearTimeout(voice.speakTimer);
     if (voice.overlayOpen && !voice.paused) {
       startRecognition();
     } else {
@@ -1114,7 +1125,9 @@ function speakThenListen(text) {
     }
   };
   utterance.onerror = () => {
+    clearTimeout(voice.speakTimer);
     if (voice.overlayOpen && !voice.paused) {
+      setVoiceState("idle");
       startRecognition();
     } else {
       setVoiceState("idle");
@@ -1124,7 +1137,9 @@ function speakThenListen(text) {
   try {
     window.speechSynthesis.speak(utterance);
   } catch (err) {
+    clearTimeout(voice.speakTimer);
     if (voice.overlayOpen && !voice.paused) {
+      setVoiceState("idle");
       startRecognition();
     }
   }
