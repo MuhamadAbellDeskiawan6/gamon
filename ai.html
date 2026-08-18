@@ -501,6 +501,31 @@
             margin-top: 4px;
         }
 
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 16px;
+            border-radius: 9999px;
+            background: rgba(255, 255, 255, 0.7);
+            border: 1px solid rgba(107, 90, 96, 0.15);
+            color: #4d3a41;
+            font-weight: 600;
+            font-size: 14px;
+            box-shadow: 0 8px 20px -16px rgba(107, 90, 96, 0.45);
+            transition: transform 0.15s ease, box-shadow 0.2s ease, background 0.2s ease;
+            cursor: pointer;
+        }
+        .back-btn:hover {
+            transform: translateY(-1px);
+            background: rgba(255, 255, 255, 0.9);
+            box-shadow: 0 12px 22px -16px rgba(107, 90, 96, 0.48);
+        }
+        .back-btn:active {
+            transform: scale(0.98);
+        }
+
         @media (prefers-reduced-motion: reduce) {
             .orb, .orb-listening, .orb-processing, .orb-speaking,
             .orb-ring, .mic-btn .ring {
@@ -514,6 +539,12 @@
 <main class="app-shell relative z-10">
   <section id="glass-card" class="glass-card rounded-[28px] p-4 md:p-5">
     <div class="mb-4 text-center">
+      <div class="mb-3 flex justify-start">
+        <button type="button" class="back-btn" onclick="window.history.back();" aria-label="Kembali">
+          <span class="material-symbols-outlined">arrow_back</span>
+          <span>Kembali</span>
+        </button>
+      </div>
       <h1 class="font-display-lg text-headline-md md:text-display-lg text-primary mb-2">💔 AI Curhat Gamon</h1>
       <p class="font-body-md text-on-surface-variant">Curhatlah dengan AI yang penuh empati tentang perasaanmu.</p>
     </div>
