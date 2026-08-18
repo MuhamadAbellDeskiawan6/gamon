@@ -104,19 +104,28 @@
             background: linear-gradient(135deg, #fff5f8 0%, #f3e8ff 50%, #ffffff 100%);
             overflow: hidden;
             min-height: 100vh;
+            min-height: 100dvh;
             font-family: Inter, sans-serif;
+            -webkit-overflow-scrolling: touch;
+        }
+        body.voice-open {
+            overflow: hidden;
         }
         .app-shell {
-            height: 100vh;
+            min-height: 100vh;
+            min-height: 100dvh;
             display: flex;
             align-items: center;
             justify-content: center;
             padding: 1rem;
+            padding-bottom: calc(env(safe-area-inset-bottom) + 1rem);
             box-sizing: border-box;
         }
         .glass-card {
             width: min(100%, 760px);
             height: min(85vh, 820px);
+            min-height: 520px;
+            max-height: calc(100dvh - 1rem);
             background: rgba(255, 255, 255, 0.52);
             backdrop-filter: blur(16px);
             border: 1px solid rgba(255, 255, 255, 0.45);
@@ -176,14 +185,24 @@
         @media (max-width: 768px) {
             .app-shell {
                 padding: 0.5rem;
+                padding-bottom: calc(env(safe-area-inset-bottom) + 0.75rem);
+                align-items: stretch;
             }
             .glass-card {
                 width: 100%;
-                height: 100%;
-                border-radius: 0;
+                height: calc(100dvh - 0.75rem);
+                max-height: calc(100dvh - 0.75rem);
+                min-height: 0;
+                border-radius: 20px;
+            }
+            .chat-box {
+                padding: 0.75rem;
             }
             .msg {
                 max-width: 90%;
+            }
+            .voice-overlay {
+                padding-bottom: max(1rem, env(safe-area-inset-bottom));
             }
         }
         @keyframes fadeIn {
@@ -749,8 +768,18 @@ setTimeout(() => {
    States: idle -> listening -> processing -> speaking -> listening ...
    ========================================================= */
 
-const SpeechRecognitionImpl = window.SpeechRecognition || window.webkitSpeechRecognition;
+const SpeechRecognitionImpl =
+  ("SpeechRecognition" in window && window.SpeechRecognition) ||
+  ("webkitSpeechRecognition" in window && window.webkitSpeechRecognition) ||
+  null;
+
 const speechSupported = !!SpeechRecognitionImpl && "speechSynthesis" in window;
+
+function getPreferredSpeechLang() {
+  const navLang = (navigator.language || navigator.languages?.[0] || "id-ID").toLowerCase();
+  const candidates = ["id-id", "id", "en-us", "en"];
+  return candidates.find((lang) => navLang.startsWith(lang)) || "id-id";
+}
 
 const voice = {
   overlayOpen: false,   // is the Voice AI overlay currently shown?
@@ -763,7 +792,8 @@ const voice = {
   micStream: null,       // separate mic stream used only for the orb's volume meter
   audioCtx: null,
   analyser: null,
-  volumeRaf: null
+  volumeRaf: null,
+  lastUtteranceText: ""
 };
 
 if (!speechSupported) {
@@ -793,12 +823,23 @@ function pickIndonesianVoice() {
   voice.idVoice =
     voices.find(v => v.lang && v.lang.toLowerCase().startsWith("id")) ||
     voices.find(v => /indones/i.test(v.name)) ||
+    voices[0] ||
     null;
+}
+
+function ensureSpeechReady() {
+  if (!("speechSynthesis" in window)) return;
+  try {
+    if (window.speechSynthesis.paused) window.speechSynthesis.resume();
+  } catch (err) {
+    // some browsers reject resume() until user interaction
+  }
+  pickIndonesianVoice();
 }
 
 function setupRecognition() {
   const recognition = new SpeechRecognitionImpl();
-  recognition.lang = "id-ID";
+  recognition.lang = getPreferredSpeechLang();
   recognition.continuous = false;      // one utterance per session; we restart it ourselves
   recognition.interimResults = true;   // so we can show a live "..." bubble
   recognition.maxAlternatives = 1;
@@ -886,7 +927,12 @@ function openVoiceOverlay() {
 
   setVoiceState("idle");
   voiceOverlayStatus.textContent = "Aku siap mendengarkan.";
-  startRecognition();
+  ensureSpeechReady();
+  requestMicPermission().then(() => startRecognition()).catch(() => {
+    voice.paused = true;
+    setVoiceState("error");
+    voiceOverlayStatus.textContent = "Izinkan akses mikrofon agar Voice AI bisa menangkap suaramu di ponsel.";
+  });
 }
 
 function closeVoiceOverlay() {
@@ -941,14 +987,37 @@ function onVoiceMicToggleClick() {
 
 /* ---------- Recognition control ---------- */
 
+function requestMicPermission() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    return Promise.reject(new Error("Microphone not supported"));
+  }
+
+  return navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
+    if (voice.micStream) {
+      voice.micStream.getTracks().forEach((track) => track.stop());
+    }
+    voice.micStream = stream;
+    return stream;
+  }).catch((error) => {
+    if (error && error.name === "NotAllowedError") {
+      throw error;
+    }
+    throw error;
+  });
+}
+
 function startRecognition() {
-  if (!voice.overlayOpen) return;
+  if (!voice.overlayOpen || !voice.recognition) return;
   clearTimeout(voice.restartTimer);
   voice.paused = false;
+
   try {
-    voice.recognition.start();
+    if (voice.state !== "processing" && voice.state !== "speaking") {
+      voice.recognition.start();
+    }
   } catch (err) {
     // start() throws if already started — safe to ignore.
+    scheduleRestart();
   }
 }
 
@@ -986,12 +1055,24 @@ async function handleVoiceUtterance(text) {
 }
 
 function speakThenListen(text) {
+  if (!text || !("speechSynthesis" in window)) {
+    if (voice.overlayOpen && !voice.paused) startRecognition();
+    return;
+  }
+
+  voice.lastUtteranceText = text;
   setVoiceState("speaking");
-  window.speechSynthesis.cancel();
+
+  try {
+    window.speechSynthesis.cancel();
+    if (window.speechSynthesis.paused) window.speechSynthesis.resume();
+  } catch (err) {
+    // browsers can be noisy here; ignore and continue
+  }
 
   const utterance = new SpeechSynthesisUtterance(text);
-  utterance.lang = "id-ID";
-  utterance.rate = 1.02;
+  utterance.lang = getPreferredSpeechLang();
+  utterance.rate = 1.0;
   utterance.pitch = 1.0;
   if (voice.idVoice) utterance.voice = voice.idVoice;
 
@@ -1010,7 +1091,13 @@ function speakThenListen(text) {
     }
   };
 
-  window.speechSynthesis.speak(utterance);
+  try {
+    window.speechSynthesis.speak(utterance);
+  } catch (err) {
+    if (voice.overlayOpen && !voice.paused) {
+      startRecognition();
+    }
+  }
 }
 
 /* ---------- Live transcript bubble (shown in the chat behind the overlay) ---------- */
