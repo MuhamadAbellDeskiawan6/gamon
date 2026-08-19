@@ -99,7 +99,7 @@
 
                 const data = result.data;
                 document.getElementById('txtOrderId').innerText = data.orderId || orderId;
-                document.getElementById('txtCustomer').innerText = data.nama || '-';
+                document.getElementById('txtCustomer').innerText = data.nama || data.email || 'Email belum tersedia';
                 document.getElementById('txtRedeemCode').innerText = data.orderId || '---';
 
                 const badge = document.getElementById('badgeStatus');

@@ -248,27 +248,54 @@ height:64.10%;
 
                     <!-- CTAS -->
                     <div class="relative mt-4">
-                        <button id="btnMulai" class="w-full py-3.5 bg-neutral-900 text-white rounded-xl font-medium shadow-sm hover:bg-neutral-800 transition active:scale-[0.99] text-xs tracking-wider uppercase">
+                        <button id="btnMulai" class="w-full py-3.5 bg-gradient-to-r from-violet-600 via-fuchsia-500 to-rose-500 text-white rounded-xl font-semibold shadow-[0_12px_24px_rgba(139,92,246,0.28)] hover:brightness-110 transition active:scale-[0.99] text-[10px] tracking-[0.18em] uppercase">
                             Mulai Buat Kenangan
                         </button>
 
                         <div id="areaAksiFoto" class="hidden space-y-2.5">
-                            <button id="btnSwitchCamera" type="button" class="w-full py-2.5 bg-white text-neutral-700 rounded-xl font-medium border border-neutral-200 hover:bg-neutral-50 transition text-xs flex items-center justify-center gap-1.5">
+                            <button id="btnSwitchCamera" type="button" class="w-full py-2.5 bg-white text-amber-700 rounded-xl font-medium border border-amber-200 hover:bg-amber-50 transition text-xs flex items-center justify-center gap-1.5 shadow-sm">
                                 <span class="material-symbols-outlined text-base">flip_camera_android</span>
                                 <span id="cameraSwitchLabel">Pakai Kamera Belakang</span>
                             </button>
-                            <button id="btnFoto" class="w-full py-3.5 bg-neutral-900 text-white rounded-xl font-medium shadow-sm hover:bg-neutral-800 transition active:scale-[0.99] text-xs tracking-wider uppercase">
+                            <button id="btnFoto" class="w-full py-3.5 bg-gradient-to-r from-amber-400 via-orange-500 to-rose-500 text-white rounded-xl font-semibold shadow-[0_12px_24px_rgba(249,115,22,0.25)] hover:brightness-110 transition active:scale-[0.99] text-[10px] tracking-[0.18em] uppercase">
                                 Ambil Gambar (Timer 5 Detik)
                             </button>
+                            <div id="guestEmailCapture" class="hidden rounded-xl border border-neutral-200 bg-white p-2.5 shadow-sm">
+                                <label class="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-neutral-600" for="guestEmailInput">Email softfile</label>
+                                <input id="guestEmailInput" type="email" placeholder="nama@domain.com" class="w-full rounded-lg border border-neutral-200 bg-white px-2.5 py-2 text-xs text-neutral-800 placeholder:text-neutral-400 focus:border-violet-400 focus:outline-none" />
+                            </div>
                             <div id="areaRetake" class="hidden flex gap-2">
-                                <button id="btnRetake" class="w-1/2 py-2.5 bg-white text-neutral-600 rounded-xl font-medium border border-neutral-200 hover:bg-neutral-50 transition text-xs">
+                                <button id="btnRetake" class="w-1/2 py-2.5 bg-white text-neutral-700 rounded-xl font-medium border border-neutral-200 hover:bg-neutral-50 transition text-xs shadow-sm">
                                     Foto Ulang
                                 </button>
-                                <button id="btnLanjut" class="w-1/2 py-2.5 bg-neutral-900 text-white rounded-xl font-medium hover:bg-neutral-800 transition text-xs">
+                                <button id="btnLanjut" class="w-1/2 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-xl font-semibold hover:brightness-110 transition text-[10px] tracking-[0.16em] uppercase shadow-[0_10px_20px_rgba(16,185,129,0.2)]">
                                     Lanjut ke Form
                                 </button>
                             </div>
                         </div>
+                    </div>
+
+                    <div id="modePesanKenanganCard" class="hidden mt-4 rounded-2xl border border-violet-200 bg-violet-50/80 p-3 shadow-sm">
+                        <div class="flex items-center justify-between gap-3">
+                            <div class="min-w-0">
+                                <p class="text-[9px] font-bold uppercase tracking-[0.18em] text-violet-700">Mode pesan kenangan</p>
+                                <p class="text-[10px] text-violet-600">Aktifkan kalau ingin menambahkan nama, pesan, dan kontak.</p>
+                            </div>
+                            <label class="relative inline-flex cursor-pointer items-center shrink-0">
+                                <input id="toggleDataForm" type="checkbox" class="peer sr-only">
+                                <div class="h-6 w-11 rounded-full bg-neutral-300 transition peer-checked:bg-violet-600"></div>
+                                <div class="absolute left-1 top-1 h-4 w-4 rounded-full bg-white transition peer-checked:translate-x-5"></div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div id="redeemSection" class="hidden mt-4 rounded-2xl border border-emerald-200 bg-emerald-50/80 p-3 shadow-sm">
+                        <label class="mb-2 block text-[10px] font-bold uppercase tracking-wider text-emerald-700" for="redeemCodeInput">Punya kode redeem?</label>
+                        <div class="flex flex-col sm:flex-row gap-2">
+                            <input id="redeemCodeInput" type="text" placeholder="Masukkan kode redeem" class="min-w-0 flex-1 rounded-xl border border-emerald-200 bg-white px-3 py-2 text-xs font-medium uppercase tracking-wider text-emerald-900 placeholder:text-emerald-400 focus:border-emerald-400 focus:outline-none">
+                            <button id="btnRedeemCode" type="button" class="rounded-xl bg-emerald-600 px-4 py-2 text-xs font-semibold uppercase tracking-wider text-white transition hover:bg-emerald-700">Redeem</button>
+                        </div>
+                        <p class="mt-2 text-[10px] leading-relaxed text-emerald-700">Kode valid akan mengurangi total biaya menjadi gratis.</p>
                     </div>
                 </div>
                 <!-- /CARD: OPSI & KONTROL KAMERA -->
@@ -316,11 +343,11 @@ height:64.10%;
 
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                         <div>
-                            <label class="block text-[10px] font-medium text-neutral-500 mb-1" for="senderName">Pengirim</label>
+                            <label class="block text-[10px] font-medium text-neutral-500 mb-1" for="senderName">Nama kamu</label>
                             <input class="w-full border border-neutral-200 rounded-lg px-2.5 py-2 text-xs focus:outline-none focus:border-neutral-900 bg-white shadow-sm" id="senderName" required type="text" placeholder="Nama kamu"/>
                         </div>
                         <div>
-                            <label class="block text-[10px] font-medium text-neutral-500 mb-1" for="receiverName">Penerima</label>
+                            <label class="block text-[10px] font-medium text-neutral-500 mb-1" for="receiverName">Nama pasangan</label>
                             <input class="w-full border border-neutral-200 rounded-lg px-2.5 py-2 text-xs focus:outline-none focus:border-neutral-900 bg-white shadow-sm" id="receiverName" required type="text" placeholder="Nama pasangan"/>
                         </div>
                     </div>
@@ -384,15 +411,6 @@ height:64.10%;
                         </div>
                     </div>
 
-                    <div id="redeemSection" class="rounded-2xl border border-emerald-200 bg-emerald-50/80 p-3 shadow-sm">
-                        <label class="mb-2 block text-[10px] font-bold uppercase tracking-wider text-emerald-700" for="redeemCodeInput">Punya kode redeem?</label>
-                        <div class="flex flex-col sm:flex-row gap-2">
-                            <input id="redeemCodeInput" type="text" placeholder="Masukkan kode redeem" class="min-w-0 flex-1 rounded-xl border border-emerald-200 bg-white px-3 py-2 text-xs font-medium uppercase tracking-wider text-emerald-900 placeholder:text-emerald-400 focus:border-emerald-400 focus:outline-none">
-                            <button id="btnRedeemCode" type="button" class="rounded-xl bg-emerald-600 px-4 py-2 text-xs font-semibold uppercase tracking-wider text-white transition hover:bg-emerald-700">Redeem</button>
-                        </div>
-                        <p class="mt-2 text-[10px] leading-relaxed text-emerald-700">Kode valid akan mengurangi total biaya menjadi gratis.</p>
-                    </div>
-
                     <button type="submit" id="btnKirim" class="w-full py-3.5 bg-neutral-900 text-white rounded-lg font-medium hover:bg-neutral-800 transition mt-3 text-xs tracking-wider uppercase shadow-md">
                         Kirim & Bayar 5K
                     </button>
@@ -452,6 +470,10 @@ height:64.10%;
     const areaRetake = document.getElementById('areaRetake');
     const btnRetake = document.getElementById('btnRetake');
     const btnLanjut = document.getElementById('btnLanjut');
+    const guestEmailCapture = document.getElementById('guestEmailCapture');
+    const guestEmailInput = document.getElementById('guestEmailInput');
+    const toggleDataForm = document.getElementById('toggleDataForm');
+    const modePesanKenanganCard = document.getElementById('modePesanKenanganCard');
     const formData = document.getElementById('formData');
     const video = document.getElementById('video');
     const canvas = document.getElementById('canvas');
@@ -469,6 +491,7 @@ height:64.10%;
     const audioPreview = document.getElementById('audioPreview');
     const player = document.getElementById('player');
     const recordingStatus = document.getElementById('recordingStatus');
+    syncDataFormRequiredState();
 
     const frameSelector = document.getElementById("frameSelector");
     const frameOptions = document.getElementById("frameOptions");
@@ -488,7 +511,7 @@ height:64.10%;
     let countdownVideoRecorder = null;
     let countdownVideoChunks = [];
     let countdownVideoBase64 = null;
-    let countdownVideoMimeType = 'video/webm';
+    let countdownVideoMimeType = 'video/mp4';
     let countdownVideoRecordingInterval = null;
     let countdownVideoCanvas = null;
     let countdownVideoDataReady = Promise.resolve(null);
@@ -565,6 +588,70 @@ height:64.10%;
 
     function showError(message) {
         return Swal.fire({ icon: 'error', title: 'Oops...', text: message, confirmButtonColor: '#171717' });
+    }
+
+    function isDataFormEnabled() {
+        return !!toggleDataForm && toggleDataForm.checked;
+    }
+
+    function syncDataFormRequiredState() {
+        const requiredFields = ['senderName', 'receiverName', 'email', 'whatsapp'];
+        document.querySelectorAll('#formData input, #formData textarea').forEach((field) => {
+            const shouldRequire = isDataFormEnabled() && requiredFields.includes(field.id);
+            if (shouldRequire) {
+                field.setAttribute('required', 'required');
+            } else {
+                field.removeAttribute('required');
+            }
+        });
+
+        if (btnLanjut) {
+            btnLanjut.textContent = isDataFormEnabled() ? 'Lanjut ke Form' : 'Lanjut ke Pembayaran';
+        }
+    }
+
+    function updatePhotoActionExtras() {
+        const showExtras = !!rawCapturedImage;
+        if (modePesanKenanganCard) {
+            modePesanKenanganCard.classList.toggle('hidden', !showExtras);
+        }
+        if (redeemSection) {
+            redeemSection.classList.toggle('hidden', !showExtras);
+        }
+        if (guestEmailCapture) {
+            guestEmailCapture.classList.toggle('hidden', !showExtras || isDataFormEnabled());
+        }
+    }
+
+    function restoreCameraActionControls() {
+        areaAksiFoto?.classList.remove('hidden');
+        backgroundSelector?.classList.remove('hidden');
+        frameSelector?.classList.remove('hidden');
+
+        if (rawCapturedImage) {
+            btnFoto?.classList.add('hidden');
+            btnSwitchCamera?.classList.add('hidden');
+            areaRetake?.classList.remove('hidden');
+        } else {
+            btnFoto?.classList.remove('hidden');
+            btnSwitchCamera?.classList.remove('hidden');
+            areaRetake?.classList.add('hidden');
+        }
+    }
+
+    function hideCameraActionControls() {
+        btnFoto?.classList.add('hidden');
+        btnSwitchCamera?.classList.add('hidden');
+    }
+
+    function scrollCameraIntoView() {
+        const boothColumn = document.getElementById('boothColumn') || document.getElementById('cameraContainer');
+        if (!boothColumn) return;
+
+        const rect = boothColumn.getBoundingClientRect();
+        if (rect.top < window.innerHeight * 0.4 || rect.bottom > window.innerHeight * 0.95) {
+            boothColumn.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
     }
 
     function showReturnLoading(title = 'Menyelesaikan pembayaran...', subtitle = 'Sedang menyiapkan pesanan Anda...') {
@@ -1417,27 +1504,35 @@ height:64.10%;
         btnSwitchCamera.classList.add("hidden");
         btnFoto.classList.add("hidden");
         areaRetake.classList.remove("hidden");
+        updatePhotoActionExtras();
+        syncDataFormRequiredState();
     }
 
     function getSupportedVideoMimeType() {
         const isIOS = /iPad|iPhone|iPod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+        const preferredType = 'video/mp4';
         const types = isIOS
             ? [
-                'video/mp4',
+                preferredType,
+                'video/mp4;codecs=avc1.42E01E,mp4a.40.2',
+                'video/mp4;codecs=h264,mp4a.40.2',
                 'video/quicktime',
                 'video/webm',
                 'video/x-matroska'
             ]
             : [
+                preferredType,
+                'video/mp4;codecs=avc1.42E01E,mp4a.40.2',
+                'video/mp4;codecs=h264,mp4a.40.2',
+                'video/mp4',
                 'video/webm;codecs=vp9,opus',
                 'video/webm;codecs=vp8,opus',
                 'video/webm',
-                'video/mp4',
                 'video/x-matroska'
             ];
 
         if (!window.MediaRecorder || typeof MediaRecorder.isTypeSupported !== 'function') {
-            return '';
+            return preferredType;
         }
 
         for (const type of types) {
@@ -1446,7 +1541,7 @@ height:64.10%;
             }
         }
 
-        return '';
+        return preferredType;
     }
 
     async function startCountdownVideoRecording() {
@@ -1477,7 +1572,7 @@ height:64.10%;
         countdownVideoRecorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
         countdownVideoChunks = [];
         countdownVideoBase64 = null;
-        countdownVideoMimeType = countdownVideoRecorder.mimeType || (isIOS ? 'video/mp4' : 'video/webm');
+        countdownVideoMimeType = countdownVideoRecorder.mimeType || 'video/mp4';
 
         countdownVideoDataReady = new Promise((resolve) => {
             countdownVideoRecorder.ondataavailable = (event) => {
@@ -1555,6 +1650,9 @@ height:64.10%;
 
     btnFoto.onclick = async () => {
         btnFoto.disabled = true;
+        btnSwitchCamera.disabled = true;
+        btnSwitchCamera.classList.add('opacity-50', 'cursor-not-allowed');
+        scrollCameraIntoView();
         let timeLeft = COUNTDOWN_SECONDS;
         countdownDisplay.innerText = timeLeft;
         countdownDisplay.classList.remove('hidden');
@@ -1568,6 +1666,8 @@ height:64.10%;
                 countdownVideoRecordingInterval = null;
                 countdownDisplay.classList.add('hidden');
                 renderCountdownVideoFrame();
+                btnSwitchCamera.disabled = false;
+                btnSwitchCamera.classList.remove('opacity-50', 'cursor-not-allowed');
                 stopCountdownVideoRecording().then(() => {
                     captureSnapshot();
                 });
@@ -1585,31 +1685,74 @@ height:64.10%;
         areaRetake.classList.add("hidden");
         rawCapturedImage = null;
         btnFoto.disabled = false;
+        btnSwitchCamera.disabled = false;
+        btnSwitchCamera.classList.remove('opacity-50', 'cursor-not-allowed');
         frameWatermark?.classList.remove('hidden');
+        updatePhotoActionExtras();
+        formData.classList.add('hidden');
         updateFrameProcessing();
     };
 
-    btnLanjut.onclick = () => {
-        areaAksiFoto.classList.add('hidden');
-        backgroundSelector.classList.add('hidden');
-        frameSelector.classList.add('hidden');
-        formData.classList.remove('hidden');
-        setRedeemSectionVisible(true);
+    toggleDataForm?.addEventListener('change', () => {
+        syncDataFormRequiredState();
+        updatePhotoActionExtras();
+        if (isDataFormEnabled()) {
+            formData.classList.remove('hidden');
+            formData.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            setRedeemSectionVisible(true);
+        } else {
+            formData.classList.add('hidden');
+            restoreCameraActionControls();
+            setRedeemSectionVisible(true);
+        }
+    });
+
+    btnLanjut.onclick = async () => {
+        if (!rawCapturedImage) {
+            await showError('Silakan ambil foto terlebih dahulu sebelum melanjutkan.');
+            return;
+        }
+
+        if (isDataFormEnabled()) {
+            formData.classList.remove('hidden');
+            setRedeemSectionVisible(true);
+            stopCameraStream();
+            processingCamera = false;
+            frameWatermark?.classList.remove('hidden');
+            formData.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            return;
+        }
+
+        const guestEmail = guestEmailInput?.value.trim();
+        if (!guestEmail) {
+            await showError('Masukkan email untuk menerima softfile Anda sebelum lanjut ke pembayaran.');
+            guestEmailInput?.focus();
+            return;
+        }
+
+        document.getElementById('email').value = guestEmail;
+        document.getElementById('senderName').value = '';
+        document.getElementById('receiverName').value = '';
+        document.getElementById('whatsapp').value = '';
+
         stopCameraStream();
         processingCamera = false;
         frameWatermark?.classList.remove('hidden');
-        formData.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        formData.classList.add('hidden');
+        setRedeemSectionVisible(true);
+        formData.requestSubmit();
     };
 
     formData.onsubmit = async (e) => {
         e.preventDefault();
         const btnKirim = document.getElementById('btnKirim');
-        const nama = document.getElementById('senderName').value.trim();
-        const tujuan = document.getElementById('receiverName').value.trim();
-        const pesan = document.getElementById('messageContent').value.trim();
-        const email = document.getElementById('email').value.trim();
-        const whatsapp = document.getElementById('whatsapp').value.trim();
-        const showOnHome = showOnHomeToggle ? showOnHomeToggle.checked : true;
+        const guestMode = !isDataFormEnabled();
+        const nama = guestMode ? '' : document.getElementById('senderName').value.trim();
+        const tujuan = guestMode ? '' : document.getElementById('receiverName').value.trim();
+        const pesan = guestMode ? '' : document.getElementById('messageContent').value.trim();
+        const email = document.getElementById('email').value.trim() || `guest-${Date.now()}@gamon-tawing.local`;
+        const whatsapp = document.getElementById('whatsapp').value.trim() || '000000000000';
+        const showOnHome = guestMode ? false : (showOnHomeToggle ? showOnHomeToggle.checked : true);
 
         if (!rawCapturedImage) {
             await showError('Silakan ambil foto terlebih dahulu sebelum melanjutkan.');
@@ -1618,7 +1761,7 @@ height:64.10%;
 
         frameWatermark?.classList.remove('hidden');
 
-        if (!nama || !tujuan || !email || !whatsapp) {
+        if (!guestMode && (!document.getElementById('senderName').value.trim() || !document.getElementById('receiverName').value.trim() || !document.getElementById('email').value.trim() || !document.getElementById('whatsapp').value.trim())) {
             await showError('Lengkapi semua data identitas dan kontak sebelum lanjut ke pembayaran.');
             return;
         }
@@ -1692,74 +1835,76 @@ height:64.10%;
 
         await document.fonts.ready;
 
-        ctx.fillStyle = frameTextColor;
-        ctx.font = "italic 500 22px 'Playfair Display', serif";
-
-        ctx.textAlign = "left";
-        ctx.fillText(`Dear: ${tujuan}`, 100, 1145);
-
-        ctx.textAlign = "right";
-        ctx.fillText(`— Dari: ${nama}`, 800, 1145);
-
-        ctx.strokeStyle = frameTextColor;
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(100, 1165);
-        ctx.lineTo(800, 1165);
-        ctx.stroke();
-
-        let textMaxWidth = 700;
-        if (audioBase64) {
-            const qrContainer = document.getElementById('qrcode');
-            qrContainer.innerHTML = '';
-            const domainProduksi = 'https://gamon-tawing.vercel.app';
-            const listenUrl = `${domainProduksi}/suara.html?orderId=${generatedOrderId}`;
-
-            new QRCode(qrContainer, {
-                text: listenUrl,
-                width: 150,
-                height: 150,
-                correctLevel: QRCode.CorrectLevel.H
-            });
-
-            await new Promise(resolve => setTimeout(resolve, 400));
-            const qrCanvas = qrContainer.querySelector('canvas');
-
-            if (qrCanvas) {
-                const qrSize = 120;
-                const qrX = 650;
-                const qrY = 1195;
-                ctx.drawImage(qrCanvas, qrX, qrY, qrSize, qrSize);
-                textMaxWidth = 520;
-            }
-        }
-
-        if (pesan && pesan.trim() !== '') {
+        if (!guestMode) {
             ctx.fillStyle = frameTextColor;
-            ctx.font = "italic 500 24px 'Playfair Display', serif";
-            ctx.textAlign = 'left';
+            ctx.font = "italic 500 22px 'Playfair Display', serif";
 
-            const words = pesan.split(' ');
-            let line = '';
-            let lineCount = 0;
-            let currentY = 1200;
-            const lineHeight = 34;
+            ctx.textAlign = "left";
+            ctx.fillText(`Dear: ${tujuan}`, 100, 1145);
 
-            for (let n = 0; n < words.length; n++) {
-                const testLine = line + words[n] + ' ';
-                const metrics = ctx.measureText(testLine);
-                if (metrics.width > textMaxWidth && n > 0) {
-                    ctx.fillText(line, 100, currentY);
-                    line = words[n] + ' ';
-                    currentY += lineHeight;
-                    lineCount++;
-                    if (lineCount >= 3) break;
-                } else {
-                    line = testLine;
+            ctx.textAlign = "right";
+            ctx.fillText(`— Dari: ${nama}`, 800, 1145);
+
+            ctx.strokeStyle = frameTextColor;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(100, 1165);
+            ctx.lineTo(800, 1165);
+            ctx.stroke();
+
+            let textMaxWidth = 700;
+            if (audioBase64) {
+                const qrContainer = document.getElementById('qrcode');
+                qrContainer.innerHTML = '';
+                const domainProduksi = 'https://gamon-tawing.vercel.app';
+                const listenUrl = `${domainProduksi}/suara.html?orderId=${generatedOrderId}`;
+
+                new QRCode(qrContainer, {
+                    text: listenUrl,
+                    width: 150,
+                    height: 150,
+                    correctLevel: QRCode.CorrectLevel.H
+                });
+
+                await new Promise(resolve => setTimeout(resolve, 400));
+                const qrCanvas = qrContainer.querySelector('canvas');
+
+                if (qrCanvas) {
+                    const qrSize = 120;
+                    const qrX = 650;
+                    const qrY = 1195;
+                    ctx.drawImage(qrCanvas, qrX, qrY, qrSize, qrSize);
+                    textMaxWidth = 520;
                 }
             }
-            if (lineCount < 3) {
-                ctx.fillText(line, 100, currentY);
+
+            if (pesan && pesan.trim() !== '') {
+                ctx.fillStyle = frameTextColor;
+                ctx.font = "italic 500 24px 'Playfair Display', serif";
+                ctx.textAlign = 'left';
+
+                const words = pesan.split(' ');
+                let line = '';
+                let lineCount = 0;
+                let currentY = 1200;
+                const lineHeight = 34;
+
+                for (let n = 0; n < words.length; n++) {
+                    const testLine = line + words[n] + ' ';
+                    const metrics = ctx.measureText(testLine);
+                    if (metrics.width > textMaxWidth && n > 0) {
+                        ctx.fillText(line, 100, currentY);
+                        line = words[n] + ' ';
+                        currentY += lineHeight;
+                        lineCount++;
+                        if (lineCount >= 3) break;
+                    } else {
+                        line = testLine;
+                    }
+                }
+                if (lineCount < 3) {
+                    ctx.fillText(line, 100, currentY);
+                }
             }
         }
 
@@ -1769,7 +1914,7 @@ height:64.10%;
             const value = countdownVideoData || countdownVideoBase64 || null;
             if (!value || typeof value !== 'string') return null;
             if (value.startsWith('data:')) return value;
-            return `data:${countdownVideoMimeType || 'video/webm'};base64,${value.replace(/\s+/g, '')}`;
+            return `data:${countdownVideoMimeType || 'video/mp4'};base64,${value.replace(/\s+/g, '')}`;
         })();
 
         const payload = {
@@ -1777,7 +1922,7 @@ height:64.10%;
             photoBase64: polaroidBase64,
             audioUrl: audioBase64,
             countdownVideoBase64: normalizedCountdownVideo,
-            countdownVideoMimeType: countdownVideoMimeType || 'video/webm',
+            countdownVideoMimeType: countdownVideoMimeType || 'video/mp4',
             orderId: generatedOrderId,
             frameId: selectedFrame?.id || null,
             frameName: selectedFrame?.name || null,

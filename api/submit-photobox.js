@@ -184,12 +184,20 @@ export default async function handler(req, res) {
     paidAt,
   } = req.body;
 
-  if (!email || !photoBase64 || !alamat || !whatsapp) {
+  const normalizedNama = String(nama || '').trim();
+  const normalizedTujuan = String(tujuan || '').trim();
+  const normalizedPesan = String(pesan || '').trim();
+  const guestMode = !normalizedNama && !normalizedTujuan && !normalizedPesan;
+
+  if (!photoBase64 || !alamat) {
     return res.status(400).json({
       success: false,
-      message: "Data wajib belum lengkap.",
+      message: "Foto dan lokasi pengambilan wajib ada.",
     });
   }
+
+  const safeEmail = email || `guest-${Date.now()}@gamon-tawing.local`;
+  const safeWhatsapp = whatsapp || "000000000000";
 
   try {
     if (!getApps().length) {
@@ -226,23 +234,23 @@ export default async function handler(req, res) {
 
     await db.collection("photobox_order").doc(finalOrderId).set({
       orderId: finalOrderId,
-      nama: nama || "Anonim",
-      tujuan: tujuan || "Seseorang",
-      pesan: pesan || "",
-      email,
-      whatsapp,
+      nama: normalizedNama,
+      tujuan: normalizedTujuan,
+      pesan: normalizedPesan,
+      email: safeEmail,
+      whatsapp: safeWhatsapp,
       alamat,
       koordinat: koordinat || "",
       latitude: lat,
       longitude: lng,
       audioUrl: audioUrl || null,
-      countdownVideoMimeType: countdownVideoMimeType || 'video/webm',
+      countdownVideoMimeType: countdownVideoMimeType || 'video/mp4',
       softfilePhotoUrl: photoStorageUrl || null,
       softfileVideoUrl: videoStorageUrl || null,
       frameId: frameId || null,
       frameName: frameName || null,
       framePreviewImage: framePreviewImage || null,
-      showOnHome: showOnHome !== false && Boolean(photoStorageUrl),
+      showOnHome: showOnHome !== false && !guestMode && Boolean(photoStorageUrl),
       amount: normalizedPaymentAmount,
       paymentStatus: normalizedPaymentStatus,
       status: normalizedPaymentStatus,
@@ -280,11 +288,11 @@ export default async function handler(req, res) {
        3. TAMPILKAN DI INDEX JIKA showOnHome = true
     ====================================================== */
 
-    if (showOnHome !== false && photoStorageUrl) {
+    if (showOnHome !== false && !guestMode && photoStorageUrl) {
       await db.collection("gamon").add({
-        nama: nama || "Anonim",
-        tujuan: tujuan || "Seseorang",
-        pesan: pesan || "",
+        nama: normalizedNama,
+        tujuan: normalizedTujuan,
+        pesan: normalizedPesan,
         photoUrl: photoStorageUrl,
         audioUrl: audioUrl || null,
         type: "photobox",
@@ -351,15 +359,15 @@ export default async function handler(req, res) {
 
       const videoAttachmentPayload = decodeDataUrl(
         countdownVideoBase64,
-        'webm',
-        countdownVideoMimeType || 'video/webm'
+        'mp4',
+        countdownVideoMimeType || 'video/mp4'
       );
 
       console.log('PHOTOBOX_EMAIL_DEBUG', {
         hasPhoto: Boolean(photoBase64),
         hasVideo: Boolean(countdownVideoBase64),
         videoLength: String(countdownVideoBase64 || '').length,
-        videoMime: countdownVideoMimeType || 'video/webm',
+        videoMime: countdownVideoMimeType || 'video/mp4',
         attachmentVideoAttached: Boolean(videoAttachmentPayload),
       });
       const finalPhotoDownloadUrl = photoStorageUrl || null;
@@ -376,6 +384,8 @@ export default async function handler(req, res) {
         },
       });
 
+      const customerDisplayName = normalizedNama || (safeEmail ? safeEmail.split('@')[0] : 'Customer');
+
       await transporter.sendMail({
         from: '"Gamon Tawing Booth" <muhamadabelldeskiawan@gmail.com>',
         to: email,
@@ -383,12 +393,12 @@ export default async function handler(req, res) {
         html: `
           <div style="font-family:Arial,sans-serif;max-width:520px;margin:auto;padding:24px;border:1px solid #eee;border-radius:16px">
             <h2 style="color:#6b5a60;margin-top:0">Pesanan Berhasil 🎉</h2>
-            <p>Halo <b>${nama || "Anonim"}</b>,</p>
+            <p>Halo <b>${customerDisplayName}</b>,</p>
             <p>Pesanan photobox kamu berhasil diterima dan masuk antrean produksi.</p>
 
             <table style="width:100%;font-size:14px;border-collapse:collapse;margin:16px 0">
               <tr><td style="padding:6px 0"><b>ID Pesanan</b></td><td style="padding:6px 0">${finalOrderId}</td></tr>
-              <tr><td style="padding:6px 0"><b>Penerima</b></td><td style="padding:6px 0">${tujuan || "-"}</td></tr>
+              <tr><td style="padding:6px 0"><b>Nama Pasangan</b></td><td style="padding:6px 0">${normalizedTujuan || "-"}</td></tr>
               <tr><td style="padding:6px 0"><b>WhatsApp</b></td><td style="padding:6px 0">${whatsapp}</td></tr>
               <tr><td style="padding:6px 0"><b>Frame</b></td><td style="padding:6px 0">${frameName || "Default"}</td></tr>
             </table>
@@ -447,8 +457,8 @@ export default async function handler(req, res) {
 
             <table style="width:100%;font-size:14px;border-collapse:collapse;margin:16px 0">
               <tr><td style="padding:6px 0"><b>Order ID</b></td><td style="padding:6px 0">${finalOrderId}</td></tr>
-              <tr><td style="padding:6px 0"><b>Nama Pemesan</b></td><td style="padding:6px 0">${nama || "Anonim"}</td></tr>
-              <tr><td style="padding:6px 0"><b>Penerima</b></td><td style="padding:6px 0">${tujuan || "-"}</td></tr>
+              <tr><td style="padding:6px 0"><b>Nama Kamu</b></td><td style="padding:6px 0">${normalizedNama || "-"}</td></tr>
+              <tr><td style="padding:6px 0"><b>Nama Pasangan</b></td><td style="padding:6px 0">${normalizedTujuan || "-"}</td></tr>
               <tr><td style="padding:6px 0"><b>WhatsApp</b></td><td style="padding:6px 0">${whatsapp || "-"}</td></tr>
               <tr><td style="padding:6px 0"><b>Email</b></td><td style="padding:6px 0">${email || "-"}</td></tr>
               <tr><td style="padding:6px 0"><b>Frame</b></td><td style="padding:6px 0">${frameName || "Default"}</td></tr>
@@ -466,8 +476,8 @@ export default async function handler(req, res) {
       const telegramMessage = [
         "Halo Abell, ada pesanan masuk nihhhh 📸",
         `Order ID: ${finalOrderId}`,
-        `Nama: ${nama || "Anonim"}`,
-        `Tujuan: ${tujuan || "-"}`,
+        `Nama Kamu: ${normalizedNama || "-"}`,
+        `Nama Pasangan: ${normalizedTujuan || "-"}`,
         `WA: ${whatsapp || "-"}`,
         `Frame: ${frameName || "Default"}`,
         "Status: PENDING PRODUCTION",
