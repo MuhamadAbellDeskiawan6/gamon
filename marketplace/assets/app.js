@@ -463,6 +463,11 @@ function normalizeUserIdentifier(value) {
   return String(value || '').trim();
 }
 
+function isPlaceholderUser(value) {
+  const normalized = normalizeUserIdentifier(value || '').toLowerCase();
+  return !normalized || ['penjual', 'seller', 'buyer', 'guest', 'me', 'user'].includes(normalized);
+}
+
 function getCurrentUserIdentifier() {
   const user = currentUser() || requireAuth();
   if (!user) return '';
@@ -472,6 +477,7 @@ function getCurrentUserIdentifier() {
 function findMatchingThreadKey(targetUserId, targetName, currentUserId) {
   const threads = readChatThreads();
   const normalizedTarget = normalizeUserIdentifier(targetUserId || resolveUserIdByName(targetName) || targetName || '').toLowerCase();
+  const normalizedTargetName = normalizeUserIdentifier(targetName || '').toLowerCase();
   const normalizedCurrent = normalizeUserIdentifier(currentUserId || '').toLowerCase();
 
   const keys = Object.keys(threads).sort((a, b) => {
@@ -487,12 +493,30 @@ function findMatchingThreadKey(targetUserId, targetName, currentUserId) {
     const hasTarget = participants.some((participant) => {
       const participantId = normalizeUserIdentifier(participant.id || participant.uid || participant.email || '').toLowerCase();
       const participantName = normalizeUserIdentifier(participant.name || '').toLowerCase();
-      return participantId === normalizedTarget || participantName === normalizeUserIdentifier(targetName || '').toLowerCase();
+      return participantId === normalizedTarget || participantName === normalizedTargetName || participantName === normalizedTarget;
     });
     return hasCurrent && hasTarget;
   });
 
-  return exactMatch || keys[0] || '';
+  if (exactMatch) return exactMatch;
+
+  const realThread = keys.find((key) => {
+    const thread = threads[key] || {};
+    const participants = thread.participants || [];
+    const hasCurrent = participants.some((participant) => {
+      const participantId = normalizeUserIdentifier(participant.id || participant.uid || participant.email || '').toLowerCase();
+      const participantName = normalizeUserIdentifier(participant.name || '').toLowerCase();
+      return participantId === normalizedCurrent || participantName === normalizedCurrent;
+    });
+    const hasRealCounterpart = participants.some((participant) => {
+      const participantId = normalizeUserIdentifier(participant.id || participant.uid || participant.email || '').toLowerCase();
+      const participantName = normalizeUserIdentifier(participant.name || '').toLowerCase();
+      return !!participantId && !isPlaceholderUser(participantId) && !isPlaceholderUser(participantName) && participantId !== normalizedCurrent && participantName !== normalizedCurrent;
+    });
+    return hasCurrent && hasRealCounterpart;
+  });
+
+  return realThread || '';
 }
 
 async function findFirestoreThreadId(currentUserId, targetUserId, targetName) {
@@ -501,6 +525,7 @@ async function findFirestoreThreadId(currentUserId, targetUserId, targetName) {
     const normalizedCurrent = normalizeUserIdentifier(currentUserId || '').toLowerCase();
     const normalizedTarget = normalizeUserIdentifier(targetUserId || resolveUserIdByName(targetName) || targetName || '').toLowerCase();
     const normalizedTargetName = normalizeUserIdentifier(targetName || '').toLowerCase();
+    const ignoreTarget = isPlaceholderUser(targetUserId || targetName);
 
     for (const docSnap of snapshot.docs) {
       const data = docSnap.data() || {};
@@ -510,7 +535,7 @@ async function findFirestoreThreadId(currentUserId, targetUserId, targetName) {
         const participantName = normalizeUserIdentifier(participant.name || '').toLowerCase();
         return participantId === normalizedCurrent || participantName === normalizedCurrent;
       });
-      const hasTarget = participants.some((participant) => {
+      const hasTarget = ignoreTarget ? true : participants.some((participant) => {
         const participantId = normalizeUserIdentifier(participant.id || participant.uid || participant.email || '').toLowerCase();
         const participantName = normalizeUserIdentifier(participant.name || '').toLowerCase();
         return participantId === normalizedTarget || participantName === normalizedTargetName || participantName === normalizeUserIdentifier(targetUserId || '').toLowerCase();
@@ -535,6 +560,7 @@ async function findExactThreadForCurrentUser(currentUserId, currentUserName, tar
     const normalizedCurrentName = normalizeUserIdentifier(currentUserName || '').toLowerCase();
     const normalizedTarget = normalizeUserIdentifier(targetUserId || resolveUserIdByName(targetName) || targetName || '').toLowerCase();
     const normalizedTargetName = normalizeUserIdentifier(targetName || '').toLowerCase();
+    const ignoreTarget = isPlaceholderUser(targetUserId || targetName);
 
     const matches = [];
     for (const docSnap of snapshot.docs) {
@@ -546,13 +572,13 @@ async function findExactThreadForCurrentUser(currentUserId, currentUserName, tar
         return participantId === normalizedCurrent || participantName === normalizedCurrent || participantName === normalizedCurrentName;
       });
 
-      const containsTargetUser = participants.some((participant) => {
+      const containsTargetUser = ignoreTarget ? true : participants.some((participant) => {
         const participantId = normalizeUserIdentifier(participant.id || participant.uid || participant.email || '').toLowerCase();
         const participantName = normalizeUserIdentifier(participant.name || '').toLowerCase();
         return participantId === normalizedTarget || participantName === normalizedTargetName || participantName === normalizedTarget;
       });
 
-      if (containsCurrentUser && (!targetUserId && !targetName || containsTargetUser)) {
+      if (containsCurrentUser && containsTargetUser) {
         matches.push({
           id: docSnap.id,
           data: data,
@@ -632,6 +658,43 @@ function readChatThreads() {
 
 function writeChatThreads(data) {
   writeStorage('gamon_marketplace_threads', data);
+}
+
+function sanitizeChatThreadCache(currentUserId, currentUserName) {
+  const threads = readChatThreads();
+  const normalizedCurrentId = normalizeUserIdentifier(currentUserId || '').toLowerCase();
+  const normalizedCurrentName = normalizeUserIdentifier(currentUserName || '').toLowerCase();
+
+  const cleaned = Object.fromEntries(Object.entries(threads).filter(([key, thread]) => {
+    const participants = Array.isArray(thread?.participants) ? thread.participants : [];
+    if (!participants.length) return true;
+
+    const hasCurrentUser = participants.some((participant) => {
+      const participantId = normalizeUserIdentifier(participant.id || participant.uid || participant.email || '').toLowerCase();
+      const participantName = normalizeUserIdentifier(participant.name || '').toLowerCase();
+      return participantId === normalizedCurrentId || participantName === normalizedCurrentName || participantName === normalizedCurrentId;
+    });
+
+    const hasMeaningfulParticipant = participants.some((participant) => {
+      const participantId = normalizeUserIdentifier(participant.id || participant.uid || participant.email || '').toLowerCase();
+      const participantName = normalizeUserIdentifier(participant.name || '').toLowerCase();
+      return !!participantId && !isPlaceholderUser(participantId) && !isPlaceholderUser(participantName);
+    });
+
+    const allParticipantsPlaceholder = participants.length > 0 && participants.every((participant) => {
+      const participantId = normalizeUserIdentifier(participant.id || participant.uid || participant.email || '').toLowerCase();
+      const participantName = normalizeUserIdentifier(participant.name || '').toLowerCase();
+      return isPlaceholderUser(participantId) || isPlaceholderUser(participantName);
+    });
+
+    return hasCurrentUser && (hasMeaningfulParticipant || !allParticipantsPlaceholder);
+  }));
+
+  if (Object.keys(cleaned).length !== Object.keys(threads).length) {
+    writeChatThreads(cleaned);
+  }
+
+  return cleaned;
 }
 
 function getThreadSummary(thread) {
@@ -1486,12 +1549,15 @@ async function renderChat() {
   const sellerIdParam = params.get('userId') || '';
   const currentUserId = getCurrentUserIdentifier();
   const currentUserName = normalizeUserIdentifier((currentUser() || {}).name || user.name || 'Saya');
-  const resolvedSellerId = normalizeUserIdentifier(sellerIdParam || resolveUserIdByName(sellerName) || sellerName);
-  const fallbackThreadId = getChatThreadId(currentUserId, resolvedSellerId || sellerName);
+  sanitizeChatThreadCache(currentUserId, currentUserName);
+  const targetUserId = isPlaceholderUser(sellerIdParam || sellerName) ? '' : normalizeUserIdentifier(sellerIdParam || resolveUserIdByName(sellerName) || sellerName);
+  const targetName = isPlaceholderUser(sellerName) ? '' : sellerName;
+  const resolvedSellerId = targetUserId || '';
+  const fallbackThreadId = getChatThreadId(currentUserId, resolvedSellerId || targetName || currentUserId);
 
-  const exactThread = await findExactThreadForCurrentUser(currentUserId, currentUserName, resolvedSellerId || sellerName, sellerName);
-  const firestoreThreadId = exactThread?.id || await findFirestoreThreadId(currentUserId, resolvedSellerId || sellerName, sellerName);
-  const existingThreadId = firestoreThreadId || findMatchingThreadKey(resolvedSellerId || sellerName, sellerName, currentUserId) || fallbackThreadId;
+  const exactThread = await findExactThreadForCurrentUser(currentUserId, currentUserName, resolvedSellerId || '', targetName || '');
+  const firestoreThreadId = exactThread?.id || await findFirestoreThreadId(currentUserId, resolvedSellerId || '', targetName || '');
+  const existingThreadId = firestoreThreadId || findMatchingThreadKey(resolvedSellerId || targetName || currentUserId, targetName || currentUserName, currentUserId) || fallbackThreadId;
   const threadId = existingThreadId || fallbackThreadId;
   const chatRef = doc(db, 'marketplace_chats', threadId);
 
