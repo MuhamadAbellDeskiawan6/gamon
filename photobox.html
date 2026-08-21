@@ -670,14 +670,16 @@ height:64.10%;
 
     function isLowPowerDevice() {
         const userAgent = navigator.userAgent || '';
-        const tabletPattern = /(Redmi|Xiaomi|Pad|Galaxy Tab|SM-T|Lenovo Tab|Surface)/i.test(userAgent);
+        const lowerAgent = userAgent.toLowerCase();
+        const tabletPattern = /(redmi.*pad|xiaomi.*pad|pad.*android|galaxy tab|sm-t|lenovo tab|surface|tablet)/i.test(userAgent);
         const lowCoreCount = navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4;
         const lowMemory = navigator.deviceMemory && navigator.deviceMemory <= 4;
-        return tabletPattern || !!lowCoreCount || !!lowMemory;
+        const olderAndroid = /android\s+[0-9](?:\.[0-9])?\s*(?:;|$)/i.test(userAgent) && !/android\s+1[0-9]/i.test(userAgent);
+        return tabletPattern || (!!lowCoreCount && !/iphone|ipod/i.test(lowerAgent)) || !!lowMemory || !!olderAndroid;
     }
 
     function shouldUseSegmentation() {
-        return !!selfieSegmentation && !isLowPowerDevice() && !/Android\s+[0-9]|iPad|iPhone|iPod/i.test(navigator.userAgent);
+        return !!selfieSegmentation && !isLowPowerDevice();
     }
 
     function initSelfieSegmentation() {
@@ -1056,7 +1058,7 @@ height:64.10%;
 
         const sessionId = cameraSessionId;
         const now = performance.now();
-        const frameInterval = isLowPowerDevice() ? 200 : 100;
+        const frameInterval = isLowPowerDevice() ? 180 : 45;
 
         if (now - lastCameraFrameDraw < frameInterval) {
             scheduleCameraRefresh();
