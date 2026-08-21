@@ -508,6 +508,7 @@ height:64.10%;
     let currentFacingMode = "user";
     let cameraSessionId = 0;
     let frameProcessingRaf = null;
+    let lastCameraFrameDraw = 0;
     let ctxOutput = outputCanvas.getContext("2d");
     let countdownVideoRecorder = null;
     let countdownVideoChunks = [];
@@ -675,17 +676,26 @@ height:64.10%;
         return tabletPattern || !!lowCoreCount || !!lowMemory;
     }
 
+    function shouldUseSegmentation() {
+        return !!selfieSegmentation && !isLowPowerDevice() && !/Android\s+[0-9]|iPad|iPhone|iPod/i.test(navigator.userAgent);
+    }
+
     function initSelfieSegmentation() {
         if (isLowPowerDevice()) {
             selfieSegmentation = null;
             return;
         }
 
-        selfieSegmentation = new SelfieSegmentation({
-            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${file}`
-        });
-        selfieSegmentation.setOptions({ modelSelection: 1 });
-        selfieSegmentation.onResults(onSegmentationResults);
+        try {
+            selfieSegmentation = new SelfieSegmentation({
+                locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${file}`
+            });
+            selfieSegmentation.setOptions({ modelSelection: 1 });
+            selfieSegmentation.onResults(onSegmentationResults);
+        } catch (error) {
+            console.warn('Selfie segmentation failed to initialize:', error);
+            selfieSegmentation = null;
+        }
     }
 
     function drawCover(ctx, img, canvasW, canvasH) {
@@ -789,12 +799,21 @@ height:64.10%;
         countdownAnimationFrame = requestAnimationFrame(tick);
     }
 
+    function renderRawCameraFrame() {
+        if (!outputCanvas || !ctxOutput || !video || video.readyState < 2) return;
+        ctxOutput.clearRect(0, 0, outputCanvas.width, outputCanvas.height);
+        ctxOutput.save();
+        if (currentFacingMode === 'user') {
+            ctxOutput.translate(outputCanvas.width, 0);
+            ctxOutput.scale(-1, 1);
+        }
+        ctxOutput.drawImage(video, 0, 0, outputCanvas.width, outputCanvas.height);
+        ctxOutput.restore();
+    }
+
     function onSegmentationResults(results) {
-        if (!outputCanvas || !ctxOutput || isLowPowerDevice()) {
-            if (video && video.readyState >= 2) {
-                ctxOutput.clearRect(0, 0, outputCanvas.width, outputCanvas.height);
-                ctxOutput.drawImage(video, 0, 0, outputCanvas.width, outputCanvas.height);
-            }
+        if (!outputCanvas || !ctxOutput || !shouldUseSegmentation()) {
+            renderRawCameraFrame();
             return;
         }
 
@@ -1028,12 +1047,20 @@ height:64.10%;
         }
 
         const sessionId = cameraSessionId;
+        const now = performance.now();
+        const frameInterval = isLowPowerDevice() ? 180 : 110;
 
-        if (isLowPowerDevice() || !selfieSegmentation) {
-            if (video.readyState >= 2) {
-                ctxOutput.clearRect(0, 0, outputCanvas.width, outputCanvas.height);
-                ctxOutput.drawImage(video, 0, 0, outputCanvas.width, outputCanvas.height);
+        if (now - lastCameraFrameDraw < frameInterval) {
+            if (sessionId === cameraSessionId && video.srcObject && !video.paused && !video.ended && cameraActive) {
+                frameProcessingRaf = requestAnimationFrame(() => updateFrameProcessing());
             }
+            return;
+        }
+
+        lastCameraFrameDraw = now;
+
+        if (!shouldUseSegmentation()) {
+            renderRawCameraFrame();
             return;
         }
 
@@ -1044,18 +1071,13 @@ height:64.10%;
             await selfieSegmentation.send({ image: video });
         } catch (error) {
             console.warn('Segmentation frame skipped:', error);
+            renderRawCameraFrame();
         } finally {
             processingCamera = false;
         }
 
         if (sessionId === cameraSessionId && video.srcObject && !video.paused && !video.ended && cameraActive) {
-            if (frameProcessingRaf) {
-                cancelAnimationFrame(frameProcessingRaf);
-            }
-
-            frameProcessingRaf = requestAnimationFrame(() => {
-                updateFrameProcessing();
-            });
+            frameProcessingRaf = requestAnimationFrame(() => updateFrameProcessing());
         }
     }
 
