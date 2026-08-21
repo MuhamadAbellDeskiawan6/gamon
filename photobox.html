@@ -507,6 +507,7 @@ height:64.10%;
     let currentBackground = "original";
     let currentFacingMode = "user";
     let cameraSessionId = 0;
+    let frameProcessingRaf = null;
     let ctxOutput = outputCanvas.getContext("2d");
     let countdownVideoRecorder = null;
     let countdownVideoChunks = [];
@@ -666,7 +667,20 @@ height:64.10%;
         returnLoadingOverlay.classList.add('hidden');
     }
 
+    function isLowPowerDevice() {
+        const userAgent = navigator.userAgent || '';
+        const tabletPattern = /(Redmi|Xiaomi|Pad|Galaxy Tab|SM-T|Lenovo Tab|Surface)/i.test(userAgent);
+        const lowCoreCount = navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4;
+        const lowMemory = navigator.deviceMemory && navigator.deviceMemory <= 4;
+        return tabletPattern || !!lowCoreCount || !!lowMemory;
+    }
+
     function initSelfieSegmentation() {
+        if (isLowPowerDevice()) {
+            selfieSegmentation = null;
+            return;
+        }
+
         selfieSegmentation = new SelfieSegmentation({
             locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${file}`
         });
@@ -776,6 +790,14 @@ height:64.10%;
     }
 
     function onSegmentationResults(results) {
+        if (!outputCanvas || !ctxOutput || isLowPowerDevice()) {
+            if (video && video.readyState >= 2) {
+                ctxOutput.clearRect(0, 0, outputCanvas.width, outputCanvas.height);
+                ctxOutput.drawImage(video, 0, 0, outputCanvas.width, outputCanvas.height);
+            }
+            return;
+        }
+
         const w = outputCanvas.width;
         const h = outputCanvas.height;
         ctxOutput.clearRect(0, 0, w, h);
@@ -929,6 +951,10 @@ height:64.10%;
     }
 
     function stopCameraStream() {
+        if (frameProcessingRaf) {
+            cancelAnimationFrame(frameProcessingRaf);
+            frameProcessingRaf = null;
+        }
         if (localStream) {
             localStream.getTracks().forEach(track => track.stop());
             localStream = null;
@@ -997,18 +1023,39 @@ height:64.10%;
 
     let processingCamera = false;
     async function updateFrameProcessing() {
+        if (!video || !video.srcObject || video.paused || video.ended || !cameraActive) {
+            return;
+        }
+
+        const sessionId = cameraSessionId;
+
+        if (isLowPowerDevice() || !selfieSegmentation) {
+            if (video.readyState >= 2) {
+                ctxOutput.clearRect(0, 0, outputCanvas.width, outputCanvas.height);
+                ctxOutput.drawImage(video, 0, 0, outputCanvas.width, outputCanvas.height);
+            }
+            return;
+        }
+
         if (processingCamera) return;
         processingCamera = true;
-        const sessionId = cameraSessionId;
-        while (video.srcObject && !video.paused && !video.ended) {
-            if (sessionId !== cameraSessionId) break;
-            await selfieSegmentation.send({ image: video });
-            await new Promise(resolve => setTimeout(resolve, 40));
-        }
-        processingCamera = false;
 
-        if (video.srcObject && !video.paused && !video.ended && sessionId !== cameraSessionId) {
-            updateFrameProcessing();
+        try {
+            await selfieSegmentation.send({ image: video });
+        } catch (error) {
+            console.warn('Segmentation frame skipped:', error);
+        } finally {
+            processingCamera = false;
+        }
+
+        if (sessionId === cameraSessionId && video.srcObject && !video.paused && !video.ended && cameraActive) {
+            if (frameProcessingRaf) {
+                cancelAnimationFrame(frameProcessingRaf);
+            }
+
+            frameProcessingRaf = requestAnimationFrame(() => {
+                updateFrameProcessing();
+            });
         }
     }
 
@@ -1552,16 +1599,17 @@ height:64.10%;
         }
 
         const isIOS = /iPad|iPhone|iPod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+        const lowPowerPreference = isLowPowerDevice();
         countdownVideoCanvas = document.createElement('canvas');
         // Ukuran kanvas video mengikuti rasio yang sama dengan kanvas master polaroid
         // (900x1560), supaya window foto proporsional (PHOTO_X_RATIO dkk) selalu
         // pas dengan area transparan pada frame, tidak peduli device iOS/non-iOS.
-        countdownVideoCanvas.width = isIOS ? 480 : 640;
+        countdownVideoCanvas.width = isIOS ? 480 : lowPowerPreference ? 420 : 640;
         countdownVideoCanvas.height = Math.round(
             countdownVideoCanvas.width * (MASTER_CANVAS_HEIGHT / MASTER_CANVAS_WIDTH)
         );
 
-        const stream = countdownVideoCanvas.captureStream ? countdownVideoCanvas.captureStream(isIOS ? 12 : 24) : null;
+        const stream = countdownVideoCanvas.captureStream ? countdownVideoCanvas.captureStream(lowPowerPreference ? 12 : isIOS ? 12 : 24) : null;
         if (!stream) {
             countdownVideoBase64 = null;
             countdownVideoDataReady = Promise.resolve(null);
