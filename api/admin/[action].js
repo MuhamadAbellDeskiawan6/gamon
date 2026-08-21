@@ -586,6 +586,66 @@ async function handleGetWeddingRequests(req, res) {
     }
 }
 
+async function handleGetMarketplaceItems(req, res) {
+    if (req.method !== 'GET') {
+        return res.status(405).json({ success: false, message: 'Method Not Allowed' });
+    }
+
+    const authResult = await requireAdmin(req, res);
+    if (!authResult) return;
+
+    try {
+        const snapshot = await getAdminDb().collection('marketplace_items').get();
+        const items = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })).sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0));
+        return res.status(200).json({ success: true, data: items });
+    } catch (error) {
+        return res.status(500).json({ success: false, message: error.message });
+    }
+}
+
+async function handleGetMarketplaceOrders(req, res) {
+    if (req.method !== 'GET') {
+        return res.status(405).json({ success: false, message: 'Method Not Allowed' });
+    }
+
+    const authResult = await requireAdmin(req, res);
+    if (!authResult) return;
+
+    try {
+        const snapshot = await getAdminDb().collection('marketplace_orders').get();
+        const orders = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })).sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0));
+        return res.status(200).json({ success: true, data: orders });
+    } catch (error) {
+        return res.status(500).json({ success: false, message: error.message });
+    }
+}
+
+async function handleUpdateMarketplaceItemStatus(req, res) {
+    if (req.method !== 'POST') {
+        return res.status(405).json({ success: false, message: 'Method Not Allowed' });
+    }
+
+    const authResult = await requireAdmin(req, res);
+    if (!authResult) return;
+
+    const { itemId, status } = req.body || {};
+    if (!itemId || !status) {
+        return res.status(400).json({ success: false, message: 'itemId dan status wajib diisi.' });
+    }
+
+    try {
+        await getAdminDb().collection('marketplace_items').doc(String(itemId)).set({
+            status: String(status),
+            updatedAt: Date.now(),
+            reviewedBy: authResult.claims?.email || OWNER_EMAIL,
+        }, { merge: true });
+
+        return res.status(200).json({ success: true, message: 'Status item marketplace berhasil diperbarui.' });
+    } catch (error) {
+        return res.status(500).json({ success: false, message: error.message });
+    }
+}
+
 async function handleUpdateWeddingRequestStatus(req, res) {
     if (req.method !== 'POST') {
         return res.status(405).json({ success: false, message: 'Method Not Allowed' });
@@ -647,6 +707,12 @@ export default async function handler(req, res) {
             return handleGetRedeemCodes(req, res);
         case 'get-wedding-requests':
             return handleGetWeddingRequests(req, res);
+        case 'get-marketplace-items':
+            return handleGetMarketplaceItems(req, res);
+        case 'get-marketplace-orders':
+            return handleGetMarketplaceOrders(req, res);
+        case 'update-marketplace-item-status':
+            return handleUpdateMarketplaceItemStatus(req, res);
         case 'update-wedding-request-status':
             return handleUpdateWeddingRequestStatus(req, res);
         case 'save-redeem-code':

@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dashboard — Barang Kenangan</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="../assets/style.css" />
+  </head>
+  <body data-page="dashboard.html">
+    <header class="topbar">
+      <div class="container nav">
+        <a href="../index.html" class="brand" aria-label="Home">
+          <span class="brand-mark">G</span>
+          <span>Barang Kenangan</span>
+        </a>
+
+        <div class="nav-actions">
+          <a class="btn btn-secondary" href="profil.html">Profil</a>
+          <a class="btn btn-primary" href="../index.html" data-logout-button>Keluar</a>
+        </div>
+      </div>
+    </header>
+
+    <main class="container user-layout">
+      <div class="user-shell">
+        <aside class="sidebar">
+          <div class="profile-box">
+            <div class="avatar-lg">A</div>
+            <div>
+              <strong style="display:block; color: var(--primary-strong);" data-user-name>Annisa</strong>
+              <small class="muted">Seller & Buyer</small>
+            </div>
+          </div>
+
+          <nav aria-label="Sidebar navigasi">
+            <a class="active" href="dashboard.html">📊 Dashboard</a>
+            <a href="jual.html">📦 Jual</a>
+            <a href="beli.html">🛒 Beli</a>
+            <a href="profil.html">👤 Profil</a>
+            <a href="chat.html">💬 Chat</a>
+          </nav>
+        </aside>
+
+        <div class="main-panel">
+          <section class="panel top-panel">
+            <div>
+              <span class="eyebrow" data-greeting>Halo, Annisa</span>
+              <h2 style="margin-top: 12px; font-size: 2rem;">Dashboard akun</h2>
+            </div>
+            <div style="display: flex; gap: 10px; align-items: center;">
+              <div class="search-box">
+                <input type="text" placeholder="Cari barang, nama seller, atau kategori" />
+              </div>
+              <a class="btn btn-primary" href="my-products.html">Barang saya</a>
+            </div>
+          </section>
+
+          <section class="cards-3">
+            <div class="stat-card">
+              <div class="label">Barang terjual</div>
+              <div class="value" data-stat-sold>18</div>
+              <div class="delta">▲ 12% bulan ini</div>
+            </div>
+            <div class="stat-card">
+              <div class="label">Pesanan aktif</div>
+              <div class="value" data-stat-orders>6</div>
+              <div class="delta">▲ 3 baru</div>
+            </div>
+            <div class="stat-card">
+              <div class="label">Saldo</div>
+              <div class="value" data-stat-balance>Rp 2.4Jt</div>
+              <div class="delta">✅ Siap cair</div>
+            </div>
+          </section>
+
+          <section class="listing-layout">
+            <div class="listing-card">
+              <div class="listing-hero">🧥</div>
+              <div class="listing-body">
+                <div class="product-head">
+                  <div class="price">Rp 285.000</div>
+                  <span class="condition">Terjual</span>
+                </div>
+                <h3 style="margin-top: 14px;">Hoodie White Premium</h3>
+                <p class="muted" style="margin-top: 10px;">Diposting 3 hari lalu, lebih terawat, ukuran L, ciri-ciri menyesuaikan masa lalu.</p>
+                <div class="listing-meta">
+                  <span class="meta-tag">Pakaian</span>
+                  <span class="meta-tag">L</span>
+                  <span class="meta-tag">Layak pakai</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="timeline">
+              <div class="activity-item">
+                <span class="dot"></span>
+                <div>
+                  <p><strong>Buyer baru</strong> mengirim chat untuk item jam tangan</p>
+                  <small>08 menit yang lalu</small>
+                </div>
+              </div>
+              <div class="activity-item">
+                <span class="dot"></span>
+                <div>
+                  <p><strong>Pembayaran</strong> berhasil untuk hoodie putih premium</p>
+                  <small>2 jam yang lalu</small>
+                </div>
+              </div>
+              <div class="activity-item">
+                <span class="dot"></span>
+                <div>
+                  <p><strong>Review baru</strong> dari pembeli menilai produk rapi dan cepat</p>
+                  <small>Hari ini</small>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+    </main>
+    <script type="module" src="../assets/app.js"></script>
+  </body>
+</html>

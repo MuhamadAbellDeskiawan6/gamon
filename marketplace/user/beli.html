@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Beli — Barang Kenangan</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="../assets/style.css" />
+  </head>
+  <body data-page="beli.html">
+    <header class="topbar">
+      <div class="container nav">
+        <a href="../index.html" class="brand" aria-label="Home">
+          <span class="brand-mark">G</span>
+          <span>Barang Kenangan</span>
+        </a>
+        <div class="nav-actions">
+          <a class="btn btn-secondary" href="profil.html">Profil</a>
+          <a class="btn btn-primary" href="../index.html" data-logout-button>Keluar</a>
+        </div>
+      </div>
+    </header>
+
+    <main class="container user-layout">
+      <div class="user-shell">
+        <aside class="sidebar">
+          <div class="profile-box">
+            <div class="avatar-lg">A</div>
+            <div>
+              <strong style="display:block; color: var(--primary-strong);">Annisa</strong>
+              <small class="muted">Seller & Buyer</small>
+            </div>
+          </div>
+
+          <nav aria-label="Sidebar navigasi">
+            <a href="dashboard.html">📊 Dashboard</a>
+            <a href="jual.html">📦 Jual</a>
+            <a class="active" href="beli.html">🛒 Beli</a>
+            <a href="my-products.html">📋 Barang Saya</a>
+            <a href="profil.html">👤 Profil</a>
+            <a href="chat.html">💬 Chat</a>
+          </nav>
+        </aside>
+
+        <div class="main-panel">
+          <section class="panel">
+            <div class="top-panel" style="margin-bottom: 20px;">
+              <div>
+                <span class="eyebrow">Belanja</span>
+                <h2 style="margin-top: 12px; font-size: 2rem;">Barang yang kamu suka</h2>
+              </div>
+            </div>
+
+            <div class="grid-products" data-buyer-list></div>
+          </section>
+        </div>
+      </div>
+    </main>
+    <script type="module" src="../assets/app.js"></script>
+  </body>
+</html>

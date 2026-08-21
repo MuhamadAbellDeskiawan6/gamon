@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Barang Kenangan — Marketplace</title>
+    <meta
+      name="description"
+      content="Marketplace Barang Kenangan, jual barang pemberian mantan dengan cara yang aman, tenang, dan lebih berharga."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="assets/style.css" />
+  </head>
+  <body data-page="home">
+    <header class="topbar">
+      <div class="container nav">
+        <a href="index.html" class="brand" aria-label="Barang Kenangan home">
+          <span class="brand-mark">G</span>
+          <span>Barang Kenangan</span>
+        </a>
+
+        <nav class="nav-links" aria-label="Navigasi utama">
+          <a href="#explore">Jelajahi</a>
+          <a href="#why">Kenapa Kami</a>
+          <a href="#how">Cara Kerja</a>
+          <a href="#reviews">Ulasan</a>
+        </nav>
+
+        <div class="nav-actions">
+          <a class="btn btn-secondary" href="login.html">Masuk</a>
+          <a class="btn btn-primary" href="register.html">Daftar</a>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero container">
+        <div class="hero-grid">
+          <div>
+            <span class="eyebrow">Marketplace untuk pelepasan</span>
+            <h1>
+              Jual barang kenangan,<br />
+              <span class="highlight">lepas masa lalu</span>
+            </h1>
+            <p class="lead">
+              Platform untuk orang yang ingin menyingkirkan barang pemberian mantan, sekaligus
+              mendapatkan uang. Semua item ditampilkan dengan cara yang aman, elegan, dan mudah
+              dipahami buyer.
+            </p>
+
+            <div class="hero-actions">
+              <a class="btn btn-primary" href="register.html">Mulai Jual</a>
+              <a class="btn btn-secondary" href="#explore">Lihat Barang</a>
+            </div>
+
+            <div class="meta-row">
+              <span class="meta-pill">⚡ 2.4k item aktif</span>
+              <span class="meta-pill">💬 1.2k pembeli</span>
+              <span class="meta-pill">🔒 Transaksi aman</span>
+            </div>
+          </div>
+
+          <div class="hero-visual">
+            <div class="feature-panel glass-card">
+              <div class="badge">Popular today</div>
+              <div class="feature-grid">
+                <div class="feature-item">
+                  <div class="thumb">🕰️</div>
+                  <h4>Jam tangan</h4>
+                  <p>Barang pemberian mantan dengan cerita yang terjaga.</p>
+                </div>
+                <div class="feature-item">
+                  <div class="thumb">👕</div>
+                  <h4>Baju favorit</h4>
+                  <p>Jual dengan harga realistis dan proses yang jelas.</p>
+                </div>
+                <div class="feature-item">
+                  <div class="thumb">🎁</div>
+                  <h4>Kado spesial</h4>
+                  <p>Item berkesan bisa berpindah tangan ke orang baru.</p>
+                </div>
+                <div class="feature-item">
+                  <div class="thumb">💍</div>
+                  <h4>Aksesoris</h4>
+                  <p>Temukan barang yang masih bagus untuk dibeli.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="explore" class="section container">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">Belanja ringan</span>
+            <h2>Barang yang sedang dijual</h2>
+          </div>
+          <p>Barang terbaru dari komunitas.</p>
+        </div>
+
+        <div class="filter-row" aria-label="Filter produk">
+          <button class="filter-pill active" data-filter="all">Semua</button>
+          <button class="filter-pill" data-filter="pakaian">Pakaian</button>
+          <button class="filter-pill" data-filter="aksesori">Aksesori</button>
+          <button class="filter-pill" data-filter="barang">Barang Lain</button>
+        </div>
+
+        <div class="grid-products" data-product-list></div>
+      </section>
+
+      <section id="why" class="section container">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">Kenapa memilih</span>
+            <h2>Desain yang lebih manusiawi</h2>
+          </div>
+        </div>
+
+        <div class="value-grid">
+          <div class="value-box">
+            <div class="big">01</div>
+            <h3>Proses jual yang santai</h3>
+            <p>Salah satu tujuan utamanya adalah membantu orang melepaskan kenangan tanpa stres.</p>
+          </div>
+          <div class="value-box">
+            <div class="big">02</div>
+            <h3>Transaksi aman</h3>
+            <p>Setiap akun harus login dan terverifikasi agar interaksi buyer-seller lebih aman.</p>
+          </div>
+          <div class="value-box">
+            <div class="big">03</div>
+            <h3>Chat dan negosiasi</h3>
+            <p>Buyer dan seller bisa berkomunikasi langsung tanpa meninggalkan platform.</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="how" class="section container">
+        <div class="cta-strip">
+          <div class="inner">
+            <div>
+              <span class="eyebrow">Cara kerja</span>
+              <h2>3 langkah sederhana</h2>
+            </div>
+            <div class="meta-row">
+              <span class="meta-pill">1. Daftar akun</span>
+              <span class="meta-pill">2. Upload barang</span>
+              <span class="meta-pill">3. Chat & deal</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="reviews" class="section container">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">Testimoni</span>
+            <h2>Yang orang bilang</h2>
+          </div>
+        </div>
+
+        <div class="grid-products">
+          <article class="product-card">
+            <div class="product-body">
+              <div class="seller-row">
+                <span class="seller-meta"><span class="avatar">N</span> Nabila</span>
+                <span>⭐ 5.0</span>
+              </div>
+              <p>“Aku jual hoodie lama dan langsung ada pembeli yang tertarik. Prosesnya terasa lebih ringan dan tidak canggung.”</p>
+            </div>
+          </article>
+
+          <article class="product-card">
+            <div class="product-body">
+              <div class="seller-row">
+                <span class="seller-meta"><span class="avatar">F</span> Farras</span>
+                <span>⭐ 4.9</span>
+              </div>
+              <p>“Mudah, enak dilihat, dan aku merasa lebih aman karena semua akun wajib login.”</p>
+            </div>
+          </article>
+
+          <article class="product-card">
+            <div class="product-body">
+              <div class="seller-row">
+                <span class="seller-meta"><span class="avatar">Y</span> Yuni</span>
+                <span>⭐ 5.0</span>
+              </div>
+              <p>“Terasa seperti marketplace yang manusiawi, bukan sekadar jual beli benda.”</p>
+            </div>
+          </article>
+
+          <article class="product-card">
+            <div class="product-body">
+              <div class="seller-row">
+                <span class="seller-meta"><span class="avatar">M</span> Miko</span>
+                <span>⭐ 4.8</span>
+              </div>
+              <p>“Aku suka fitur chat-nya, jadi tidak perlu ribet menebak kepastian dari barang.”</p>
+            </div>
+          </article>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <div class="container footer-line">
+        <div>© 2026 Barang Kenangan</div>
+        <div>Jual kenangan, dapatkan uang, buka lembaran baru.</div>
+      </div>
+    </footer>
+
+    <script type="module" src="assets/app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Detail Barang — Barang Kenangan</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="assets/style.css" />
+  </head>
+  <body data-page="product.html">
+    <header class="topbar">
+      <div class="container nav">
+        <a href="index.html" class="brand" aria-label="Home">
+          <span class="brand-mark">G</span>
+          <span>Barang Kenangan</span>
+        </a>
+        <div class="nav-actions">
+          <a class="btn btn-secondary" href="login.html">Masuk</a>
+          <a class="btn btn-primary" href="register.html">Daftar</a>
+        </div>
+      </div>
+    </header>
+
+    <main class="container user-layout">
+      <div class="panel" style="padding: 24px;">
+        <div class="top-panel" style="margin-bottom: 18px;">
+          <a class="btn btn-secondary" href="index.html">← Kembali</a>
+          <a class="btn btn-primary" href="login.html" data-chat-product>Chat penjual</a>
+        </div>
+
+        <div class="listing-layout">
+          <div class="listing-card">
+            <div class="listing-hero" data-detail-image>🧥</div>
+            <div class="listing-body">
+              <div class="product-head">
+                <div class="price" data-detail-price>Rp 0</div>
+                <span class="condition" data-detail-condition>Layak pakai</span>
+              </div>
+              <h3 style="margin-top: 14px;" data-detail-name>Nama barang</h3>
+              <p class="muted" style="margin-top: 10px;" data-detail-description>Deskripsi</p>
+              <div class="listing-meta">
+                <span class="meta-tag" data-detail-category>Pakaian</span>
+                <span class="meta-tag" data-detail-city>Jakarta</span>
+                <span class="meta-tag" data-detail-status>Ready</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel">
+            <span class="eyebrow">Informasi penjual</span>
+            <div class="seller-row" style="margin-top: 18px;">
+              <span class="seller-meta"><span class="avatar" data-detail-seller-initial>A</span> <span data-detail-seller>Annisa</span></span>
+              <span class="condition">Verified</span>
+            </div>
+
+            <div class="field" style="margin-top: 20px;">
+              <label>Lokasi</label>
+              <input type="text" value="Jakarta Selatan" readonly data-detail-location />
+            </div>
+
+            <div class="field">
+              <label>Deskripsi singkat</label>
+              <textarea readonly data-detail-summary>Barang ini ditampilkan dalam bentuk detail marketplace untuk buyer yang ingin menanyakan lebih lanjut.</textarea>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <script type="module" src="assets/app.js"></script>
+  </body>
+</html>

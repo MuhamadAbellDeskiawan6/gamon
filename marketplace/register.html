@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Daftar — Barang Kenangan</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="assets/style.css" />
+  </head>
+  <body data-page="register">
+    <div class="auth-shell">
+      <div class="auth-card">
+        <div class="auth-grid">
+          <div class="auth-visual">
+            <div class="stack">
+              <div>
+                <a href="index.html" class="brand" aria-label="Home">
+                  <span class="brand-mark">G</span>
+                  <span>Barang Kenangan</span>
+                </a>
+              </div>
+
+              <div class="mini-card">
+                <span class="eyebrow">Bergabung sekarang</span>
+                <h2 style="margin-top: 14px; font-size: 2rem;">Buat akun untuk beli atau jual</h2>
+                <p class="muted" style="margin-top: 10px; line-height: 1.7;">
+                  Daftar akun agar dapat mengupload barang, chat seller, dan melakukan transaksi secara aman.
+                </p>
+              </div>
+
+              <div class="mini-card">
+                <div class="seller-row">
+                  <span class="seller-meta"><span class="avatar">R</span> Raka</span>
+                  <span class="condition">Buyer baru</span>
+                </div>
+                <p style="margin-top: 12px; color: var(--muted);">Akun bisa dipakai untuk jadi buyer sekaligus seller, sesuai kebutuhan.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="auth-form">
+            <div class="head">
+              <h2>Daftar</h2>
+              <a class="btn btn-secondary" href="index.html">Kembali</a>
+            </div>
+
+            <form class="form-grid" data-auth-form>
+              <div class="form-row">
+                <div class="field">
+                  <label for="firstName">Nama depan</label>
+                  <input id="firstName" name="firstName" type="text" placeholder="Nama depan" required />
+                </div>
+                <div class="field">
+                  <label for="lastName">Nama belakang</label>
+                  <input id="lastName" name="lastName" type="text" placeholder="Nama belakang" required />
+                </div>
+              </div>
+
+              <div class="field">
+                <label for="reg-email">Email</label>
+                <input id="reg-email" name="email" type="email" placeholder="nama@email.com" required />
+              </div>
+
+              <div class="field">
+                <label for="phone">Nomor HP</label>
+                <input id="phone" name="phone" type="tel" placeholder="08xxxxxxxxxx" required />
+              </div>
+
+              <div class="field">
+                <label for="reg-password">Password</label>
+                <input id="reg-password" name="password" type="password" placeholder="Buat password" required />
+              </div>
+
+              <div class="field" data-auth-message style="display:none; padding: 10px 12px; border-radius: 12px; font-size: 0.95rem; margin-bottom: 8px;"></div>
+
+              <div class="field">
+                <label for="role">Saya ingin</label>
+                <select id="role" name="role">
+                  <option value="buyer">Beli barang</option>
+                  <option value="seller">Jual barang</option>
+                  <option value="both">Beli & jual</option>
+                </select>
+              </div>
+
+              <label class="check-row">
+                <input type="checkbox" name="agree" required />
+                Saya setuju dengan syarat dan ketentuan.
+              </label>
+
+              <button class="btn btn-primary" type="submit">Buat akun</button>
+            </form>
+
+            <div class="alt-text">
+              Sudah punya akun? <a href="login.html" style="color: var(--primary); font-weight: 700;">Masuk disini</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script type="module" src="assets/app.js"></script>
+  </body>
+</html>

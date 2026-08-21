@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Masuk — Barang Kenangan</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="assets/style.css" />
+  </head>
+  <body data-page="login">
+    <div class="auth-shell">
+      <div class="auth-card">
+        <div class="auth-grid">
+          <div class="auth-visual">
+            <div class="stack">
+              <div>
+                <a href="index.html" class="brand" aria-label="Home">
+                  <span class="brand-mark">G</span>
+                  <span>Barang Kenangan</span>
+                </a>
+              </div>
+
+              <div class="mini-card">
+                <span class="eyebrow">Marketplace aman</span>
+                <h2 style="margin-top: 14px; font-size: 2rem;">Masuk untuk melanjutkan</h2>
+                <p class="muted" style="margin-top: 10px; line-height: 1.7;">
+                  Semua aktivitas jual beli dibuat dengan akun terverifikasi supaya lebih aman dan personal.
+                </p>
+              </div>
+
+              <div class="mini-card">
+                <div class="seller-row">
+                  <span class="seller-meta"><span class="avatar">A</span> Annisa</span>
+                  <span class="condition">Seller aktif</span>
+                </div>
+                <p style="margin-top: 12px; color: var(--muted);">Jual hoodie dan aksesori dengan proses yang cepat dan jelas.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="auth-form">
+            <div class="head">
+              <h2>Masuk</h2>
+              <a class="btn btn-secondary" href="index.html">Kembali</a>
+            </div>
+
+            <form class="form-grid" data-auth-form>
+              <div class="field">
+                <label for="email">Email</label>
+                <input id="email" name="email" type="email" placeholder="nama@email.com" required />
+              </div>
+
+              <div class="field" data-auth-message style="display:none; padding: 10px 12px; border-radius: 12px; font-size: 0.95rem; margin-bottom: 8px;"></div>
+
+              <div class="field">
+                <label for="password">Password</label>
+                <input id="password" name="password" type="password" placeholder="Masukkan password" required />
+              </div>
+
+              <div style="display:flex; justify-content:flex-end; gap: 12px; margin-top: -6px; margin-bottom: 4px; flex-wrap: wrap;">
+                <a href="#" data-forgot-password style="color: var(--primary); font-weight: 700; text-decoration: none;">Lupa password?</a>
+                <a href="#" data-resend-verification style="color: var(--primary); font-weight: 700; text-decoration: none;">Kirim ulang verifikasi</a>
+              </div>
+
+              <label class="check-row">
+                <input type="checkbox" name="remember" checked />
+                Ingat saya
+              </label>
+
+              <button class="btn btn-primary" type="submit">Masuk ke dashboard</button>
+            </form>
+
+            <div class="alt-text">
+              Belum punya akun? <a href="register.html" style="color: var(--primary); font-weight: 700;">Daftar sekarang</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script type="module" src="assets/app.js"></script>
+  </body>
+</html>

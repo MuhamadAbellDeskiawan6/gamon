@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Jual Barang — Barang Kenangan</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="../assets/style.css" />
+  </head>
+  <body data-page="jual.html">
+    <header class="topbar">
+      <div class="container nav">
+        <a href="../index.html" class="brand" aria-label="Home">
+          <span class="brand-mark">G</span>
+          <span>Barang Kenangan</span>
+        </a>
+        <div class="nav-actions">
+          <a class="btn btn-secondary" href="profil.html">Profil</a>
+          <a class="btn btn-primary" href="../index.html" data-logout-button>Keluar</a>
+        </div>
+      </div>
+    </header>
+
+    <main class="container user-layout">
+      <div class="user-shell">
+        <aside class="sidebar">
+          <div class="profile-box">
+            <div class="avatar-lg">A</div>
+            <div>
+              <strong style="display:block; color: var(--primary-strong);">Annisa</strong>
+              <small class="muted">Seller & Buyer</small>
+            </div>
+          </div>
+
+          <nav aria-label="Sidebar navigasi">
+            <a href="dashboard.html">📊 Dashboard</a>
+            <a class="active" href="jual.html">📦 Jual</a>
+            <a href="beli.html">🛒 Beli</a>
+            <a href="my-products.html">📋 Barang Saya</a>
+            <a href="profil.html">👤 Profil</a>
+            <a href="chat.html">💬 Chat</a>
+          </nav>
+        </aside>
+
+        <div class="main-panel">
+          <section class="panel">
+            <div class="top-panel" style="margin-bottom: 20px;">
+              <div>
+                <span class="eyebrow">Jual barang</span>
+                <h2 style="margin-top: 12px; font-size: 2rem;">Pasang iklan baru</h2>
+              </div>
+              <a class="btn btn-primary" href="my-products.html">Lihat daftar saya</a>
+            </div>
+
+            <form class="form-panel" data-sell-form>
+              <div class="form-row">
+                <div class="field">
+                  <label for="namaBarang">Nama barang</label>
+                  <input id="namaBarang" name="name" type="text" placeholder="Contoh: Jam tangan Casio" required />
+                </div>
+                <div class="field">
+                  <label for="kategori">Kategori</label>
+                  <select id="kategori" name="category">
+                    <option value="pakaian">Pakaian</option>
+                    <option value="aksesori">Aksesori</option>
+                    <option value="barang">Barang Lain</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="field">
+                  <label for="harga">Harga</label>
+                  <input id="harga" name="price" type="text" placeholder="Rp 250.000" required />
+                </div>
+                <div class="field">
+                  <label for="kondisi">Kondisi</label>
+                  <select id="kondisi" name="condition">
+                    <option value="Baru">Baru</option>
+                    <option value="Layak pakai">Layak pakai</option>
+                    <option value="Bekas terawat">Bekas terawat</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="field">
+                <label for="deskripsi">Deskripsi</label>
+                <textarea id="deskripsi" name="description" placeholder="Ceritakan kondisi barang, ukuran, bahan, dan alasan menjualnya." required></textarea>
+              </div>
+
+              <div class="form-row">
+                <div class="field">
+                  <label for="lokasi">Lokasi</label>
+                  <input id="lokasi" name="location" type="text" placeholder="Jakarta Selatan" required />
+                </div>
+                <div class="field">
+                  <label for="foto">Foto barang</label>
+                  <input id="foto" name="photo" type="file" accept="image/png,image/jpeg,image/webp" />
+                </div>
+              </div>
+
+              <div class="preview-box">
+                <div class="cover">📷</div>
+                <h3>Preview iklan</h3>
+                <p class="muted" style="margin-top: 8px;">Barang yang muncul di marketplace akan menampilkan foto, keterangan produk, lokasi, dan harga yang disepakati.</p>
+              </div>
+
+              <button class="btn btn-primary" type="submit" style="margin-top: 10px; width: auto;">Publish iklan</button>
+            </form>
+          </section>
+        </div>
+      </div>
+    </main>
+    <script type="module" src="../assets/app.js"></script>
+  </body>
+</html>
