@@ -811,6 +811,14 @@ height:64.10%;
         ctxOutput.restore();
     }
 
+    function scheduleCameraRefresh() {
+        if (!cameraActive || !video || !video.srcObject || video.paused || video.ended) return;
+        if (frameProcessingRaf) {
+            cancelAnimationFrame(frameProcessingRaf);
+        }
+        frameProcessingRaf = requestAnimationFrame(() => updateFrameProcessing());
+    }
+
     function onSegmentationResults(results) {
         if (!outputCanvas || !ctxOutput || !shouldUseSegmentation()) {
             renderRawCameraFrame();
@@ -1048,12 +1056,10 @@ height:64.10%;
 
         const sessionId = cameraSessionId;
         const now = performance.now();
-        const frameInterval = isLowPowerDevice() ? 180 : 110;
+        const frameInterval = isLowPowerDevice() ? 200 : 100;
 
         if (now - lastCameraFrameDraw < frameInterval) {
-            if (sessionId === cameraSessionId && video.srcObject && !video.paused && !video.ended && cameraActive) {
-                frameProcessingRaf = requestAnimationFrame(() => updateFrameProcessing());
-            }
+            scheduleCameraRefresh();
             return;
         }
 
@@ -1061,6 +1067,7 @@ height:64.10%;
 
         if (!shouldUseSegmentation()) {
             renderRawCameraFrame();
+            scheduleCameraRefresh();
             return;
         }
 
@@ -1077,7 +1084,7 @@ height:64.10%;
         }
 
         if (sessionId === cameraSessionId && video.srcObject && !video.paused && !video.ended && cameraActive) {
-            frameProcessingRaf = requestAnimationFrame(() => updateFrameProcessing());
+            scheduleCameraRefresh();
         }
     }
 
