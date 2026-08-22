@@ -1,5 +1,5 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut, sendPasswordResetEmail, sendEmailVerification } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut, sendPasswordResetEmail } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 import { getFirestore, collection, doc, setDoc, getDoc, getDocs, addDoc, query, orderBy, where, onSnapshot, updateDoc, deleteDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
 const firebaseConfig = {
@@ -99,22 +99,15 @@ const demoUsers = [
   }
 ];
 
-const chatSeed = {
-  Raka: [
-    { from: 'Raka', text: 'Halo, jam tangan ini masih berfungsi dengan baik. Kalau kamu tertarik, saya bisa kirim detail lebih lanjut.' },
-    { from: 'Me', text: 'Oke, boleh kirim foto bagian belakang dan kondisi jarum jamnya.' },
-    { from: 'Raka', text: 'Siap, saya kirim foto hari ini juga. Kalau cocok, bisa deal di harga 600 ribu.' }
-  ],
-  Dinda: [
-    { from: 'Dinda', text: 'Set kado anniversary masih rapi dan siap dipakai. Mau lihat detailnya?' }
-  ]
-};
+const chatSeed = {};
 
 const moneyFormatter = new Intl.NumberFormat('id-ID', {
   style: 'currency',
   currency: 'IDR',
   maximumFractionDigits: 0
 });
+
+const BASE_DOCUMENT_TITLE = document.title;
 
 const FILE_UPLOAD_TIMEOUT_MS = 120000;
 
@@ -125,6 +118,20 @@ function readStorage(key, fallback) {
   } catch (error) {
     return fallback;
   }
+}
+
+function writeStorage(key, value) {
+  localStorage.setItem(key, JSON.stringify(value));
+}
+
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, (char) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  }[char]));
 }
 
 function setButtonLoading(button, isLoading, loadingText = 'Menyimpan...') {
@@ -212,10 +219,6 @@ function showToast(message, tone = 'info') {
   }, 2800);
 }
 
-function writeStorage(key, value) {
-  localStorage.setItem(key, JSON.stringify(value));
-}
-
 function withTimeout(promise, timeoutMs, label) {
   return Promise.race([
     promise,
@@ -234,7 +237,7 @@ function fileToDataUrl(file) {
   });
 }
 
-async function prepareImageForUpload(file, { maxSide = 1400, quality = 0.78 } = {}) {
+async function prepareImageForUpload(file, { targetWidth = 1200, targetHeight = 900, quality = 0.78 } = {}) {
   if (!file || !file.type || !file.type.startsWith('image/')) return file;
 
   const sourceUrl = await fileToDataUrl(file);
@@ -245,17 +248,23 @@ async function prepareImageForUpload(file, { maxSide = 1400, quality = 0.78 } = 
     img.src = sourceUrl;
   });
 
-  const maxDimension = Math.max(image.width, image.height);
-  const scale = maxDimension > maxSide ? maxSide / maxDimension : 1;
-
   const canvas = document.createElement('canvas');
-  canvas.width = Math.max(1, Math.round(image.width * scale));
-  canvas.height = Math.max(1, Math.round(image.height * scale));
+  canvas.width = targetWidth;
+  canvas.height = targetHeight;
 
   const context = canvas.getContext('2d');
   if (!context) return file;
 
-  context.drawImage(image, 0, 0, canvas.width, canvas.height);
+  context.fillStyle = '#fffafc';
+  context.fillRect(0, 0, canvas.width, canvas.height);
+
+  const scale = Math.min(targetWidth / image.width, targetHeight / image.height);
+  const drawWidth = image.width * scale;
+  const drawHeight = image.height * scale;
+  const offsetX = (targetWidth - drawWidth) / 2;
+  const offsetY = (targetHeight - drawHeight) / 2;
+
+  context.drawImage(image, offsetX, offsetY, drawWidth, drawHeight);
 
   const targetType = file.type === 'image/png' ? 'image/jpeg' : file.type;
   const blob = await new Promise((resolve) => {
@@ -384,6 +393,24 @@ function canAttemptLogin() {
 
 function formatCurrency(value) {
   return moneyFormatter.format(Number(value || 0));
+}
+
+function getCurrentPageIsUserArea() {
+  return window.location.pathname.includes('/user/');
+}
+
+function getProductDetailUrl(productId) {
+  const id = encodeURIComponent(productId ?? '');
+  const isLoggedIn = Boolean(currentUser() || auth.currentUser);
+  const targetPage = isLoggedIn ? (getCurrentPageIsUserArea() ? 'product.html' : 'user/product.html') : 'product.html';
+  return `${targetPage}?id=${id}`;
+}
+
+function getUserChatUrl(sellerName, sellerId) {
+  const basePage = getCurrentPageIsUserArea() ? 'chat.html' : 'user/chat.html';
+  const safeSeller = sellerName || 'Penjual';
+  const safeSellerId = sellerId || sellerName || '';
+  return `${basePage}?user=${encodeURIComponent(safeSeller)}&userId=${encodeURIComponent(safeSellerId)}`;
 }
 
 function getSafeUserName(name) {
@@ -547,164 +574,6 @@ function getCurrentUserIdentifier() {
   return normalizeUserIdentifier(user.id || user.uid || user.email || user.name || 'guest');
 }
 
-function findMatchingThreadKey(targetUserId, targetName, currentUserId) {
-  const threads = readChatThreads();
-  const normalizedTarget = normalizeUserIdentifier(targetUserId || resolveUserIdByName(targetName) || targetName || '').toLowerCase();
-  const normalizedTargetName = normalizeUserIdentifier(targetName || '').toLowerCase();
-  const normalizedCurrent = normalizeUserIdentifier(currentUserId || '').toLowerCase();
-
-  const keys = Object.keys(threads).sort((a, b) => {
-    const aTime = Number(threads[a]?.messages?.[threads[a].messages.length - 1]?.createdAt || 0);
-    const bTime = Number(threads[b]?.messages?.[threads[b].messages.length - 1]?.createdAt || 0);
-    return bTime - aTime;
-  });
-
-  const exactMatch = keys.find((key) => {
-    const thread = threads[key] || {};
-    const participants = thread.participants || [];
-    const hasCurrent = participants.some((participant) => normalizeUserIdentifier(participant.id || participant.uid || participant.email || '').toLowerCase() === normalizedCurrent);
-    const hasTarget = participants.some((participant) => {
-      const participantId = normalizeUserIdentifier(participant.id || participant.uid || participant.email || '').toLowerCase();
-      const participantName = normalizeUserIdentifier(participant.name || '').toLowerCase();
-      return participantId === normalizedTarget || participantName === normalizedTargetName || participantName === normalizedTarget;
-    });
-    return hasCurrent && hasTarget;
-  });
-
-  if (exactMatch) return exactMatch;
-
-  const realThread = keys.find((key) => {
-    const thread = threads[key] || {};
-    const participants = thread.participants || [];
-    const hasCurrent = participants.some((participant) => {
-      const participantId = normalizeUserIdentifier(participant.id || participant.uid || participant.email || '').toLowerCase();
-      const participantName = normalizeUserIdentifier(participant.name || '').toLowerCase();
-      return participantId === normalizedCurrent || participantName === normalizedCurrent;
-    });
-    const hasRealCounterpart = participants.some((participant) => {
-      const participantId = normalizeUserIdentifier(participant.id || participant.uid || participant.email || '').toLowerCase();
-      const participantName = normalizeUserIdentifier(participant.name || '').toLowerCase();
-      return !!participantId && !isPlaceholderUser(participantId) && !isPlaceholderUser(participantName) && participantId !== normalizedCurrent && participantName !== normalizedCurrent;
-    });
-    return hasCurrent && hasRealCounterpart;
-  });
-
-  return realThread || '';
-}
-
-async function findFirestoreThreadId(currentUserId, targetUserId, targetName) {
-  try {
-    const snapshot = await getDocs(collection(db, 'marketplace_chats'));
-    const normalizedCurrent = normalizeUserIdentifier(currentUserId || '').toLowerCase();
-    const normalizedTarget = normalizeUserIdentifier(targetUserId || resolveUserIdByName(targetName) || targetName || '').toLowerCase();
-    const normalizedTargetName = normalizeUserIdentifier(targetName || '').toLowerCase();
-    const ignoreTarget = isPlaceholderUser(targetUserId || targetName);
-
-    for (const docSnap of snapshot.docs) {
-      const data = docSnap.data() || {};
-      const participants = Array.isArray(data.participants) ? data.participants : [];
-      const hasCurrent = participants.some((participant) => {
-        const participantId = normalizeUserIdentifier(participant.id || participant.uid || participant.email || '').toLowerCase();
-        const participantName = normalizeUserIdentifier(participant.name || '').toLowerCase();
-        return participantId === normalizedCurrent || participantName === normalizedCurrent;
-      });
-      const hasTarget = ignoreTarget ? true : participants.some((participant) => {
-        const participantId = normalizeUserIdentifier(participant.id || participant.uid || participant.email || '').toLowerCase();
-        const participantName = normalizeUserIdentifier(participant.name || '').toLowerCase();
-        return participantId === normalizedTarget || participantName === normalizedTargetName || participantName === normalizeUserIdentifier(targetUserId || '').toLowerCase();
-      });
-
-      if (hasCurrent && hasTarget) {
-        return docSnap.id;
-      }
-    }
-
-    return null;
-  } catch (error) {
-    console.warn('Gagal mencari thread Firestore:', error);
-    return null;
-  }
-}
-
-async function findExactThreadForCurrentUser(currentUserId, currentUserName, targetUserId, targetName) {
-  try {
-    const snapshot = await getDocs(collection(db, 'marketplace_chats'));
-    const normalizedCurrent = normalizeUserIdentifier(currentUserId || '').toLowerCase();
-    const normalizedCurrentName = normalizeUserIdentifier(currentUserName || '').toLowerCase();
-    const normalizedTarget = normalizeUserIdentifier(targetUserId || resolveUserIdByName(targetName) || targetName || '').toLowerCase();
-    const normalizedTargetName = normalizeUserIdentifier(targetName || '').toLowerCase();
-    const ignoreTarget = isPlaceholderUser(targetUserId || targetName);
-
-    const matches = [];
-    for (const docSnap of snapshot.docs) {
-      const data = docSnap.data() || {};
-      const participants = Array.isArray(data.participants) ? data.participants : [];
-      const containsCurrentUser = participants.some((participant) => {
-        const participantId = normalizeUserIdentifier(participant.id || participant.uid || participant.email || '').toLowerCase();
-        const participantName = normalizeUserIdentifier(participant.name || '').toLowerCase();
-        return participantId === normalizedCurrent || participantName === normalizedCurrent || participantName === normalizedCurrentName;
-      });
-
-      const containsTargetUser = ignoreTarget ? true : participants.some((participant) => {
-        const participantId = normalizeUserIdentifier(participant.id || participant.uid || participant.email || '').toLowerCase();
-        const participantName = normalizeUserIdentifier(participant.name || '').toLowerCase();
-        return participantId === normalizedTarget || participantName === normalizedTargetName || participantName === normalizedTarget;
-      });
-
-      if (containsCurrentUser && containsTargetUser) {
-        matches.push({
-          id: docSnap.id,
-          data: data,
-          updatedAt: Number(data.updatedAt || data.lastMessageAt || 0),
-          participants: participants
-        });
-      }
-    }
-
-    if (!matches.length) return null;
-    matches.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
-    return matches[0];
-  } catch (error) {
-    console.warn('Gagal mencari thread exact untuk user aktif:', error);
-    return null;
-  }
-}
-
-async function findActiveThreadForCurrentUser(currentUserId, currentUserName) {
-  try {
-    const snapshot = await getDocs(collection(db, 'marketplace_chats'));
-    const normalizedCurrent = normalizeUserIdentifier(currentUserId || '').toLowerCase();
-    const normalizedCurrentName = normalizeUserIdentifier(currentUserName || '').toLowerCase();
-    const matches = [];
-
-    for (const docSnap of snapshot.docs) {
-      const data = docSnap.data() || {};
-      const participants = Array.isArray(data.participants) ? data.participants : [];
-      const isMine = participants.some((participant) => {
-        const participantId = normalizeUserIdentifier(participant.id || participant.uid || participant.email || '').toLowerCase();
-        const participantName = normalizeUserIdentifier(participant.name || '').toLowerCase();
-        return participantId === normalizedCurrent || participantName === normalizedCurrentName || participantName === normalizedCurrent;
-      });
-
-      if (isMine) {
-        matches.push({
-          id: docSnap.id,
-          updatedAt: Number(data.updatedAt || data.lastMessageAt || 0),
-          participants: participants,
-          messages: Array.isArray(data.messages) ? data.messages : []
-        });
-      }
-    }
-
-    if (!matches.length) return null;
-    matches.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
-    return matches[0];
-  } catch (error) {
-    console.warn('Gagal mencari thread aktif untuk user:', error);
-    return null;
-  }
-}
-
 function resolveUserIdByName(name) {
   const value = normalizeUserIdentifier(name || '').trim();
   if (!value) return '';
@@ -719,114 +588,370 @@ function resolveUserIdByName(name) {
   return match ? normalizeUserIdentifier(match.id || match.uid || match.email || value) : value;
 }
 
-function getChatThreadId(userA, userB) {
-  const left = normalizeUserIdentifier(userA || '').toLowerCase();
-  const right = normalizeUserIdentifier(userB || '').toLowerCase();
+/* =========================================================================
+ * CHAT SYSTEM
+ * -------------------------------------------------------------------------
+ * One deterministic thread id per pair of users - no more guessing which
+ * Firestore doc "is" a conversation. Thread docs carry:
+ *   - participantIds: [idA, idB]   -> lets us query "all my chats"
+ *   - participants:   [{id,name}]  -> display info for the list/header
+ *   - messages:       [{id, senderId, sender, text, createdAt}]
+ *   - lastMessage / lastMessageAt / updatedAt -> for the chat list preview
+ *   - lastReadAt: { [userId]: timestamp } -> drives unread counts
+ * ========================================================================= */
+
+function getChatThreadId(userIdA, userIdB) {
+  const left = normalizeUserIdentifier(userIdA || '').toLowerCase();
+  const right = normalizeUserIdentifier(userIdB || '').toLowerCase();
   return [left, right].sort().join('__');
 }
 
-function readChatThreads() {
-  return readStorage('gamon_marketplace_threads', {});
+function buildTargetKey(targetUserId, targetName) {
+  if (targetUserId && !isPlaceholderUser(targetUserId)) return normalizeUserIdentifier(targetUserId);
+  if (targetName) return `name:${normalizeUserIdentifier(targetName).toLowerCase()}`;
+  return '';
 }
 
-function writeChatThreads(data) {
-  writeStorage('gamon_marketplace_threads', data);
+function readChatThreadsCache() {
+  return readStorage('gamon_marketplace_threads_cache', {});
 }
 
-function sanitizeChatThreadCache(currentUserId, currentUserName) {
-  const threads = readChatThreads();
-  const normalizedCurrentId = normalizeUserIdentifier(currentUserId || '').toLowerCase();
-  const normalizedCurrentName = normalizeUserIdentifier(currentUserName || '').toLowerCase();
+function writeChatThreadsCache(data) {
+  writeStorage('gamon_marketplace_threads_cache', data);
+}
 
-  const cleaned = Object.fromEntries(Object.entries(threads).filter(([key, thread]) => {
-    const participants = Array.isArray(thread?.participants) ? thread.participants : [];
-    if (!participants.length) return true;
+function computeUnreadCount(thread, currentUserId) {
+  const messages = thread?.messages || [];
+  const lastReadAt = Number((thread?.lastReadAt || {})[currentUserId] || 0);
+  const normalizedCurrent = normalizeUserIdentifier(currentUserId || '').toLowerCase();
 
-    const hasCurrentUser = participants.some((participant) => {
-      const participantId = normalizeUserIdentifier(participant.id || participant.uid || participant.email || '').toLowerCase();
-      const participantName = normalizeUserIdentifier(participant.name || '').toLowerCase();
-      return participantId === normalizedCurrentId || participantName === normalizedCurrentName || participantName === normalizedCurrentId;
+  return messages.filter((msg) => {
+    const senderId = normalizeUserIdentifier(msg.senderId || msg.sender || '').toLowerCase();
+    return senderId !== normalizedCurrent && Number(msg.createdAt || 0) > lastReadAt;
+  }).length;
+}
+
+function getOtherParticipant(thread, currentUserId) {
+  const normalizedCurrent = normalizeUserIdentifier(currentUserId || '').toLowerCase();
+  const participants = thread?.participants || [];
+  return participants.find((participant) => normalizeUserIdentifier(participant.id || '').toLowerCase() !== normalizedCurrent) || { id: '', name: 'Pengguna' };
+}
+
+function getTotalUnreadCount(threadDocs, currentUserId) {
+  return threadDocs.reduce((total, thread) => total + computeUnreadCount(thread, currentUserId), 0);
+}
+
+function ensureChatBadgeElements() {
+  const chatLinks = document.querySelectorAll('a[href*="chat.html"]');
+  chatLinks.forEach((link) => {
+    if (link.querySelector('[data-chat-nav-badge]')) return;
+
+    if (getComputedStyle(link).position === 'static') {
+      link.style.position = 'relative';
+    }
+
+    const badge = document.createElement('span');
+    badge.setAttribute('data-chat-nav-badge', '');
+    badge.className = 'chat-nav-badge';
+    badge.style.cssText = 'display:none;position:absolute;top:-6px;right:-8px;min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:#e0313f;color:#fff;font-size:11px;line-height:18px;text-align:center;font-weight:600;box-shadow:0 0 0 2px #fff;';
+    link.appendChild(badge);
+  });
+}
+
+function updateChatBadges(count) {
+  ensureChatBadgeElements();
+
+  const badges = document.querySelectorAll('[data-chat-badge], [data-chat-nav-badge]');
+  badges.forEach((badge) => {
+    if (count > 0) {
+      badge.textContent = count > 99 ? '99+' : String(count);
+      badge.style.display = '';
+      badge.classList.add('show');
+    } else {
+      badge.textContent = '';
+      badge.style.display = 'none';
+      badge.classList.remove('show');
+    }
+  });
+
+  document.title = count > 0 ? `(${count > 99 ? '99+' : count}) ${BASE_DOCUMENT_TITLE}` : BASE_DOCUMENT_TITLE;
+}
+
+function subscribeToGlobalChatNotifications(currentUserId) {
+  if (!currentUserId) return () => {};
+
+  const knownLastMessageIds = new Map();
+  let isInitialSnapshot = true;
+
+  try {
+    const listQuery = query(collection(db, 'marketplace_chats'), where('participantIds', 'array-contains', currentUserId));
+
+    const unsubscribe = onSnapshot(listQuery, (snapshot) => {
+      const threadDocs = snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
+
+      threadDocs.forEach((thread) => {
+        const messages = thread.messages || [];
+        const lastMessage = messages[messages.length - 1];
+        if (!lastMessage) return;
+
+        const previousLastId = knownLastMessageIds.get(thread.id);
+        knownLastMessageIds.set(thread.id, lastMessage.id);
+
+        if (isInitialSnapshot) return;
+
+        const senderId = normalizeUserIdentifier(lastMessage.senderId || '').toLowerCase();
+        const isFromMe = senderId === normalizeUserIdentifier(currentUserId).toLowerCase();
+        const isNewMessage = previousLastId !== lastMessage.id;
+        const isActiveThread = thread.id === window.__marketplaceActiveChatThreadId;
+
+        if (isNewMessage && !isFromMe && !isActiveThread) {
+          const other = getOtherParticipant(thread, currentUserId);
+          const senderName = lastMessage.sender || other.name || 'Seseorang';
+          const preview = String(lastMessage.text || '').slice(0, 80);
+          showToast(`${senderName}: ${preview}`, 'info');
+        }
+      });
+
+      isInitialSnapshot = false;
+      updateChatBadges(getTotalUnreadCount(threadDocs, currentUserId));
+    }, (error) => {
+      console.warn('Gagal memuat notifikasi chat:', error);
     });
 
-    const hasMeaningfulParticipant = participants.some((participant) => {
-      const participantId = normalizeUserIdentifier(participant.id || participant.uid || participant.email || '').toLowerCase();
-      const participantName = normalizeUserIdentifier(participant.name || '').toLowerCase();
-      return !!participantId && !isPlaceholderUser(participantId) && !isPlaceholderUser(participantName);
-    });
+    return unsubscribe;
+  } catch (error) {
+    console.warn('Gagal membuka notifikasi chat:', error);
+    return () => {};
+  }
+}
 
-    const allParticipantsPlaceholder = participants.length > 0 && participants.every((participant) => {
-      const participantId = normalizeUserIdentifier(participant.id || participant.uid || participant.email || '').toLowerCase();
-      const participantName = normalizeUserIdentifier(participant.name || '').toLowerCase();
-      return isPlaceholderUser(participantId) || isPlaceholderUser(participantName);
-    });
+async function markThreadReadRemote(chatRef, existingData, currentUserId) {
+  const lastReadAt = { ...(existingData?.lastReadAt || {}), [currentUserId]: Date.now() };
+  try {
+    await setDoc(chatRef, { lastReadAt }, { merge: true });
+  } catch (error) {
+    console.warn('Gagal menandai chat sudah dibaca:', error);
+  }
+}
 
-    return hasCurrentUser && (hasMeaningfulParticipant || !allParticipantsPlaceholder);
-  }));
+function renderChatMessages(container, messages, currentUserId) {
+  if (!container) return;
 
-  if (Object.keys(cleaned).length !== Object.keys(threads).length) {
-    writeChatThreads(cleaned);
+  if (!messages.length) {
+    container.innerHTML = '<div class="empty-state">Belum ada pesan. Mulai percakapan sekarang.</div>';
+    return;
   }
 
-  return cleaned;
+  const normalizedCurrent = normalizeUserIdentifier(currentUserId || '').toLowerCase();
+  container.innerHTML = messages.map((msg) => {
+    const senderIsMe = normalizeUserIdentifier(msg.senderId || '').toLowerCase() === normalizedCurrent;
+    return `
+      <div class="bubble-message ${senderIsMe ? 'me' : 'other'}">
+        <div>${escapeHtml(msg.text)}</div>
+      </div>
+    `;
+  }).join('');
+  container.scrollTop = container.scrollHeight;
 }
 
-function getThreadSummary(thread) {
-  const messages = thread?.messages || [];
-  const lastMessage = messages[messages.length - 1];
-  return {
-    lastMessageText: lastMessage ? lastMessage.text : 'Belum ada pesan',
-    lastMessageAt: lastMessage ? lastMessage.createdAt || 0 : 0,
-    unreadCount: Number(thread?.unreadCount || 0)
+function renderChatThreadList(container, threadDocs, currentUserId, activeThreadId) {
+  if (!container) return;
+
+  if (!threadDocs.length) {
+    container.innerHTML = '<div class="empty-state">Belum ada chat</div>';
+    return;
+  }
+
+  const sorted = [...threadDocs].sort((a, b) => Number(b.updatedAt || b.lastMessageAt || 0) - Number(a.updatedAt || a.lastMessageAt || 0));
+
+  container.innerHTML = sorted.map((thread) => {
+    const other = getOtherParticipant(thread, currentUserId);
+    const unread = computeUnreadCount(thread, currentUserId);
+    const isActive = thread.id === activeThreadId;
+    const preview = thread.lastMessage ? escapeHtml(thread.lastMessage) : 'Belum ada pesan';
+
+    return `
+      <button class="chat-item ${isActive ? 'active' : ''}" type="button" data-thread-user-id="${escapeHtml(other.id || '')}" data-thread-user-name="${escapeHtml(other.name || 'Pengguna')}">
+        <div class="avatar">${escapeHtml(String(other.name || 'P').charAt(0).toUpperCase())}</div>
+        <div class="chat-item-body">
+          <div class="chat-item-head">
+            <strong>${escapeHtml(other.name || 'Pengguna')}</strong>
+            ${unread ? `<span class="chat-badge">${unread}</span>` : ''}
+          </div>
+          <small class="muted">${preview}</small>
+        </div>
+      </button>
+    `;
+  }).join('');
+
+  container.querySelectorAll('[data-thread-user-id]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const targetId = button.dataset.threadUserId;
+      const targetName = button.dataset.threadUserName;
+      window.location.href = `chat.html?user=${encodeURIComponent(targetName)}&userId=${encodeURIComponent(targetId)}`;
+    });
+  });
+}
+
+async function renderChat() {
+  const user = requireAuth();
+  if (!user) return;
+
+  const params = new URLSearchParams(window.location.search);
+  const sellerNameParam = params.get('user') || '';
+  const sellerIdParam = params.get('userId') || '';
+
+  const currentUserId = getCurrentUserIdentifier();
+  const currentUserName = getSafeUserName((currentUser() || {}).name || user.name);
+
+  const resolvedTargetId = !isPlaceholderUser(sellerIdParam)
+    ? normalizeUserIdentifier(sellerIdParam)
+    : (sellerNameParam ? resolveUserIdByName(sellerNameParam) : '');
+  const targetName = sellerNameParam ? normalizeUserIdentifier(sellerNameParam) : '';
+  const targetKey = buildTargetKey(resolvedTargetId, targetName);
+  const hasTarget = Boolean(targetKey);
+  const threadId = hasTarget ? getChatThreadId(currentUserId, targetKey) : '';
+
+  const sellerLabel = document.querySelector('[data-chat-contact]');
+  if (sellerLabel) sellerLabel.textContent = targetName || 'Pilih percakapan';
+
+  const threadListEl = document.querySelector('[data-chat-list]');
+  const threadEl = document.querySelector('[data-chat-thread]');
+  const composer = document.querySelector('[data-chat-form]');
+
+  // ---- Chat list: realtime "all conversations that contain me" ----
+  let listUnsubscribe = () => {};
+  if (threadListEl && currentUserId) {
+    try {
+      const listQuery = query(collection(db, 'marketplace_chats'), where('participantIds', 'array-contains', currentUserId));
+      listUnsubscribe = onSnapshot(listQuery, (snapshot) => {
+        const threadDocs = snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
+        const cache = readChatThreadsCache();
+        threadDocs.forEach((thread) => { cache[thread.id] = thread; });
+        writeChatThreadsCache(cache);
+        renderChatThreadList(threadListEl, threadDocs, currentUserId, threadId);
+      }, (error) => {
+        console.warn('Gagal memuat daftar chat:', error);
+        const cache = readChatThreadsCache();
+        const cachedDocs = Object.entries(cache).map(([id, thread]) => ({ id, ...thread }));
+        renderChatThreadList(threadListEl, cachedDocs, currentUserId, threadId);
+      });
+    } catch (error) {
+      console.warn('Gagal membuka daftar chat:', error);
+    }
+  }
+
+  if (!hasTarget) {
+    window.__marketplaceActiveChatThreadId = null;
+    if (threadEl) threadEl.innerHTML = '<div class="empty-state">Pilih percakapan untuk mulai chat</div>';
+    if (composer) composer.style.display = 'none';
+    window.__marketplaceChatCleanup = listUnsubscribe;
+    return;
+  }
+
+  window.__marketplaceActiveChatThreadId = threadId;
+
+  // ---- Active thread: realtime messages ----
+  const chatRef = doc(db, 'marketplace_chats', threadId);
+  const participants = [
+    { id: currentUserId, name: currentUserName },
+    { id: targetKey, name: targetName || 'Pengguna' }
+  ];
+
+  const messageUnsubscribe = onSnapshot(chatRef, (snapshot) => {
+    const data = snapshot.exists() ? snapshot.data() : { messages: [] };
+    const messages = data.messages || [];
+
+    renderChatMessages(threadEl, messages, currentUserId);
+
+    const cache = readChatThreadsCache();
+    cache[threadId] = { id: threadId, participants, ...data, messages };
+    writeChatThreadsCache(cache);
+
+    if (snapshot.exists() && computeUnreadCount(data, currentUserId) > 0) {
+      markThreadReadRemote(chatRef, data, currentUserId);
+    }
+  }, (error) => {
+    console.warn('Gagal memuat pesan chat:', error);
+    const cache = readChatThreadsCache();
+    const cachedThread = cache[threadId];
+    renderChatMessages(threadEl, cachedThread?.messages || [], currentUserId);
+  });
+
+  if (composer) {
+    composer.style.display = '';
+    composer.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const input = composer.querySelector('input');
+      const text = (input.value || '').trim();
+      if (!text) return;
+
+      input.value = '';
+
+      try {
+        const existing = await getDoc(chatRef);
+        const existingData = existing.exists() ? existing.data() : {};
+        const currentMessages = existingData.messages || [];
+
+        const newMessage = {
+          id: `msg-${Date.now()}`,
+          senderId: currentUserId,
+          sender: currentUserName,
+          text,
+          createdAt: Date.now()
+        };
+
+        const nextMessages = [...currentMessages, newMessage];
+        const nextLastReadAt = { ...(existingData.lastReadAt || {}), [currentUserId]: Date.now() };
+
+        await setDoc(chatRef, {
+          participantIds: [currentUserId, targetKey],
+          participants,
+          messages: nextMessages,
+          lastMessage: text,
+          lastMessageAt: Date.now(),
+          updatedAt: Date.now(),
+          lastReadAt: nextLastReadAt
+        }, { merge: true });
+      } catch (error) {
+        console.error('Gagal mengirim pesan:', error);
+        showToast('Pesan gagal terkirim. Coba lagi.', 'error');
+      }
+    });
+  }
+
+  window.__marketplaceChatCleanup = () => {
+    listUnsubscribe();
+    messageUnsubscribe();
   };
 }
 
-function updateThreadUnread(threadKey, viewerUserId, senderId) {
-  const threads = readChatThreads();
-  const thread = threads[threadKey] || { messages: [], unreadCount: 0 };
-  const currentUserId = normalizeUserIdentifier(viewerUserId || '').toLowerCase();
-  const senderUserId = normalizeUserIdentifier(senderId || '').toLowerCase();
-
-  if (senderUserId !== currentUserId) {
-    thread.unreadCount = Number(thread.unreadCount || 0) + 1;
-  }
-
-  threads[threadKey] = thread;
-  writeChatThreads(threads);
-}
-
-function markThreadRead(threadKey, userId) {
-  const threads = readChatThreads();
-  const thread = threads[threadKey];
-  if (!thread) return;
-  thread.unreadCount = 0;
-  threads[threadKey] = thread;
-  writeChatThreads(threads);
-}
+/* ======================= end chat system ======================= */
 
 function renderProductCards(items) {
   return items.map((item) => {
     const normalized = normalizeProduct(item);
-    const imageMarkup = normalized.imageUrl ? `<img src="${normalized.imageUrl}" alt="${normalized.name}" style="width: 100%; height: 100%; object-fit: cover;" />` : normalized.image;
+    const imageMarkup = normalized.imageUrl ? `<img src="${normalized.imageUrl}" alt="${escapeHtml(normalized.name)}" style="width: 100%; height: 100%; object-fit: cover;" />` : normalized.image;
     const storyLabel = (normalized.storyType || 'barang-kenangan').replace(/-/g, ' ');
     return `
       <article class="product-card" data-category="${normalized.category}">
-        <div class="image">${imageMarkup} <span class="chip">${normalized.label}</span></div>
+        <div class="image">${imageMarkup} <span class="chip">${escapeHtml(normalized.label)}</span></div>
         <div class="product-body">
           <div class="product-head">
             <div class="price">${formatCurrency(normalized.price)}</div>
-            <span class="condition">${normalized.condition}</span>
+            <span class="condition">${escapeHtml(normalized.condition)}</span>
           </div>
-          <h3>${normalized.name}</h3>
-          <p>${normalized.description}</p>
+          <h3>${escapeHtml(normalized.name)}</h3>
+          <p>${escapeHtml(normalized.description)}</p>
           <div class="seller-row">
-            <span class="seller-meta"><span class="avatar">${normalized.sellerInitial}</span> ${normalized.seller}</span>
-            <span>${normalized.city}</span>
+            <span class="seller-meta"><span class="avatar">${escapeHtml(normalized.sellerInitial)}</span> ${escapeHtml(normalized.seller)}</span>
+            <span>${escapeHtml(normalized.city)}</span>
           </div>
           <div class="listing-meta" style="margin-top: 12px;">
-            <span class="meta-tag">${storyLabel}</span>
+            <span class="meta-tag">${escapeHtml(storyLabel)}</span>
           </div>
           <div class="card-actions">
-            <a class="btn btn-soft" href="product.html?id=${encodeURIComponent(normalized.id)}">Lihat detail</a>
+            <a class="btn btn-soft" href="${getProductDetailUrl(normalized.id)}">Lihat detail</a>
           </div>
         </div>
       </article>
@@ -907,7 +1032,6 @@ async function handleAuthSubmit(event) {
       }
 
       const cred = await createUserWithEmailAndPassword(auth, email, String(payload.password || ''));
-      await sendEmailVerification(cred.user);
 
       const newUser = {
         id: cred.user.uid,
@@ -917,16 +1041,15 @@ async function handleAuthSubmit(event) {
         username: `${(payload.firstName || 'user').toLowerCase()}${(payload.lastName || '').toLowerCase()}`.trim() || 'user',
         bio: 'Saya membuka akun untuk jual dan beli barang dengan rasa aman dan nyaman.',
         city: 'Jakarta',
-        role: payload.role || 'both',
-        emailVerified: false
+        role: payload.role || 'both'
       };
 
       await setDoc(doc(db, 'marketplace_users', cred.user.uid), newUser);
       users.push(newUser);
       writeStorage(STORAGE_KEYS.USERS, users);
       clearCurrentUser();
-      setAuthMessage('Akun berhasil dibuat. Silakan cek email dan klik link verifikasi sebelum masuk ke dashboard.', 'info');
-      showPopup('Akun berhasil dibuat. Silakan cek email dan klik link verifikasi sebelum masuk ke dashboard.', 'Berhasil', 'success');
+      setAuthMessage('Akun berhasil dibuat. Silakan masuk ke dashboard.', 'info');
+      showPopup('Akun berhasil dibuat. Silakan masuk ke dashboard.', 'Berhasil', 'success');
       if (submitButton) {
         submitButton.textContent = 'Akun dibuat';
       }
@@ -937,13 +1060,6 @@ async function handleAuthSubmit(event) {
     }
 
     const cred = await signInWithEmailAndPassword(auth, payload.email, payload.password);
-    if (!cred.user.emailVerified) {
-      await signOut(auth);
-      clearCurrentUser();
-      setAuthMessage('Email belum diverifikasi. Cek inbox Anda lalu coba lagi setelah verifikasi.', 'error');
-      showPopup('Email belum diverifikasi. Cek inbox Anda lalu coba lagi setelah verifikasi.', 'Verifikasi email', 'error');
-      return;
-    }
 
     const userDoc = await fetchUserDoc(cred.user.uid);
     const user = userDoc || {
@@ -954,8 +1070,7 @@ async function handleAuthSubmit(event) {
       username: 'user',
       bio: '',
       city: 'Jakarta',
-      role: 'both',
-      emailVerified: true
+      role: 'both'
     };
 
     resetLoginAttempts();
@@ -971,7 +1086,7 @@ async function handleAuthSubmit(event) {
     let userMessage = rawMessage;
 
     if (errorText.includes('invalid-credential') || errorText.includes('wrong-password') || errorText.includes('user-not-found') || errorText.includes('invalid-email')) {
-      userMessage = 'Email atau password salah. Pastikan akun sudah dibuat dan email sudah diverifikasi.';
+      userMessage = 'Email atau password salah. Pastikan akun sudah dibuat dan password benar.';
     } else if (errorText.includes('email-already-in-use')) {
       userMessage = 'Email sudah dipakai. Jika akun sebelumnya sudah dihapus dari Firebase, tunggu beberapa menit lalu coba lagi atau pakai email lain.';
     } else if (errorText.includes('too-many-requests')) {
@@ -1011,55 +1126,6 @@ async function handleForgotPassword(event) {
   }
 }
 
-async function handleResendVerification(event) {
-  event.preventDefault();
-  const emailInput = document.querySelector('#email');
-  const passwordInput = document.querySelector('#password');
-  const email = String((emailInput && emailInput.value) || '').trim();
-  const password = String((passwordInput && passwordInput.value) || '').trim();
-
-  if (!email) {
-    setAuthMessage('Isi email terlebih dahulu untuk kirim ulang link verifikasi.', 'error');
-    if (emailInput) emailInput.focus();
-    return;
-  }
-
-  if (!password && !auth.currentUser) {
-    setAuthMessage('Masukkan password untuk mengirim ulang link verifikasi.', 'error');
-    if (passwordInput) passwordInput.focus();
-    return;
-  }
-
-  try {
-    const currentUser = auth.currentUser && auth.currentUser.email && auth.currentUser.email.toLowerCase() === email.toLowerCase() ? auth.currentUser : null;
-    const verifiedUser = currentUser || await signInWithEmailAndPassword(auth, email, password);
-
-    if (verifiedUser.user?.emailVerified) {
-      await signOut(auth);
-      clearCurrentUser();
-      setAuthMessage('Email Anda sudah diverifikasi. Silakan login.', 'info');
-      showPopup('Email Anda sudah diverifikasi. Silakan login.', 'Verifikasi selesai', 'success');
-      return;
-    }
-
-    await sendEmailVerification(verifiedUser.user ?? verifiedUser);
-    await signOut(auth);
-    clearCurrentUser();
-    setAuthMessage('Link verifikasi dikirim. Cek inbox atau folder Spam.', 'info');
-    showPopup('Link verifikasi dikirim. Cek inbox atau folder Spam.', 'Berhasil', 'success');
-  } catch (error) {
-    console.error('Kirim ulang verifikasi gagal:', error);
-    const rawMessage = error?.message || 'Gagal mengirim ulang link verifikasi.';
-    const errorText = String(rawMessage).toLowerCase();
-    const friendlyMessage = errorText.includes('invalid-credential') || errorText.includes('wrong-password') || errorText.includes('user-not-found')
-      ? 'Password atau email salah. Pastikan akun sudah dibuat dan password benar.'
-      : rawMessage;
-
-    setAuthMessage(friendlyMessage, 'error');
-    showPopup(friendlyMessage, 'Gagal', 'error');
-  }
-}
-
 async function bindAuthPage() {
   const page = document.body.dataset.page;
   if (!page || !['login', 'register'].includes(page)) return;
@@ -1073,11 +1139,6 @@ async function bindAuthPage() {
     forgotBtn.addEventListener('click', handleForgotPassword);
   }
 
-  const resendBtn = document.querySelector('[data-resend-verification]');
-  if (resendBtn) {
-    resendBtn.addEventListener('click', handleResendVerification);
-  }
-
   const savedUser = currentUser();
   if (savedUser) {
     if (window.location.pathname.endsWith('login.html') || window.location.pathname.endsWith('register.html')) {
@@ -1088,12 +1149,6 @@ async function bindAuthPage() {
 
   onAuthStateChanged(auth, async (firebaseUser) => {
     if (!firebaseUser) return;
-    if (!firebaseUser.emailVerified) {
-      await signOut(auth);
-      clearCurrentUser();
-      setAuthMessage('Email Anda belum diverifikasi. Cek email lalu coba lagi.', 'error');
-      return;
-    }
 
     await syncCurrentUserFromFirebase(firebaseUser, true);
     if (window.location.pathname.endsWith('login.html') || window.location.pathname.endsWith('register.html')) {
@@ -1194,11 +1249,6 @@ async function handleSellSubmit(event) {
   const submitButton = form.querySelector('button[type="submit"]');
   const user = currentUser() || requireAuth();
   if (!user) return;
-
-  if (auth.currentUser && !auth.currentUser.emailVerified) {
-    showPopup('Akun Anda belum diverifikasi. Verifikasi email terlebih dahulu sebelum menambah barang.', 'Verifikasi dibutuhkan', 'error');
-    return;
-  }
 
   if (submitButton) {
     setButtonLoading(submitButton, true, 'Menyimpan...');
@@ -1361,9 +1411,9 @@ async function bindSellForm() {
       uploadedList.innerHTML = urls.map((url, index) => `
         <div class="uploaded-item">
           <div class="uploaded-item-thumb">
-            <img src="${url}" alt="${files[index]?.name || 'Preview foto'}" />
+            <img src="${url}" alt="${escapeHtml(files[index]?.name || 'Preview foto')}" />
           </div>
-          <div class="uploaded-item-name">${files[index]?.name || 'Foto'}</div>
+          <div class="uploaded-item-name">${escapeHtml(files[index]?.name || 'Foto')}</div>
           <button class="uploaded-item-remove" type="button" data-remove-file="${index}" aria-label="Hapus foto">🗑</button>
         </div>
       `).join('');
@@ -1574,25 +1624,25 @@ async function renderProductsForBuyer() {
 
     container.innerHTML = visibleItems.map((item) => {
       const normalized = normalizeProduct(item);
-      const imageMarkup = normalized.imageUrl ? `<img src="${normalized.imageUrl}" alt="${normalized.name}" style="width: 100%; height: 100%; object-fit: cover;" />` : normalized.image;
+      const imageMarkup = normalized.imageUrl ? `<img src="${normalized.imageUrl}" alt="${escapeHtml(normalized.name)}" style="width: 100%; height: 100%; object-fit: cover;" />` : normalized.image;
       const sellerRef = normalizeUserIdentifier(normalized.sellerId || normalized.ownerId || resolveUserIdByName(normalized.seller) || normalized.seller || '');
-      const chatHref = `chat.html?user=${encodeURIComponent(normalized.seller || 'Penjual')}&userId=${encodeURIComponent(sellerRef || normalized.seller || '')}`;
+      const chatHref = getUserChatUrl(normalized.seller, sellerRef || normalized.seller || '');
       return `
         <article class="product-card">
-          <div class="image">${imageMarkup} <span class="chip">${normalized.label}</span></div>
+          <div class="image">${imageMarkup} <span class="chip">${escapeHtml(normalized.label)}</span></div>
           <div class="product-body">
             <div class="product-head">
               <div class="price">${formatCurrency(normalized.price)}</div>
-              <span class="condition">${normalized.condition}</span>
+              <span class="condition">${escapeHtml(normalized.condition)}</span>
             </div>
-            <h3>${normalized.name}</h3>
-            <p>${normalized.description}</p>
+            <h3>${escapeHtml(normalized.name)}</h3>
+            <p>${escapeHtml(normalized.description)}</p>
             <div class="seller-row">
-              <span>${normalized.city}</span>
-              <span>Penjual: ${normalized.seller}</span>
+              <span>${escapeHtml(normalized.city)}</span>
+              <span>Penjual: ${escapeHtml(normalized.seller)}</span>
             </div>
             <div class="card-actions">
-              <a class="btn btn-soft" href="../product.html?id=${encodeURIComponent(normalized.id)}">Detail</a>
+              <a class="btn btn-soft" href="${getProductDetailUrl(normalized.id)}">Detail</a>
               <a class="btn btn-primary" href="${chatHref}">Chat penjual</a>
             </div>
           </div>
@@ -1634,22 +1684,22 @@ async function renderMyProducts() {
 
     container.innerHTML = items.map((item) => {
       const normalized = normalizeProduct(item);
-      const imageMarkup = normalized.imageUrl ? `<img src="${normalized.imageUrl}" alt="${normalized.name}" style="width: 100%; height: 100%; object-fit: cover;" />` : normalized.image;
+      const imageMarkup = normalized.imageUrl ? `<img src="${normalized.imageUrl}" alt="${escapeHtml(normalized.name)}" style="width: 100%; height: 100%; object-fit: cover;" />` : normalized.image;
       return `
         <article class="product-card">
-          <div class="image">${imageMarkup} <span class="chip">${normalized.label}</span></div>
+          <div class="image">${imageMarkup} <span class="chip">${escapeHtml(normalized.label)}</span></div>
           <div class="product-body">
             <div class="product-head">
               <div class="price">${formatCurrency(normalized.price)}</div>
-              <span class="condition">${normalized.condition}</span>
+              <span class="condition">${escapeHtml(normalized.condition)}</span>
             </div>
-            <h3>${normalized.name}</h3>
-            <p>${normalized.description}</p>
+            <h3>${escapeHtml(normalized.name)}</h3>
+            <p>${escapeHtml(normalized.description)}</p>
             <div class="seller-row">
-              <span>${normalized.city}</span>
+              <span>${escapeHtml(normalized.city)}</span>
             </div>
             <div class="card-actions">
-              <a class="btn btn-soft" href="../product.html?id=${encodeURIComponent(normalized.id)}">Detail</a>
+              <a class="btn btn-soft" href="${getProductDetailUrl(normalized.id)}">Detail</a>
               <button class="btn btn-secondary" type="button" data-edit-product="${normalized.id}">Edit</button>
               <button class="btn btn-danger" type="button" data-delete-product="${normalized.id}">Hapus</button>
             </div>
@@ -1770,7 +1820,7 @@ function renderProductGallery(images, name) {
   if (!gallery) return;
 
   const validImages = (images || []).filter(Boolean);
-  const fallback = `<div class="detail-slide active"><div class="detail-image-fallback">${name?.charAt(0)?.toUpperCase() || 'G'}</div></div>`;
+  const fallback = `<div class="detail-slide active"><div class="detail-image-fallback">${escapeHtml(name?.charAt(0)?.toUpperCase() || 'G')}</div></div>`;
 
   if (!validImages.length) {
     gallery.innerHTML = fallback;
@@ -1779,7 +1829,7 @@ function renderProductGallery(images, name) {
 
   const slides = validImages.map((src, index) => `
     <div class="detail-slide ${index === 0 ? 'active' : ''}">
-      <img src="${src}" alt="${name || 'Gambar produk'}" />
+      <img src="${src}" alt="${escapeHtml(name || 'Gambar produk')}" />
     </div>
   `).join('');
 
@@ -1809,12 +1859,15 @@ function renderProductGallery(images, name) {
 
 async function renderProductDetail() {
   const page = document.body.dataset.page;
-  if (page !== 'product.html') return;
+  if (page !== 'product.html' && page !== 'user-product.html') return;
 
   bindBackButton();
 
-  const user = requireAuth();
-  if (!user) return;
+  const isUserPage = page === 'user-product.html';
+  if (isUserPage) {
+    const user = requireAuth();
+    if (!user) return;
+  }
 
   const params = new URLSearchParams(window.location.search);
   const productId = params.get('id');
@@ -1848,7 +1901,7 @@ async function renderProductDetail() {
 
   const detailImage = document.querySelector('[data-detail-image]');
   if (detailImage) {
-    const image = normalized.imageUrl ? `<img src="${normalized.imageUrl}" alt="${normalized.name}" style="width: 100%; height: 100%; object-fit: cover;" />` : normalized.image;
+    const image = normalized.imageUrl ? `<img src="${normalized.imageUrl}" alt="${escapeHtml(normalized.name)}" style="width: 100%; height: 100%; object-fit: cover;" />` : normalized.image;
     detailImage.innerHTML = image;
   }
 
@@ -1903,18 +1956,19 @@ async function renderProductDetail() {
     detailSummary.value = `${storySentence}Barang ini termasuk kategori ${normalized.label}. Kondisi ${normalized.condition}. Dapat ditanyakan lebih lanjut melalui chat agar proses transaksi lebih aman.`;
   }
 
-  const currentUserId = getCurrentUserIdentifier();
-  const currentUserName = normalizeUserIdentifier((currentUser() || {}).name || user.name || '');
-  const productOwnerId = normalizeUserIdentifier(normalized.sellerId || normalized.ownerId || resolveUserIdByName(normalized.seller) || normalized.seller || '');
-  const productOwnerName = normalizeUserIdentifier(normalized.seller || '');
-  const isProductOwner = Boolean(
-    (currentUserId && productOwnerId && normalizeUserIdentifier(currentUserId).toLowerCase() === normalizeUserIdentifier(productOwnerId).toLowerCase()) ||
-    (currentUserName && productOwnerName && normalizeUserIdentifier(currentUserName).toLowerCase() === normalizeUserIdentifier(productOwnerName).toLowerCase())
-  );
-
-  const sellerRef = normalizeUserIdentifier(normalized.sellerId || normalized.ownerId || resolveUserIdByName(normalized.seller) || normalized.seller || '');
   const chatButton = document.querySelector('[data-chat-product]');
-  if (chatButton) {
+  if (chatButton && isUserPage) {
+    const currentUserId = getCurrentUserIdentifier();
+    const user = currentUser() || requireAuth();
+    const currentUserName = normalizeUserIdentifier((user || {}).name || '');
+    const productOwnerId = normalizeUserIdentifier(normalized.sellerId || normalized.ownerId || resolveUserIdByName(normalized.seller) || normalized.seller || '');
+    const productOwnerName = normalizeUserIdentifier(normalized.seller || '');
+    const isProductOwner = Boolean(
+      (currentUserId && productOwnerId && normalizeUserIdentifier(currentUserId).toLowerCase() === normalizeUserIdentifier(productOwnerId).toLowerCase()) ||
+      (currentUserName && productOwnerName && normalizeUserIdentifier(currentUserName).toLowerCase() === normalizeUserIdentifier(productOwnerName).toLowerCase())
+    );
+
+    const sellerRef = normalizeUserIdentifier(normalized.sellerId || normalized.ownerId || resolveUserIdByName(normalized.seller) || normalized.seller || '');
     if (isProductOwner) {
       chatButton.style.display = 'none';
       chatButton.removeAttribute('href');
@@ -1922,240 +1976,11 @@ async function renderProductDetail() {
       chatButton.setAttribute('tabindex', '-1');
     } else {
       chatButton.style.display = '';
-      chatButton.href = `user/chat.html?user=${encodeURIComponent(normalized.seller || 'Penjual')}&userId=${encodeURIComponent(sellerRef || normalized.seller || '')}`;
+      chatButton.href = getUserChatUrl(normalized.seller, sellerRef || normalized.seller || '');
       chatButton.removeAttribute('aria-disabled');
       chatButton.removeAttribute('tabindex');
     }
   }
-}
-
-async function renderChat() {
-  const user = requireAuth();
-  if (!user) return;
-
-  const params = new URLSearchParams(window.location.search);
-  const sellerName = params.get('user') || 'Penjual';
-  const sellerIdParam = params.get('userId') || '';
-  const currentUserId = getCurrentUserIdentifier();
-  const currentUserName = normalizeUserIdentifier((currentUser() || {}).name || user.name || 'Saya');
-  sanitizeChatThreadCache(currentUserId, currentUserName);
-  const targetUserId = isPlaceholderUser(sellerIdParam || sellerName) ? '' : normalizeUserIdentifier(sellerIdParam || resolveUserIdByName(sellerName) || sellerName);
-  const targetName = isPlaceholderUser(sellerName) ? '' : sellerName;
-  const resolvedSellerId = targetUserId || '';
-  const fallbackThreadId = getChatThreadId(currentUserId, resolvedSellerId || targetName || currentUserId);
-
-  const exactThread = await findExactThreadForCurrentUser(currentUserId, currentUserName, resolvedSellerId || '', targetName || '');
-  const firestoreThreadId = exactThread?.id || await findFirestoreThreadId(currentUserId, resolvedSellerId || '', targetName || '');
-  const existingThreadId = firestoreThreadId || findMatchingThreadKey(resolvedSellerId || targetName || currentUserId, targetName || currentUserName, currentUserId) || fallbackThreadId;
-  const threadId = existingThreadId || fallbackThreadId;
-  const chatRef = doc(db, 'marketplace_chats', threadId);
-
-  const sellerLabel = document.querySelector('[data-chat-contact]');
-  if (sellerLabel) sellerLabel.textContent = sellerName;
-
-  if (exactThread && Array.isArray(exactThread.participants)) {
-    const otherParticipant = exactThread.participants.find((participant) => {
-      const participantId = normalizeUserIdentifier(participant.id || participant.uid || participant.email || '').toLowerCase();
-      const participantName = normalizeUserIdentifier(participant.name || '').toLowerCase();
-      return participantId !== normalizeUserIdentifier(currentUserId || '').toLowerCase() && participantName !== normalizeUserIdentifier(currentUserName || '').toLowerCase();
-    });
-
-    if (otherParticipant && sellerLabel) {
-      sellerLabel.textContent = otherParticipant.name || sellerName;
-    }
-  }
-
-  const threadListEl = document.querySelector('[data-chat-list]');
-  const threadEl = document.querySelector('[data-chat-thread]');
-  const composer = document.querySelector('[data-chat-form]');
-
-  const syncThreadList = () => {
-    const threads = readChatThreads();
-    const entries = Object.entries(threads).sort((a, b) => {
-      const aSummary = getThreadSummary(a[1]);
-      const bSummary = getThreadSummary(b[1]);
-      return (bSummary.lastMessageAt || 0) - (aSummary.lastMessageAt || 0);
-    });
-
-    if (!threadListEl) return;
-
-    if (!entries.length) {
-      threadListEl.innerHTML = '<div class="empty-state">Belum ada chat</div>';
-      return;
-    }
-
-    threadListEl.innerHTML = entries.map(([key, thread]) => {
-      const threadUser = thread.participants?.find((participant) => normalizeUserIdentifier(participant.id || participant.uid || participant.email || '').toLowerCase() !== normalizeUserIdentifier(currentUserId || '').toLowerCase()) || { name: 'Penjual' };
-      const summary = getThreadSummary(thread);
-      const isActive = key === threadId;
-      return `
-        <button class="chat-item ${isActive ? 'active' : ''}" type="button" data-thread-key="${key}">
-          <div class="avatar">${String(threadUser.name || 'P').charAt(0).toUpperCase()}</div>
-          <div class="chat-item-body">
-            <div class="chat-item-head">
-              <strong>${threadUser.name || 'Penjual'}</strong>
-              ${summary.unreadCount ? `<span class="chat-badge">${summary.unreadCount}</span>` : ''}
-            </div>
-            <small class="muted">${summary.lastMessageText}</small>
-          </div>
-        </button>
-      `;
-    }).join('');
-
-    threadListEl.querySelectorAll('[data-thread-key]').forEach((button) => {
-      button.addEventListener('click', () => {
-        const key = button.dataset.threadKey;
-        const thread = readChatThreads()[key] || { messages: [], participants: [] };
-        const targetParticipant = thread.participants?.find((participant) => normalizeUserIdentifier(participant.id || participant.uid || participant.email || '').toLowerCase() !== normalizeUserIdentifier(currentUserId || '').toLowerCase());
-        const targetName = targetParticipant?.name || 'Penjual';
-        const targetId = targetParticipant?.id || targetParticipant?.uid || targetName;
-        window.location.href = `chat.html?user=${encodeURIComponent(targetName)}&userId=${encodeURIComponent(targetId)}`;
-      });
-    });
-  };
-
-  const renderMessages = (messages = []) => {
-    if (!threadEl) return;
-
-    threadEl.innerHTML = messages.map((msg) => {
-      const senderIsMe = normalizeUserIdentifier(msg.senderId || msg.sender || '').toLowerCase() === normalizeUserIdentifier(currentUserId || '').toLowerCase() || msg.sender === (user.name || 'Me');
-      return `
-        <div class="bubble-message ${senderIsMe ? 'me' : 'other'}">
-          <div>${msg.text}</div>
-        </div>
-      `;
-    }).join('');
-    threadEl.scrollTop = threadEl.scrollHeight;
-  };
-
-  const ensureThread = async () => {
-    const threads = readChatThreads();
-    if (!threads[threadId]) {
-      const matchedThreadId = findMatchingThreadKey(resolvedSellerId || sellerName, sellerName, currentUserId);
-      if (matchedThreadId) {
-        const targetThread = threads[matchedThreadId] || { messages: [], participants: [] };
-        threads[threadId] = targetThread;
-        threads[matchedThreadId] = targetThread;
-      } else {
-        threads[threadId] = {
-          id: threadId,
-          participants: [
-            { id: currentUserId, name: user.name || 'Saya' },
-            { id: resolvedSellerId || sellerName, name: sellerName }
-          ],
-          messages: [],
-          unreadCount: 0
-        };
-      }
-      writeChatThreads(threads);
-    }
-    markThreadRead(threadId, currentUserId);
-    syncThreadList();
-    return readChatThreads()[threadId] || { messages: [], participants: [] };
-  };
-
-  const renderCurrentThread = async () => {
-    const thread = await ensureThread();
-    markThreadRead(threadId, currentUserId);
-    renderMessages(thread.messages || []);
-  };
-
-  const updateFromSnapshot = (snapshot) => {
-    const data = snapshot.data() || { messages: [] };
-    const nextMessages = data.messages || [];
-    const threads = readChatThreads();
-    const previousThread = threads[threadId] || { messages: [], participants: [], unreadCount: 0 };
-    const previousLastMessage = previousThread.messages?.[previousThread.messages.length - 1];
-    const latestMessage = nextMessages[nextMessages.length - 1];
-    const isIncomingMessage = latestMessage && normalizeUserIdentifier(latestMessage.senderId || latestMessage.sender || '').toLowerCase() !== normalizeUserIdentifier(currentUserId || '').toLowerCase();
-    const isNewIncomingMessage = !!latestMessage && (!previousLastMessage || previousLastMessage.id !== latestMessage.id);
-
-    const normalizedThread = {
-      id: threadId,
-      participants: [
-        { id: currentUserId, name: user.name || 'Saya' },
-        { id: resolvedSellerId || sellerName, name: sellerName }
-      ],
-      messages: nextMessages,
-      unreadCount: Number(previousThread.unreadCount || 0)
-    };
-
-    if (isIncomingMessage && isNewIncomingMessage) {
-      if (window.location.href.includes(`chat.html?user=${encodeURIComponent(sellerName)}`) || window.location.href.includes('chat.html')) {
-        normalizedThread.unreadCount = 0;
-      } else {
-        normalizedThread.unreadCount = Number(normalizedThread.unreadCount || 0) + 1;
-      }
-
-      const toastText = latestMessage.text || 'Ada pesan baru';
-      const toastSender = latestMessage.sender || sellerName || 'Pengirim';
-      showToast(`${toastSender}: ${toastText}`, 'info');
-    }
-
-    if (!isIncomingMessage || threadId === findMatchingThreadKey(resolvedSellerId || sellerName, sellerName, currentUserId) || window.location.href.includes(`chat.html?user=${encodeURIComponent(sellerName)}`)) {
-      normalizedThread.unreadCount = 0;
-    }
-
-    threads[threadId] = normalizedThread;
-    writeChatThreads(threads);
-    syncThreadList();
-    renderMessages(normalizedThread.messages || []);
-  };
-
-  syncThreadList();
-  renderCurrentThread();
-
-  const unsubscribe = onSnapshot(chatRef, (snapshot) => {
-    updateFromSnapshot(snapshot);
-  }, (error) => {
-    const threads = readChatThreads();
-    const thread = threads[threadId] || { messages: [], unreadCount: 0 };
-    thread.messages = thread.messages || [];
-    threads[threadId] = thread;
-    writeChatThreads(threads);
-    syncThreadList();
-    renderMessages(thread.messages || []);
-    console.error(error);
-  });
-
-  if (composer) {
-    composer.addEventListener('submit', async (event) => {
-      event.preventDefault();
-      const input = composer.querySelector('input');
-      const text = (input.value || '').trim();
-      if (!text) return;
-
-      const existing = await getDoc(chatRef);
-      const currentMessages = existing.exists() && existing.data().messages ? existing.data().messages : [];
-      const newMessage = {
-        id: `msg-${Date.now()}`,
-        senderId: currentUserId,
-        sender: user.name || 'Me',
-        text,
-        createdAt: Date.now()
-      };
-
-      const nextMessages = [...currentMessages, newMessage];
-      const chatParticipants = [
-        { id: currentUserId, name: user.name || 'Saya' },
-        { id: resolvedSellerId || sellerName, name: sellerName }
-      ];
-      await setDoc(chatRef, { participants: chatParticipants, messages: nextMessages, updatedAt: Date.now() }, { merge: true });
-
-      const threads = readChatThreads();
-      const thread = threads[threadId] || { messages: [], participants: [] };
-      thread.messages = nextMessages;
-      thread.unreadCount = 0;
-      thread.participants = chatParticipants;
-      threads[threadId] = thread;
-      writeChatThreads(threads);
-      syncThreadList();
-      renderMessages(nextMessages);
-      input.value = '';
-    });
-  }
-
-  window.__marketplaceChatCleanup = unsubscribe;
 }
 
 function handleSidebarState() {
@@ -2202,6 +2027,13 @@ async function init() {
     if (firebaseUser) {
       await syncCurrentUserFromFirebase(firebaseUser, localStorage.getItem('gamon_marketplace_remember_me') === '1');
       hydrateUserProfileUI();
+
+      if (!window.__marketplaceGlobalChatUnsubscribe) {
+        const currentUserId = getCurrentUserIdentifier();
+        if (currentUserId) {
+          window.__marketplaceGlobalChatUnsubscribe = subscribeToGlobalChatNotifications(currentUserId);
+        }
+      }
     }
   });
 
@@ -2241,7 +2073,7 @@ async function init() {
     return;
   }
 
-  if (page === 'product.html') {
+  if (page === 'product.html' || page === 'user-product.html') {
     await renderProductDetail();
     return;
   }
@@ -2256,4 +2088,5 @@ window.addEventListener('beforeunload', () => {
   if (window.__marketplaceHomeProductsCleanup) window.__marketplaceHomeProductsCleanup();
   if (window.__marketplaceBuyerProductsCleanup) window.__marketplaceBuyerProductsCleanup();
   if (window.__marketplaceMyProductsCleanup) window.__marketplaceMyProductsCleanup();
-});
+  if (window.__marketplaceGlobalChatUnsubscribe) window.__marketplaceGlobalChatUnsubscribe();
+});das

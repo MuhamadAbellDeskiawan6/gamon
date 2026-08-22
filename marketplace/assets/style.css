@@ -390,6 +390,18 @@ h1, h2, h3, h4 {
   display: grid;
   place-items: center;
   font-size: 3rem;
+  overflow: hidden;
+}
+
+.product-card .image img,
+.detail-slide img,
+.uploaded-item-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center;
+  display: block;
+  background: #fffafc;
 }
 
 .product-card .image .chip {
@@ -905,8 +917,9 @@ footer {
 .detail-slide img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   display: block;
+  background: #fffafc;
 }
 
 .detail-image-fallback {
