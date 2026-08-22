@@ -999,13 +999,18 @@ height:64.10%;
         updateSwitchCameraLabel();
 
         try {
-            localStream = await navigator.mediaDevices.getUserMedia({ 
+            const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+            const maxWidth = isIOS ? 1280 : 1600;
+            const maxHeight = isIOS ? 1280 : 1600;
+
+            localStream = await navigator.mediaDevices.getUserMedia({
                 video: {
                     facingMode: currentFacingMode === "environment"
                         ? { ideal: "environment" }
-                        : "user",
-                    width: { ideal: 1920 },
-                    height: { ideal: 1080 }
+                        : { ideal: "user" },
+                    width: { ideal: maxWidth, max: maxWidth },
+                    height: { ideal: maxHeight, max: maxHeight },
+                    frameRate: { ideal: 24, max: 30 }
                 }
             });
             video.srcObject = localStream;
@@ -1014,7 +1019,7 @@ height:64.10%;
                 await video.play();
                 const vw = video.videoWidth;
                 const vh = video.videoHeight;
-                
+
                 const PHOTO_WIDTH = 700;
                 const PHOTO_HEIGHT = 1002;
                 const targetRatio = PHOTO_WIDTH / PHOTO_HEIGHT;
@@ -1028,8 +1033,11 @@ height:64.10%;
                     ch = cw / targetRatio;
                 }
 
-                outputCanvas.width = cw;
-                outputCanvas.height = ch;
+                const safeWidth = Math.min(Math.max(Math.round(cw), 480), maxWidth || 1280);
+                const safeHeight = Math.min(Math.max(Math.round(ch), 680), maxHeight || 1280);
+
+                outputCanvas.width = safeWidth;
+                outputCanvas.height = safeHeight;
                 updateFrameProcessing();
             };
 
@@ -1569,12 +1577,37 @@ height:64.10%;
         },150);
 
         const snapshotCanvas = document.createElement("canvas");
-        snapshotCanvas.width = outputCanvas.width;
-        snapshotCanvas.height = outputCanvas.height;
-        const snapshotCtx = snapshotCanvas.getContext("2d");
-        snapshotCtx.drawImage(outputCanvas, 0, 0);
+        const sourceCanvas = outputCanvas && outputCanvas.width && outputCanvas.height ? outputCanvas : video;
+        const baseWidth = sourceCanvas && sourceCanvas.videoWidth ? sourceCanvas.videoWidth : (sourceCanvas ? sourceCanvas.width : 0);
+        const baseHeight = sourceCanvas && sourceCanvas.videoHeight ? sourceCanvas.videoHeight : (sourceCanvas ? sourceCanvas.height : 0);
+        const maxCaptureWidth = 1280;
+        const maxCaptureHeight = 1920;
 
-        rawCapturedImage = snapshotCanvas.toDataURL("image/png");
+        if (!baseWidth || !baseHeight) {
+            showError('Gagal menangkap gambar. Silakan coba lagi dengan kamera yang aktif.');
+            return;
+        }
+
+        const ratio = Math.min(maxCaptureWidth / baseWidth, maxCaptureHeight / baseHeight, 1);
+        snapshotCanvas.width = Math.max(1, Math.round(baseWidth * ratio));
+        snapshotCanvas.height = Math.max(1, Math.round(baseHeight * ratio));
+
+        const snapshotCtx = snapshotCanvas.getContext("2d");
+        snapshotCtx.clearRect(0, 0, snapshotCanvas.width, snapshotCanvas.height);
+
+        if (sourceCanvas === video) {
+            snapshotCtx.save();
+            if (currentFacingMode === 'user') {
+                snapshotCtx.translate(snapshotCanvas.width, 0);
+                snapshotCtx.scale(-1, 1);
+            }
+            snapshotCtx.drawImage(video, 0, 0, snapshotCanvas.width, snapshotCanvas.height);
+            snapshotCtx.restore();
+        } else {
+            snapshotCtx.drawImage(outputCanvas, 0, 0, snapshotCanvas.width, snapshotCanvas.height);
+        }
+
+        rawCapturedImage = snapshotCanvas.toDataURL("image/jpeg", 0.86);
         photoPreview.src = rawCapturedImage;
 
         outputCanvas.classList.add("hidden");

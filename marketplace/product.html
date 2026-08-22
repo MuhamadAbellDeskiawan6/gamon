@@ -26,13 +26,17 @@
     <main class="container user-layout">
       <div class="panel" style="padding: 24px;">
         <div class="top-panel" style="margin-bottom: 18px;">
-          <a class="btn btn-secondary" href="index.html">← Kembali</a>
+          <button class="btn btn-secondary" type="button" data-back-button>← Kembali</button>
           <a class="btn btn-primary" href="login.html" data-chat-product>Chat penjual</a>
         </div>
 
         <div class="listing-layout">
           <div class="listing-card">
-            <div class="listing-hero" data-detail-image>🧥</div>
+            <div class="detail-gallery" data-detail-gallery>
+              <div class="detail-slide active">
+                <div class="detail-image-fallback">G</div>
+              </div>
+            </div>
             <div class="listing-body">
               <div class="product-head">
                 <div class="price" data-detail-price>Rp 0</div>
@@ -43,6 +47,7 @@
               <div class="listing-meta">
                 <span class="meta-tag" data-detail-category>Pakaian</span>
                 <span class="meta-tag" data-detail-city>Jakarta</span>
+                <span class="meta-tag" data-detail-story>Barang kenangan</span>
                 <span class="meta-tag" data-detail-status>Ready</span>
               </div>
             </div>
@@ -56,8 +61,15 @@
             </div>
 
             <div class="field" style="margin-top: 20px;">
-              <label>Lokasi</label>
+              <label>Alamat lengkap</label>
               <input type="text" value="Jakarta Selatan" readonly data-detail-location />
+            </div>
+
+            <div class="field">
+              <label>Lokasi</label>
+              <div class="map-preview" data-detail-map>
+                <div class="map-placeholder">📍</div>
+              </div>
             </div>
 
             <div class="field">

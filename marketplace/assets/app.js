@@ -1,13 +1,12 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut, sendPasswordResetEmail, sendEmailVerification } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 import { getFirestore, collection, doc, setDoc, getDoc, getDocs, addDoc, query, orderBy, where, onSnapshot, updateDoc, deleteDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
-import { getStorage, ref, uploadBytes, getDownloadURL } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js';
 
 const firebaseConfig = {
   apiKey: 'AIzaSyC247K8yyL67aWV95KNQy8CkMZsjgGCudQ',
   authDomain: 'gamon-tawing.firebaseapp.com',
   projectId: 'gamon-tawing',
-  storageBucket: 'gamon-tawing.firebasestorage.app',
+  storageBucket: 'gamon-tawing.appspot.com',
   messagingSenderId: '370162915989',
   appId: '1:370162915989:web:76779062da83aa0c5c999c',
   measurementId: 'G-DDRQKDZXV7'
@@ -16,7 +15,6 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
-const storage = getStorage(app);
 
 const STORAGE_KEYS = {
   USERS: 'gamon_marketplace_users',
@@ -118,6 +116,8 @@ const moneyFormatter = new Intl.NumberFormat('id-ID', {
   maximumFractionDigits: 0
 });
 
+const FILE_UPLOAD_TIMEOUT_MS = 120000;
+
 function readStorage(key, fallback) {
   try {
     const raw = localStorage.getItem(key);
@@ -125,6 +125,22 @@ function readStorage(key, fallback) {
   } catch (error) {
     return fallback;
   }
+}
+
+function setButtonLoading(button, isLoading, loadingText = 'Menyimpan...') {
+  if (!button) return;
+
+  if (isLoading) {
+    button.disabled = true;
+    button.dataset.originalText = button.textContent || '';
+    button.innerHTML = `<span class="btn-spinner" aria-hidden="true"></span><span>${loadingText}</span>`;
+    return;
+  }
+
+  button.disabled = false;
+  const originalText = button.dataset.originalText || 'Publish iklan';
+  button.textContent = originalText;
+  delete button.dataset.originalText;
 }
 
 function showPopup(message, title = 'Info', tone = 'info') {
@@ -153,6 +169,7 @@ function showPopup(message, title = 'Info', tone = 'info') {
   if (titleEl) titleEl.textContent = title;
   if (messageEl) messageEl.textContent = message;
 
+  card.dataset.tone = tone;
   card.style.borderColor = tone === 'error' ? '#f6c0c0' : tone === 'success' ? '#c8f0d2' : '#dce7ff';
   card.style.boxShadow = tone === 'error' ? '0 18px 50px rgba(177, 54, 54, 0.14)' : tone === 'success' ? '0 18px 50px rgba(40, 133, 79, 0.14)' : '0 18px 50px rgba(0,0,0,0.16)';
 
@@ -214,6 +231,43 @@ function fileToDataUrl(file) {
     reader.onload = () => resolve(String(reader.result || ''));
     reader.onerror = () => reject(new Error('Gagal membaca foto yang dipilih.'));
     reader.readAsDataURL(file);
+  });
+}
+
+async function prepareImageForUpload(file, { maxSide = 1400, quality = 0.78 } = {}) {
+  if (!file || !file.type || !file.type.startsWith('image/')) return file;
+
+  const sourceUrl = await fileToDataUrl(file);
+  const image = await new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error('Gagal memproses foto untuk upload.'));
+    img.src = sourceUrl;
+  });
+
+  const maxDimension = Math.max(image.width, image.height);
+  const scale = maxDimension > maxSide ? maxSide / maxDimension : 1;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.round(image.width * scale));
+  canvas.height = Math.max(1, Math.round(image.height * scale));
+
+  const context = canvas.getContext('2d');
+  if (!context) return file;
+
+  context.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+  const targetType = file.type === 'image/png' ? 'image/jpeg' : file.type;
+  const blob = await new Promise((resolve) => {
+    canvas.toBlob(resolve, targetType, quality);
+  });
+
+  if (!blob) return file;
+
+  const extension = targetType === 'image/png' ? '.png' : targetType === 'image/webp' ? '.webp' : '.jpg';
+  return new File([blob], `${file.name.replace(/\.[^.]+$/, '')}${extension}`, {
+    type: targetType,
+    lastModified: Date.now()
   });
 }
 
@@ -440,22 +494,41 @@ function productEmoji(category) {
 }
 
 function normalizeProduct(item) {
+  const parsedImages = Array.isArray(item?.images)
+    ? item.images.filter(Boolean)
+    : Array.isArray(item?.imageUrls)
+      ? item.imageUrls.filter(Boolean)
+      : item?.imageUrl
+        ? [item.imageUrl]
+        : [];
+
+  const primaryImage = parsedImages[0] || item.imageUrl || item.image || '';
+  const latitude = item.latitude ?? item.lat ?? '';
+  const longitude = item.longitude ?? item.lng ?? '';
+
   return {
     id: item.id || item.slug || `p-${Date.now()}`,
     name: item.name || 'Barang baru',
     category: item.category || 'barang',
     price: Number(item.price || 0),
     condition: item.condition || 'Layak pakai',
-    image: item.image || productEmoji(item.category),
+    image: primaryImage || item.image || productEmoji(item.category),
     label: item.label || productLabel(item.category),
-    city: item.city || 'Jakarta',
+    city: item.city || item.address || 'Jakarta',
+    address: item.address || item.location || item.city || 'Jakarta',
     seller: item.seller || 'Penjual',
     sellerInitial: item.sellerInitial || (item.seller || 'P').charAt(0).toUpperCase(),
     description: item.description || 'Deskripsi produk belum tersedia.',
-    imageUrl: item.imageUrl || '',
+    imageUrl: primaryImage || item.imageUrl || '',
+    images: parsedImages.length ? parsedImages : [primaryImage || ''],
     createdAt: item.createdAt || Date.now(),
     ownerId: item.ownerId || item.owner_id || '',
-    sellerId: item.sellerId || item.ownerId || item.owner_id || ''
+    sellerId: item.sellerId || item.ownerId || item.owner_id || '',
+    storyType: item.storyType || 'barang-kenangan',
+    storyNote: item.storyNote || '',
+    latitude: latitude,
+    longitude: longitude,
+    coordinates: latitude !== '' && longitude !== '' ? { lat: Number(latitude), lng: Number(longitude) } : null
   };
 }
 
@@ -734,6 +807,7 @@ function renderProductCards(items) {
   return items.map((item) => {
     const normalized = normalizeProduct(item);
     const imageMarkup = normalized.imageUrl ? `<img src="${normalized.imageUrl}" alt="${normalized.name}" style="width: 100%; height: 100%; object-fit: cover;" />` : normalized.image;
+    const storyLabel = (normalized.storyType || 'barang-kenangan').replace(/-/g, ' ');
     return `
       <article class="product-card" data-category="${normalized.category}">
         <div class="image">${imageMarkup} <span class="chip">${normalized.label}</span></div>
@@ -747,6 +821,9 @@ function renderProductCards(items) {
           <div class="seller-row">
             <span class="seller-meta"><span class="avatar">${normalized.sellerInitial}</span> ${normalized.seller}</span>
             <span>${normalized.city}</span>
+          </div>
+          <div class="listing-meta" style="margin-top: 12px;">
+            <span class="meta-tag">${storyLabel}</span>
           </div>
           <div class="card-actions">
             <a class="btn btn-soft" href="product.html?id=${encodeURIComponent(normalized.id)}">Lihat detail</a>
@@ -1025,6 +1102,65 @@ async function bindAuthPage() {
   });
 }
 
+function bindMobileSidebar() {
+  const shell = document.querySelector('.user-shell');
+  const sidebar = document.querySelector('.sidebar');
+  const nav = document.querySelector('.topbar .nav');
+  if (!shell || !sidebar || !nav) return;
+
+  let toggle = document.querySelector('.mobile-menu-toggle');
+  if (!toggle) {
+    toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.className = 'mobile-menu-toggle';
+    toggle.setAttribute('aria-label', 'Buka menu');
+    toggle.setAttribute('aria-expanded', 'false');
+    toggle.innerHTML = '<span></span><span></span><span></span>';
+    nav.insertBefore(toggle, nav.firstChild);
+  }
+
+  let backdrop = document.querySelector('.sidebar-backdrop');
+  if (!backdrop) {
+    backdrop = document.createElement('div');
+    backdrop.className = 'sidebar-backdrop';
+    document.body.appendChild(backdrop);
+  }
+
+  const updateState = () => {
+    const isOpen = shell.classList.contains('sidebar-open');
+    sidebar.classList.toggle('is-open', isOpen);
+    toggle.classList.toggle('is-active', isOpen);
+    toggle.setAttribute('aria-expanded', String(isOpen));
+    backdrop.classList.toggle('is-visible', isOpen);
+  };
+
+  toggle.addEventListener('click', () => {
+    shell.classList.toggle('sidebar-open');
+    updateState();
+  });
+
+  backdrop.addEventListener('click', () => {
+    shell.classList.remove('sidebar-open');
+    updateState();
+  });
+
+  document.querySelectorAll('.sidebar nav a').forEach((link) => {
+    link.addEventListener('click', () => {
+      shell.classList.remove('sidebar-open');
+      updateState();
+    });
+  });
+
+  window.addEventListener('resize', () => {
+    if (window.innerWidth > 980) {
+      shell.classList.remove('sidebar-open');
+      updateState();
+    }
+  });
+
+  updateState();
+}
+
 function updateSidebarProfile() {
   hydrateUserProfileUI();
 }
@@ -1065,18 +1201,36 @@ async function handleSellSubmit(event) {
   }
 
   if (submitButton) {
-    submitButton.disabled = true;
-    submitButton.textContent = 'Menyimpan...';
+    setButtonLoading(submitButton, true, 'Menyimpan...');
   }
 
   try {
     const formData = new FormData(form);
     const payload = Object.fromEntries(formData.entries());
     const fileInput = form.querySelector('input[type="file"]');
-    const selectedFile = fileInput && fileInput.files && fileInput.files[0] ? fileInput.files[0] : null;
+    const selectedFiles = fileInput && fileInput.files ? Array.from(fileInput.files).filter((file) => file && file.type.startsWith('image/')) : [];
 
     if (!payload.name || !payload.description || !payload.price || !payload.location) {
       throw new Error('Form jual belum lengkap. Isi nama barang, harga, lokasi, dan deskripsi terlebih dahulu.');
+    }
+
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'];
+    const maxFileSize = 5 * 1024 * 1024;
+    const validFiles = selectedFiles.filter((file) => {
+      if (!allowedTypes.includes(file.type)) return false;
+      if (file.size > maxFileSize) return false;
+      return true;
+    });
+
+    if (selectedFiles.length && validFiles.length !== selectedFiles.length) {
+      throw new Error('Beberapa foto tidak valid: gunakan JPG, PNG, atau WebP dengan ukuran maksimal 5 MB per file.');
+    }
+
+    const resizedFiles = validFiles.length ? await Promise.all(validFiles.map((file) => prepareImageForUpload(file))) : [];
+    const finalFiles = resizedFiles.filter((file) => file && file.size <= maxFileSize);
+
+    if (validFiles.length && finalFiles.length !== validFiles.length) {
+      throw new Error('Foto terlalu besar untuk diupload. Silakan pilih foto yang lebih kecil atau lebih ringan.');
     }
 
     const productPayload = {
@@ -1086,91 +1240,53 @@ async function handleSellSubmit(event) {
       condition: payload.condition || 'Layak pakai',
       description: payload.description || 'Barang ini siap dijual.',
       city: payload.location || 'Jakarta',
+      address: payload.location || 'Jakarta',
+      location: payload.location || 'Jakarta',
       seller: user.name || 'Seller',
       sellerInitial: (user.name || 'S').charAt(0).toUpperCase(),
       sellerId: user.id || user.uid || auth.currentUser?.uid || '',
       ownerId: user.id || user.uid || auth.currentUser?.uid || '',
       image: payload.category === 'pakaian' ? '👕' : payload.category === 'aksesori' ? '⌚' : '🎁',
       label: productLabel(payload.category || 'barang'),
+      storyType: payload.storyType || 'barang-kenangan',
+      storyNote: payload.storyNote || '',
+      latitude: payload.latitude || '',
+      longitude: payload.longitude || '',
       imageUrl: '',
+      images: [],
       createdAt: Date.now()
     };
 
-    let firebaseStored = false;
-    let firebaseError = null;
-
-    if (selectedFile) {
-      const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'];
-      if (!allowedTypes.includes(selectedFile.type)) {
-        throw new Error('Format foto tidak didukung. Gunakan JPG, PNG, atau WebP.');
+    if (finalFiles.length) {
+      if (submitButton) {
+        setButtonLoading(submitButton, true, 'Mengolah foto...');
       }
 
-      try {
-        productPayload.imageUrl = await fileToDataUrl(selectedFile);
-        const authUserId = auth.currentUser?.uid || user.id || user.uid || 'local-user';
-        const storageRef = ref(storage, `marketplace-products/${authUserId}/${Date.now()}-${selectedFile.name.replace(/\s+/g, '_')}`);
-        const uploaded = await withTimeout(uploadBytes(storageRef, selectedFile), 8000, 'Upload foto');
-        productPayload.imageUrl = await withTimeout(getDownloadURL(uploaded.ref), 8000, 'Ambil URL foto');
-        firebaseStored = true;
-      } catch (error) {
-        firebaseError = error;
-        productPayload.imageUrl = productPayload.imageUrl || await fileToDataUrl(selectedFile);
-        console.warn('Firebase upload gagal, lanjutkan ke penyimpanan lokal:', error);
-      }
+      const dataUrls = await Promise.all(
+        finalFiles.map(async (file) => fileToDataUrl(file))
+      );
+
+      productPayload.images = dataUrls;
+      productPayload.imageUrl = dataUrls[0] || '';
+      productPayload.image = dataUrls[0] || productPayload.image;
     }
 
-    try {
-      if (productPayload.ownerId) {
-        const productRef = await withTimeout(addDoc(collection(db, 'marketplace_products'), productPayload), 8000, 'Simpan produk');
-        productPayload.id = productRef.id;
-        await withTimeout(updateDoc(productRef, { id: productRef.id }), 8000, 'Update ID produk');
-        firebaseStored = true;
-      }
-    } catch (error) {
-      firebaseError = error;
-      console.warn('Firebase Firestore gagal, gunakan penyimpanan lokal:', error);
+    if (productPayload.ownerId) {
+      const productRef = await withTimeout(addDoc(collection(db, 'marketplace_products'), productPayload), FILE_UPLOAD_TIMEOUT_MS, 'Simpan produk');
+      productPayload.id = productRef.id;
+      await withTimeout(updateDoc(productRef, { id: productRef.id }), FILE_UPLOAD_TIMEOUT_MS, 'Update ID produk');
     }
 
-    const localProducts = readStorage(STORAGE_KEYS.PRODUCTS, productSeed);
-    localProducts.unshift({ ...productPayload, id: productPayload.id || `local-${Date.now()}` });
-    writeStorage(STORAGE_KEYS.PRODUCTS, localProducts);
-
-    if (firebaseError) {
-      showPopup('Firebase sedang lambat atau belum aktif. Barang tetap tersimpan di perangkat dan bisa dilihat di halaman marketplace.', 'Pemberitahuan', 'error');
-    } else {
-      showPopup('Barang berhasil dipublish.', 'Berhasil', 'success');
-    }
-
-    window.location.href = 'dashboard.html';
+    showPopup('Barang berhasil dipublish.', 'Berhasil', 'success');
+    setTimeout(() => {
+      window.location.href = 'my-products.html';
+    }, 1500);
   } catch (error) {
     console.error('Gagal publish produk:', error);
-    const localProducts = readStorage(STORAGE_KEYS.PRODUCTS, productSeed);
-    const fallbackProduct = {
-      id: `local-${Date.now()}`,
-      name: form.querySelector('[name="name"]').value || 'Barang Baru',
-      category: form.querySelector('[name="category"]').value || 'barang',
-      price: Number(String(form.querySelector('[name="price"]').value || '').replace(/[^\d]/g, '')) || 0,
-      condition: form.querySelector('[name="condition"]').value || 'Layak pakai',
-      description: form.querySelector('[name="description"]').value || 'Barang ini siap dijual.',
-      city: form.querySelector('[name="location"]').value || 'Jakarta',
-      seller: (currentUser() || {}).name || 'Seller',
-      sellerInitial: ((currentUser() || {}).name || 'S').charAt(0).toUpperCase(),
-      sellerId: (currentUser() || {}).id || (currentUser() || {}).uid || '',
-      ownerId: (currentUser() || {}).id || (currentUser() || {}).uid || '',
-      image: form.querySelector('[name="category"]').value === 'pakaian' ? '👕' : form.querySelector('[name="category"]').value === 'aksesori' ? '⌚' : '🎁',
-      label: productLabel(form.querySelector('[name="category"]').value || 'barang'),
-      imageUrl: '',
-      createdAt: Date.now()
-    };
-    localProducts.unshift(fallbackProduct);
-    writeStorage(STORAGE_KEYS.PRODUCTS, localProducts);
-
-    showPopup(error.message || 'Proses menambahkan barang gagal, tapi data sudah disimpan di perangkat.', 'Gagal', 'error');
-    window.location.href = 'dashboard.html';
+    showPopup(error.message || 'Proses menambahkan barang gagal. Data tidak disimpan.', 'Gagal', 'error');
   } finally {
     if (submitButton) {
-      submitButton.disabled = false;
-      submitButton.textContent = 'Publish iklan';
+      setButtonLoading(submitButton, false);
     }
   }
 }
@@ -1178,6 +1294,168 @@ async function handleSellSubmit(event) {
 async function bindSellForm() {
   const form = document.querySelector('[data-sell-form]');
   if (!form) return;
+
+  const photoInput = form.querySelector('input[type="file"]');
+  const browseButton = form.querySelector('[data-browse-files]');
+  const dropzone = form.querySelector('[data-upload-dropzone]');
+  const uploadedList = form.querySelector('[data-uploaded-file-list]');
+  const locationButton = form.querySelector('[data-use-location]');
+  const locationStatus = form.querySelector('[data-location-status]');
+  const latField = form.querySelector('[name="latitude"]');
+  const lngField = form.querySelector('[name="longitude"]');
+  const mapPreview = form.querySelector('[data-location-map-preview]');
+
+  const updateLocationPreview = (lat, lng) => {
+    if (!mapPreview) return;
+    const latitude = Number(lat || 0);
+    const longitude = Number(lng || 0);
+    if (!latitude || !longitude) {
+      mapPreview.innerHTML = '<div class="map-placeholder">📍</div>';
+      return;
+    }
+
+    const mapUrl = `https://maps.google.com/maps?q=${latitude},${longitude}&z=14&output=embed`;
+    mapPreview.innerHTML = `<iframe title="Preview lokasi" loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="${mapUrl}"></iframe>`;
+  };
+
+  const syncChosenFiles = (files = []) => {
+    if (!photoInput) return [];
+
+    const validFiles = Array.from(files || []).filter((file) => file && file.name && file.type && file.type.startsWith('image/'));
+    const uniqueFiles = [];
+    const seen = new Set();
+
+    validFiles.forEach((file) => {
+      const key = `${file.name}-${file.size}-${file.lastModified}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        uniqueFiles.push(file);
+      }
+    });
+
+    const dt = new DataTransfer();
+    uniqueFiles.forEach((file) => dt.items.add(file));
+    photoInput.files = dt.files;
+    photoInput.__gamonSelectedFiles = uniqueFiles;
+    return uniqueFiles;
+  };
+
+  const getStoredSelectedFiles = () => {
+    if (!photoInput) return [];
+    if (Array.isArray(photoInput.__gamonSelectedFiles)) {
+      return [...photoInput.__gamonSelectedFiles];
+    }
+    return Array.from(photoInput.files || []);
+  };
+
+  const renderSelectedFiles = (fileList = []) => {
+    if (!uploadedList) return;
+    const files = Array.from(fileList || []).filter((file) => file && file.type && file.type.startsWith('image/'));
+
+    if (!files.length) {
+      uploadedList.innerHTML = '';
+      return;
+    }
+
+    Promise.all(files.slice(0, 8).map((file) => fileToDataUrl(file))).then((urls) => {
+      uploadedList.innerHTML = urls.map((url, index) => `
+        <div class="uploaded-item">
+          <div class="uploaded-item-thumb">
+            <img src="${url}" alt="${files[index]?.name || 'Preview foto'}" />
+          </div>
+          <div class="uploaded-item-name">${files[index]?.name || 'Foto'}</div>
+          <button class="uploaded-item-remove" type="button" data-remove-file="${index}" aria-label="Hapus foto">🗑</button>
+        </div>
+      `).join('');
+
+      uploadedList.querySelectorAll('[data-remove-file]').forEach((button) => {
+        button.addEventListener('click', () => {
+          if (!photoInput) return;
+          const fileArray = getStoredSelectedFiles();
+          const removeIndex = Number(button.dataset.removeFile || 0);
+          const remainingFiles = fileArray.filter((_, idx) => idx !== removeIndex);
+          const syncedFiles = syncChosenFiles(remainingFiles);
+          renderSelectedFiles(syncedFiles);
+        });
+      });
+    }).catch(() => {
+      uploadedList.innerHTML = '';
+    });
+  };
+
+  if (browseButton && photoInput) {
+    browseButton.addEventListener('click', () => photoInput.click());
+  }
+
+  if (dropzone && photoInput) {
+    dropzone.addEventListener('dragover', (event) => {
+      event.preventDefault();
+      dropzone.classList.add('is-dragover');
+    });
+
+    dropzone.addEventListener('dragleave', () => dropzone.classList.remove('is-dragover'));
+    dropzone.addEventListener('drop', (event) => {
+      event.preventDefault();
+      dropzone.classList.remove('is-dragover');
+      if (event.dataTransfer?.files?.length) {
+        const previousFiles = getStoredSelectedFiles();
+        const mergedFiles = syncChosenFiles([...previousFiles, ...Array.from(event.dataTransfer.files || [])]);
+        renderSelectedFiles(mergedFiles);
+      }
+    });
+  }
+
+  if (photoInput) {
+    photoInput.addEventListener('change', (event) => {
+      const previousFiles = getStoredSelectedFiles();
+      const incomingFiles = Array.from(event.target.files || []);
+      const mergedFiles = syncChosenFiles([...previousFiles, ...incomingFiles]);
+      renderSelectedFiles(mergedFiles);
+    });
+  }
+
+  if (photoInput) {
+    photoInput.__gamonSelectedFiles = Array.from(photoInput.files || []);
+  }
+
+  if (locationButton) {
+    locationButton.addEventListener('click', () => {
+      if (!navigator.geolocation) {
+        showPopup('Browser Anda tidak mendukung pembacaan lokasi otomatis.', 'Lokasi tidak tersedia', 'error');
+        if (locationStatus) locationStatus.textContent = 'Browser tidak mendukung';
+        return;
+      }
+
+      if (locationStatus) locationStatus.textContent = 'Mencari lokasi...';
+      locationButton.disabled = true;
+
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const latitude = Number(position.coords.latitude || 0);
+          const longitude = Number(position.coords.longitude || 0);
+
+          if (latField) latField.value = String(latitude.toFixed(6));
+          if (lngField) lngField.value = String(longitude.toFixed(6));
+          updateLocationPreview(latitude, longitude);
+
+          if (locationStatus) locationStatus.textContent = 'Lokasi berhasil dipakai';
+          showPopup('Lokasi Anda berhasil dipakai untuk iklan.', 'Lokasi diperbarui', 'success');
+          locationButton.disabled = false;
+        },
+        (error) => {
+          console.warn('Geolocation error:', error);
+          if (locationStatus) locationStatus.textContent = 'Gagal mengambil lokasi';
+          showPopup('Tidak dapat mengambil lokasi otomatis. Silakan izinkan akses lokasi browser Anda.', 'Lokasi gagal', 'error');
+          locationButton.disabled = false;
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 15000,
+          maximumAge: 0
+        }
+      );
+    });
+  }
 
   const params = new URLSearchParams(window.location.search);
   const editId = params.get('edit');
@@ -1190,12 +1468,21 @@ async function bindSellForm() {
       form.querySelector('[name="price"]').value = product.price || '';
       form.querySelector('[name="condition"]').value = product.condition || 'Layak pakai';
       form.querySelector('[name="description"]').value = product.description || '';
-      form.querySelector('[name="location"]').value = product.city || '';
+      form.querySelector('[name="location"]').value = product.address || product.city || '';
+      form.querySelector('[name="storyType"]').value = product.storyType || 'barang-kenangan';
+      form.querySelector('[name="storyNote"]').value = product.storyNote || '';
+      if (latField) latField.value = product.latitude || '';
+      if (lngField) lngField.value = product.longitude || '';
+      if (product.latitude && product.longitude) {
+        updateLocationPreview(product.latitude, product.longitude);
+      }
       form.dataset.editId = editId;
       const submitButton = form.querySelector('button[type="submit"]');
       if (submitButton) submitButton.textContent = 'Update iklan';
     }
   }
+
+  renderSelectedFiles([]);
 
   form.addEventListener('submit', async (event) => {
     const editId = form.dataset.editId;
@@ -1227,9 +1514,8 @@ async function bindSellForm() {
         const fileInput = form.querySelector('input[type="file"]');
         if (fileInput && fileInput.files && fileInput.files[0]) {
           const file = fileInput.files[0];
-          const uploadRef = ref(storage, `marketplace-products/${currentUser()?.id || 'local-user'}/${Date.now()}-${file.name.replace(/\s+/g, '_')}`);
-          const uploaded = await withTimeout(uploadBytes(uploadRef, file), 8000, 'Upload foto update');
-          updatedData.imageUrl = await withTimeout(getDownloadURL(uploaded.ref), 8000, 'Ambil URL update');
+          const compressedFile = await prepareImageForUpload(file);
+          updatedData.imageUrl = await fileToDataUrl(compressedFile);
         }
 
         await updateDoc(doc(db, 'marketplace_products', editId), updatedData);
@@ -1465,9 +1751,67 @@ function renderProfile() {
   });
 }
 
+function bindBackButton() {
+  const backButton = document.querySelector('[data-back-button]');
+  if (!backButton) return;
+
+  backButton.addEventListener('click', () => {
+    if (document.referrer && document.referrer.startsWith(window.location.origin)) {
+      window.history.back();
+      return;
+    }
+
+    window.location.href = 'index.html';
+  });
+}
+
+function renderProductGallery(images, name) {
+  const gallery = document.querySelector('[data-detail-gallery]');
+  if (!gallery) return;
+
+  const validImages = (images || []).filter(Boolean);
+  const fallback = `<div class="detail-slide active"><div class="detail-image-fallback">${name?.charAt(0)?.toUpperCase() || 'G'}</div></div>`;
+
+  if (!validImages.length) {
+    gallery.innerHTML = fallback;
+    return;
+  }
+
+  const slides = validImages.map((src, index) => `
+    <div class="detail-slide ${index === 0 ? 'active' : ''}">
+      <img src="${src}" alt="${name || 'Gambar produk'}" />
+    </div>
+  `).join('');
+
+  gallery.innerHTML = `
+    <div class="detail-gallery-track">${slides}</div>
+    <button class="detail-gallery-btn prev" type="button" aria-label="Gambar sebelumnya">‹</button>
+    <button class="detail-gallery-btn next" type="button" aria-label="Gambar berikutnya">›</button>
+    <div class="detail-gallery-dots">${validImages.map((_, index) => `<span class="detail-dot ${index === 0 ? 'active' : ''}" data-index="${index}"></span>`).join('')}</div>
+  `;
+
+  const slidesEls = gallery.querySelectorAll('.detail-slide');
+  const dots = gallery.querySelectorAll('.detail-dot');
+  let activeIndex = 0;
+
+  const updateGallery = (nextIndex) => {
+    activeIndex = (nextIndex + slidesEls.length) % slidesEls.length;
+    slidesEls.forEach((slide, index) => slide.classList.toggle('active', index === activeIndex));
+    dots.forEach((dot, index) => dot.classList.toggle('active', index === activeIndex));
+  };
+
+  gallery.querySelector('.detail-gallery-btn.prev')?.addEventListener('click', () => updateGallery(activeIndex - 1));
+  gallery.querySelector('.detail-gallery-btn.next')?.addEventListener('click', () => updateGallery(activeIndex + 1));
+  dots.forEach((dot) => {
+    dot.addEventListener('click', () => updateGallery(Number(dot.dataset.index || 0)));
+  });
+}
+
 async function renderProductDetail() {
   const page = document.body.dataset.page;
   if (page !== 'product.html') return;
+
+  bindBackButton();
 
   const user = requireAuth();
   if (!user) return;
@@ -1500,10 +1844,13 @@ async function renderProductDetail() {
   }
 
   const normalized = normalizeProduct(product);
-  const image = normalized.imageUrl ? `<img src="${normalized.imageUrl}" alt="${normalized.name}" style="width: 100%; height: 100%; object-fit: cover;" />` : normalized.image;
+  renderProductGallery(normalized.images || [normalized.imageUrl || normalized.image], normalized.name);
 
   const detailImage = document.querySelector('[data-detail-image]');
-  if (detailImage) detailImage.innerHTML = image;
+  if (detailImage) {
+    const image = normalized.imageUrl ? `<img src="${normalized.imageUrl}" alt="${normalized.name}" style="width: 100%; height: 100%; object-fit: cover;" />` : normalized.image;
+    detailImage.innerHTML = image;
+  }
 
   const detailPrice = document.querySelector('[data-detail-price]');
   if (detailPrice) detailPrice.textContent = formatCurrency(normalized.price);
@@ -1530,14 +1877,56 @@ async function renderProductDetail() {
   if (detailSellerInitial) detailSellerInitial.textContent = normalized.sellerInitial;
 
   const detailLocation = document.querySelector('[data-detail-location]');
-  if (detailLocation) detailLocation.value = normalized.city;
+  if (detailLocation) detailLocation.value = normalized.address || normalized.city;
+
+  const detailMap = document.querySelector('[data-detail-map]');
+  if (detailMap) {
+    const latitude = Number(normalized.latitude || 0);
+    const longitude = Number(normalized.longitude || 0);
+    if (latitude && longitude) {
+      const mapUrl = `https://maps.google.com/maps?q=${latitude},${longitude}&z=14&output=embed`;
+      detailMap.innerHTML = `<iframe title="Lokasi produk" loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="${mapUrl}"></iframe>`;
+    } else {
+      detailMap.innerHTML = '<div class="map-placeholder">📍</div>';
+    }
+  }
+
+  const detailStory = document.querySelector('[data-detail-story]');
+  if (detailStory) {
+    const storyLabel = (normalized.storyType || 'barang-kenangan').replace(/-/g, ' ');
+    detailStory.textContent = storyLabel;
+  }
 
   const detailSummary = document.querySelector('[data-detail-summary]');
-  if (detailSummary) detailSummary.value = `Barang ini termasuk kategori ${normalized.label}. Kondisi ${normalized.condition}. Dapat ditanyakan lebih lanjut melalui chat agar proses transaksi lebih aman.`;
+  if (detailSummary) {
+    const storySentence = normalized.storyNote ? `Cerita singkat: ${normalized.storyNote}. ` : '';
+    detailSummary.value = `${storySentence}Barang ini termasuk kategori ${normalized.label}. Kondisi ${normalized.condition}. Dapat ditanyakan lebih lanjut melalui chat agar proses transaksi lebih aman.`;
+  }
+
+  const currentUserId = getCurrentUserIdentifier();
+  const currentUserName = normalizeUserIdentifier((currentUser() || {}).name || user.name || '');
+  const productOwnerId = normalizeUserIdentifier(normalized.sellerId || normalized.ownerId || resolveUserIdByName(normalized.seller) || normalized.seller || '');
+  const productOwnerName = normalizeUserIdentifier(normalized.seller || '');
+  const isProductOwner = Boolean(
+    (currentUserId && productOwnerId && normalizeUserIdentifier(currentUserId).toLowerCase() === normalizeUserIdentifier(productOwnerId).toLowerCase()) ||
+    (currentUserName && productOwnerName && normalizeUserIdentifier(currentUserName).toLowerCase() === normalizeUserIdentifier(productOwnerName).toLowerCase())
+  );
 
   const sellerRef = normalizeUserIdentifier(normalized.sellerId || normalized.ownerId || resolveUserIdByName(normalized.seller) || normalized.seller || '');
   const chatButton = document.querySelector('[data-chat-product]');
-  if (chatButton) chatButton.href = `user/chat.html?user=${encodeURIComponent(normalized.seller || 'Penjual')}&userId=${encodeURIComponent(sellerRef || normalized.seller || '')}`;
+  if (chatButton) {
+    if (isProductOwner) {
+      chatButton.style.display = 'none';
+      chatButton.removeAttribute('href');
+      chatButton.setAttribute('aria-disabled', 'true');
+      chatButton.setAttribute('tabindex', '-1');
+    } else {
+      chatButton.style.display = '';
+      chatButton.href = `user/chat.html?user=${encodeURIComponent(normalized.seller || 'Penjual')}&userId=${encodeURIComponent(sellerRef || normalized.seller || '')}`;
+      chatButton.removeAttribute('aria-disabled');
+      chatButton.removeAttribute('tabindex');
+    }
+  }
 }
 
 async function renderChat() {
@@ -1806,6 +2195,7 @@ async function init() {
   ensureDemoData();
   handleSidebarState();
   bindLogoutButtons();
+  bindMobileSidebar();
   hydrateUserProfileUI();
 
   onAuthStateChanged(auth, async (firebaseUser) => {
