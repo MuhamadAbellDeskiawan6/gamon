@@ -539,6 +539,7 @@ function normalizeProduct(item) {
     category: item.category || 'barang',
     price: Number(item.price || 0),
     condition: item.condition || 'Layak pakai',
+    status: item.status || (item.isSold ? 'Terjual' : 'Tersedia') || 'Tersedia',
     image: primaryImage || item.image || productEmoji(item.category),
     label: item.label || productLabel(item.category),
     city: item.city || item.address || 'Jakarta',
@@ -932,25 +933,24 @@ function renderProductCards(items) {
   return items.map((item) => {
     const normalized = normalizeProduct(item);
     const imageMarkup = normalized.imageUrl ? `<img src="${normalized.imageUrl}" alt="${escapeHtml(normalized.name)}" style="width: 100%; height: 100%; object-fit: cover;" />` : normalized.image;
-    const storyLabel = (normalized.storyType || 'barang-kenangan').replace(/-/g, ' ');
+    const statusLabel = normalized.status || 'Tersedia';
+    const statusStyle = statusLabel === 'Terjual'
+      ? 'background: rgba(220, 38, 38, 0.08); color: #b91c1c; border: 1px solid rgba(220, 38, 38, 0.18);'
+      : 'background: rgba(34, 197, 94, 0.08); color: #15803d; border: 1px solid rgba(34, 197, 94, 0.18);';
     return `
-      <article class="product-card" data-category="${normalized.category}">
+      <article class="product-card compact-card" data-category="${normalized.category}">
         <div class="image">${imageMarkup} <span class="chip">${escapeHtml(normalized.label)}</span></div>
         <div class="product-body">
           <div class="product-head">
             <div class="price">${formatCurrency(normalized.price)}</div>
-            <span class="condition">${escapeHtml(normalized.condition)}</span>
+            <span class="condition" style="${statusStyle}">${escapeHtml(statusLabel)}</span>
           </div>
           <h3>${escapeHtml(normalized.name)}</h3>
-          <p>${escapeHtml(normalized.description)}</p>
-          <div class="seller-row">
+          <div class="seller-row compact-row">
             <span class="seller-meta"><span class="avatar">${escapeHtml(normalized.sellerInitial)}</span> ${escapeHtml(normalized.seller)}</span>
             <span>${escapeHtml(normalized.city)}</span>
           </div>
-          <div class="listing-meta" style="margin-top: 12px;">
-            <span class="meta-tag">${escapeHtml(storyLabel)}</span>
-          </div>
-          <div class="card-actions">
+          <div class="card-actions compact-actions">
             <a class="btn btn-soft" href="${getProductDetailUrl(normalized.id)}">Lihat detail</a>
           </div>
         </div>
@@ -1171,7 +1171,7 @@ function bindMobileSidebar() {
     toggle.setAttribute('aria-label', 'Buka menu');
     toggle.setAttribute('aria-expanded', 'false');
     toggle.innerHTML = '<span></span><span></span><span></span>';
-    nav.insertBefore(toggle, nav.firstChild);
+    nav.appendChild(toggle);
   }
 
   let backdrop = document.querySelector('.sidebar-backdrop');
@@ -1288,6 +1288,7 @@ async function handleSellSubmit(event) {
       category: payload.category || 'barang',
       price: Number(String(payload.price).replace(/[^\d]/g, '')) || 0,
       condition: payload.condition || 'Layak pakai',
+      status: payload.status || 'Tersedia',
       description: payload.description || 'Barang ini siap dijual.',
       city: payload.location || 'Jakarta',
       address: payload.location || 'Jakarta',
@@ -1339,6 +1340,332 @@ async function handleSellSubmit(event) {
       setButtonLoading(submitButton, false);
     }
   }
+}
+
+async function bindEditForm() {
+  const form = document.querySelector('[data-edit-form]');
+  if (!form) return;
+
+  const productId = new URLSearchParams(window.location.search).get('id');
+  if (!productId) {
+    showPopup('Produk tidak ditemukan untuk diedit.', 'Tidak ditemukan', 'error');
+    window.location.href = 'my-products.html';
+    return;
+  }
+
+  const photoInput = form.querySelector('input[type="file"]');
+  const browseButton = form.querySelector('[data-browse-files]');
+  const dropzone = form.querySelector('[data-upload-dropzone]');
+  const uploadedList = form.querySelector('[data-uploaded-file-list]');
+  const locationButton = form.querySelector('[data-use-location]');
+  const locationStatus = form.querySelector('[data-location-status]');
+  const latField = form.querySelector('[name="latitude"]');
+  const lngField = form.querySelector('[name="longitude"]');
+  const mapPreview = form.querySelector('[data-location-map-preview]');
+
+  const updateLocationPreview = (lat, lng) => {
+    if (!mapPreview) return;
+    const latitude = Number(lat || 0);
+    const longitude = Number(lng || 0);
+    if (!latitude || !longitude) {
+      mapPreview.innerHTML = '<div class="map-placeholder">📍</div>';
+      return;
+    }
+
+    const mapUrl = `https://maps.google.com/maps?q=${latitude},${longitude}&z=14&output=embed`;
+    mapPreview.innerHTML = `<iframe title="Preview lokasi" loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="${mapUrl}"></iframe>`;
+  };
+
+  const syncChosenFiles = (files = []) => {
+    if (!photoInput) return [];
+    const validFiles = Array.from(files || []).filter((file) => file && file.name && file.type && file.type.startsWith('image/'));
+    const uniqueFiles = [];
+    const seen = new Set();
+
+    validFiles.forEach((file) => {
+      const key = `${file.name}-${file.size}-${file.lastModified}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        uniqueFiles.push(file);
+      }
+    });
+
+    const dt = new DataTransfer();
+    uniqueFiles.forEach((file) => dt.items.add(file));
+    photoInput.files = dt.files;
+    photoInput.__gamonSelectedFiles = uniqueFiles;
+    return uniqueFiles;
+  };
+
+  const getStoredSelectedFiles = () => {
+    if (!photoInput) return [];
+    if (Array.isArray(photoInput.__gamonSelectedFiles)) {
+      return [...photoInput.__gamonSelectedFiles];
+    }
+    return Array.from(photoInput.files || []);
+  };
+
+  const renderSelectedFiles = (fileList = []) => {
+    if (!uploadedList) return;
+    const files = Array.from(fileList || []).filter((file) => file && file.type && file.type.startsWith('image/'));
+
+    if (!files.length) {
+      uploadedList.innerHTML = '';
+      return;
+    }
+
+    Promise.all(files.slice(0, 8).map((file) => fileToDataUrl(file))).then((urls) => {
+      uploadedList.innerHTML = urls.map((url, index) => `
+        <div class="uploaded-item">
+          <div class="uploaded-item-thumb">
+            <img src="${url}" alt="${escapeHtml(files[index]?.name || 'Preview foto')}" />
+          </div>
+          <div class="uploaded-item-name">${escapeHtml(files[index]?.name || 'Foto')}</div>
+          <button class="uploaded-item-remove" type="button" data-remove-file="${index}" aria-label="Hapus foto">🗑</button>
+        </div>
+      `).join('');
+
+      uploadedList.querySelectorAll('[data-remove-file]').forEach((button) => {
+        button.addEventListener('click', () => {
+          if (!photoInput) return;
+          const fileArray = getStoredSelectedFiles();
+          const removeIndex = Number(button.dataset.removeFile || 0);
+          const remainingFiles = fileArray.filter((_, idx) => idx !== removeIndex);
+          const syncedFiles = syncChosenFiles(remainingFiles);
+          renderSelectedFiles(syncedFiles);
+        });
+      });
+    }).catch(() => {
+      uploadedList.innerHTML = '';
+    });
+  };
+
+  if (browseButton && photoInput) {
+    browseButton.addEventListener('click', () => photoInput.click());
+  }
+
+  if (dropzone && photoInput) {
+    dropzone.addEventListener('dragover', (event) => {
+      event.preventDefault();
+      dropzone.classList.add('is-dragover');
+    });
+
+    dropzone.addEventListener('dragleave', () => dropzone.classList.remove('is-dragover'));
+    dropzone.addEventListener('drop', (event) => {
+      event.preventDefault();
+      dropzone.classList.remove('is-dragover');
+      if (event.dataTransfer?.files?.length) {
+        const previousFiles = getStoredSelectedFiles();
+        const mergedFiles = syncChosenFiles([...previousFiles, ...Array.from(event.dataTransfer.files || [])]);
+        renderSelectedFiles(mergedFiles);
+      }
+    });
+  }
+
+  if (photoInput) {
+    photoInput.addEventListener('change', (event) => {
+      const incomingFiles = Array.from(event.target.files || []);
+      const mergedFiles = syncChosenFiles(incomingFiles);
+      renderSelectedFiles(mergedFiles);
+    });
+  }
+
+  let existingImages = [];
+  const localProducts = readStorage(STORAGE_KEYS.PRODUCTS, productSeed);
+  const product = localProducts.find((item) => String(item.id) === String(productId)) || null;
+
+  const resolveProduct = async () => {
+    try {
+      const snapshot = await getDoc(doc(db, 'marketplace_products', productId));
+      if (snapshot.exists()) {
+        return snapshot.data();
+      }
+    } catch (error) {
+      console.warn('Failed to fetch product from Firestore', error);
+    }
+    return product;
+  };
+
+  const selectedProduct = await resolveProduct();
+  const normalized = selectedProduct ? normalizeProduct(selectedProduct) : null;
+
+  if (!normalized) {
+    showPopup('Produk yang akan diedit tidak ditemukan.', 'Tidak ditemukan', 'error');
+    window.location.href = 'my-products.html';
+    return;
+  }
+
+  form.querySelector('[name="name"]').value = normalized.name || '';
+  form.querySelector('[name="category"]').value = normalized.category || 'barang';
+  form.querySelector('[name="price"]').value = normalized.price || '';
+  form.querySelector('[name="condition"]').value = normalized.condition || 'Layak pakai';
+  form.querySelector('[name="status"]').value = normalized.status || 'Tersedia';
+  form.querySelector('[name="storyType"]').value = normalized.storyType || 'barang-kenangan';
+  form.querySelector('[name="storyNote"]').value = normalized.storyNote || '';
+  form.querySelector('[name="description"]').value = normalized.description || '';
+  form.querySelector('[name="location"]').value = normalized.address || normalized.city || '';
+  if (latField) latField.value = normalized.latitude || '';
+  if (lngField) lngField.value = normalized.longitude || '';
+  if (normalized.latitude && normalized.longitude) {
+    updateLocationPreview(normalized.latitude, normalized.longitude);
+  }
+
+  existingImages = Array.isArray(normalized.images) ? normalized.images.filter(Boolean) : [];
+  if (existingImages.length) {
+    uploadedList.innerHTML = existingImages.map((src, index) => `
+      <div class="uploaded-item">
+        <div class="uploaded-item-thumb">
+          <img src="${src}" alt="${escapeHtml(normalized.name || 'Foto produk')}" />
+        </div>
+        <div class="uploaded-item-name">Foto ${index + 1}</div>
+        <button class="uploaded-item-remove" type="button" data-remove-existing="${index}" aria-label="Hapus foto lama">🗑</button>
+      </div>
+    `).join('');
+
+    uploadedList.querySelectorAll('[data-remove-existing]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const index = Number(button.dataset.removeExisting || 0);
+        existingImages = existingImages.filter((_, i) => i !== index);
+        if (!existingImages.length) {
+          uploadedList.innerHTML = '';
+          return;
+        }
+        uploadedList.innerHTML = existingImages.map((src, btnIndex) => `
+          <div class="uploaded-item">
+            <div class="uploaded-item-thumb">
+              <img src="${src}" alt="${escapeHtml(normalized.name || 'Foto produk')}" />
+            </div>
+            <div class="uploaded-item-name">Foto ${btnIndex + 1}</div>
+            <button class="uploaded-item-remove" type="button" data-remove-existing="${btnIndex}" aria-label="Hapus foto lama">🗑</button>
+          </div>
+        `).join('');
+        uploadedList.querySelectorAll('[data-remove-existing]').forEach((newButton) => {
+          newButton.addEventListener('click', () => {
+            const secondIndex = Number(newButton.dataset.removeExisting || 0);
+            existingImages = existingImages.filter((_, idx) => idx !== secondIndex);
+            uploadedList.innerHTML = existingImages.length ? existingImages.map((img, innerIndex) => `
+              <div class="uploaded-item">
+                <div class="uploaded-item-thumb">
+                  <img src="${img}" alt="${escapeHtml(normalized.name || 'Foto produk')}" />
+                </div>
+                <div class="uploaded-item-name">Foto ${innerIndex + 1}</div>
+                <button class="uploaded-item-remove" type="button" data-remove-existing="${innerIndex}" aria-label="Hapus foto lama">🗑</button>
+              </div>
+            `).join('') : '';
+          });
+        });
+      });
+    });
+  }
+
+  if (locationButton) {
+    locationButton.addEventListener('click', () => {
+      if (!navigator.geolocation) {
+        showPopup('Browser Anda tidak mendukung pembacaan lokasi otomatis.', 'Lokasi tidak tersedia', 'error');
+        if (locationStatus) locationStatus.textContent = 'Browser tidak mendukung';
+        return;
+      }
+
+      if (locationStatus) locationStatus.textContent = 'Mencari lokasi...';
+      locationButton.disabled = true;
+
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const latitude = Number(position.coords.latitude || 0);
+          const longitude = Number(position.coords.longitude || 0);
+          if (latField) latField.value = String(latitude.toFixed(6));
+          if (lngField) lngField.value = String(longitude.toFixed(6));
+          updateLocationPreview(latitude, longitude);
+          if (locationStatus) locationStatus.textContent = 'Lokasi berhasil dipakai';
+          showPopup('Lokasi Anda berhasil dipakai untuk produk.', 'Lokasi diperbarui', 'success');
+          locationButton.disabled = false;
+        },
+        (error) => {
+          console.warn('Geolocation error:', error);
+          if (locationStatus) locationStatus.textContent = 'Gagal mengambil lokasi';
+          showPopup('Tidak dapat mengambil lokasi otomatis. Silakan izinkan akses lokasi browser Anda.', 'Lokasi gagal', 'error');
+          locationButton.disabled = false;
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 15000,
+          maximumAge: 0
+        }
+      );
+    });
+  }
+
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+
+    const submitButton = form.querySelector('button[type="submit"]');
+    if (submitButton) {
+      submitButton.disabled = true;
+      submitButton.textContent = 'Menyimpan...';
+    }
+
+    try {
+      const formData = new FormData(form);
+      const payload = Object.fromEntries(formData.entries());
+      const selectedFiles = getStoredSelectedFiles();
+      const user = currentUser() || requireAuth();
+
+      const imageUrls = [...existingImages];
+      const newFiles = Array.from(selectedFiles || []).filter((file) => file && file.type && file.type.startsWith('image/'));
+      if (newFiles.length) {
+        const prepared = await Promise.all(newFiles.map((file) => prepareImageForUpload(file)));
+        const urls = await Promise.all(prepared.map((file) => fileToDataUrl(file)));
+        imageUrls.push(...urls);
+      }
+
+      const updatedData = {
+        name: payload.name,
+        category: payload.category,
+        price: Number(String(payload.price).replace(/[^\d]/g, '')) || 0,
+        condition: payload.condition,
+        status: payload.status || 'Tersedia',
+        description: payload.description,
+        city: payload.location,
+        address: payload.location,
+        location: payload.location,
+        storyType: payload.storyType || 'barang-kenangan',
+        storyNote: payload.storyNote || '',
+        latitude: payload.latitude || normalized.latitude || '',
+        longitude: payload.longitude || normalized.longitude || '',
+        label: productLabel(payload.category || 'barang'),
+        updatedAt: Date.now(),
+        images: imageUrls,
+        imageUrl: imageUrls[0] || normalized.imageUrl || normalized.image || '',
+        image: imageUrls[0] || normalized.imageUrl || normalized.image || productEmoji(payload.category || normalized.category),
+        seller: user?.name || normalized.seller || 'Seller',
+        sellerInitial: (user?.name || normalized.seller || 'S').charAt(0).toUpperCase(),
+        ownerId: normalized.ownerId || user?.id || user?.uid || '',
+        sellerId: normalized.sellerId || normalized.ownerId || user?.id || user?.uid || ''
+      };
+
+      await updateDoc(doc(db, 'marketplace_products', productId), updatedData);
+
+      const localProducts = readStorage(STORAGE_KEYS.PRODUCTS, productSeed);
+      const index = localProducts.findIndex((item) => String(item.id) === String(productId));
+      if (index >= 0) {
+        localProducts[index] = { ...localProducts[index], ...updatedData, id: productId };
+        writeStorage(STORAGE_KEYS.PRODUCTS, localProducts);
+      }
+
+      showPopup('Produk berhasil diperbarui.', 'Berhasil', 'success');
+      setTimeout(() => {
+        window.location.href = 'my-products.html';
+      }, 700);
+    } catch (error) {
+      console.error('Update edit form error:', error);
+      showPopup(error.message || 'Gagal memperbarui produk.', 'Gagal', 'error');
+    } finally {
+      if (submitButton) {
+        submitButton.disabled = false;
+        submitButton.textContent = 'Simpan perubahan';
+      }
+    }
+  });
 }
 
 async function bindSellForm() {
@@ -1517,6 +1844,7 @@ async function bindSellForm() {
       form.querySelector('[name="category"]').value = product.category || 'barang';
       form.querySelector('[name="price"]').value = product.price || '';
       form.querySelector('[name="condition"]').value = product.condition || 'Layak pakai';
+      form.querySelector('[name="status"]').value = product.status || 'Tersedia';
       form.querySelector('[name="description"]').value = product.description || '';
       form.querySelector('[name="location"]').value = product.address || product.city || '';
       form.querySelector('[name="storyType"]').value = product.storyType || 'barang-kenangan';
@@ -1553,6 +1881,7 @@ async function bindSellForm() {
           category: payload.category,
           price: Number(String(payload.price).replace(/[^\d]/g, '')) || 0,
           condition: payload.condition,
+          status: payload.status || 'Tersedia',
           description: payload.description,
           city: payload.location,
           seller: currentUser()?.name || 'Seller',
@@ -1627,13 +1956,19 @@ async function renderProductsForBuyer() {
       const imageMarkup = normalized.imageUrl ? `<img src="${normalized.imageUrl}" alt="${escapeHtml(normalized.name)}" style="width: 100%; height: 100%; object-fit: cover;" />` : normalized.image;
       const sellerRef = normalizeUserIdentifier(normalized.sellerId || normalized.ownerId || resolveUserIdByName(normalized.seller) || normalized.seller || '');
       const chatHref = getUserChatUrl(normalized.seller, sellerRef || normalized.seller || '');
+      const statusStyle = normalized.status === 'Terjual'
+        ? 'background: #fee2e2; color: #991b1b; border: 1px solid #fecaca;'
+        : 'background: #dcfce7; color: #166534; border: 1px solid #bbf7d0;';
       return `
         <article class="product-card">
           <div class="image">${imageMarkup} <span class="chip">${escapeHtml(normalized.label)}</span></div>
           <div class="product-body">
             <div class="product-head">
               <div class="price">${formatCurrency(normalized.price)}</div>
-              <span class="condition">${escapeHtml(normalized.condition)}</span>
+              <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; justify-content:flex-end;">
+                <span class="condition">${escapeHtml(normalized.condition)}</span>
+                <span class="condition" style="${statusStyle}">${escapeHtml(normalized.status || 'Tersedia')}</span>
+              </div>
             </div>
             <h3>${escapeHtml(normalized.name)}</h3>
             <p>${escapeHtml(normalized.description)}</p>
@@ -1685,13 +2020,19 @@ async function renderMyProducts() {
     container.innerHTML = items.map((item) => {
       const normalized = normalizeProduct(item);
       const imageMarkup = normalized.imageUrl ? `<img src="${normalized.imageUrl}" alt="${escapeHtml(normalized.name)}" style="width: 100%; height: 100%; object-fit: cover;" />` : normalized.image;
+      const statusStyle = normalized.status === 'Terjual'
+        ? 'background: #fee2e2; color: #991b1b; border: 1px solid #fecaca;'
+        : 'background: #dcfce7; color: #166534; border: 1px solid #bbf7d0;';
       return `
         <article class="product-card">
           <div class="image">${imageMarkup} <span class="chip">${escapeHtml(normalized.label)}</span></div>
           <div class="product-body">
             <div class="product-head">
               <div class="price">${formatCurrency(normalized.price)}</div>
-              <span class="condition">${escapeHtml(normalized.condition)}</span>
+              <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; justify-content:flex-end;">
+                <span class="condition">${escapeHtml(normalized.condition)}</span>
+                <span class="condition" style="${statusStyle}">${escapeHtml(normalized.status || 'Tersedia')}</span>
+              </div>
             </div>
             <h3>${escapeHtml(normalized.name)}</h3>
             <p>${escapeHtml(normalized.description)}</p>
@@ -1712,7 +2053,7 @@ async function renderMyProducts() {
     editButtons.forEach((button) => {
       button.addEventListener('click', () => {
         const productId = button.dataset.editProduct;
-        window.location.href = `jual.html?edit=${encodeURIComponent(productId)}`;
+        window.location.href = `edit.html?id=${encodeURIComponent(productId)}`;
       });
     });
 
@@ -1798,6 +2139,47 @@ function renderProfile() {
     writeStorage(STORAGE_KEYS.USERS, users);
     setCurrentUser(updatedUser);
     showPopup('Profil berhasil diperbarui.', 'Berhasil', 'success');
+  });
+}
+
+function bindPasswordToggles() {
+  const toggles = document.querySelectorAll('[data-password-toggle]');
+  toggles.forEach((button) => {
+    const wrapper = button.closest('.password-field');
+    const input = wrapper ? wrapper.querySelector('input') : null;
+    if (!input) return;
+
+    button.addEventListener('click', () => {
+      const isPasswordHidden = input.type === 'password';
+      input.type = isPasswordHidden ? 'text' : 'password';
+      button.textContent = isPasswordHidden ? '🙈' : '👁';
+      button.setAttribute('aria-label', isPasswordHidden ? 'Sembunyikan password' : 'Tampilkan password');
+      button.setAttribute('title', isPasswordHidden ? 'Sembunyikan password' : 'Tampilkan password');
+    });
+  });
+}
+
+function bindHeaderActionsMenu() {
+  const headerToggle = document.querySelector('.header-menu-toggle');
+  const headerActions = document.querySelector('[data-header-actions]');
+  if (!headerToggle || !headerActions) return;
+
+  const syncState = (isOpen) => {
+    headerToggle.classList.toggle('is-active', isOpen);
+    headerToggle.setAttribute('aria-expanded', String(isOpen));
+    headerActions.classList.toggle('is-open', isOpen);
+  };
+
+  headerToggle.addEventListener('click', () => {
+    const isOpen = !headerToggle.classList.contains('is-active');
+    syncState(isOpen);
+  });
+
+  document.addEventListener('click', (event) => {
+    const target = event.target;
+    if (!headerActions.contains(target) && !headerToggle.contains(target)) {
+      syncState(false);
+    }
   });
 }
 
@@ -1911,6 +2293,9 @@ async function renderProductDetail() {
   const detailCondition = document.querySelector('[data-detail-condition]');
   if (detailCondition) detailCondition.textContent = normalized.condition;
 
+  const detailStatus = document.querySelector('[data-detail-status]');
+  if (detailStatus) detailStatus.textContent = normalized.status || 'Tersedia';
+
   const detailName = document.querySelector('[data-detail-name]');
   if (detailName) detailName.textContent = normalized.name;
 
@@ -2021,6 +2406,8 @@ async function init() {
   handleSidebarState();
   bindLogoutButtons();
   bindMobileSidebar();
+  bindHeaderActionsMenu();
+  bindPasswordToggles();
   hydrateUserProfileUI();
 
   onAuthStateChanged(auth, async (firebaseUser) => {
@@ -2050,6 +2437,11 @@ async function init() {
 
   if (page === 'jual.html') {
     await bindSellForm();
+    return;
+  }
+
+  if (page === 'edit.html') {
+    await bindEditForm();
     return;
   }
 

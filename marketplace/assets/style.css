@@ -50,6 +50,7 @@ input, textarea, select, button { font: inherit; }
   justify-content: space-between;
   min-height: 76px;
   gap: 18px;
+  position: relative;
 }
 
 .brand {
@@ -99,6 +100,18 @@ input, textarea, select, button { font: inherit; }
   flex-shrink: 0;
 }
 
+.header-actions-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  margin-left: auto;
+}
+
+.header-menu-toggle {
+  display: none;
+}
+
 .mobile-menu-toggle {
   display: none;
   flex-direction: column;
@@ -112,6 +125,7 @@ input, textarea, select, button { font: inherit; }
   background: rgba(255,255,255,0.9);
   cursor: pointer;
   box-shadow: 0 10px 22px rgba(62, 48, 64, 0.08);
+  margin-left: auto;
 }
 
 .mobile-menu-toggle span {
@@ -381,6 +395,38 @@ h1, h2, h3, h4 {
   border-radius: 24px;
   overflow: hidden;
   box-shadow: 0 12px 36px rgba(88, 69, 88, 0.06);
+}
+
+.compact-card .product-body {
+  padding: 14px 14px 16px;
+}
+
+.compact-card .image {
+  height: 180px;
+}
+
+.compact-card .product-head {
+  align-items: flex-start;
+}
+
+.compact-card h3 {
+  margin-top: 10px;
+  font-size: 1.05rem;
+  min-height: 2.7em;
+}
+
+.compact-row {
+  margin-top: 10px;
+  font-size: 0.82rem;
+}
+
+.compact-actions {
+  margin-top: 12px;
+}
+
+.compact-actions .btn {
+  padding: 10px 12px;
+  font-size: 0.9rem;
 }
 
 .product-card .image {
@@ -720,6 +766,32 @@ footer {
 
 .field textarea { min-height: 110px; resize: vertical; }
 
+.password-field {
+  position: relative;
+}
+
+.password-field input {
+  padding-right: 42px;
+}
+
+.password-toggle {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-size: 1.1rem;
+  cursor: pointer;
+  line-height: 1;
+  padding: 4px;
+}
+
+.password-toggle:hover {
+  color: var(--primary);
+}
+
 .check-row {
   display: flex;
   align-items: center;
@@ -792,6 +864,20 @@ footer {
   border-radius: 14px;
   color: var(--muted);
   font-weight: 700;
+}
+
+.sidebar .logout-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #fff1f6, #ffe1ee);
+  color: var(--primary);
+  font-weight: 800;
+  border: 1px solid rgba(94, 59, 92, 0.12);
 }
 
 .sidebar nav a.active,
@@ -1344,8 +1430,47 @@ footer {
     grid-template-columns: 1fr;
   }
 
+  .header-menu-toggle {
+    display: flex;
+  }
+
+  .nav-actions {
+    position: absolute;
+    top: calc(100% + 10px);
+    right: 0;
+    left: auto;
+    display: none;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    min-width: 180px;
+    padding: 12px;
+    background: rgba(255,255,255,0.96);
+    border: 1px solid rgba(106, 76, 101, 0.12);
+    border-radius: 16px;
+    box-shadow: 0 18px 44px rgba(62, 48, 64, 0.14);
+    z-index: 1200;
+  }
+
+  .nav-actions.is-open {
+    display: flex;
+  }
+
+  .header-menu-toggle {
+    margin-left: 8px;
+  }
+
+  .nav-actions .btn {
+    width: 100%;
+  }
+
   .mobile-menu-toggle {
     display: flex;
+    margin-left: auto;
+  }
+
+  .nav > .nav-actions {
+    display: none;
   }
 
   .user-shell {
@@ -1356,11 +1481,12 @@ footer {
   .sidebar {
     position: fixed;
     top: 82px;
-    left: 12px;
+    right: 12px;
+    left: auto;
     width: min(82vw, 280px);
     max-height: calc(100vh - 100px);
     overflow-y: auto;
-    transform: translateX(-120%);
+    transform: translateX(120%);
     transition: transform 0.22s ease;
     z-index: 1100;
     box-shadow: 0 24px 60px rgba(58, 42, 52, 0.20);
