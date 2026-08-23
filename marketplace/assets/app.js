@@ -1263,10 +1263,94 @@ function renderProductCards(items) {
   }).join('');
 }
 
+function renderHomeProductsLoadingState() {
+  const skeletons = Array.from({ length: 4 }, (_, index) => `
+    <article class="product-card compact-card product-loading-card" aria-label="Memuat barang ${index + 1}" aria-busy="true">
+      <div class="product-loading-image"></div>
+      <div class="product-body product-loading-body">
+        <div class="product-loading-line product-loading-price"></div>
+        <div class="product-loading-line"></div>
+        <div class="product-loading-line product-loading-line-short"></div>
+        <div class="product-loading-meta">
+          <span class="product-loading-avatar"></span>
+          <span class="product-loading-line product-loading-meta-line"></span>
+        </div>
+      </div>
+    </article>
+  `).join('');
+
+  return `
+    <div class="product-loading-state" aria-live="polite" aria-label="Memuat barang yang sedang dijual">
+      <div class="product-loading-indicator" role="status" aria-live="polite">
+        <span class="product-loading-spinner" aria-hidden="true"></span>
+        <span>Memuat barang yang sedang dijual...</span>
+      </div>
+      <div class="product-loading-grid">
+        ${skeletons}
+      </div>
+    </div>
+  `;
+}
+
+function renderBuyerProductsLoadingState() {
+  return `
+    <div class="product-loading-state" aria-live="polite" aria-label="Sedang memuat barang untuk dibeli">
+      <div class="product-loading-indicator" role="status" aria-live="polite">
+        <span class="product-loading-spinner" aria-hidden="true"></span>
+        <span>Sedang memuat barang untuk dibeli...</span>
+      </div>
+      <div class="product-loading-grid">
+        ${Array.from({ length: 4 }, () => `
+          <article class="product-card compact-card product-loading-card" aria-busy="true">
+            <div class="product-loading-image"></div>
+            <div class="product-body product-loading-body">
+              <div class="product-loading-line product-loading-price"></div>
+              <div class="product-loading-line"></div>
+              <div class="product-loading-line product-loading-line-short"></div>
+              <div class="product-loading-meta">
+                <span class="product-loading-avatar"></span>
+                <span class="product-loading-line product-loading-meta-line"></span>
+              </div>
+            </div>
+          </article>
+        `).join('')}
+      </div>
+    </div>
+  `;
+}
+
+function renderMyProductsLoadingState() {
+  return `
+    <div class="product-loading-state" aria-live="polite" aria-label="Sedang memuat barang saya">
+      <div class="product-loading-indicator" role="status" aria-live="polite">
+        <span class="product-loading-spinner" aria-hidden="true"></span>
+        <span>Sedang memuat barang saya...</span>
+      </div>
+      <div class="product-loading-grid">
+        ${Array.from({ length: 4 }, () => `
+          <article class="product-card compact-card product-loading-card" aria-busy="true">
+            <div class="product-loading-image"></div>
+            <div class="product-body product-loading-body">
+              <div class="product-loading-line product-loading-price"></div>
+              <div class="product-loading-line"></div>
+              <div class="product-loading-line product-loading-line-short"></div>
+              <div class="product-loading-meta">
+                <span class="product-loading-avatar"></span>
+                <span class="product-loading-line product-loading-meta-line"></span>
+              </div>
+            </div>
+          </article>
+        `).join('')}
+      </div>
+    </div>
+  `;
+}
+
 async function renderHomeProducts() {
   const container = document.querySelector('[data-product-list]');
   if (!container) return;
 
+  container.innerHTML = renderHomeProductsLoadingState();
   ensureDemoData();
   const renderFromItems = async (items) => {
     const normalized = items.map(normalizeProduct);
@@ -2331,6 +2415,7 @@ async function renderProductsForBuyer() {
   const user = requireAuth();
   if (!user) return;
 
+  container.innerHTML = renderBuyerProductsLoadingState();
   const currentUserId = normalizeUserIdentifier(user.id || user.uid || auth.currentUser?.uid || user.email || user.name || 'guest').toLowerCase();
 
   const renderFromItems = (items) => {
@@ -2406,6 +2491,8 @@ async function renderMyProducts() {
 
   const container = document.querySelector('[data-my-products-list]');
   if (!container) return;
+
+  container.innerHTML = renderMyProductsLoadingState();
 
   const renderFromItems = (items) => {
     if (!items.length) {
@@ -2817,9 +2904,23 @@ async function renderProductDetail() {
   }
 
   const chatButton = document.querySelector('[data-chat-product]');
-  if (chatButton && isUserPage) {
+  if (chatButton) {
+    const currentUserData = currentUser();
+    const sellerRef = normalizeUserIdentifier(normalized.sellerId || normalized.ownerId || resolveUserIdByName(normalized.seller) || normalized.seller || '');
+    const chatUrl = getUserChatUrl(normalized.seller, sellerRef || normalized.seller || '');
+
+    if (!isUserPage && !currentUserData) {
+      chatButton.style.display = '';
+      chatButton.href = getAuthTarget();
+      chatButton.removeAttribute('aria-disabled');
+      chatButton.removeAttribute('tabindex');
+      return;
+    }
+
     const currentUserId = getCurrentUserIdentifier();
-    const user = currentUser() || requireAuth();
+    const user = currentUserData || requireAuth();
+    if (!user) return;
+
     const currentUserName = normalizeUserIdentifier((user || {}).name || '');
     const productOwnerId = normalizeUserIdentifier(normalized.sellerId || normalized.ownerId || resolveUserIdByName(normalized.seller) || normalized.seller || '');
     const productOwnerName = normalizeUserIdentifier(normalized.seller || '');
@@ -2828,7 +2929,6 @@ async function renderProductDetail() {
       (currentUserName && productOwnerName && normalizeUserIdentifier(currentUserName).toLowerCase() === normalizeUserIdentifier(productOwnerName).toLowerCase())
     );
 
-    const sellerRef = normalizeUserIdentifier(normalized.sellerId || normalized.ownerId || resolveUserIdByName(normalized.seller) || normalized.seller || '');
     if (isProductOwner) {
       chatButton.style.display = 'none';
       chatButton.removeAttribute('href');
@@ -2836,7 +2936,7 @@ async function renderProductDetail() {
       chatButton.setAttribute('tabindex', '-1');
     } else {
       chatButton.style.display = '';
-      chatButton.href = getUserChatUrl(normalized.seller, sellerRef || normalized.seller || '');
+      chatButton.href = isUserPage ? chatUrl : (getAuthTarget() && !currentUserData ? getAuthTarget() : chatUrl);
       chatButton.removeAttribute('aria-disabled');
       chatButton.removeAttribute('tabindex');
     }

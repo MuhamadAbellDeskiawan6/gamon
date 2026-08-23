@@ -422,6 +422,105 @@ h1, h2, h3, h4 {
   align-items: stretch;
 }
 
+.product-loading-state {
+  display: block;
+}
+
+.product-loading-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 18px;
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: rgba(241, 81, 146, 0.08);
+  color: var(--primary);
+  border: 1px solid rgba(241, 81, 146, 0.12);
+  font-weight: 700;
+  font-size: 0.92rem;
+}
+
+.product-loading-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(241, 81, 146, 0.22);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.product-loading-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 18px;
+  align-items: stretch;
+}
+
+.product-loading-card {
+  pointer-events: none;
+  border: 1px solid rgba(233, 216, 225, 0.8);
+  background: rgba(255, 255, 255, 0.75);
+}
+
+.product-loading-image,
+.product-loading-line,
+.product-loading-avatar {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(90deg, #f3edf1 0%, #f8f4f7 50%, #f3edf1 100%);
+  background-size: 200% 100%;
+  animation: product-loading-shimmer 1.2s linear infinite;
+}
+
+.product-loading-image {
+  height: 220px;
+  border-bottom: 1px solid rgba(234,223,230,0.9);
+}
+
+.product-loading-body {
+  padding: 16px 16px 18px;
+}
+
+.product-loading-line {
+  height: 14px;
+  border-radius: 999px;
+  margin-bottom: 12px;
+}
+
+.product-loading-price {
+  width: 42%;
+  height: 22px;
+}
+
+.product-loading-line-short {
+  width: 64%;
+}
+
+.product-loading-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.product-loading-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+}
+
+.product-loading-meta-line {
+  width: 52%;
+  display: inline-block;
+  height: 12px;
+  margin-bottom: 0;
+}
+
+@keyframes product-loading-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
 .product-card {
   display: flex;
   flex-direction: column;
