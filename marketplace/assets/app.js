@@ -733,6 +733,7 @@ function hydrateUserProfileUI() {
 
   const name = getSafeUserName(user.name);
   const initial = getUserInitial(user.name);
+  const photo = user.photo || '';
 
   document.querySelectorAll('[data-user-name]').forEach((element) => {
     element.textContent = name;
@@ -743,7 +744,18 @@ function hydrateUserProfileUI() {
   });
 
   document.querySelectorAll('.avatar-lg').forEach((element) => {
-    element.textContent = initial;
+    const fallback = document.createElement('span');
+    fallback.textContent = initial;
+    fallback.className = 'avatar-fallback';
+
+    if (photo) {
+      element.innerHTML = `<img src="${photo}" alt="Foto profil ${escapeHtml(name)}" class="avatar-image" />`;
+      element.classList.add('has-photo');
+    } else {
+      element.innerHTML = '';
+      element.classList.remove('has-photo');
+      element.appendChild(fallback);
+    }
   });
 
   document.querySelectorAll('[data-greeting]').forEach((element) => {
@@ -824,6 +836,25 @@ function productEmoji(category) {
   return '🎁';
 }
 
+function resolveSellerPhoto(sellerName, sellerId) {
+  const users = readStorage(STORAGE_KEYS.USERS, []);
+  const matches = users.filter((user) => {
+    const candidateName = normalizeUserIdentifier(user.name || '').toLowerCase();
+    const candidateEmail = normalizeUserIdentifier(user.email || '').toLowerCase();
+    const candidateId = normalizeUserIdentifier(user.id || user.uid || '').toLowerCase();
+    const targetName = normalizeUserIdentifier(sellerName || '').toLowerCase();
+    const targetId = normalizeUserIdentifier(sellerId || '').toLowerCase();
+
+    return (
+      (targetId && candidateId === targetId) ||
+      (targetName && (candidateName === targetName || candidateEmail === targetName)) ||
+      (!targetName && candidateName === 'pengguna')
+    );
+  });
+
+  return matches.find((user) => user.photo)?.photo || '';
+}
+
 function normalizeProduct(item) {
   const parsedImages = Array.isArray(item?.images)
     ? item.images.filter(Boolean)
@@ -836,6 +867,9 @@ function normalizeProduct(item) {
   const primaryImage = parsedImages[0] || item.imageUrl || item.image || '';
   const latitude = item.latitude ?? item.lat ?? '';
   const longitude = item.longitude ?? item.lng ?? '';
+  const sellerId = normalizeUserIdentifier(item.sellerId || item.ownerId || item.owner_id || '');
+  const sellerName = normalizeUserIdentifier(item.seller || 'Penjual');
+  const sellerPhoto = normalizeUserIdentifier(item.sellerPhoto || item.photo || item.ownerPhoto || resolveSellerPhoto(sellerName, sellerId));
 
   return {
     id: item.id || item.slug || `p-${Date.now()}`,
@@ -850,12 +884,13 @@ function normalizeProduct(item) {
     address: item.address || item.location || item.city || 'Jakarta',
     seller: item.seller || 'Penjual',
     sellerInitial: item.sellerInitial || (item.seller || 'P').charAt(0).toUpperCase(),
+    sellerPhoto,
     description: item.description || 'Deskripsi produk belum tersedia.',
     imageUrl: primaryImage || item.imageUrl || '',
     images: parsedImages.length ? parsedImages : [primaryImage || ''],
     createdAt: item.createdAt || Date.now(),
     ownerId: item.ownerId || item.owner_id || '',
-    sellerId: item.sellerId || item.ownerId || item.owner_id || '',
+    sellerId,
     storyType: item.storyType || 'barang-kenangan',
     storyNote: item.storyNote || '',
     latitude: latitude,
@@ -1118,7 +1153,19 @@ async function renderChat() {
   const threadId = hasTarget ? getChatThreadId(currentUserId, targetKey) : '';
 
   const sellerLabel = document.querySelector('[data-chat-contact]');
-  if (sellerLabel) sellerLabel.textContent = targetName || 'Pilih percakapan';
+  if (sellerLabel) {
+    sellerLabel.textContent = targetName || 'Pilih percakapan';
+
+    const contactAvatar = sellerLabel.closest('.seller-meta')?.querySelector('.avatar');
+    const matchingUser = (readStorage(STORAGE_KEYS.USERS, []) || []).find((user) => {
+      const userId = normalizeUserIdentifier(user.id || user.uid || user.email || user.name || '').toLowerCase();
+      const targetId = normalizeUserIdentifier(resolvedTargetId || '').toLowerCase();
+      const userName = normalizeUserIdentifier(user.name || '').toLowerCase();
+      const sellerName = normalizeUserIdentifier(targetName || '').toLowerCase();
+      return (targetId && userId === targetId) || (sellerName && userName === sellerName);
+    });
+    applyAvatarMarkup(contactAvatar, getUserInitial(targetName || 'Pengguna'), matchingUser?.photo || '', targetName || 'Pengguna');
+  }
 
   const threadListEl = document.querySelector('[data-chat-list]');
   const threadEl = document.querySelector('[data-chat-thread]');
@@ -1233,6 +1280,30 @@ async function renderChat() {
 
 /* ======================= end chat system ======================= */
 
+function renderSellerAvatarMarkup(sellerName, sellerPhoto, sellerInitial) {
+  const safeName = escapeHtml(sellerName || 'Penjual');
+  const safeInitial = escapeHtml(sellerInitial || (sellerName || 'P').charAt(0).toUpperCase());
+
+  if (sellerPhoto) {
+    return `<span class="avatar avatar-photo"><img src="${sellerPhoto}" alt="Foto profil ${safeName}" /></span>`;
+  }
+
+  return `<span class="avatar">${safeInitial}</span>`;
+}
+
+function applyAvatarMarkup(element, fallbackText, photo, altText) {
+  if (!element) return;
+
+  if (photo) {
+    element.innerHTML = `<img src="${photo}" alt="Foto profil ${escapeHtml(altText || 'Pengguna')}" class="avatar-image" />`;
+    element.classList.add('avatar-photo');
+    return;
+  }
+
+  element.classList.remove('avatar-photo');
+  element.textContent = fallbackText || 'P';
+}
+
 function renderProductCards(items) {
   return items.map((item) => {
     const normalized = normalizeProduct(item);
@@ -1251,7 +1322,7 @@ function renderProductCards(items) {
           </div>
           <h3>${escapeHtml(normalized.name)}</h3>
           <div class="seller-row compact-row">
-            <span class="seller-meta"><span class="avatar">${escapeHtml(normalized.sellerInitial)}</span> ${escapeHtml(normalized.seller)}</span>
+            <span class="seller-meta">${renderSellerAvatarMarkup(normalized.seller, normalized.sellerPhoto, normalized.sellerInitial)} ${escapeHtml(normalized.seller)}</span>
             <span>${escapeHtml(normalized.city)}</span>
           </div>
           <div class="card-actions compact-actions">
@@ -2441,6 +2512,7 @@ async function renderProductsForBuyer() {
       const imageMarkup = normalized.imageUrl ? `<img src="${normalized.imageUrl}" alt="${escapeHtml(normalized.name)}" style="width: 100%; height: 100%; object-fit: cover;" />` : normalized.image;
       const sellerRef = normalizeUserIdentifier(normalized.sellerId || normalized.ownerId || resolveUserIdByName(normalized.seller) || normalized.seller || '');
       const chatHref = getUserChatUrl(normalized.seller, sellerRef || normalized.seller || '');
+      const sellerAvatar = renderSellerAvatarMarkup(normalized.seller, normalized.sellerPhoto, normalized.sellerInitial);
       const statusStyle = normalized.status === 'Terjual'
         ? 'background: #fee2e2; color: #991b1b; border: 1px solid #fecaca;'
         : 'background: #dcfce7; color: #166534; border: 1px solid #bbf7d0;';
@@ -2459,7 +2531,7 @@ async function renderProductsForBuyer() {
             <p>${escapeHtml(normalized.description)}</p>
             <div class="seller-row">
               <span>${escapeHtml(normalized.city)}</span>
-              <span>Penjual: ${escapeHtml(normalized.seller)}</span>
+              <span class="seller-meta">${sellerAvatar} ${escapeHtml(normalized.seller)}</span>
             </div>
             <div class="card-actions">
               <a class="btn btn-soft" href="${getProductDetailUrl(normalized.id)}">Detail</a>
@@ -2610,6 +2682,53 @@ function renderProfile() {
   const form = document.querySelector('[data-profile-form]');
   if (!form) return;
 
+  const profilePhotoInput = form.querySelector('[data-profile-photo-input]');
+  const profilePhotoPreview = form.querySelector('[data-profile-photo-preview]');
+  const profilePhotoFallback = form.querySelector('[data-profile-photo-fallback]');
+  const profilePhotoField = form.querySelector('[name="photo"]');
+
+  if (profilePhotoField) {
+    profilePhotoField.value = user.photo || '';
+  }
+
+  if (profilePhotoPreview) {
+    if (user.photo) {
+      profilePhotoPreview.src = user.photo;
+      profilePhotoPreview.style.display = 'block';
+      if (profilePhotoFallback) profilePhotoFallback.style.display = 'none';
+    } else {
+      profilePhotoPreview.removeAttribute('src');
+      profilePhotoPreview.style.display = 'none';
+      if (profilePhotoFallback) profilePhotoFallback.style.display = 'grid';
+    }
+  }
+
+  if (profilePhotoInput) {
+    profilePhotoInput.addEventListener('change', async (event) => {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+
+      try {
+        const dataUrl = await fileToDataUrl(file);
+        if (profilePhotoPreview) {
+          profilePhotoPreview.src = dataUrl;
+          profilePhotoPreview.style.display = 'block';
+        }
+
+        if (profilePhotoFallback) {
+          profilePhotoFallback.style.display = 'none';
+        }
+
+        if (profilePhotoField) {
+          profilePhotoField.value = dataUrl;
+        }
+      } catch (error) {
+        console.error('Profile photo read error:', error);
+        showPopup('Gagal membaca foto profil. Coba file lain yang lebih kecil.', 'Foto gagal', 'error');
+      }
+    });
+  }
+
   const locationButton = form.querySelector('[data-use-location]');
   const locationStatus = form.querySelector('[data-location-status]');
   const latField = form.querySelector('[name="latitude"]');
@@ -2684,6 +2803,7 @@ function renderProfile() {
       email: formData.get('email') || user.email,
       phone: formData.get('phone') || user.phone,
       bio: formData.get('bio') || user.bio,
+      photo: formData.get('photo') || user.photo || '',
       city: formData.get('alamat') || user.city || user.address || user.location,
       address: formData.get('alamat') || user.address || user.city || user.location,
       location: formData.get('alamat') || user.location || user.address || user.city,
@@ -2874,7 +2994,9 @@ async function renderProductDetail() {
   if (detailSeller) detailSeller.textContent = normalized.seller;
 
   const detailSellerInitial = document.querySelector('[data-detail-seller-initial]');
-  if (detailSellerInitial) detailSellerInitial.textContent = normalized.sellerInitial;
+  if (detailSellerInitial) {
+    applyAvatarMarkup(detailSellerInitial, normalized.sellerInitial, normalized.sellerPhoto, normalized.seller);
+  }
 
   const detailLocation = document.querySelector('[data-detail-location]');
   if (detailLocation) detailLocation.value = normalized.address || normalized.city;

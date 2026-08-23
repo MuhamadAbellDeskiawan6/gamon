@@ -55,6 +55,23 @@
             </div>
 
             <form class="form-panel" data-profile-form>
+              <div class="field profile-photo-field">
+                <label>Foto profil</label>
+                <div class="profile-photo-picker">
+                  <div class="profile-photo-preview-wrap">
+                    <img class="profile-photo-preview" data-profile-photo-preview alt="Preview foto profil" />
+                    <span class="profile-photo-fallback" data-profile-photo-fallback>P</span>
+                  </div>
+
+                  <div class="profile-photo-actions">
+                    <label class="btn btn-secondary profile-photo-label" for="profilePhotoInput">Pilih foto</label>
+                    <input id="profilePhotoInput" data-profile-photo-input type="file" accept="image/*" />
+                    <small class="muted">Format gambar: JPG/PNG/WebP. Ukuran akan otomatis diperkecil agar lebih cepat.</small>
+                  </div>
+                </div>
+                <input type="hidden" name="photo" value="" />
+              </div>
+
               <div class="form-row">
                 <div class="field">
                   <label for="fullName">Nama lengkap</label>
