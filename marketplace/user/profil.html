@@ -87,6 +87,20 @@
                 <input id="alamat" name="alamat" type="text" placeholder="Masukkan alamat" />
               </div>
 
+              <div class="field">
+                <div style="display:flex; gap: 10px; align-items:center; flex-wrap: wrap; margin-bottom: 12px;">
+                  <button class="btn btn-secondary" type="button" data-use-location>Gunakan lokasi saya</button>
+                  <small class="muted" data-location-status>Belum dipakai</small>
+                </div>
+
+                <div class="map-preview" data-location-map-preview>
+                  <div class="map-placeholder">📍</div>
+                </div>
+
+                <input type="hidden" name="latitude" value="" />
+                <input type="hidden" name="longitude" value="" />
+              </div>
+
               <button class="btn btn-primary" type="submit" style="width:auto;">Simpan perubahan</button>
             </form>
           </section>

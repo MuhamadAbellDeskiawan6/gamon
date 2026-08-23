@@ -36,6 +36,35 @@ const moneyFormatter = new Intl.NumberFormat('id-ID', {
   maximumFractionDigits: 0
 });
 
+function formatRupiahInputValue(value) {
+  if (value === null || value === undefined || value === '') return '';
+
+  const digits = String(value).replace(/\D/g, '');
+  if (!digits) return '';
+
+  return `Rp ${Number(digits).toLocaleString('id-ID')}`;
+}
+
+function bindPriceFieldFormatting(form) {
+  if (!form) return;
+
+  const priceInput = form.querySelector('[name="price"]');
+  if (!priceInput) return;
+
+  const applyFormat = () => {
+    const rawDigits = String(priceInput.value ?? '').replace(/\D/g, '');
+    if (!rawDigits) {
+      priceInput.value = '';
+      return;
+    }
+
+    priceInput.value = `Rp ${Number(rawDigits).toLocaleString('id-ID')}`;
+  };
+
+  priceInput.addEventListener('input', applyFormat);
+  priceInput.addEventListener('blur', applyFormat);
+}
+
 const BASE_DOCUMENT_TITLE = document.title;
 
 const FILE_UPLOAD_TIMEOUT_MS = 120000;
@@ -1630,7 +1659,7 @@ async function handleSellSubmit(event) {
     const productPayload = {
       name: payload.name || 'Barang Baru',
       category: payload.category || 'barang',
-      price: Number(String(payload.price).replace(/[^\d]/g, '')) || 0,
+      price: Number(String(payload.price || '').replace(/[^\d]/g, '')) || 0,
       condition: payload.condition || 'Layak pakai',
       status: payload.status || 'Tersedia',
       description: payload.description || 'Barang ini siap dijual.',
@@ -1689,6 +1718,8 @@ async function handleSellSubmit(event) {
 async function bindEditForm() {
   const form = document.querySelector('[data-edit-form]');
   if (!form) return;
+
+  bindPriceFieldFormatting(form);
 
   const productId = new URLSearchParams(window.location.search).get('id');
   if (!productId) {
@@ -1841,7 +1872,7 @@ async function bindEditForm() {
 
   form.querySelector('[name="name"]').value = normalized.name || '';
   form.querySelector('[name="category"]').value = normalized.category || 'barang';
-  form.querySelector('[name="price"]').value = normalized.price || '';
+  form.querySelector('[name="price"]').value = formatRupiahInputValue(normalized.price || '');
   form.querySelector('[name="condition"]').value = normalized.condition || 'Layak pakai';
   form.querySelector('[name="status"]').value = normalized.status || 'Tersedia';
   form.querySelector('[name="storyType"]').value = normalized.storyType || 'barang-kenangan';
@@ -2016,6 +2047,9 @@ async function bindSellForm() {
   const form = document.querySelector('[data-sell-form]');
   if (!form) return;
 
+  bindPriceFieldFormatting(form);
+
+  const locationField = form.querySelector('[name="location"]');
   const photoInput = form.querySelector('input[type="file"]');
   const browseButton = form.querySelector('[data-browse-files]');
   const dropzone = form.querySelector('[data-upload-dropzone]');
@@ -2025,6 +2059,23 @@ async function bindSellForm() {
   const latField = form.querySelector('[name="latitude"]');
   const lngField = form.querySelector('[name="longitude"]');
   const mapPreview = form.querySelector('[data-location-map-preview]');
+
+  const currentProfile = currentUser();
+  const profileLocation = currentProfile?.location || currentProfile?.address || currentProfile?.city || '';
+  const profileLatitude = currentProfile?.latitude || '';
+  const profileLongitude = currentProfile?.longitude || '';
+
+  if (locationField && profileLocation && !locationField.value) {
+    locationField.value = profileLocation;
+  }
+
+  if (latField && profileLatitude && !latField.value) {
+    latField.value = String(profileLatitude);
+  }
+
+  if (lngField && profileLongitude && !lngField.value) {
+    lngField.value = String(profileLongitude);
+  }
 
   const updateLocationPreview = (lat, lng) => {
     if (!mapPreview) return;
@@ -2038,6 +2089,11 @@ async function bindSellForm() {
     const mapUrl = `https://maps.google.com/maps?q=${latitude},${longitude}&z=14&output=embed`;
     mapPreview.innerHTML = `<iframe title="Preview lokasi" loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="${mapUrl}"></iframe>`;
   };
+
+  if (profileLatitude && profileLongitude) {
+    updateLocationPreview(profileLatitude, profileLongitude);
+    if (locationStatus) locationStatus.textContent = 'Alamat profil terpakai';
+  }
 
   const syncChosenFiles = (files = []) => {
     if (!photoInput) return [];
@@ -2186,7 +2242,7 @@ async function bindSellForm() {
     if (product) {
       form.querySelector('[name="name"]').value = product.name || '';
       form.querySelector('[name="category"]').value = product.category || 'barang';
-      form.querySelector('[name="price"]').value = product.price || '';
+      form.querySelector('[name="price"]').value = formatRupiahInputValue(product.price || '');
       form.querySelector('[name="condition"]').value = product.condition || 'Layak pakai';
       form.querySelector('[name="status"]').value = product.status || 'Tersedia';
       form.querySelector('[name="description"]').value = product.description || '';
@@ -2223,7 +2279,7 @@ async function bindSellForm() {
         const updatedData = {
           name: payload.name,
           category: payload.category,
-          price: Number(String(payload.price).replace(/[^\d]/g, '')) || 0,
+          price: Number(String(payload.price || '').replace(/[^\d]/g, '')) || 0,
           condition: payload.condition,
           status: payload.status || 'Tersedia',
           description: payload.description,
@@ -2462,10 +2518,74 @@ function renderProfile() {
   if (emailField) emailField.value = user.email || '';
   if (phoneField) phoneField.value = user.phone || '';
   if (bioField) bioField.value = user.bio || '';
-  if (cityField) cityField.value = user.city || '';
+  if (cityField) cityField.value = user.city || user.address || user.location || '';
 
   const form = document.querySelector('[data-profile-form]');
   if (!form) return;
+
+  const locationButton = form.querySelector('[data-use-location]');
+  const locationStatus = form.querySelector('[data-location-status]');
+  const latField = form.querySelector('[name="latitude"]');
+  const lngField = form.querySelector('[name="longitude"]');
+  const mapPreview = form.querySelector('[data-location-map-preview]');
+
+  const updateLocationPreview = (lat, lng) => {
+    if (!mapPreview) return;
+    const latitude = Number(lat || 0);
+    const longitude = Number(lng || 0);
+    if (!latitude || !longitude) {
+      mapPreview.innerHTML = '<div class="map-placeholder">📍</div>';
+      return;
+    }
+
+    const mapUrl = `https://maps.google.com/maps?q=${latitude},${longitude}&z=14&output=embed`;
+    mapPreview.innerHTML = `<iframe title="Preview lokasi profil" loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="${mapUrl}"></iframe>`;
+  };
+
+  if (latField) latField.value = user.latitude || '';
+  if (lngField) lngField.value = user.longitude || '';
+  if (user.latitude && user.longitude) {
+    updateLocationPreview(user.latitude, user.longitude);
+  }
+
+  if (locationButton) {
+    locationButton.addEventListener('click', () => {
+      if (!navigator.geolocation) {
+        showPopup('Browser Anda tidak mendukung pembacaan lokasi otomatis.', 'Lokasi tidak tersedia', 'error');
+        if (locationStatus) locationStatus.textContent = 'Browser tidak mendukung';
+        return;
+      }
+
+      if (locationStatus) locationStatus.textContent = 'Mencari lokasi...';
+      locationButton.disabled = true;
+
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const latitude = Number(position.coords.latitude || 0);
+          const longitude = Number(position.coords.longitude || 0);
+
+          if (latField) latField.value = String(latitude.toFixed(6));
+          if (lngField) lngField.value = String(longitude.toFixed(6));
+          updateLocationPreview(latitude, longitude);
+
+          if (locationStatus) locationStatus.textContent = 'Lokasi berhasil dipakai';
+          showPopup('Lokasi Anda berhasil dipakai di profil.', 'Lokasi diperbarui', 'success');
+          locationButton.disabled = false;
+        },
+        (error) => {
+          console.warn('Geolocation error:', error);
+          if (locationStatus) locationStatus.textContent = 'Gagal mengambil lokasi';
+          showPopup('Tidak dapat mengambil lokasi otomatis. Silakan izinkan akses lokasi browser Anda.', 'Lokasi gagal', 'error');
+          locationButton.disabled = false;
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 15000,
+          maximumAge: 0
+        }
+      );
+    });
+  }
 
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
@@ -2477,7 +2597,11 @@ function renderProfile() {
       email: formData.get('email') || user.email,
       phone: formData.get('phone') || user.phone,
       bio: formData.get('bio') || user.bio,
-      city: formData.get('alamat') || user.city,
+      city: formData.get('alamat') || user.city || user.address || user.location,
+      address: formData.get('alamat') || user.address || user.city || user.location,
+      location: formData.get('alamat') || user.location || user.address || user.city,
+      latitude: formData.get('latitude') || user.latitude || '',
+      longitude: formData.get('longitude') || user.longitude || '',
     };
 
     if (auth.currentUser && auth.currentUser.uid) {

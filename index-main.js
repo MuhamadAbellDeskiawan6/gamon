@@ -223,6 +223,50 @@ function placeBubbles(postsList) {
 
     const W = canvas.offsetWidth || window.innerWidth;
     const H = canvas.offsetHeight || 460;
+    const isMobile = window.innerWidth <= 768;
+
+    if (isMobile) {
+        const cols = 2;
+        const gap = 12;
+        const minSize = 96;
+        const size = Math.min(Math.max(minSize, (W - gap * (cols + 1)) / cols), 118);
+        const rows = Math.ceil(postsList.length / cols);
+        const totalHeight = rows * size + (rows - 1) * gap + 40;
+        canvas.style.height = `${Math.max(420, totalHeight)}px`;
+
+        postsList.forEach((item, i) => {
+            const row = Math.floor(i / cols);
+            const col = i % cols;
+            const left = 10 + col * (size + gap);
+            const top = 10 + row * (size + gap);
+
+            const wrapper = document.createElement('div');
+            wrapper.style.cssText = `position:absolute;left:${left}px;top:${top}px;width:${size}px;height:${size}px;`;
+
+            const bubble = document.createElement('div');
+            bubble.className = `bubble shape-circle type-${item.type || 'curhat'} bubble-enter`;
+            bubble.dataset.id = item.id;
+            bubble.style.cssText = `width:${size}px;height:${size}px;padding:8px;`;
+
+            const short = (s, n) => s && s.length > n ? s.slice(0, n - 1) + '…' : (s || '');
+            bubble.innerHTML = `
+                <span class="bubble-emoji">${item.type === 'photobox' ? '📸' : '💌'}</span>
+                <span class="bubble-from">${short(item.nama || 'Anonim', 7)}</span>
+                <span class="bubble-to">${short(item.tujuan || 'Seseorang', 7)}</span>
+                <span class="bubble-likes">♥ ${item.likes || 0}</span>
+            `;
+
+            bubble.addEventListener('click', () => {
+                openModal(item, item.id);
+            });
+
+            wrapper.appendChild(bubble);
+            canvas.appendChild(wrapper);
+        });
+
+        return;
+    }
+
     const count = postsList.length;
     const cols = Math.max(3, Math.round(Math.sqrt(count * 1.6)));
     const rows = Math.ceil(count / cols);
