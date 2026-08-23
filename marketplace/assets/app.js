@@ -1,6 +1,7 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut, sendPasswordResetEmail } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 import { getFirestore, collection, doc, setDoc, getDoc, getDocs, addDoc, query, orderBy, where, onSnapshot, updateDoc, deleteDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+import { getStorage, ref, uploadBytes, getDownloadURL } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js';
 
 const firebaseConfig = {
   apiKey: 'AIzaSyC247K8yyL67aWV95KNQy8CkMZsjgGCudQ',
@@ -15,6 +16,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
+const storage = getStorage(app);
 
 const STORAGE_KEYS = {
   USERS: 'gamon_marketplace_users',
@@ -727,13 +729,49 @@ function getUserInitial(name) {
   return source.charAt(0).toUpperCase();
 }
 
+function getUserPhotoUrl(user) {
+  if (!user) return '';
+  return user.photoUrl || user.profilePhotoUrl || user.avatarUrl || '';
+}
+
+function getUserAvatarMarkup(userName, userPhotoUrl = '', fallbackText = 'P') {
+  const name = getSafeUserName(userName || fallbackText);
+  const photo = userPhotoUrl || '';
+  if (photo) {
+    return `<img src="${escapeHtml(photo)}" alt="${escapeHtml(name)}" />`;
+  }
+
+  return escapeHtml(getUserInitial(name));
+}
+
+function hydrateUserAvatarElements(user) {
+  const safeUser = user || currentUser();
+  const photoUrl = getUserPhotoUrl(safeUser);
+  const name = getSafeUserName((safeUser && safeUser.name) || 'Pengguna');
+
+  document.querySelectorAll('.avatar, .avatar-lg, [data-user-avatar], [data-detail-seller-initial]').forEach((element) => {
+    if (!element) return;
+
+    const isLarge = element.classList.contains('avatar-lg');
+    const isDetailSeller = element.matches('[data-detail-seller-initial]');
+    const fallbackText = isDetailSeller ? (name || 'P').charAt(0).toUpperCase() : getUserInitial(name);
+
+    if (photoUrl) {
+      element.innerHTML = `<img src="${escapeHtml(photoUrl)}" alt="${escapeHtml(name)}" />`;
+      element.classList.add('has-photo');
+      return;
+    }
+
+    element.textContent = fallbackText;
+    element.classList.remove('has-photo');
+  });
+}
+
 function hydrateUserProfileUI() {
   const user = currentUser();
   if (!user) return;
 
   const name = getSafeUserName(user.name);
-  const initial = getUserInitial(user.name);
-  const photo = user.photo || '';
 
   document.querySelectorAll('[data-user-name]').forEach((element) => {
     element.textContent = name;
@@ -743,19 +781,16 @@ function hydrateUserProfileUI() {
     element.textContent = name;
   });
 
-  document.querySelectorAll('.avatar-lg').forEach((element) => {
-    const fallback = document.createElement('span');
-    fallback.textContent = initial;
-    fallback.className = 'avatar-fallback';
-
-    if (photo) {
-      element.innerHTML = `<img src="${photo}" alt="Foto profil ${escapeHtml(name)}" class="avatar-image" />`;
+  document.querySelectorAll('.avatar-lg, [data-user-avatar]').forEach((element) => {
+    const photoUrl = getUserPhotoUrl(user);
+    if (photoUrl) {
+      element.innerHTML = `<img src="${escapeHtml(photoUrl)}" alt="${escapeHtml(name)}" />`;
       element.classList.add('has-photo');
-    } else {
-      element.innerHTML = '';
-      element.classList.remove('has-photo');
-      element.appendChild(fallback);
+      return;
     }
+
+    element.textContent = getUserInitial(name);
+    element.classList.remove('has-photo');
   });
 
   document.querySelectorAll('[data-greeting]').forEach((element) => {
@@ -765,6 +800,8 @@ function hydrateUserProfileUI() {
   document.querySelectorAll('[data-profile-title]').forEach((element) => {
     element.textContent = name;
   });
+
+  hydrateUserAvatarElements(user);
 }
 
 function getAuthTarget() {
@@ -836,25 +873,6 @@ function productEmoji(category) {
   return '🎁';
 }
 
-function resolveSellerPhoto(sellerName, sellerId) {
-  const users = readStorage(STORAGE_KEYS.USERS, []);
-  const matches = users.filter((user) => {
-    const candidateName = normalizeUserIdentifier(user.name || '').toLowerCase();
-    const candidateEmail = normalizeUserIdentifier(user.email || '').toLowerCase();
-    const candidateId = normalizeUserIdentifier(user.id || user.uid || '').toLowerCase();
-    const targetName = normalizeUserIdentifier(sellerName || '').toLowerCase();
-    const targetId = normalizeUserIdentifier(sellerId || '').toLowerCase();
-
-    return (
-      (targetId && candidateId === targetId) ||
-      (targetName && (candidateName === targetName || candidateEmail === targetName)) ||
-      (!targetName && candidateName === 'pengguna')
-    );
-  });
-
-  return matches.find((user) => user.photo)?.photo || '';
-}
-
 function normalizeProduct(item) {
   const parsedImages = Array.isArray(item?.images)
     ? item.images.filter(Boolean)
@@ -867,9 +885,6 @@ function normalizeProduct(item) {
   const primaryImage = parsedImages[0] || item.imageUrl || item.image || '';
   const latitude = item.latitude ?? item.lat ?? '';
   const longitude = item.longitude ?? item.lng ?? '';
-  const sellerId = normalizeUserIdentifier(item.sellerId || item.ownerId || item.owner_id || '');
-  const sellerName = normalizeUserIdentifier(item.seller || 'Penjual');
-  const sellerPhoto = normalizeUserIdentifier(item.sellerPhoto || item.photo || item.ownerPhoto || resolveSellerPhoto(sellerName, sellerId));
 
   return {
     id: item.id || item.slug || `p-${Date.now()}`,
@@ -884,13 +899,12 @@ function normalizeProduct(item) {
     address: item.address || item.location || item.city || 'Jakarta',
     seller: item.seller || 'Penjual',
     sellerInitial: item.sellerInitial || (item.seller || 'P').charAt(0).toUpperCase(),
-    sellerPhoto,
     description: item.description || 'Deskripsi produk belum tersedia.',
     imageUrl: primaryImage || item.imageUrl || '',
     images: parsedImages.length ? parsedImages : [primaryImage || ''],
     createdAt: item.createdAt || Date.now(),
     ownerId: item.ownerId || item.owner_id || '',
-    sellerId,
+    sellerId: item.sellerId || item.ownerId || item.owner_id || '',
     storyType: item.storyType || 'barang-kenangan',
     storyNote: item.storyNote || '',
     latitude: latitude,
@@ -1153,19 +1167,7 @@ async function renderChat() {
   const threadId = hasTarget ? getChatThreadId(currentUserId, targetKey) : '';
 
   const sellerLabel = document.querySelector('[data-chat-contact]');
-  if (sellerLabel) {
-    sellerLabel.textContent = targetName || 'Pilih percakapan';
-
-    const contactAvatar = sellerLabel.closest('.seller-meta')?.querySelector('.avatar');
-    const matchingUser = (readStorage(STORAGE_KEYS.USERS, []) || []).find((user) => {
-      const userId = normalizeUserIdentifier(user.id || user.uid || user.email || user.name || '').toLowerCase();
-      const targetId = normalizeUserIdentifier(resolvedTargetId || '').toLowerCase();
-      const userName = normalizeUserIdentifier(user.name || '').toLowerCase();
-      const sellerName = normalizeUserIdentifier(targetName || '').toLowerCase();
-      return (targetId && userId === targetId) || (sellerName && userName === sellerName);
-    });
-    applyAvatarMarkup(contactAvatar, getUserInitial(targetName || 'Pengguna'), matchingUser?.photo || '', targetName || 'Pengguna');
-  }
+  if (sellerLabel) sellerLabel.textContent = targetName || 'Pilih percakapan';
 
   const threadListEl = document.querySelector('[data-chat-list]');
   const threadEl = document.querySelector('[data-chat-thread]');
@@ -1280,28 +1282,27 @@ async function renderChat() {
 
 /* ======================= end chat system ======================= */
 
-function renderSellerAvatarMarkup(sellerName, sellerPhoto, sellerInitial) {
-  const safeName = escapeHtml(sellerName || 'Penjual');
-  const safeInitial = escapeHtml(sellerInitial || (sellerName || 'P').charAt(0).toUpperCase());
+function getUserAvatarMarkupByName(userName, userId, fallbackText = 'P') {
+  const users = readStorage(STORAGE_KEYS.USERS, []);
+  const matchedUser = users.find((entry) => {
+    const candidates = [
+      entry?.id,
+      entry?.uid,
+      entry?.email,
+      entry?.name,
+      entry?.username
+    ].filter(Boolean).map((value) => normalizeUserIdentifier(value).toLowerCase());
 
-  if (sellerPhoto) {
-    return `<span class="avatar avatar-photo"><img src="${sellerPhoto}" alt="Foto profil ${safeName}" /></span>`;
-  }
+    const target = normalizeUserIdentifier(userId || userName || '').toLowerCase();
+    return target && candidates.includes(target)
+      || normalizeUserIdentifier(entry?.name || '').toLowerCase() === normalizeUserIdentifier(userName || '').toLowerCase()
+      || normalizeUserIdentifier(entry?.email || '').toLowerCase() === normalizeUserIdentifier(userName || '').toLowerCase();
+  });
 
-  return `<span class="avatar">${safeInitial}</span>`;
-}
-
-function applyAvatarMarkup(element, fallbackText, photo, altText) {
-  if (!element) return;
-
-  if (photo) {
-    element.innerHTML = `<img src="${photo}" alt="Foto profil ${escapeHtml(altText || 'Pengguna')}" class="avatar-image" />`;
-    element.classList.add('avatar-photo');
-    return;
-  }
-
-  element.classList.remove('avatar-photo');
-  element.textContent = fallbackText || 'P';
+  const photoUrl = getUserPhotoUrl(matchedUser || null);
+  return photoUrl
+    ? `<span class="avatar has-photo"><img src="${escapeHtml(photoUrl)}" alt="${escapeHtml(getSafeUserName(userName || matchedUser?.name || fallbackText))}" /></span>`
+    : `<span class="avatar">${escapeHtml((matchedUser?.name || userName || fallbackText).charAt(0).toUpperCase())}</span>`;
 }
 
 function renderProductCards(items) {
@@ -1312,6 +1313,7 @@ function renderProductCards(items) {
     const statusStyle = statusLabel === 'Terjual'
       ? 'background: rgba(220, 38, 38, 0.08); color: #b91c1c; border: 1px solid rgba(220, 38, 38, 0.18);'
       : 'background: rgba(34, 197, 94, 0.08); color: #15803d; border: 1px solid rgba(34, 197, 94, 0.18);';
+    const sellerAvatarMarkup = getUserAvatarMarkupByName(normalized.seller, normalized.sellerId || normalized.ownerId || '', normalized.sellerInitial || 'P');
     return `
       <article class="product-card compact-card" data-category="${normalized.category}">
         <div class="image">${imageMarkup} <span class="chip">${escapeHtml(normalized.label)}</span></div>
@@ -1322,7 +1324,7 @@ function renderProductCards(items) {
           </div>
           <h3>${escapeHtml(normalized.name)}</h3>
           <div class="seller-row compact-row">
-            <span class="seller-meta">${renderSellerAvatarMarkup(normalized.seller, normalized.sellerPhoto, normalized.sellerInitial)} ${escapeHtml(normalized.seller)}</span>
+            <span class="seller-meta">${sellerAvatarMarkup} ${escapeHtml(normalized.seller)}</span>
             <span>${escapeHtml(normalized.city)}</span>
           </div>
           <div class="card-actions compact-actions">
@@ -2512,7 +2514,6 @@ async function renderProductsForBuyer() {
       const imageMarkup = normalized.imageUrl ? `<img src="${normalized.imageUrl}" alt="${escapeHtml(normalized.name)}" style="width: 100%; height: 100%; object-fit: cover;" />` : normalized.image;
       const sellerRef = normalizeUserIdentifier(normalized.sellerId || normalized.ownerId || resolveUserIdByName(normalized.seller) || normalized.seller || '');
       const chatHref = getUserChatUrl(normalized.seller, sellerRef || normalized.seller || '');
-      const sellerAvatar = renderSellerAvatarMarkup(normalized.seller, normalized.sellerPhoto, normalized.sellerInitial);
       const statusStyle = normalized.status === 'Terjual'
         ? 'background: #fee2e2; color: #991b1b; border: 1px solid #fecaca;'
         : 'background: #dcfce7; color: #166534; border: 1px solid #bbf7d0;';
@@ -2531,7 +2532,7 @@ async function renderProductsForBuyer() {
             <p>${escapeHtml(normalized.description)}</p>
             <div class="seller-row">
               <span>${escapeHtml(normalized.city)}</span>
-              <span class="seller-meta">${sellerAvatar} ${escapeHtml(normalized.seller)}</span>
+              <span>Penjual: ${escapeHtml(normalized.seller)}</span>
             </div>
             <div class="card-actions">
               <a class="btn btn-soft" href="${getProductDetailUrl(normalized.id)}">Detail</a>
@@ -2661,6 +2662,43 @@ async function renderMyProducts() {
   window.__marketplaceMyProductsCleanup = unsubscribe;
 }
 
+async function uploadProfilePhoto(file, userId) {
+  if (!file || !userId) return '';
+
+  const safeUserId = normalizeUserIdentifier(userId || 'user').trim() || 'user';
+  const fallbackDataUrl = await fileToDataUrl(file).catch(() => '');
+  const isLocalOrigin = window.location.protocol === 'file:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+
+  if (isLocalOrigin) {
+    console.warn('Local origin detected; skipping Firebase Storage upload for profile photo to avoid CORS hang.');
+    return fallbackDataUrl || '';
+  }
+
+  try {
+    const photoRef = ref(storage, `marketplace_users/${safeUserId}/profile-photo`);
+    await withTimeout(uploadBytes(photoRef, file), 8000, 'Upload foto profil');
+    return await withTimeout(getDownloadURL(photoRef), 8000, 'Mendapatkan URL foto profil');
+  } catch (error) {
+    console.warn('Profile photo upload to Firebase failed, using local fallback instead.', error);
+    const fallback = fallbackDataUrl || (file && typeof URL !== 'undefined' && typeof URL.createObjectURL === 'function' ? URL.createObjectURL(file) : '');
+    if (fallback) {
+      return fallback;
+    }
+    throw new Error('Gagal mengunggah foto profil. Silakan pilih foto lain atau coba lagi.');
+  }
+}
+
+function findUserByIdentifier(value) {
+  const target = normalizeUserIdentifier(value || '').toLowerCase();
+  if (!target) return null;
+
+  const users = readStorage(STORAGE_KEYS.USERS, []);
+  return users.find((user) => {
+    const candidates = [user?.id, user?.uid, user?.email, user?.name, user?.username].map((entry) => normalizeUserIdentifier(entry || '').toLowerCase());
+    return candidates.includes(target);
+  }) || null;
+}
+
 function renderProfile() {
   const user = requireAuth();
   if (!user) return;
@@ -2682,52 +2720,60 @@ function renderProfile() {
   const form = document.querySelector('[data-profile-form]');
   if (!form) return;
 
-  const profilePhotoInput = form.querySelector('[data-profile-photo-input]');
-  const profilePhotoPreview = form.querySelector('[data-profile-photo-preview]');
-  const profilePhotoFallback = form.querySelector('[data-profile-photo-fallback]');
-  const profilePhotoField = form.querySelector('[name="photo"]');
+  const photoInput = form.querySelector('[name="profilePhoto"]');
+  const photoPreview = form.querySelector('[data-profile-photo-preview]');
+  const previewImage = photoPreview ? photoPreview.querySelector('img') : null;
+  const fileNameLabel = form.querySelector('[data-profile-file-name]');
+  const selectPhotoButton = form.querySelector('[data-profile-select-button]');
+  const submitButton = form.querySelector('button[type="submit"]');
 
-  if (profilePhotoField) {
-    profilePhotoField.value = user.photo || '';
-  }
+  const updateSelectedFileLabel = (file) => {
+    if (!fileNameLabel) return;
+    fileNameLabel.textContent = file ? `Terpilih: ${file.name}` : '';
+  };
 
-  if (profilePhotoPreview) {
-    if (user.photo) {
-      profilePhotoPreview.src = user.photo;
-      profilePhotoPreview.style.display = 'block';
-      if (profilePhotoFallback) profilePhotoFallback.style.display = 'none';
-    } else {
-      profilePhotoPreview.removeAttribute('src');
-      profilePhotoPreview.style.display = 'none';
-      if (profilePhotoFallback) profilePhotoFallback.style.display = 'grid';
-    }
-  }
-
-  if (profilePhotoInput) {
-    profilePhotoInput.addEventListener('change', async (event) => {
+  if (selectPhotoButton && photoInput) {
+    selectPhotoButton.addEventListener('click', () => photoInput.click());
+    photoInput.addEventListener('change', (event) => {
       const file = event.target.files && event.target.files[0];
+      updateSelectedFileLabel(file);
+
       if (!file) return;
 
-      try {
-        const dataUrl = await fileToDataUrl(file);
-        if (profilePhotoPreview) {
-          profilePhotoPreview.src = dataUrl;
-          profilePhotoPreview.style.display = 'block';
+      const reader = new FileReader();
+      reader.onload = (loadEvent) => {
+        const result = String(loadEvent.target?.result || '');
+        if (result) {
+          syncProfilePhotoPreview(result);
         }
-
-        if (profilePhotoFallback) {
-          profilePhotoFallback.style.display = 'none';
-        }
-
-        if (profilePhotoField) {
-          profilePhotoField.value = dataUrl;
-        }
-      } catch (error) {
-        console.error('Profile photo read error:', error);
-        showPopup('Gagal membaca foto profil. Coba file lain yang lebih kecil.', 'Foto gagal', 'error');
-      }
+      };
+      reader.readAsDataURL(file);
     });
   }
+
+  if (submitButton) {
+    submitButton.style.position = 'relative';
+    submitButton.style.zIndex = '2';
+    submitButton.style.pointerEvents = 'auto';
+  }
+
+  const syncProfilePhotoPreview = (photoUrl) => {
+    if (!photoPreview) return;
+    const resolvedPhoto = photoUrl || getUserPhotoUrl(user);
+    if (resolvedPhoto) {
+      photoPreview.classList.add('has-photo');
+      if (previewImage) {
+        previewImage.src = resolvedPhoto;
+        previewImage.hidden = false;
+      }
+    } else {
+      photoPreview.classList.remove('has-photo');
+      if (previewImage) previewImage.hidden = true;
+    }
+  };
+
+  updateSelectedFileLabel(photoInput && photoInput.files && photoInput.files[0] ? photoInput.files[0] : null);
+  syncProfilePhotoPreview(getUserPhotoUrl(user));
 
   const locationButton = form.querySelector('[data-use-location]');
   const locationStatus = form.querySelector('[data-location-status]');
@@ -2796,31 +2842,61 @@ function renderProfile() {
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
     const formData = new FormData(form);
-    const updatedUser = {
-      ...user,
-      name: formData.get('fullName') || user.name,
-      username: formData.get('username') || user.username,
-      email: formData.get('email') || user.email,
-      phone: formData.get('phone') || user.phone,
-      bio: formData.get('bio') || user.bio,
-      photo: formData.get('photo') || user.photo || '',
-      city: formData.get('alamat') || user.city || user.address || user.location,
-      address: formData.get('alamat') || user.address || user.city || user.location,
-      location: formData.get('alamat') || user.location || user.address || user.city,
-      latitude: formData.get('latitude') || user.latitude || '',
-      longitude: formData.get('longitude') || user.longitude || '',
-    };
+    const file = photoInput && photoInput.files && photoInput.files[0] ? photoInput.files[0] : null;
+    const userId = user.id || user.uid || auth.currentUser?.uid || '';
+    let photoUrl = getUserPhotoUrl(user) || '';
 
-    if (auth.currentUser && auth.currentUser.uid) {
-      await setDoc(doc(db, 'marketplace_users', auth.currentUser.uid), updatedUser, { merge: true });
+    if (submitButton) {
+      submitButton.disabled = true;
+      submitButton.textContent = 'Menyimpan...';
     }
 
-    const users = readStorage(STORAGE_KEYS.USERS, []);
-    const index = users.findIndex((item) => (item.email || '').toLowerCase() === (user.email || '').toLowerCase());
-    if (index >= 0) users[index] = updatedUser;
-    writeStorage(STORAGE_KEYS.USERS, users);
-    setCurrentUser(updatedUser);
-    showPopup('Profil berhasil diperbarui.', 'Berhasil', 'success');
+    try {
+      if (file && userId) {
+        photoUrl = await uploadProfilePhoto(file, userId);
+      }
+
+      const updatedUser = {
+        ...user,
+        name: formData.get('fullName') || user.name,
+        username: formData.get('username') || user.username,
+        email: formData.get('email') || user.email,
+        phone: formData.get('phone') || user.phone,
+        bio: formData.get('bio') || user.bio,
+        city: formData.get('alamat') || user.city || user.address || user.location,
+        address: formData.get('alamat') || user.address || user.city || user.location,
+        location: formData.get('alamat') || user.location || user.address || user.city,
+        latitude: formData.get('latitude') || user.latitude || '',
+        longitude: formData.get('longitude') || user.longitude || '',
+        photoUrl,
+        profilePhotoUrl: photoUrl,
+      };
+
+      if (userId) {
+        await setDoc(doc(db, 'marketplace_users', userId), updatedUser, { merge: true });
+      }
+
+      const users = readStorage(STORAGE_KEYS.USERS, []);
+      const index = users.findIndex((item) => (item.email || '').toLowerCase() === (user.email || '').toLowerCase() || (item.id || item.uid || '').toLowerCase() === (userId || '').toLowerCase());
+      if (index >= 0) {
+        users[index] = updatedUser;
+      } else {
+        users.push(updatedUser);
+      }
+      writeStorage(STORAGE_KEYS.USERS, users);
+      setCurrentUser(updatedUser);
+      hydrateUserProfileUI();
+      syncProfilePhotoPreview(photoUrl);
+      showPopup('Profil berhasil diperbarui.', 'Berhasil', 'success');
+    } catch (error) {
+      console.error('Update profile photo error:', error);
+      showPopup(error.message || 'Gagal memperbarui foto profil. Silakan coba lagi.', 'Gagal', 'error');
+    } finally {
+      if (submitButton) {
+        submitButton.disabled = false;
+        submitButton.textContent = 'Simpan perubahan';
+      }
+    }
   });
 }
 
@@ -2995,7 +3071,15 @@ async function renderProductDetail() {
 
   const detailSellerInitial = document.querySelector('[data-detail-seller-initial]');
   if (detailSellerInitial) {
-    applyAvatarMarkup(detailSellerInitial, normalized.sellerInitial, normalized.sellerPhoto, normalized.seller);
+    const sellerUser = findUserByIdentifier(normalized.sellerId || normalized.ownerId || resolveUserIdByName(normalized.seller) || normalized.seller || '');
+    const sellerPhoto = getUserPhotoUrl(sellerUser || null);
+    if (sellerPhoto) {
+      detailSellerInitial.innerHTML = `<img src="${escapeHtml(sellerPhoto)}" alt="${escapeHtml(normalized.seller)}" />`;
+      detailSellerInitial.classList.add('has-photo');
+    } else {
+      detailSellerInitial.textContent = normalized.sellerInitial;
+      detailSellerInitial.classList.remove('has-photo');
+    }
   }
 
   const detailLocation = document.querySelector('[data-detail-location]');
