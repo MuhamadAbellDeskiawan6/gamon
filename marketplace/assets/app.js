@@ -24,80 +24,9 @@ const STORAGE_KEYS = {
   LOGIN_ATTEMPTS: 'gamon_marketplace_login_attempts'
 };
 
-const productSeed = [
-  {
-    id: 'p1',
-    name: 'Hoodie Putih Premium',
-    category: 'pakaian',
-    price: 280000,
-    condition: 'Layak pakai',
-    image: '👕',
-    label: 'Pakaian',
-    city: 'Jakarta',
-    seller: 'Annisa',
-    sellerInitial: 'A',
-    sellerId: 'u1',
-    ownerId: 'u1',
-    description: 'Hoodie berwarna putih, kondisi masih bagus, ukuran L, nyaman dipakai sehari-hari.'
-  },
-  {
-    id: 'p2',
-    name: 'Jam Tangan Casio',
-    category: 'aksesori',
-    price: 620000,
-    condition: 'Bekas terawat',
-    image: '⌚',
-    label: 'Aksesori',
-    city: 'Bandung',
-    seller: 'Raka',
-    sellerInitial: 'R',
-    sellerId: 'demo-raka',
-    ownerId: 'demo-raka',
-    description: 'Jam tangan masih berfungsi baik, tampilan bersih, dan siap dipakai.'
-  },
-  {
-    id: 'p3',
-    name: 'Set Kado Anniversary',
-    category: 'barang',
-    price: 450000,
-    condition: 'Baru',
-    image: '🎁',
-    label: 'Kado',
-    city: 'Surabaya',
-    seller: 'Dinda',
-    sellerInitial: 'D',
-    sellerId: 'demo-dinda',
-    ownerId: 'demo-dinda',
-    description: 'Terdiri dari tas kecil, parfum, dan aksesori dengan kemasan elegan.'
-  },
-  {
-    id: 'p4',
-    name: 'Jaket Oversize',
-    category: 'pakaian',
-    price: 200000,
-    condition: 'Cukup bagus',
-    image: '🧥',
-    label: 'Pakaian',
-    city: 'Yogyakarta',
-    seller: 'Sari',
-    sellerInitial: 'S',
-    sellerId: 'demo-sari',
-    ownerId: 'demo-sari',
-    description: 'Jaket oversize dengan bahan nyaman dan warna krem yang timeless.'
-  }
-];
+const productSeed = [];
 
-const demoUsers = [
-  {
-    id: 'u1',
-    name: 'Annisa Rahma',
-    email: 'annisa@email.com',
-    phone: '081234567890',
-    bio: 'Saya suka barang dengan cerita, tapi lebih suka melihat barang bisa berpindah ke rumah baru yang lebih tepat.',
-    city: 'Jakarta Selatan',
-    username: 'annisarahma'
-  }
-];
+const demoUsers = [];
 
 const chatSeed = {};
 
@@ -193,6 +122,79 @@ function showPopup(message, title = 'Info', tone = 'info') {
   showToast(message, tone);
 }
 
+function showConfirm({
+  message = 'Apakah Anda yakin?',
+  title = 'Konfirmasi',
+  confirmText = 'Ya, lanjutkan',
+  cancelText = 'Batal',
+  tone = 'warning',
+  onConfirm,
+  onCancel
+} = {}) {
+  const existing = document.querySelector('[data-confirm-overlay]');
+  let overlay = existing;
+
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.className = 'modal-backdrop';
+    overlay.setAttribute('data-confirm-overlay', '');
+    overlay.innerHTML = `
+      <div class="modal-card modal-card-confirm" role="dialog" aria-modal="true">
+        <div class="modal-icon" data-confirm-icon>⚠️</div>
+        <h3 data-confirm-title></h3>
+        <p data-confirm-message></p>
+        <div class="modal-actions modal-actions-split">
+          <button class="btn btn-secondary" type="button" data-confirm-cancel></button>
+          <button class="btn btn-danger" type="button" data-confirm-ok></button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+  }
+
+  const titleEl = overlay.querySelector('[data-confirm-title]');
+  const messageEl = overlay.querySelector('[data-confirm-message]');
+  const cancelBtn = overlay.querySelector('[data-confirm-cancel]');
+  const confirmBtn = overlay.querySelector('[data-confirm-ok]');
+  const card = overlay.querySelector('.modal-card');
+  const iconEl = overlay.querySelector('[data-confirm-icon]');
+
+  if (titleEl) titleEl.textContent = title;
+  if (messageEl) messageEl.textContent = message;
+  if (cancelBtn) cancelBtn.textContent = cancelText;
+  if (confirmBtn) confirmBtn.textContent = confirmText;
+
+  card.dataset.tone = tone;
+  card.style.borderColor = tone === 'error' ? '#f6c0c0' : tone === 'warning' ? '#f5d7ae' : '#dce7ff';
+  card.style.boxShadow = tone === 'error' ? '0 18px 50px rgba(177, 54, 54, 0.14)' : tone === 'warning' ? '0 18px 50px rgba(210, 129, 36, 0.14)' : '0 18px 50px rgba(0,0,0,0.16)';
+  if (iconEl) {
+    iconEl.textContent = tone === 'error' ? '🗑️' : tone === 'success' ? '✅' : '⚠️';
+  }
+
+  const close = () => {
+    overlay.classList.remove('show');
+  };
+
+  cancelBtn.onclick = () => {
+    close();
+    onCancel?.();
+  };
+
+  confirmBtn.onclick = () => {
+    close();
+    onConfirm?.();
+  };
+
+  overlay.onclick = (event) => {
+    if (event.target === overlay) {
+      close();
+      onCancel?.();
+    }
+  };
+
+  overlay.classList.add('show');
+}
+
 function showToast(message, tone = 'info') {
   if (!document.body) return;
 
@@ -217,6 +219,246 @@ function showToast(message, tone = 'info') {
     toast.classList.remove('show');
     setTimeout(() => toast.remove(), 300);
   }, 2800);
+}
+
+function bindKineticHero() {
+  const shell = document.querySelector('[data-kinetic-grid]');
+  if (!shell) return;
+  if (shell.dataset.bound === 'true') return;
+  shell.dataset.bound = 'true';
+
+  const canvas = shell.querySelector('canvas');
+  if (!canvas) return;
+
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+
+  const mouse = { x: -9999, y: -9999 };
+  const targetMouse = { x: -9999, y: -9999 };
+  const ripples = [];
+
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const cellSize = 55;
+  const influenceRadius = 260;
+  const maxWarp = 24;
+  const dotSpacing = 28;
+  const lerpSpeed = 0.08;
+  const lineBase = { r: 255, g: 255, b: 255, a: 0.13 };
+  const nodeBaseRadius = 1.8;
+  const nodeActiveRadius = 3.2;
+
+  const theme = {
+    bg: '#171a1e',
+    lineActive: { r: 255, g: 255, b: 255, a: 0.9 },
+    nodeActive: { r: 255, g: 122, b: 162, a: 1 },
+    glow: '255,122,162',
+    ripple: '255,122,162'
+  };
+
+  const lerpColor = (base, active, t) => {
+    const r = Math.round(lerp(base.r, active.r, t));
+    const g = Math.round(lerp(base.g, active.g, t));
+    const b = Math.round(lerp(base.b, active.b, t));
+    const a = lerp(base.a, active.a, t);
+    return `rgba(${r},${g},${b},${a.toFixed(3)})`;
+  };
+
+  const getWarpedPoint = (gx, gy, col, row, cols, rows) => {
+    const edgeMargin = 1.5;
+    const colPin = Math.min(col / edgeMargin, (cols - 1 - col) / edgeMargin, 1);
+    const rowPin = Math.min(row / edgeMargin, (rows - 1 - row) / edgeMargin, 1);
+    const pinFactor = colPin * colPin * rowPin * rowPin;
+
+    const dx = gx - mouse.x;
+    const dy = gy - mouse.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    const proximity = Math.max(0, 1 - dist / influenceRadius) * pinFactor;
+
+    let rx = 0;
+    let ry = 0;
+
+    for (const ripple of ripples) {
+      const rdx = gx - ripple.x;
+      const rdy = gy - ripple.y;
+      const rdist = Math.sqrt(rdx * rdx + rdy * rdy);
+      const waveWidth = 55;
+      const diff = rdist - ripple.radius;
+      if (Math.abs(diff) < waveWidth) {
+        const strength = (1 - Math.abs(diff) / waveWidth) * ripple.opacity * 18 * pinFactor;
+        const angle = Math.atan2(rdy, rdx);
+        const sign = diff < 0 ? -1 : 1;
+        rx += Math.cos(angle) * strength * sign * -1;
+        ry += Math.sin(angle) * strength * sign * -1;
+      }
+    }
+
+    if (dist < influenceRadius && dist > 0 && pinFactor > 0) {
+      const t = dist / influenceRadius;
+      const eased = t < 0.01 ? 0 : (1 - t) * (1 - t) * Math.min(1, dist / 60);
+      const warpAmt = eased * maxWarp * pinFactor;
+      const angle = Math.atan2(dy, dx);
+      return {
+        x: gx - Math.cos(angle) * warpAmt + rx,
+        y: gy - Math.sin(angle) * warpAmt + ry,
+        proximity
+      };
+    }
+
+    return { x: gx + rx, y: gy + ry, proximity };
+  };
+
+  const draw = (now) => {
+    const W = canvas.width / (window.devicePixelRatio || 1);
+    const H = canvas.height / (window.devicePixelRatio || 1);
+
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = theme.bg;
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.fillStyle = 'rgba(255,255,255,0.05)';
+    for (let x = dotSpacing / 2; x < W; x += dotSpacing) {
+      for (let y = dotSpacing / 2; y < H; y += dotSpacing) {
+        ctx.beginPath();
+        ctx.arc(x, y, 0.7, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    for (let i = ripples.length - 1; i >= 0; i--) {
+      const r = ripples[i];
+      const age = (now - r.born) / 1000;
+      r.radius = Math.max(0, age * 400);
+      r.opacity = Math.max(0, 1 - age * 1.2);
+      if (r.opacity <= 0) ripples.splice(i, 1);
+    }
+
+    const cols = Math.max(2, Math.ceil(W / cellSize)) + 1;
+    const rows = Math.max(2, Math.ceil(H / cellSize)) + 1;
+    const cellW = W / (cols - 1);
+    const cellH = H / (rows - 1);
+
+    const pts = [];
+    const prox = [];
+
+    for (let row = 0; row < rows; row++) {
+      pts[row] = [];
+      prox[row] = [];
+      for (let col = 0; col < cols; col++) {
+        const warped = getWarpedPoint(col * cellW, row * cellH, col, row, cols, rows);
+        pts[row][col] = { x: warped.x, y: warped.y };
+        prox[row][col] = warped.proximity;
+      }
+    }
+
+    const drawSegment = (p1, p2, pr1, pr2) => {
+      const avg = (pr1 + pr2) / 2;
+      const t = avg * avg * (3 - 2 * avg);
+      ctx.beginPath();
+      ctx.moveTo(p1.x, p1.y);
+      ctx.lineTo(p2.x, p2.y);
+      ctx.strokeStyle = lerpColor(lineBase, theme.lineActive, t);
+      ctx.lineWidth = lerp(0.8, 1.5, t);
+      ctx.stroke();
+    };
+
+    ctx.lineCap = 'butt';
+
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols - 1; col++) {
+        drawSegment(pts[row][col], pts[row][col + 1], prox[row][col], prox[row][col + 1]);
+      }
+    }
+
+    for (let col = 0; col < cols; col++) {
+      for (let row = 0; row < rows - 1; row++) {
+        drawSegment(pts[row][col], pts[row + 1][col], prox[row][col], prox[row + 1][col]);
+      }
+    }
+
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        const p = pts[row][col];
+        const pr = prox[row][col];
+        const t = pr * pr * (3 - 2 * pr);
+        const radius = lerp(nodeBaseRadius, nodeActiveRadius, t);
+
+        if (t > 0.3) {
+          const glowRadius = radius + lerp(0, 6, (t - 0.3) / 0.7);
+          const glow = ctx.createRadialGradient(p.x, p.y, radius * 0.5, p.x, p.y, glowRadius);
+          glow.addColorStop(0, `rgba(${theme.glow},${(t * 0.3).toFixed(3)})`);
+          glow.addColorStop(1, `rgba(${theme.glow},0)`);
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, glowRadius, 0, Math.PI * 2);
+          ctx.fillStyle = glow;
+          ctx.fill();
+        }
+
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
+        ctx.fillStyle = lerpColor({ r: 255, g: 255, b: 255, a: 0.2 }, theme.nodeActive, t);
+        ctx.fill();
+      }
+    }
+
+    for (const ripple of ripples) {
+      const safeRadius = Math.max(0, ripple.radius);
+      ctx.beginPath();
+      ctx.arc(ripple.x, ripple.y, safeRadius, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(${theme.ripple},${(ripple.opacity * 0.28).toFixed(3)})`;
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    }
+  };
+
+  const animate = (now) => {
+    mouse.x = lerp(mouse.x, targetMouse.x, lerpSpeed);
+    mouse.y = lerp(mouse.y, targetMouse.y, lerpSpeed);
+    draw(now);
+    requestAnimationFrame(animate);
+  };
+
+  const resize = () => {
+    const rect = shell.getBoundingClientRect();
+    const ratio = window.devicePixelRatio || 1;
+    canvas.width = Math.max(1, Math.floor(rect.width * ratio));
+    canvas.height = Math.max(1, Math.floor(rect.height * ratio));
+    ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+  };
+
+  resize();
+  window.addEventListener('resize', resize);
+
+  const onMouseMove = (event) => {
+    const rect = shell.getBoundingClientRect();
+    targetMouse.x = event.clientX - rect.left;
+    targetMouse.y = event.clientY - rect.top;
+  };
+
+  const onClick = (event) => {
+    const rect = shell.getBoundingClientRect();
+    ripples.push({
+      x: event.clientX - rect.left,
+      y: event.clientY - rect.top,
+      radius: 0,
+      opacity: 1,
+      born: performance.now()
+    });
+  };
+
+  shell.addEventListener('mousemove', onMouseMove);
+  shell.addEventListener('click', onClick);
+  requestAnimationFrame(animate);
+
+  shell._kineticCleanup = () => {
+    window.removeEventListener('resize', resize);
+    shell.removeEventListener('mousemove', onMouseMove);
+    shell.removeEventListener('click', onClick);
+  };
+}
+
+function bindKineticHeroIfNeeded() {
+  if (document.body.dataset.page !== 'home') return;
+  bindKineticHero();
 }
 
 function withTimeout(promise, timeoutMs, label) {
@@ -341,7 +583,40 @@ async function syncCurrentUserFromFirebase(firebaseUser, rememberMe = true) {
   writeStorage(STORAGE_KEYS.USERS, merged);
 }
 
+function purgeKnownDummyData() {
+  const knownDummyProductIds = new Set(['p1', 'p2', 'p3', 'p4']);
+  const knownDummyUserEmails = new Set(['annisa@email.com']);
+
+  Object.entries(STORAGE_KEYS).forEach(([_, key]) => {
+    const current = readStorage(key, null);
+    if (!Array.isArray(current)) return;
+
+    const cleaned = current.filter((item) => {
+      const id = String(item?.id || '');
+      const email = String(item?.email || '').toLowerCase();
+      const name = String(item?.name || '').toLowerCase();
+      const seller = String(item?.seller || '').toLowerCase();
+      return !knownDummyProductIds.has(id)
+        && !knownDummyUserEmails.has(email)
+        && !name.includes('hoodie putih premium')
+        && !name.includes('jam tangan casio')
+        && !name.includes('set kado anniversary')
+        && !name.includes('jaket oversize')
+        && !seller.includes('annisa')
+        && !seller.includes('raka')
+        && !seller.includes('dinda')
+        && !seller.includes('sari');
+    });
+
+    if (cleaned.length !== current.length) {
+      writeStorage(key, cleaned);
+    }
+  });
+}
+
 function ensureDemoData() {
+  purgeKnownDummyData();
+
   if (!readStorage(STORAGE_KEYS.USERS, null)) writeStorage(STORAGE_KEYS.USERS, demoUsers);
   if (!readStorage(STORAGE_KEYS.PRODUCTS, null)) writeStorage(STORAGE_KEYS.PRODUCTS, productSeed);
   if (!readStorage(STORAGE_KEYS.CHATS, null)) writeStorage(STORAGE_KEYS.CHATS, chatSeed);
@@ -475,13 +750,13 @@ async function fetchProductsFromFirebase() {
     const snapshot = await getDocs(q);
     return snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
   } catch (error) {
-    return readStorage(STORAGE_KEYS.PRODUCTS, productSeed);
+    return readStorage(STORAGE_KEYS.PRODUCTS, []);
   }
 }
 
 async function fetchMyProductsFromFirebase(user) {
   const ownerId = user?.id || user?.uid || auth.currentUser?.uid;
-  const localItems = readStorage(STORAGE_KEYS.PRODUCTS, productSeed);
+  const localItems = readStorage(STORAGE_KEYS.PRODUCTS, []);
 
   if (!ownerId) {
     return localItems.filter((item) => item.seller === (user?.name || 'Seller'));
@@ -1227,17 +1502,86 @@ async function renderDashboard() {
   const greeting = document.querySelector('[data-greeting]');
   if (greeting) greeting.textContent = `Halo, ${getSafeUserName(user.name)}`;
 
-  const products = await fetchProductsFromFirebase();
-  const totalSold = products.filter((item) => item.condition === 'Terjual').length || 18;
-  const totalOrders = Math.max(6, products.length + 2);
-  const balance = 2400000;
+  const products = await fetchMyProductsFromFirebase(user);
+  const normalizedProducts = products.map((item) => normalizeProduct(item));
+  const totalSold = normalizedProducts.filter((item) => {
+    const status = String(item.status || '').toLowerCase();
+    const condition = String(item.condition || '').toLowerCase();
+    return status === 'terjual' || condition === 'terjual';
+  }).length;
+  const activeProducts = normalizedProducts.filter((item) => {
+    const status = String(item.status || '').toLowerCase();
+    return status !== 'terjual';
+  }).length;
+  const balance = normalizedProducts.reduce((sum, item) => sum + Number(item.price || 0), 0);
 
   const soldEl = document.querySelector('[data-stat-sold]');
   if (soldEl) soldEl.textContent = String(totalSold);
   const orderEl = document.querySelector('[data-stat-orders]');
-  if (orderEl) orderEl.textContent = String(totalOrders);
+  if (orderEl) orderEl.textContent = String(activeProducts);
   const balanceEl = document.querySelector('[data-stat-balance]');
   if (balanceEl) balanceEl.textContent = formatCurrency(balance);
+
+  const productList = document.querySelector('[data-dashboard-products]');
+  if (productList) {
+    if (!normalizedProducts.length) {
+      productList.innerHTML = `
+        <div style="display: grid; place-items: center; text-align: center; min-height: 180px;">
+          <div>
+            <div style="font-size: 2.5rem; margin-bottom: 12px;">📦</div>
+            <h3 style="margin: 0 0 8px;">Belum ada produk</h3>
+            <p class="muted" style="margin: 0;">Mulai dengan menambahkan barang pertama Anda.</p>
+          </div>
+        </div>
+      `;
+    } else {
+      productList.innerHTML = normalizedProducts.slice(0, 3).map((item) => `
+        <div class="mini-product-item" style="display: grid; grid-template-columns: 72px 1fr auto; gap: 12px; align-items: center; padding: 12px 0; border-bottom: 1px solid rgba(148,163,184,0.18);">
+          <div style="width: 72px; height: 72px; border-radius: 14px; overflow: hidden; background: #f4f6ff; display: grid; place-items: center;">
+            ${item.imageUrl ? `<img src="${item.imageUrl}" alt="${escapeHtml(item.name)}" style="width:100%; height:100%; object-fit:cover;" />` : `<span style="font-size: 1.5rem;">${escapeHtml(item.label?.charAt(0) || 'B')}</span>`}
+          </div>
+          <div>
+            <div style="font-weight: 700; color: var(--primary-strong);">${escapeHtml(item.name)}</div>
+            <small class="muted">${escapeHtml(item.category || 'Barang')} • ${formatCurrency(item.price)}</small>
+          </div>
+          <span class="condition" style="${item.status === 'Terjual' ? 'background: #fee2e2; color: #991b1b; border: 1px solid #fecaca;' : 'background: #dcfce7; color: #166534; border: 1px solid #bbf7d0;'}">${escapeHtml(item.status || 'Tersedia')}</span>
+        </div>
+      `).join('');
+    }
+  }
+
+  const activityContainer = document.querySelector('[data-dashboard-activity]');
+  if (activityContainer) {
+    if (!normalizedProducts.length) {
+      activityContainer.innerHTML = `
+        <div class="activity-item">
+          <span class="dot"></span>
+          <div>
+            <p><strong>Aktivitas</strong> akan muncul di sini saat produk atau transaksi mulai dibuat.</p>
+            <small>Belum ada update</small>
+          </div>
+        </div>
+      `;
+      return;
+    }
+
+    const latestActivities = normalizedProducts
+      .slice(0, 4)
+      .map((item) => ({
+        title: item.status === 'Terjual' ? `Barang terjual: ${item.name}` : `Barang aktif: ${item.name}`,
+        time: item.createdAt ? new Date(item.createdAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Baru'
+      }));
+
+    activityContainer.innerHTML = latestActivities.map((activity) => `
+      <div class="activity-item">
+        <span class="dot"></span>
+        <div>
+          <p><strong>${escapeHtml(activity.title)}</strong></p>
+          <small>${escapeHtml(activity.time)}</small>
+        </div>
+      </div>
+    `).join('');
+  }
 
   updateSidebarProfile();
 }
@@ -2059,24 +2403,31 @@ async function renderMyProducts() {
 
     const deleteButtons = document.querySelectorAll('[data-delete-product]');
     deleteButtons.forEach((button) => {
-      button.addEventListener('click', async () => {
+      button.addEventListener('click', () => {
         const productId = button.dataset.deleteProduct;
-        const yes = confirm('Hapus barang ini?');
-        if (!yes) return;
 
-        try {
-          await deleteDoc(doc(db, 'marketplace_products', productId));
-          const localProducts = readStorage(STORAGE_KEYS.PRODUCTS, productSeed).filter((item) => String(item.id) !== String(productId));
-          writeStorage(STORAGE_KEYS.PRODUCTS, localProducts);
-          showPopup('Barang berhasil dihapus.', 'Berhasil', 'success');
-          await renderMyProducts();
-        } catch (error) {
-          console.error('Delete product error:', error);
-          const localProducts = readStorage(STORAGE_KEYS.PRODUCTS, productSeed).filter((item) => String(item.id) !== String(productId));
-          writeStorage(STORAGE_KEYS.PRODUCTS, localProducts);
-          showPopup('Barang dihapus dari perangkat.', 'Pemberitahuan', 'info');
-          await renderMyProducts();
-        }
+        showConfirm({
+          title: 'Hapus barang?',
+          message: 'Barang ini akan dihapus dari marketplace dan tidak bisa dikembalikan. Lanjutkan?',
+          confirmText: 'Hapus barang',
+          cancelText: 'Batal',
+          tone: 'error',
+          onConfirm: async () => {
+            try {
+              await deleteDoc(doc(db, 'marketplace_products', productId));
+              const localProducts = readStorage(STORAGE_KEYS.PRODUCTS, productSeed).filter((item) => String(item.id) !== String(productId));
+              writeStorage(STORAGE_KEYS.PRODUCTS, localProducts);
+              showPopup('Barang berhasil dihapus.', 'Berhasil', 'success');
+              await renderMyProducts();
+            } catch (error) {
+              console.error('Delete product error:', error);
+              const localProducts = readStorage(STORAGE_KEYS.PRODUCTS, productSeed).filter((item) => String(item.id) !== String(productId));
+              writeStorage(STORAGE_KEYS.PRODUCTS, localProducts);
+              showPopup('Barang dihapus dari perangkat.', 'Pemberitahuan', 'info');
+              await renderMyProducts();
+            }
+          }
+        });
       });
     });
   };
@@ -2396,7 +2747,16 @@ function bindLogoutButtons() {
   buttons.forEach((button) => {
     button.addEventListener('click', (event) => {
       event.preventDefault();
-      handleLogout();
+      showConfirm({
+        title: 'Keluar dari akun?',
+        message: 'Anda akan keluar dari akun marketplace dan diarahkan kembali ke halaman utama.',
+        confirmText: 'Keluar',
+        cancelText: 'Batal',
+        tone: 'warning',
+        onConfirm: () => {
+          handleLogout();
+        }
+      });
     });
   });
 }
@@ -2425,6 +2785,8 @@ async function init() {
   });
 
   const page = document.body.dataset.page;
+  bindKineticHeroIfNeeded();
+
   if (page === 'login' || page === 'register') {
     bindAuthPage();
     return;
@@ -2481,4 +2843,4 @@ window.addEventListener('beforeunload', () => {
   if (window.__marketplaceBuyerProductsCleanup) window.__marketplaceBuyerProductsCleanup();
   if (window.__marketplaceMyProductsCleanup) window.__marketplaceMyProductsCleanup();
   if (window.__marketplaceGlobalChatUnsubscribe) window.__marketplaceGlobalChatUnsubscribe();
-});das
+});

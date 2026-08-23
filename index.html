@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html class="light" lang="id">
 <head>
 <meta charset="utf-8"/>
@@ -47,19 +47,26 @@
     }
 </script>
 <style>
+    /* ══════════════════════════════════════════════════════════
+       BACKGROUND — diganti menjadi langit senja/luar-angkasa
+       dengan gradasi biru-tosca + lapisan pelangi & awan
+       (diadaptasi dari palet "Serene": #010A17 → #0A4267 →
+       #20658E → #6BADC4), menggantikan gradasi pastel lama.
+       Elemen & fungsi Gamon Tawing yang sudah ada TIDAK diubah.
+       ══════════════════════════════════════════════════════════ */
     body {
-        background: linear-gradient(135deg, #f3e8ff 0%, #fff5f8 50%, #e0f2fe 100%);
+        background: linear-gradient(180deg, #010A17 0%, #0A4267 30%, #20658E 60%, #6BADC4 100%) fixed;
         overflow-x: hidden;
         min-height: 100vh;
     }
 
     /* ── STAR & SPACE BACKGROUND DECORATION ── */
     .star-particle {
-        position: absolute; background: #b794f4; border-radius: 50%; opacity: 0.4;
-        pointer-events: none; box-shadow: 0 0 5px rgba(183,148,244,0.5);
+        position: absolute; background: #e7d8ff; border-radius: 50%; opacity: 0.55;
+        pointer-events: none; box-shadow: 0 0 6px rgba(231,216,255,0.6);
     }
     .space-decor {
-        position: absolute; pointer-events: none; opacity: 0.25; filter: blur(4px);
+        position: absolute; pointer-events: none; opacity: 0.2; filter: blur(4px);
         animation: spaceFloat 18s infinite ease-in-out alternate;
     }
     @keyframes spaceFloat {
@@ -69,6 +76,28 @@
     @keyframes pulse-soft {
         0%,100%{transform:scale(1);opacity:.4}
         50%{transform:scale(1.6);opacity:.7}
+    }
+
+    /* ── DAWN / RAINBOW DECORATIVE LAYER (baru) ── */
+    #gtSkyLayer {
+        position: fixed; inset: 0; z-index: 2; pointer-events: none; overflow: hidden;
+    }
+    .gt-rainbow {
+        position: absolute; left: 0; right: 0; top: -6%;
+        width: 100%; opacity: 0.4; mix-blend-mode: screen;
+        will-change: transform; transform: translate3d(0,0,0);
+    }
+    .gt-rainbow img { width: 100%; display: block; }
+    .gt-cloud {
+        position: absolute; bottom: -6%; width: 620px; max-width: 62vw;
+        opacity: 0.5; will-change: transform; transform: translate3d(0,0,0);
+    }
+    .gt-cloud img { width: 100%; display: block; }
+    .gt-cloud-left { left: -12%; }
+    .gt-cloud-right { right: -14%; transform: scaleX(-1); }
+    @media (max-width: 768px) {
+        .gt-cloud { display: none; }
+        .gt-rainbow { opacity: 0.28; }
     }
 
     /* ── BUBBLE CANVAS ── */
@@ -86,9 +115,9 @@
         cursor: grab;
         display: flex; flex-direction: column; align-items: center; justify-content: center;
         gap: 2px; text-align: center; padding: 12px;
-        background: rgba(255,255,255,0.65);
-        border: 1.5px solid rgba(255,255,255,0.8);
-        box-shadow: 0 6px 22px -8px rgba(107,90,96,0.18);
+        background: rgba(255,255,255,0.72);
+        border: 1.5px solid rgba(255,255,255,0.85);
+        box-shadow: 0 6px 24px -6px rgba(1,10,23,0.45);
         backdrop-filter: blur(10px);
         user-select: none;
         box-sizing: border-box;
@@ -96,7 +125,7 @@
         touch-action: none; /* Cegah scroll browser saat di-drag di mobile */
     }
     .bubble:hover {
-        box-shadow: 0 12px 32px -8px rgba(107,90,96,0.26);
+        box-shadow: 0 12px 34px -6px rgba(1,10,23,0.55);
         z-index: 50;
     }
     .bubble:active { cursor: grabbing; }
@@ -108,8 +137,8 @@
     .bubble.shape-blob { border-radius: 38% 62% 46% 54% / 54% 38% 62% 46%; }
 
     /* Varian Tipe */
-    .bubble.type-curhat  { background: rgba(252,228,236,0.68); border-color: rgba(244,168,196,0.5); }
-    .bubble.type-photobox{ background: rgba(237,229,252,0.68); border-color: rgba(196,174,248,0.5); }
+    .bubble.type-curhat  { background: rgba(252,228,236,0.78); border-color: rgba(244,168,196,0.6); }
+    .bubble.type-photobox{ background: rgba(237,229,252,0.78); border-color: rgba(196,174,248,0.6); }
 
     /* Animasi Melayang Lambat (CSS Floating) */
     .float-container {
@@ -121,11 +150,11 @@
     @keyframes float-a { 0%,100%{transform:translate(0, 0)} 33%{transform:translate(4px, -10px)} 66%{transform:translate(-3px, -5px)} }
     @keyframes float-b { 0%,100%{transform:translate(0, 0)} 40%{transform:translate(-5px, -8px)} 70%{transform:translate(3px, -12px)} }
     @keyframes float-c { 0%,100%{transform:translate(0, 0)} 50%{transform:translate(3px, -7px)} }
-    
+
     .float-a .bubble { animation: float-a var(--fd,6s) infinite ease-in-out var(--fdel,0s); }
     .float-b .bubble { animation: float-b var(--fd,6s) infinite ease-in-out var(--fdel,0s); }
     .float-c .bubble { animation: float-c var(--fd,6s) infinite ease-in-out var(--fdel,0s); }
-    
+
     /* Matikan animasi melayang bawaan CSS ketika sedang di-drag agar posisi akurat */
     .dragging .bubble { animation: none !important; transform: scale(1.08) !important; z-index: 100; }
 
@@ -137,7 +166,7 @@
     /* ── MODAL OVERLAY ── */
     #modalOverlay {
         position: fixed; inset: 0; z-index: 500;
-        background: rgba(40,20,34,0.38);
+        background: rgba(1,10,23,0.55);
         backdrop-filter: blur(5px);
         display: flex; align-items: center; justify-content: center;
         opacity: 0; pointer-events: none;
@@ -149,7 +178,7 @@
         background: rgba(255,255,255,0.97);
         border-radius: 24px;
         border: 1.5px solid rgba(255,255,255,0.9);
-        box-shadow: 0 24px 60px -16px rgba(107,90,96,0.28);
+        box-shadow: 0 24px 60px -16px rgba(1,10,23,0.45);
         width: 340px;
         max-width: calc(100vw - 32px);
         max-height: 80vh;
@@ -211,7 +240,7 @@
         background: rgba(255,255,255,0.55);
         backdrop-filter: blur(12px);
         border: 1px solid rgba(255,255,255,0.45);
-        box-shadow: 0 8px 24px -8px rgba(107,90,96,0.12);
+        box-shadow: 0 8px 24px -8px rgba(1,10,23,0.25);
     }
 
     @keyframes fadeInScale {
@@ -222,11 +251,11 @@
 
     #hintBar {
         text-align: center; padding: 0.5rem 1rem 2rem;
-        font-size: 13px; color: rgba(107,90,96,0.5);
+        font-size: 13px; color: rgba(255,255,255,0.6);
         display: flex; align-items: center; justify-content: center; gap: 6px;
     }
 
-    #loadingMsg { text-align:center; padding:4rem 1rem; color: rgba(107,90,96,0.4); font-size:14px; }
+    #loadingMsg { text-align:center; padding:4rem 1rem; color: rgba(255,255,255,0.5); font-size:14px; }
 
     @media(max-width:768px){
         #bubbleCanvas { height: 60vh; min-height: 380px; }
@@ -252,15 +281,15 @@
     }
     .moon-ring {
         position: absolute; inset: -16px; border-radius: 50%;
-        border: 1px dashed rgba(183,148,244,0.35);
+        border: 1px dashed rgba(231,216,255,0.4);
         transition: transform .6s ease, border-color .6s ease;
     }
-    .moon-wrap.active .moon-ring { transform: scale(1.15); border-color: rgba(183,148,244,0.6); }
-    .moon-svg { width: 100%; height: 100%; display: block; filter: drop-shadow(0 8px 18px rgba(107,90,96,0.22)); transition: filter .6s ease, transform .6s ease; }
-    .moon-wrap.active .moon-svg { transform: scale(1.06); filter: drop-shadow(0 0 30px rgba(244,220,228,0.85)); }
+    .moon-wrap.active .moon-ring { transform: scale(1.15); border-color: rgba(231,216,255,0.7); }
+    .moon-svg { width: 100%; height: 100%; display: block; filter: drop-shadow(0 8px 18px rgba(1,10,23,0.4)); transition: filter .6s ease, transform .6s ease; }
+    .moon-wrap.active .moon-svg { transform: scale(1.06); filter: drop-shadow(0 0 30px rgba(244,220,228,0.9)); }
     .moon-orbit-star {
         position: absolute; width: 5px; height: 5px; border-radius: 50%;
-        background: #fff; box-shadow: 0 0 6px 1px rgba(183,148,244,0.7);
+        background: #fff; box-shadow: 0 0 6px 1px rgba(231,216,255,0.8);
         animation: gt-orbit 6s linear infinite;
         opacity: .8;
     }
@@ -278,7 +307,7 @@
     .rocket {
         display: block; width: 100%; height: 100%; user-select: none;
         transform-origin: center bottom;
-        filter: drop-shadow(0 8px 12px rgba(107,90,96,0.28));
+        filter: drop-shadow(0 8px 12px rgba(1,10,23,0.45));
         transition: transform .25s ease;
     }
     .rocket-wrap:hover .rocket:not(.launching) {
@@ -299,7 +328,7 @@
     /* Jejak asap roket, di-spawn lewat JS */
     .gt-puff {
         position: fixed; width: 10px; height: 10px; border-radius: 50%;
-        background: radial-gradient(circle, rgba(255,255,255,0.9), rgba(183,148,244,0.15));
+        background: radial-gradient(circle, rgba(255,255,255,0.9), rgba(231,216,255,0.15));
         pointer-events: none; z-index: 16;
         animation: gt-puff-fade .7s ease-out forwards;
     }
@@ -313,7 +342,7 @@
     .ufo {
         display: inline-block; width: 88px; height: 40px; user-select: none;
         animation: gt-ufo-idle 3.2s ease-in-out infinite;
-        filter: drop-shadow(0 8px 10px rgba(107,90,96,0.22));
+        filter: drop-shadow(0 8px 10px rgba(1,10,23,0.4));
     }
     @keyframes gt-ufo-idle {
         0%,100% { transform: translateY(0) rotate(-3deg); }
@@ -324,7 +353,7 @@
     @keyframes gt-blink { 0%,100%{ opacity:.35; } 50%{ opacity:1; } }
     .ufo-beam {
         width: 34px; height: 0; margin: 0 auto; border-radius: 0 0 50% 50%;
-        background: linear-gradient(to bottom, rgba(183,148,244,0.55), rgba(183,148,244,0));
+        background: linear-gradient(to bottom, rgba(231,216,255,0.6), rgba(231,216,255,0));
         transition: height .5s ease, opacity .5s ease; opacity: 0;
         position: relative; overflow: visible;
     }
@@ -338,7 +367,7 @@
     .sat {
         display: inline-block; width: 70px; height: 40px; user-select: none;
         animation: gt-spin 9s linear infinite;
-        filter: drop-shadow(0 6px 8px rgba(107,90,96,0.2));
+        filter: drop-shadow(0 6px 8px rgba(1,10,23,0.35));
     }
     @keyframes gt-spin { 100% { transform: rotate(360deg); } }
     .sat-wrap:hover .sat { animation-duration: 1.1s; }
@@ -348,11 +377,24 @@
     }
 </style>
 </head>
-<body class="text-on-surface selection:bg-primary-container">
+<body class="text-white/90 selection:bg-primary-container">
 
 <!-- Background Elements (Space & Clouds Decor) -->
 <div class="fixed inset-0 pointer-events-none z-0" id="spaceBackground">
     <div class="fixed inset-0" id="stars"></div>
+</div>
+
+<!-- Lapisan langit senja: pelangi + awan (baru, murni dekoratif) -->
+<div id="gtSkyLayer">
+    <div class="gt-rainbow" id="gtRainbow">
+        <img src="https://soft-zoom-63098134.figma.site/_assets/v11/8d520a7515d06cbfc403d0125e3d05b1a7ccd29c.png" alt="" />
+    </div>
+    <div class="gt-cloud gt-cloud-left" id="gtCloudLeft">
+        <img src="https://soft-zoom-63098134.figma.site/_assets/v11/0d6dfd3f90b930f21726f2ed56a3320d79b7a797.png" alt="" />
+    </div>
+    <div class="gt-cloud gt-cloud-right" id="gtCloudRight">
+        <img src="https://soft-zoom-63098134.figma.site/_assets/v11/0d6dfd3f90b930f21726f2ed56a3320d79b7a797.png" alt="" />
+    </div>
 </div>
 
 <!-- Objek Luar Angkasa Interaktif (cursor reveal) -->
@@ -459,20 +501,20 @@
     <!-- Hero -->
     <header class="text-center mb-12">
         <div class="mx-auto mb-0 max-w-xs overflow-hidden">
-            <img src="image/logo/Gamon%20Tawing.png" alt="Gamon Tawing" class="mx-auto h-56 w-auto object-cover object-top" />
+            <img src="image/logo/Gamon%20Tawing.png" alt="Gamon Tawing" class="mx-auto h-56 w-auto object-cover object-top" style="filter: drop-shadow(0 0 36px rgba(255,255,255,0.55));" />
         </div>
-        <p class="font-body-lg text-on-surface-variant max-w-2xl mx-auto mb-8 italic -mt-8">
+        <p class="font-body-lg text-white/85 max-w-2xl mx-auto mb-8 italic -mt-8">
             "Tempat berbagi cerita secara anonim, temukan dukungan dari komunitas, berbincang dengan AI, dan mengabadikan momen melalui self photo polaroid."
         </p>
         <div class="flex justify-center items-center gap-4 flex-wrap">
-            <button onclick="location.href='submit.html'" class="inline-flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-[#f4dce4] to-[#e1d2f5] text-on-primary-fixed-variant font-semibold rounded-full shadow-[0_4px_15px_rgba(107,90,96,0.15)] hover:shadow-[0_6px_20px_rgba(107,90,96,0.2)] hover:scale-105 transition-all active:scale-95 border border-white/50">
+            <button onclick="location.href='submit.html'" class="inline-flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-[#f4dce4] to-[#e1d2f5] text-on-primary-fixed-variant font-semibold rounded-full shadow-[0_4px_18px_rgba(1,10,23,0.35)] hover:shadow-[0_6px_24px_rgba(1,10,23,0.4)] hover:scale-105 transition-all active:scale-95 border border-white/50">
                 <span class="material-symbols-outlined">edit_note</span>
                 Sampaikan Gamonmu
             </button>
-            <a href="ai.html" class="inline-flex items-center gap-2 px-8 py-3 bg-purple-400 text-white font-semibold rounded-full shadow-[0_4px_15px_rgba(107,90,96,0.15)] hover:shadow-[0_6px_20px_rgba(107,90,96,0.2)] hover:scale-105 transition-all active:scale-95 border border-white/50">
+            <a href="ai.html" class="inline-flex items-center gap-2 px-8 py-3 bg-purple-400 text-white font-semibold rounded-full shadow-[0_4px_18px_rgba(1,10,23,0.35)] hover:shadow-[0_6px_24px_rgba(1,10,23,0.4)] hover:scale-105 transition-all active:scale-95 border border-white/50">
                 💬 AI Curhat
             </a>
-            <a href="marketplace/index.html" class="inline-flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-[#f4dce4] to-[#d8e7ff] text-[#2d2a2d] font-semibold rounded-full shadow-[0_4px_15px_rgba(107,90,96,0.15)] hover:shadow-[0_6px_20px_rgba(107,90,96,0.2)] hover:scale-105 transition-all active:scale-95 border border-white/50">
+            <a href="marketplace/index.html" class="inline-flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-[#f4dce4] to-[#d8e7ff] text-[#2d2a2d] font-semibold rounded-full shadow-[0_4px_18px_rgba(1,10,23,0.35)] hover:shadow-[0_6px_24px_rgba(1,10,23,0.4)] hover:scale-105 transition-all active:scale-95 border border-white/50">
                 🛍️ Marketplace
             </a>
         </div>
@@ -480,7 +522,7 @@
 
     <!-- Hint -->
     <div id="hintBar">
-        <span class="material-symbols-outlined" style="font-size:16px;opacity:.5;">drag_pan</span>
+        <span class="material-symbols-outlined" style="font-size:16px;opacity:.6;">drag_pan</span>
         klik untuk baca, tahan & geser untuk memindahkan awan
     </div>
 
@@ -489,7 +531,7 @@
         <div id="loadingMsg">Memuat pesan-pesan rindu... ✦</div>
     </div>
     <div class="text-center mt-6">
-        <button id="loadMorePosts" class="hidden px-6 py-3 rounded-full bg-primary text-white shadow-lg hover:bg-primary-dark transition duration-200">
+        <button id="loadMorePosts" class="hidden px-8 py-3 rounded-full bg-gradient-to-r from-[#f4dce4] to-[#e1d2f5] text-on-primary-fixed-variant font-semibold shadow-[0_4px_18px_rgba(1,10,23,0.35)] hover:shadow-[0_6px_24px_rgba(1,10,23,0.4)] hover:scale-105 transition-all active:scale-95 border border-white/50">
             Muat Lebih Banyak
         </button>
     </div>
@@ -516,7 +558,7 @@
 </div>
 
 <!-- Music player
-<div id="musicPlayerBar" class="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 glass-card rounded-full p-1.5 flex items-center justify-between border border-white/40 shadow-[0_8px_32px_0_rgba(107,90,96,0.1)] backdrop-blur-md transition-all duration-300 ease-in-out w-[110px]">
+<div id="musicPlayerBar" class="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 glass-card rounded-full p-1.5 flex items-center justify-between border border-white/40 shadow-[0_8px_32px_0_rgba(1,10,23,0.25)] backdrop-blur-md transition-all duration-300 ease-in-out w-[110px]">
     
     <button id="musicToggle" class="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center hover:bg-primary/20 hover:scale-105 active:scale-95 transition-all flex-shrink-0">
         <span class="material-symbols-outlined" style="font-size: 24px;">play_arrow</span>
@@ -559,7 +601,7 @@
     // ── Stars & Outer Space Clouds Decor ──
     const spaceBg = document.getElementById('spaceBackground');
     const starsEl = document.getElementById('stars');
-    
+
     // Generate Stars
     for (let i = 0; i < 60; i++) {
         const s = document.createElement('div');
@@ -582,6 +624,29 @@
         decor.style.animationDuration = (15 + Math.random() * 15) + 's';
         spaceBg.appendChild(decor);
     }
+
+    // ── Parallax lembut untuk lapisan pelangi & awan (murni dekoratif) ──
+    (function () {
+        const rainbow = document.getElementById('gtRainbow');
+        const cloudL = document.getElementById('gtCloudLeft');
+        const cloudR = document.getElementById('gtCloudRight');
+        if (!rainbow || !cloudL || !cloudR) return;
+
+        let targetY = 0, currentY = 0;
+        function onScroll() {
+            targetY = window.scrollY || window.pageYOffset || 0;
+        }
+        window.addEventListener('scroll', onScroll, { passive: true });
+
+        function tick() {
+            currentY += (targetY - currentY) * 0.06;
+            rainbow.style.transform = `translate3d(0, ${currentY * 0.08}px, 0)`;
+            cloudL.style.transform = `translate3d(${-currentY * 0.03}px, ${-currentY * 0.05}px, 0)`;
+            cloudR.style.transform = `translate3d(${currentY * 0.03}px, ${-currentY * 0.05}px, 0) scaleX(-1)`;
+            requestAnimationFrame(tick);
+        }
+        requestAnimationFrame(tick);
+    })();
 
     // ── Cursor Reveal: Roket meluncur ke Bulan ──
     const rocketWrap = document.getElementById('rocketWrap');
@@ -722,18 +787,18 @@
             } else {
                 // Mode Maximize / Lebar (Memperlihatkan Judul & Penyanyi)
                 textInfo.classList.remove('hidden');
-                
+
                 // Mengikuti lebar responsive agar tetap rapi di mobile maupun desktop
                 if (window.innerWidth < 640) {
                     playerBar.style.width = "calc(100% - 32px)";
                 } else {
                     playerBar.style.width = "280px";
                 }
-                
+
                 setTimeout(() => {
                     textInfo.classList.remove('opacity-0');
                 }, 100);
-                
+
                 resizeIcon.textContent = 'chevron_left'; // Panah menunjuk ke kiri (tutup)
             }
         });
@@ -846,7 +911,7 @@
         loveBtn.disabled = true;
         const likeCountEl = document.getElementById('modalLikeCount');
         likeCountEl.textContent = parseInt(likeCountEl.textContent) + 1;
-        
+
         const bEl = document.querySelector(`.bubble[data-id="${currentPost.id}"] .bubble-likes`);
         if (bEl) bEl.textContent = '♥ ' + likeCountEl.textContent;
     });
@@ -928,11 +993,11 @@
             const col = i % cols;
             const row = Math.floor(i / cols);
 
-            const margin = 0.15; 
+            const margin = 0.15;
             const cx = (col + margin + Math.random() * (1 - margin * 2)) * cellW;
             const cy = (row + margin + Math.random() * (1 - margin * 2)) * cellH;
 
-            const sz = 84; 
+            const sz = 84;
 
             const shape   = shapes[Math.floor(Math.random() * shapes.length)];
             const float   = floats[Math.floor(Math.random() * floats.length)];
