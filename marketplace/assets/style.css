@@ -2168,4 +2168,49 @@ footer {
   .btn-upload { min-width: 160px; }
   .detail-gallery { height: 220px; }
   .bubble-message { max-width: 88%; }
+
+  .chat-shell {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .chat-list,
+  .chat-conversation {
+    padding: 12px;
+    border-radius: 18px;
+  }
+
+  .chat-conversation {
+    min-height: 420px;
+    height: auto;
+  }
+
+  .chat-thread {
+    min-height: 240px;
+    max-height: 46vh;
+    margin: 12px 0;
+  }
+
+  .chat-composer {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .chat-composer input {
+    width: 100%;
+    flex: 1 1 100%;
+  }
+
+  .chat-composer .btn {
+    width: 100%;
+  }
+
+  .chat-item {
+    padding: 10px 8px;
+  }
+
+  .chat-item-product,
+  .chat-item-body .muted {
+    white-space: nowrap;
+  }
 }
