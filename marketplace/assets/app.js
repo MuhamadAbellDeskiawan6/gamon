@@ -1664,7 +1664,7 @@ async function renderProductCards(items) {
     );
 
     renderedCards.push(`
-      <article class="product-card compact-card" data-category="${normalized.category}">
+      <article class="product-card compact-card thread-card" data-category="${normalized.category}">
         <div class="image">${imageMarkup} <span class="chip">${escapeHtml(normalized.label)}</span></div>
         <div class="product-body">
           <div class="product-head">
