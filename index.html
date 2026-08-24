@@ -78,16 +78,10 @@
         50%{transform:scale(1.6);opacity:.7}
     }
 
-    /* ── DAWN / RAINBOW DECORATIVE LAYER (baru) ── */
+    /* ── CLOUD DECORATIVE LAYER ── */
     #gtSkyLayer {
         position: fixed; inset: 0; z-index: 2; pointer-events: none; overflow: hidden;
     }
-    .gt-rainbow {
-        position: absolute; left: 0; right: 0; top: 10%;
-        width: 100%; opacity: 0.52; mix-blend-mode: screen;
-        will-change: transform; transform: translate3d(0,0,0);
-    }
-    .gt-rainbow img { width: 100%; display: block; }
     .gt-cloud {
         position: absolute; bottom: -6%; width: 620px; max-width: 62vw;
         opacity: 0.5; will-change: transform; transform: translate3d(0,0,0);
@@ -97,7 +91,6 @@
     .gt-cloud-right { right: -14%; transform: scaleX(-1); }
     @media (max-width: 768px) {
         .gt-cloud { display: none; }
-        .gt-rainbow { opacity: 0.28; }
     }
 
     /* ── BUBBLE CANVAS ── */
@@ -280,11 +273,8 @@
     <div class="fixed inset-0" id="stars"></div>
 </div>
 
-<!-- Lapisan langit senja: pelangi + awan (baru, murni dekoratif) -->
+<!-- Lapisan awan dekoratif -->
 <div id="gtSkyLayer">
-    <div class="gt-rainbow" id="gtRainbow">
-        <img src="https://soft-zoom-63098134.figma.site/_assets/v11/8d520a7515d06cbfc403d0125e3d05b1a7ccd29c.png" alt="" />
-    </div>
     <div class="gt-cloud gt-cloud-left" id="gtCloudLeft">
         <img src="https://soft-zoom-63098134.figma.site/_assets/v11/0d6dfd3f90b930f21726f2ed56a3320d79b7a797.png" alt="" />
     </div>
@@ -423,12 +413,11 @@
         spaceBg.appendChild(decor);
     }
 
-    // ── Parallax lembut untuk lapisan pelangi & awan (murni dekoratif) ──
+    // ── Parallax lembut untuk lapisan awan dekoratif ──
     (function () {
-        const rainbow = document.getElementById('gtRainbow');
         const cloudL = document.getElementById('gtCloudLeft');
         const cloudR = document.getElementById('gtCloudRight');
-        if (!rainbow || !cloudL || !cloudR) return;
+        if (!cloudL || !cloudR) return;
 
         let targetY = 0, currentY = 0;
         function onScroll() {
@@ -438,7 +427,6 @@
 
         function tick() {
             currentY += (targetY - currentY) * 0.06;
-            rainbow.style.transform = `translate3d(0, ${currentY * 0.08}px, 0)`;
             cloudL.style.transform = `translate3d(${-currentY * 0.03}px, ${-currentY * 0.05}px, 0)`;
             cloudR.style.transform = `translate3d(${currentY * 0.03}px, ${-currentY * 0.05}px, 0) scaleX(-1)`;
             requestAnimationFrame(tick);
