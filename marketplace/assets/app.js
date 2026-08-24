@@ -785,11 +785,24 @@ function getProductDetailUrl(productId) {
   return `${targetPage}?id=${id}`;
 }
 
-function getUserChatUrl(sellerName, sellerId) {
+function getUserChatUrl(sellerName, sellerId, productId = '', productName = '') {
   const basePage = getCurrentPageIsUserArea() ? 'chat.html' : 'user/chat.html';
   const safeSeller = sellerName || 'Penjual';
   const safeSellerId = sellerId || sellerName || '';
-  return `${basePage}?user=${encodeURIComponent(safeSeller)}&userId=${encodeURIComponent(safeSellerId)}`;
+  const query = new URLSearchParams({
+    user: safeSeller,
+    userId: safeSellerId,
+  });
+
+  if (productId) {
+    query.set('productId', String(productId));
+  }
+
+  if (productName) {
+    query.set('productName', String(productName));
+  }
+
+  return `${basePage}?${query.toString()}`;
 }
 
 function getSafeUserName(name) {
@@ -1227,10 +1240,11 @@ function resolveUserIdByName(name) {
  *   - lastReadAt: { [userId]: timestamp } -> drives unread counts
  * ========================================================================= */
 
-function getChatThreadId(userIdA, userIdB) {
+function getChatThreadId(userIdA, userIdB, productId = '') {
   const left = normalizeUserIdentifier(userIdA || '').toLowerCase();
   const right = normalizeUserIdentifier(userIdB || '').toLowerCase();
-  return [left, right].sort().join('__');
+  const productKey = normalizeUserIdentifier(String(productId || '')).toLowerCase();
+  return [left, right, productKey].filter(Boolean).sort().join('__');
 }
 
 function buildTargetKey(targetUserId, targetName) {
@@ -1403,16 +1417,19 @@ async function renderChatThreadList(container, threadDocs, currentUserId, active
     const unread = computeUnreadCount(thread, currentUserId);
     const isActive = thread.id === activeThreadId;
     const preview = thread.lastMessage ? escapeHtml(thread.lastMessage) : 'Belum ada pesan';
+    const productName = thread.productName ? escapeHtml(thread.productName) : '';
+    const productId = thread.productId ? escapeHtml(String(thread.productId)) : '';
     const avatarMarkup = await getUserAvatarMarkupByName(other.name, other.id, other.name || 'P');
 
     return `
-      <button class="chat-item ${isActive ? 'active' : ''}" type="button" data-thread-user-id="${escapeHtml(other.id || '')}" data-thread-user-name="${escapeHtml(other.name || 'Pengguna')}">
+      <button class="chat-item ${isActive ? 'active' : ''}" type="button" data-thread-user-id="${escapeHtml(other.id || '')}" data-thread-user-name="${escapeHtml(other.name || 'Pengguna')}" data-thread-product-id="${productId}" data-thread-product-name="${productName}">
         ${avatarMarkup}
         <div class="chat-item-body">
           <div class="chat-item-head">
             <strong>${escapeHtml(other.name || 'Pengguna')}</strong>
             ${unread ? `<span class="chat-badge">${unread}</span>` : ''}
           </div>
+          <div class="chat-item-product">${productName ? `Produk: ${productName}` : 'Produk: Barang umum'}</div>
           <small class="muted">${preview}</small>
         </div>
       </button>
@@ -1425,7 +1442,14 @@ async function renderChatThreadList(container, threadDocs, currentUserId, active
     button.addEventListener('click', () => {
       const targetId = button.dataset.threadUserId;
       const targetName = button.dataset.threadUserName;
-      window.location.href = `chat.html?user=${encodeURIComponent(targetName)}&userId=${encodeURIComponent(targetId)}`;
+      const productId = button.dataset.threadProductId || '';
+      const productName = button.dataset.threadProductName || '';
+      const params = new URLSearchParams({ user: targetName || 'Pengguna', userId: targetId || '' });
+
+      if (productId) params.set('productId', productId);
+      if (productName) params.set('productName', productName);
+
+      window.location.href = `chat.html?${params.toString()}`;
     });
   });
 }
@@ -1437,6 +1461,8 @@ async function renderChat() {
   const params = new URLSearchParams(window.location.search);
   const sellerNameParam = params.get('user') || '';
   const sellerIdParam = params.get('userId') || '';
+  const productIdParam = params.get('productId') || '';
+  const productNameParam = params.get('productName') || '';
 
   const currentUserId = getCurrentUserIdentifier();
   const currentUserName = getSafeUserName((currentUser() || {}).name || user.name);
@@ -1447,10 +1473,16 @@ async function renderChat() {
   const targetName = sellerNameParam ? normalizeUserIdentifier(sellerNameParam) : '';
   const targetKey = buildTargetKey(resolvedTargetId, targetName);
   const hasTarget = Boolean(targetKey);
-  const threadId = hasTarget ? getChatThreadId(currentUserId, targetKey) : '';
+  const threadId = hasTarget ? getChatThreadId(currentUserId, targetKey, productIdParam) : '';
 
   const sellerLabel = document.querySelector('[data-chat-contact]');
   if (sellerLabel) sellerLabel.textContent = targetName || 'Pilih percakapan';
+
+  const productContextEl = document.querySelector('[data-chat-product-context]');
+  if (productContextEl) {
+    productContextEl.hidden = true;
+    productContextEl.innerHTML = '';
+  }
 
   const threadListEl = document.querySelector('[data-chat-list]');
   const threadEl = document.querySelector('[data-chat-thread]');
@@ -1495,14 +1527,48 @@ async function renderChat() {
     { id: targetKey, name: targetName || 'Pengguna' }
   ];
 
-  const messageUnsubscribe = onSnapshot(chatRef, (snapshot) => {
+  const messageUnsubscribe = onSnapshot(chatRef, async (snapshot) => {
     const data = snapshot.exists() ? snapshot.data() : { messages: [] };
     const messages = data.messages || [];
+    const activeProductId = productIdParam || data?.productId || '';
+    const activeProductName = productNameParam || data?.productName || '';
+
+    if (productContextEl) {
+      if (activeProductId) {
+        let productName = activeProductName || 'Produk yang ditanyakan';
+        const productList = readStorage(STORAGE_KEYS.PRODUCTS, productSeed);
+        const localProduct = productList.find((item) => String(item.id) === String(activeProductId));
+        if (localProduct?.name) {
+          productName = localProduct.name;
+        } else {
+          try {
+            const productSnapshot = await getDoc(doc(db, 'marketplace_products', activeProductId));
+            if (productSnapshot.exists()) {
+              const productData = productSnapshot.data();
+              if (productData?.name) {
+                productName = productData.name;
+              }
+            }
+          } catch (error) {
+            console.warn('Gagal memuat detail produk untuk context chat:', error);
+          }
+        }
+
+        productContextEl.hidden = false;
+        productContextEl.innerHTML = `
+          <span class="chat-product-context-label">Produk</span>
+          <a href="${getProductDetailUrl(activeProductId)}" class="chat-product-context-link">${escapeHtml(productName)}</a>
+        `;
+      } else {
+        productContextEl.hidden = true;
+        productContextEl.innerHTML = '';
+      }
+    }
 
     renderChatMessages(threadEl, messages, currentUserId);
 
     const cache = readChatThreadsCache();
-    cache[threadId] = { id: threadId, participants, ...data, messages };
+    cache[threadId] = { id: threadId, participants, ...data, productId: activeProductId || data?.productId || '', productName: activeProductName || data?.productName || '', messages };
     writeChatThreadsCache(cache);
 
     if (snapshot.exists() && computeUnreadCount(data, currentUserId) > 0) {
@@ -1541,6 +1607,9 @@ async function renderChat() {
         const nextMessages = [...currentMessages, newMessage];
         const nextLastReadAt = { ...(existingData.lastReadAt || {}), [currentUserId]: Date.now() };
 
+        const activeProductId = productIdParam || (existingData?.productId || '');
+        const activeProductName = productNameParam || (existingData?.productName || '');
+
         await setDoc(chatRef, {
           participantIds: [currentUserId, targetKey],
           participants,
@@ -1548,7 +1617,9 @@ async function renderChat() {
           lastMessage: text,
           lastMessageAt: Date.now(),
           updatedAt: Date.now(),
-          lastReadAt: nextLastReadAt
+          lastReadAt: nextLastReadAt,
+          ...(activeProductId ? { productId: activeProductId } : {}),
+          ...(activeProductName ? { productName: activeProductName } : {})
         }, { merge: true });
       } catch (error) {
         console.error('Gagal mengirim pesan:', error);
@@ -2795,7 +2866,7 @@ async function renderProductsForBuyer() {
       const normalized = normalizeProduct(item);
       const imageMarkup = normalized.imageUrl ? `<img src="${normalized.imageUrl}" alt="${escapeHtml(normalized.name)}" style="width: 100%; height: 100%; object-fit: cover;" />` : normalized.image;
       const sellerRef = normalizeUserIdentifier(normalized.sellerId || normalized.ownerId || resolveUserIdByName(normalized.seller) || normalized.seller || '');
-      const chatHref = getUserChatUrl(normalized.seller, sellerRef || normalized.seller || '');
+      const chatHref = getUserChatUrl(normalized.seller, sellerRef || normalized.seller || '', normalized.id, normalized.name);
       const statusStyle = normalized.status === 'Terjual'
         ? 'background: #fee2e2; color: #991b1b; border: 1px solid #fecaca;'
         : 'background: #dcfce7; color: #166534; border: 1px solid #bbf7d0;';
@@ -3211,12 +3282,18 @@ function bindPasswordToggles() {
 function bindHeaderActionsMenu() {
   const headerToggle = document.querySelector('.header-menu-toggle');
   const headerActions = document.querySelector('[data-header-actions]');
-  if (!headerToggle || !headerActions) return;
+  const mobileMenuPanel = document.querySelector('[data-mobile-menu-panel]');
+  if (!headerToggle) return;
 
   const syncState = (isOpen) => {
     headerToggle.classList.toggle('is-active', isOpen);
     headerToggle.setAttribute('aria-expanded', String(isOpen));
-    headerActions.classList.toggle('is-open', isOpen);
+    if (headerActions) {
+      headerActions.classList.toggle('is-open', isOpen);
+    }
+    if (mobileMenuPanel) {
+      mobileMenuPanel.classList.toggle('is-open', isOpen);
+    }
   };
 
   headerToggle.addEventListener('click', () => {
@@ -3226,10 +3303,18 @@ function bindHeaderActionsMenu() {
 
   document.addEventListener('click', (event) => {
     const target = event.target;
-    if (!headerActions.contains(target) && !headerToggle.contains(target)) {
+    const clickedInsideMenu = mobileMenuPanel ? mobileMenuPanel.contains(target) : false;
+    const clickedInsideActions = headerActions ? headerActions.contains(target) : false;
+    if (!clickedInsideMenu && !clickedInsideActions && !headerToggle.contains(target)) {
       syncState(false);
     }
   });
+
+  if (mobileMenuPanel) {
+    mobileMenuPanel.querySelectorAll('a').forEach((link) => {
+      link.addEventListener('click', () => syncState(false));
+    });
+  }
 }
 
 function bindBackButton() {
@@ -3411,7 +3496,7 @@ async function renderProductDetail() {
   if (chatButton) {
     const currentUserData = currentUser();
     const sellerRef = normalizeUserIdentifier(normalized.sellerId || normalized.ownerId || resolveUserIdByName(normalized.seller) || normalized.seller || '');
-    const chatUrl = getUserChatUrl(normalized.seller, sellerRef || normalized.seller || '');
+    const chatUrl = getUserChatUrl(normalized.seller, sellerRef || normalized.seller || '', normalized.id, normalized.name);
 
     if (!isUserPage && !currentUserData) {
       chatButton.style.display = '';

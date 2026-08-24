@@ -92,6 +92,75 @@ input, textarea, select, button { font: inherit; }
 
 .nav-links a:hover { color: var(--primary); }
 
+.mobile-menu-panel {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  display: none;
+  width: min(92vw, 320px);
+  flex-direction: column;
+  gap: 16px;
+  padding: 18px 16px 16px;
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  border-radius: 22px;
+  box-shadow: 0 22px 50px rgba(62, 48, 64, 0.18);
+  z-index: 1200;
+}
+
+.mobile-menu-panel.is-open {
+  display: flex;
+  animation: mobileMenuIn 0.24s ease;
+}
+
+.mobile-nav-links,
+.mobile-menu-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mobile-nav-links a {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid rgba(106, 76, 101, 0.10);
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.9), rgba(255,245,249,0.7));
+  color: var(--primary-strong);
+  font-weight: 700;
+  transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+  box-shadow: 0 6px 18px rgba(94, 59, 92, 0.04);
+}
+
+.mobile-nav-links a::after {
+  content: '›';
+  color: var(--secondary-strong);
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
+.mobile-nav-links a:hover {
+  transform: translateX(2px);
+  border-color: rgba(241, 81, 146, 0.24);
+  background: linear-gradient(180deg, rgba(255,255,255,1), rgba(255,239,246,0.92));
+  box-shadow: 0 10px 22px rgba(94, 59, 92, 0.08);
+}
+
+.mobile-menu-actions {
+  padding-top: 12px;
+  border-top: 1px solid rgba(106, 76, 101, 0.12);
+}
+
+.mobile-menu-actions .btn {
+  width: 100%;
+  justify-content: center;
+}
+
 .nav-actions {
   display: flex;
   align-items: center;
@@ -114,31 +183,40 @@ input, textarea, select, button { font: inherit; }
 
 .mobile-menu-toggle {
   display: none;
+  position: relative;
+  z-index: 2;
   flex-direction: column;
   justify-content: center;
   gap: 5px;
-  width: 44px;
-  height: 44px;
-  padding: 9px 10px;
-  border: 1px solid rgba(106, 76, 101, 0.18);
-  border-radius: 12px;
-  background: rgba(255,255,255,0.9);
+  width: 46px;
+  height: 46px;
+  padding: 11px 10px;
+  border: 1px solid rgba(106, 76, 101, 0.14);
+  border-radius: 14px;
+  background: linear-gradient(135deg, #ffffff, #fff2f7);
   cursor: pointer;
-  box-shadow: 0 10px 22px rgba(62, 48, 64, 0.08);
+  box-shadow: 0 12px 24px rgba(62, 48, 64, 0.10);
   margin-left: auto;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+
+.mobile-menu-toggle:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 30px rgba(62, 48, 64, 0.12);
+  border-color: rgba(241, 81, 146, 0.24);
 }
 
 .mobile-menu-toggle span {
   display: block;
   width: 100%;
-  height: 2px;
-  background: var(--primary);
+  height: 3px;
+  background: linear-gradient(90deg, var(--primary), var(--secondary));
   border-radius: 99px;
-  transition: transform 0.2s ease, opacity 0.2s ease;
+  transition: transform 0.22s ease, opacity 0.22s ease;
 }
 
 .mobile-menu-toggle.is-active span:nth-child(1) {
-  transform: translateY(7px) rotate(45deg);
+  transform: translateY(8px) rotate(45deg);
 }
 
 .mobile-menu-toggle.is-active span:nth-child(2) {
@@ -146,7 +224,7 @@ input, textarea, select, button { font: inherit; }
 }
 
 .mobile-menu-toggle.is-active span:nth-child(3) {
-  transform: translateY(-7px) rotate(-45deg);
+  transform: translateY(-8px) rotate(-45deg);
 }
 
 .btn {
@@ -189,6 +267,20 @@ input, textarea, select, button { font: inherit; }
 
 @keyframes spin {
   to { transform: rotate(360deg); }
+}
+
+@keyframes mobileMenuIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.97);
+  }
+  65% {
+    opacity: 1;
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .hero {
@@ -1693,9 +1785,11 @@ footer {
   border-radius: 14px;
   cursor: pointer;
   width: 100%;
+  max-width: 100%;
   text-align: left;
   background: transparent;
   border: 1px solid transparent;
+  overflow: hidden;
 }
 .chat-item.active, .chat-item:hover {
   background: var(--soft-pink);
@@ -1705,6 +1799,7 @@ footer {
 .chat-item-body {
   flex: 1;
   min-width: 0;
+  overflow: hidden;
 }
 
 .chat-item-head {
@@ -1712,6 +1807,32 @@ footer {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  min-width: 0;
+}
+
+.chat-item-head strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-item-product {
+  margin-top: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--primary-strong);
+  line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chat-item-body .muted {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .chat-badge {
@@ -1733,6 +1854,42 @@ footer {
   flex-direction: column;
   min-height: 500px;
   height: 70vh;
+}
+
+.chat-product-context {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(241, 81, 146, 0.08);
+  border: 1px solid rgba(241, 81, 146, 0.18);
+  color: var(--text);
+}
+
+.chat-product-context-label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 26px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: var(--primary-soft);
+  color: var(--primary-strong);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.chat-product-context-link {
+  color: var(--primary-strong);
+  font-weight: 700;
+  text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .chat-thread {
@@ -1859,6 +2016,18 @@ footer {
   .mobile-menu-toggle {
     display: flex;
     margin-left: auto;
+  }
+
+  .mobile-menu-panel {
+    top: calc(100% + 12px);
+    right: 0;
+    width: min(85vw, 300px);
+    padding: 14px;
+  }
+
+  .mobile-nav-links a {
+    padding: 11px 12px;
+    border-radius: 12px;
   }
 
   .nav > .nav-actions {
