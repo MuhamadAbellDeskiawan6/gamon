@@ -1646,6 +1646,14 @@ async function getUserAvatarMarkupByName(userName, userId, fallbackText = 'P', p
     : `<span class="avatar">${escapeHtml((displayName || fallbackText).charAt(0).toUpperCase())}</span>`;
 }
 
+function chunkProducts(items, chunkSize = 5) {
+  const chunks = [];
+  for (let index = 0; index < items.length; index += chunkSize) {
+    chunks.push(items.slice(index, index + chunkSize));
+  }
+  return chunks;
+}
+
 async function renderProductCards(items) {
   const renderedCards = [];
 
@@ -1673,7 +1681,7 @@ async function renderProductCards(items) {
           </div>
           <h3>${escapeHtml(normalized.name)}</h3>
           <div class="seller-row compact-row">
-            <span class="seller-meta">${sellerAvatarMarkup} ${escapeHtml(normalized.seller)}</span>
+            <span class="seller-meta">${sellerAvatarMarkup} <span class="seller-name">${escapeHtml(normalized.seller)}</span></span>
             <span>${escapeHtml(normalized.city)}</span>
           </div>
           <div class="card-actions compact-actions">
@@ -1685,6 +1693,56 @@ async function renderProductCards(items) {
   }
 
   return renderedCards.join('');
+}
+
+function renderProductCarousel(items) {
+  const chunks = chunkProducts(items, 5);
+  if (!chunks.length) {
+    return `
+      <div class="product-carousel product-carousel-empty">
+        <p>Belum ada produk yang tersedia saat ini.</p>
+      </div>
+    `;
+  }
+
+  const slidesMarkup = chunks.map((chunk, index) => `
+    <div class="product-carousel-slide ${index === 0 ? 'is-active' : ''}" data-slide-index="${index}">
+      ${chunk.map((item) => `
+        <article class="product-card compact-card thread-card" data-category="${item.category}">
+          <div class="image">${item.imageUrl ? `<img src="${item.imageUrl}" alt="${escapeHtml(item.name)}" style="width: 100%; height: 100%; object-fit: cover;" />` : item.image} <span class="chip">${escapeHtml(item.label)}</span></div>
+          <div class="product-body">
+            <div class="product-head">
+              <div class="price">${formatCurrency(item.price)}</div>
+              <span class="condition" style="${(item.status || 'Tersedia') === 'Terjual' ? 'background: rgba(220, 38, 38, 0.08); color: #b91c1c; border: 1px solid rgba(220, 38, 38, 0.18);' : 'background: rgba(34, 197, 94, 0.08); color: #15803d; border: 1px solid rgba(34, 197, 94, 0.18);'}">${escapeHtml(item.status || 'Tersedia')}</span>
+            </div>
+            <h3>${escapeHtml(item.name)}</h3>
+            <div class="seller-row compact-row">
+              <span class="seller-meta">${item.sellerPhotoUrl ? `<span class="avatar has-photo"><img src="${escapeHtml(item.sellerPhotoUrl)}" alt="${escapeHtml(getSafeUserName(item.seller || 'P'))}" /></span>` : `<span class="avatar">${escapeHtml((item.seller || 'P').charAt(0).toUpperCase())}</span>`} <span class="seller-name">${escapeHtml(item.seller)}</span></span>
+              <span>${escapeHtml(item.city)}</span>
+            </div>
+            <div class="card-actions compact-actions">
+              <a class="btn btn-soft" href="${getProductDetailUrl(item.id)}">Lihat detail</a>
+            </div>
+          </div>
+        </article>
+      `).join('')}
+    </div>
+  `).join('');
+
+  const dotsMarkup = chunks.map((_, dotIndex) => `
+    <button class="product-carousel-dot ${dotIndex === 0 ? 'is-active' : ''}" type="button" data-dot-index="${dotIndex}" aria-label="Lihat slide ${dotIndex + 1}"></button>
+  `).join('');
+
+  return `
+    <div class="product-carousel" data-product-carousel data-total-slides="${chunks.length}">
+      <div class="product-carousel-track">${slidesMarkup}</div>
+      <div class="product-carousel-controls">
+        <button class="product-carousel-btn product-carousel-nav product-carousel-prev" type="button" aria-label="Previous product">‹</button>
+        <div class="product-carousel-dots" aria-label="Navigasi slide produk">${dotsMarkup}</div>
+        <button class="product-carousel-btn product-carousel-nav product-carousel-next" type="button" aria-label="Next product">›</button>
+      </div>
+    </div>
+  `;
 }
 
 function renderHomeProductsLoadingState() {
@@ -1774,33 +1832,63 @@ async function renderHomeProducts() {
   const container = document.querySelector('[data-product-list]');
   if (!container) return;
 
+  let activeFilter = 'all';
+  let latestProducts = [];
+
   container.innerHTML = renderHomeProductsLoadingState();
   ensureDemoData();
-  const renderFromItems = async (items) => {
-    const normalized = items.map(normalizeProduct);
-    container.innerHTML = await renderProductCards(normalized);
+
+  const bindProductCarouselControls = () => {
+    const carousel = container.querySelector('[data-product-carousel]');
+    if (!carousel) return;
+
+    const slides = [...carousel.querySelectorAll('.product-carousel-slide')];
+    const dots = [...carousel.querySelectorAll('.product-carousel-dot')];
+    const prevButton = carousel.querySelector('.product-carousel-prev');
+    const nextButton = carousel.querySelector('.product-carousel-next');
+    let activeIndex = 0;
+
+    const setActiveSlide = (index) => {
+      activeIndex = (index + slides.length) % slides.length;
+      slides.forEach((slide, slideIndex) => slide.classList.toggle('is-active', slideIndex === activeIndex));
+      dots.forEach((dot, dotIndex) => dot.classList.toggle('is-active', dotIndex === activeIndex));
+    };
+
+    prevButton?.addEventListener('click', () => setActiveSlide(activeIndex - 1));
+    nextButton?.addEventListener('click', () => setActiveSlide(activeIndex + 1));
+    dots.forEach((dot) => {
+      dot.addEventListener('click', () => setActiveSlide(Number(dot.dataset.dotIndex || 0)));
+    });
+  };
+
+  const rerenderProducts = async () => {
+    const filteredItems = activeFilter === 'all'
+      ? latestProducts
+      : latestProducts.filter((item) => normalizeProduct(item).category === activeFilter);
+
+    const normalized = filteredItems.map(normalizeProduct);
+    container.innerHTML = renderProductCarousel(normalized);
+    bindProductCarouselControls();
 
     const filterButtons = document.querySelectorAll('[data-filter]');
-    const cards = document.querySelectorAll('[data-category]');
     filterButtons.forEach((button) => {
-      button.addEventListener('click', () => {
-        const target = button.dataset.filter;
-        filterButtons.forEach((item) => item.classList.toggle('active', item === button));
-        cards.forEach((card) => {
-          const visible = target === 'all' || card.dataset.category === target;
-          card.style.display = visible ? '' : 'none';
-        });
-      });
+      button.classList.toggle('active', button.dataset.filter === activeFilter);
+      button.onclick = () => {
+        activeFilter = button.dataset.filter || 'all';
+        rerenderProducts();
+      };
     });
   };
 
   const products = await fetchProductsFromFirebase();
-  await renderFromItems(products);
+  latestProducts = products;
+  await rerenderProducts();
 
   const productsQuery = query(collection(db, 'marketplace_products'), orderBy('createdAt', 'desc'));
   const unsubscribe = onSnapshot(productsQuery, (snapshot) => {
     const items = snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
-    renderFromItems(items);
+    latestProducts = items;
+    rerenderProducts();
   }, (error) => {
     console.error('Realtime home products error:', error);
   });

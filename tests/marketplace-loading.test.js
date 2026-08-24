@@ -16,3 +16,10 @@ test('buyer and my-products pages also render loading placeholders before produc
   assert.match(source, /renderBuyerProductsLoadingState|renderMyProductsLoadingState|Sedang memuat barang/i, 'Expected visible loading placeholders on buyer and my-products pages');
   assert.match(source, /container\.innerHTML\s*=\s*renderBuyerProductsLoadingState\(|container\.innerHTML\s*=\s*renderMyProductsLoadingState\(/i, 'Expected the buyer and my-products containers to render a loading state before fetching');
 });
+
+test('home marketplace product cards are grouped into carousel slides of five items and remain mobile-friendly', () => {
+  const source = fs.readFileSync(path.join(__dirname, '..', 'marketplace', 'assets', 'app.js'), 'utf8');
+
+  assert.match(source, /chunkProducts|product-carousel|slidesPerView|group.*5|chunk.*5/i, 'Expected carousel grouping logic to chunk products into five-card slides');
+  assert.match(source, /aria-label=.*Next|aria-label=.*Previous|product-carousel-nav/i, 'Expected carousel navigation controls for product slides');
+});
