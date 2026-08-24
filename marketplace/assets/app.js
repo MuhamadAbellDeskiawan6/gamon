@@ -1,7 +1,6 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut, sendPasswordResetEmail } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
-import { getFirestore, collection, doc, setDoc, getDoc, getDocs, addDoc, query, orderBy, where, onSnapshot, updateDoc, deleteDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
-import { getStorage, ref, uploadBytes, getDownloadURL } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js';
+import { getFirestore, collection, doc, setDoc, getDoc, getDocs, addDoc, query, orderBy, where, onSnapshot, updateDoc, deleteDoc, serverTimestamp, deleteField } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
 const firebaseConfig = {
   apiKey: 'AIzaSyC247K8yyL67aWV95KNQy8CkMZsjgGCudQ',
@@ -16,7 +15,6 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
-const storage = getStorage(app);
 
 const STORAGE_KEYS = {
   USERS: 'gamon_marketplace_users',
@@ -553,6 +551,81 @@ async function prepareImageForUpload(file, { targetWidth = 1200, targetHeight = 
   });
 }
 
+/* =========================================================================
+ * PROFILE PHOTO HANDLING
+ * -------------------------------------------------------------------------
+ * We are on the Firestore free (Spark) plan and are NOT using Firebase
+ * Storage. The profile photo is compressed client-side and stored directly
+ * as a base64 data URL inside the user's Firestore document, under a single
+ * canonical field: `photoUrl`.
+ *
+ * Firestore caps a single document at ~1 MiB, so we:
+ *   1. Reject source files above 2 MB outright (matches the UI copy).
+ *   2. Compress + resize, retrying with smaller dimensions/quality until
+ *      the resulting data URL comfortably fits the document.
+ *   3. Only ever write ONE field (`photoUrl`) — never duplicate the same
+ *      base64 blob across `photo` / `profilePhotoUrl` / `avatarUrl`, which
+ *      was silently multiplying storage usage 3-4x.
+ * ========================================================================= */
+
+const PROFILE_PHOTO_MAX_SOURCE_BYTES = 2 * 1024 * 1024; // 2 MB original upload, matches UI label
+const PROFILE_PHOTO_MAX_STORED_BYTES = 700 * 1024; // keep comfortably under Firestore's ~1 MiB doc limit
+const PROFILE_PHOTO_COMPRESSION_STEPS = [
+  { targetWidth: 800, targetHeight: 800, quality: 0.72 },
+  { targetWidth: 640, targetHeight: 640, quality: 0.6 },
+  { targetWidth: 480, targetHeight: 480, quality: 0.5 },
+  { targetWidth: 360, targetHeight: 360, quality: 0.42 }
+];
+
+function estimateDataUrlBytes(dataUrl) {
+  if (!dataUrl) return 0;
+  const base64Part = String(dataUrl).split(',')[1] || '';
+  // Each base64 char encodes 6 bits, so bytes ≈ chars * 0.75 (ignoring padding).
+  return Math.floor(base64Part.length * 0.75);
+}
+
+async function compressProfilePhotoToDataUrl(file) {
+  let lastDataUrl = '';
+
+  for (const step of PROFILE_PHOTO_COMPRESSION_STEPS) {
+    const compressedFile = await prepareImageForUpload(file, step);
+    const dataUrl = await fileToDataUrl(compressedFile);
+    lastDataUrl = dataUrl;
+
+    if (estimateDataUrlBytes(dataUrl) <= PROFILE_PHOTO_MAX_STORED_BYTES) {
+      return dataUrl;
+    }
+  }
+
+  return lastDataUrl;
+}
+
+async function uploadProfilePhoto(file) {
+  if (!file) return '';
+
+  if (!file.type || !file.type.startsWith('image/')) {
+    throw new Error('File yang dipilih harus berupa gambar (JPG, PNG, atau WebP).');
+  }
+
+  if (file.size > PROFILE_PHOTO_MAX_SOURCE_BYTES) {
+    throw new Error('Ukuran foto maksimal 2 MB. Silakan pilih foto yang lebih kecil.');
+  }
+
+  const dataUrl = await compressProfilePhotoToDataUrl(file);
+
+  if (!dataUrl) {
+    throw new Error('Foto profil tidak bisa diproses. Silakan coba foto lain.');
+  }
+
+  if (estimateDataUrlBytes(dataUrl) > PROFILE_PHOTO_MAX_STORED_BYTES) {
+    throw new Error('Foto masih terlalu besar untuk database gratis (Firestore). Silakan pilih foto yang lebih sederhana atau resolusi lebih kecil.');
+  }
+
+  return dataUrl;
+}
+
+/* ======================= end profile photo handling ======================= */
+
 function currentUser() {
   const user = readStorage(STORAGE_KEYS.USER, null);
   if (!user) return null;
@@ -731,7 +804,66 @@ function getUserInitial(name) {
 
 function getUserPhotoUrl(user) {
   if (!user) return '';
-  return user.photoUrl || user.profilePhotoUrl || user.avatarUrl || '';
+  // `photoUrl` is the single canonical field going forward. The other keys
+  // are only read for backward-compatibility with documents saved before
+  // this fix (they get cleaned up automatically the next time that user
+  // saves their profile — see bindEditForm/renderProfile submit handlers).
+  return user.photoUrl || user.photo || user.profilePhotoUrl || user.avatarUrl || '';
+}
+
+function mergeUserIntoStorage(users, incomingUser) {
+  if (!incomingUser || (!incomingUser.id && !incomingUser.uid)) return users;
+
+  const normalizedList = Array.isArray(users) ? users : [];
+  const userId = normalizeUserIdentifier(incomingUser.id || incomingUser.uid || incomingUser.email || '');
+  const emailKey = normalizeUserIdentifier(incomingUser.email || '').toLowerCase();
+
+  const nextUsers = normalizedList.filter((entry) => {
+    const entryId = normalizeUserIdentifier(entry?.id || entry?.uid || '').toLowerCase();
+    const entryEmail = normalizeUserIdentifier(entry?.email || '').toLowerCase();
+    return !(userId && entryId === userId.toLowerCase()) && !(emailKey && entryEmail === emailKey);
+  });
+
+  nextUsers.push({ ...incomingUser, id: incomingUser.id || incomingUser.uid || userId || incomingUser.email || `user-${Date.now()}` });
+  writeStorage(STORAGE_KEYS.USERS, nextUsers);
+  return nextUsers;
+}
+
+async function resolveUserForMarketplaceLookup(userName, userId) {
+  const identifier = normalizeUserIdentifier(userId || userName || '');
+  const localUsers = readStorage(STORAGE_KEYS.USERS, []);
+
+  if (identifier) {
+    const byId = localUsers.find((entry) => {
+      const candidates = [entry?.id, entry?.uid, entry?.email, entry?.name, entry?.username].map((value) => normalizeUserIdentifier(value || '').toLowerCase());
+      return candidates.includes(identifier.toLowerCase());
+    });
+    if (byId) return byId;
+
+    if (userId) {
+      try {
+        const fresh = await fetchUserDoc(userId);
+        if (fresh) {
+          mergeUserIntoStorage(localUsers, fresh);
+          return fresh;
+        }
+      } catch (error) {
+        console.warn('Gagal memuat data user terbaru dari Firestore untuk avatar:', error);
+      }
+    }
+  }
+
+  if (userName) {
+    const byName = localUsers.find((entry) => {
+      const localName = normalizeUserIdentifier(entry?.name || '').toLowerCase();
+      const localEmail = normalizeUserIdentifier(entry?.email || '').toLowerCase();
+      const target = normalizeUserIdentifier(userName || '').toLowerCase();
+      return localName === target || localEmail === target;
+    });
+    if (byName) return byName;
+  }
+
+  return null;
 }
 
 function getUserAvatarMarkup(userName, userPhotoUrl = '', fallbackText = 'P') {
@@ -744,17 +876,34 @@ function getUserAvatarMarkup(userName, userPhotoUrl = '', fallbackText = 'P') {
   return escapeHtml(getUserInitial(name));
 }
 
+/* =========================================================================
+ * AVATAR HYDRATION — CURRENT-USER ONLY
+ * -------------------------------------------------------------------------
+ * IMPORTANT: this function must only ever touch elements that represent the
+ * CURRENTLY LOGGED-IN user's own avatar (the sidebar profile box and the
+ * topbar/header avatar). It must NEVER touch generic `.avatar` elements or
+ * `[data-detail-seller-initial]`, because those are used to show OTHER
+ * people's avatars — sellers on product cards, the other participant in a
+ * chat thread, the seller on a product-detail page. Those are populated
+ * per-context via getUserAvatarMarkupByName()/resolveUserForMarketplaceLookup().
+ *
+ * Previously this selector also included `.avatar` and
+ * `[data-detail-seller-initial]`, which meant that every time this ran
+ * (on init, after auth resolves, after saving the profile) it would
+ * overwrite EVERY avatar on the page — including other users' avatars in
+ * product listings, the chat thread list, and product detail pages — with
+ * the CURRENTLY LOGGED-IN user's own photo. That was the root cause of:
+ *   - seller/other-user avatars not showing the correct photo
+ *   - the chat "profile" avatar showing the logged-in user's own photo
+ *     instead of the other participant's photo
+ * ========================================================================= */
 function hydrateUserAvatarElements(user) {
   const safeUser = user || currentUser();
   const photoUrl = getUserPhotoUrl(safeUser);
   const name = getSafeUserName((safeUser && safeUser.name) || 'Pengguna');
 
-  document.querySelectorAll('.avatar, .avatar-lg, [data-user-avatar], [data-detail-seller-initial]').forEach((element) => {
+  document.querySelectorAll('.avatar-lg, [data-user-avatar]').forEach((element) => {
     if (!element) return;
-
-    const isLarge = element.classList.contains('avatar-lg');
-    const isDetailSeller = element.matches('[data-detail-seller-initial]');
-    const fallbackText = isDetailSeller ? (name || 'P').charAt(0).toUpperCase() : getUserInitial(name);
 
     if (photoUrl) {
       element.innerHTML = `<img src="${escapeHtml(photoUrl)}" alt="${escapeHtml(name)}" />`;
@@ -762,7 +911,7 @@ function hydrateUserAvatarElements(user) {
       return;
     }
 
-    element.textContent = fallbackText;
+    element.textContent = getUserInitial(name);
     element.classList.remove('has-photo');
   });
 }
@@ -852,6 +1001,128 @@ async function fetchMyProductsFromFirebase(user) {
   return localItems.filter((item) => (item.ownerId || '').toString() === ownerId.toString() || item.seller === (user?.name || 'Seller'));
 }
 
+async function repairMarketplaceSellerPhotos({ silent = true } = {}) {
+  try {
+    const firebaseProducts = await fetchProductsFromFirebase();
+    const localProducts = readStorage(STORAGE_KEYS.PRODUCTS, []);
+    const mergedProducts = [...firebaseProducts, ...localProducts];
+    const seen = new Map();
+
+    mergedProducts.forEach((product) => {
+      if (!product || !product.id) return;
+      const key = String(product.id);
+      const current = seen.get(key) || {};
+      seen.set(key, { ...current, ...product });
+    });
+
+    const updates = [];
+    for (const product of seen.values()) {
+      const hasSellerPhoto = Boolean(product.sellerPhotoUrl || product.sellerPhoto || product.avatarUrl || product.photoUrl || product.profilePhotoUrl);
+      if (hasSellerPhoto || !product.id) continue;
+
+      const sellerIdentifier = normalizeUserIdentifier(product.sellerId || product.ownerId || resolveUserIdByName(product.seller) || product.seller || '');
+      const sellerUser = await resolveUserForMarketplaceLookup(product.seller, sellerIdentifier);
+      const sellerPhotoUrl = getUserPhotoUrl(sellerUser || null);
+      if (!sellerPhotoUrl) continue;
+
+      const nextProduct = { ...product, sellerPhotoUrl };
+      updates.push(nextProduct);
+
+      try {
+        await updateDoc(doc(db, 'marketplace_products', String(product.id)), { sellerPhotoUrl }, { merge: true });
+      } catch (error) {
+        console.warn('Gagal memperbarui sellerPhotoUrl produk lama:', error);
+      }
+    }
+
+    if (!silent) {
+      console.log(`Migrasi sellerPhotoUrl selesai: ${updates.length} produk diperbarui.`);
+    }
+
+    if (!updates.length) return 0;
+
+    const normalizedLocal = readStorage(STORAGE_KEYS.PRODUCTS, []);
+    const nextLocal = normalizedLocal.map((entry) => {
+      const match = updates.find((item) => String(item.id) === String(entry.id));
+      return match ? { ...entry, ...match, sellerPhotoUrl: match.sellerPhotoUrl || entry.sellerPhotoUrl || '' } : entry;
+    });
+
+    writeStorage(STORAGE_KEYS.PRODUCTS, nextLocal.length ? nextLocal : normalizedLocal);
+    return updates.length;
+  } catch (error) {
+    console.warn('Gagal migrasi foto seller produk lama:', error);
+    return 0;
+  }
+}
+
+async function migrateExistingProductSellerPhotos() {
+  return repairMarketplaceSellerPhotos({ silent: true });
+}
+
+async function syncSellerPhotosAcrossProducts(user) {
+  if (!user) return 0;
+
+  const userId = normalizeUserIdentifier(user.id || user.uid || user.email || '');
+  const photoUrl = getUserPhotoUrl(user) || '';
+  if (!userId || !photoUrl) return 0;
+
+  const ownerMatches = (item) => {
+    const ownerValue = normalizeUserIdentifier(item?.ownerId || item?.sellerId || '').toLowerCase();
+    const sellerValue = normalizeUserIdentifier(item?.seller || '').toLowerCase();
+    const userName = normalizeUserIdentifier(user.name || '').toLowerCase();
+    return ownerValue === userId.toLowerCase() || sellerValue === userName;
+  };
+
+  let updatedCount = 0;
+
+  try {
+    const q = query(collection(db, 'marketplace_products'), where('ownerId', '==', userId));
+    const snapshot = await getDocs(q);
+
+    for (const docSnap of snapshot.docs) {
+      const productData = docSnap.data() || {};
+      const nextSellerPhotoUrl = photoUrl || productData.sellerPhotoUrl || '';
+      const nextSellerName = user.name || productData.seller || 'Seller';
+      const payload = {
+        sellerPhotoUrl: nextSellerPhotoUrl,
+        seller: nextSellerName,
+        sellerInitial: (nextSellerName || 'S').charAt(0).toUpperCase()
+      };
+
+      if ((productData.sellerPhotoUrl || '') === nextSellerPhotoUrl && (productData.seller || '') === nextSellerName) continue;
+
+      await updateDoc(doc(db, 'marketplace_products', docSnap.id), payload, { merge: true });
+      updatedCount += 1;
+    }
+  } catch (error) {
+    console.warn('Gagal memperbarui foto seller produk milik user dari Firestore:', error);
+  }
+
+  const localProducts = readStorage(STORAGE_KEYS.PRODUCTS, []);
+  const nextLocalProducts = localProducts.map((item) => {
+    if (!ownerMatches(item)) return item;
+    const nextSellerName = user.name || item.seller || 'Seller';
+    const nextItem = {
+      ...item,
+      sellerPhotoUrl: photoUrl,
+      seller: nextSellerName,
+      sellerInitial: (nextSellerName || 'S').charAt(0).toUpperCase()
+    };
+
+    if ((item.sellerPhotoUrl || '') === photoUrl && (item.seller || '') === nextSellerName) return item;
+    return nextItem;
+  });
+
+  if (JSON.stringify(nextLocalProducts) !== JSON.stringify(localProducts)) {
+    writeStorage(STORAGE_KEYS.PRODUCTS, nextLocalProducts);
+  }
+
+  return updatedCount;
+}
+
+window.repairMarketplaceSellerPhotos = repairMarketplaceSellerPhotos;
+window.syncSellerPhotosAcrossProducts = syncSellerPhotosAcrossProducts;
+
 async function fetchUserDoc(uid) {
   try {
     const snap = await getDoc(doc(db, 'marketplace_users', uid));
@@ -885,6 +1156,7 @@ function normalizeProduct(item) {
   const primaryImage = parsedImages[0] || item.imageUrl || item.image || '';
   const latitude = item.latitude ?? item.lat ?? '';
   const longitude = item.longitude ?? item.lng ?? '';
+  const sellerPhotoUrl = item.sellerPhotoUrl || item.sellerPhoto || item.avatarUrl || item.photoUrl || item.profilePhotoUrl || '';
 
   return {
     id: item.id || item.slug || `p-${Date.now()}`,
@@ -899,6 +1171,7 @@ function normalizeProduct(item) {
     address: item.address || item.location || item.city || 'Jakarta',
     seller: item.seller || 'Penjual',
     sellerInitial: item.sellerInitial || (item.seller || 'P').charAt(0).toUpperCase(),
+    sellerPhotoUrl,
     description: item.description || 'Deskripsi produk belum tersedia.',
     imageUrl: primaryImage || item.imageUrl || '',
     images: parsedImages.length ? parsedImages : [primaryImage || ''],
@@ -1108,7 +1381,14 @@ function renderChatMessages(container, messages, currentUserId) {
   container.scrollTop = container.scrollHeight;
 }
 
-function renderChatThreadList(container, threadDocs, currentUserId, activeThreadId) {
+/* -------------------------------------------------------------------------
+ * Chat thread list — now resolves and shows each OTHER participant's own
+ * profile photo (via getUserAvatarMarkupByName -> resolveUserForMarketplaceLookup,
+ * which falls back to Firestore when the user isn't cached locally yet).
+ * This function is now async because fetching a photo can require a network
+ * call; callers must `await` it.
+ * ------------------------------------------------------------------------- */
+async function renderChatThreadList(container, threadDocs, currentUserId, activeThreadId) {
   if (!container) return;
 
   if (!threadDocs.length) {
@@ -1118,15 +1398,16 @@ function renderChatThreadList(container, threadDocs, currentUserId, activeThread
 
   const sorted = [...threadDocs].sort((a, b) => Number(b.updatedAt || b.lastMessageAt || 0) - Number(a.updatedAt || a.lastMessageAt || 0));
 
-  container.innerHTML = sorted.map((thread) => {
+  const rows = await Promise.all(sorted.map(async (thread) => {
     const other = getOtherParticipant(thread, currentUserId);
     const unread = computeUnreadCount(thread, currentUserId);
     const isActive = thread.id === activeThreadId;
     const preview = thread.lastMessage ? escapeHtml(thread.lastMessage) : 'Belum ada pesan';
+    const avatarMarkup = await getUserAvatarMarkupByName(other.name, other.id, other.name || 'P');
 
     return `
       <button class="chat-item ${isActive ? 'active' : ''}" type="button" data-thread-user-id="${escapeHtml(other.id || '')}" data-thread-user-name="${escapeHtml(other.name || 'Pengguna')}">
-        <div class="avatar">${escapeHtml(String(other.name || 'P').charAt(0).toUpperCase())}</div>
+        ${avatarMarkup}
         <div class="chat-item-body">
           <div class="chat-item-head">
             <strong>${escapeHtml(other.name || 'Pengguna')}</strong>
@@ -1136,7 +1417,9 @@ function renderChatThreadList(container, threadDocs, currentUserId, activeThread
         </div>
       </button>
     `;
-  }).join('');
+  }));
+
+  container.innerHTML = rows.join('');
 
   container.querySelectorAll('[data-thread-user-id]').forEach((button) => {
     button.addEventListener('click', () => {
@@ -1178,17 +1461,17 @@ async function renderChat() {
   if (threadListEl && currentUserId) {
     try {
       const listQuery = query(collection(db, 'marketplace_chats'), where('participantIds', 'array-contains', currentUserId));
-      listUnsubscribe = onSnapshot(listQuery, (snapshot) => {
+      listUnsubscribe = onSnapshot(listQuery, async (snapshot) => {
         const threadDocs = snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
         const cache = readChatThreadsCache();
         threadDocs.forEach((thread) => { cache[thread.id] = thread; });
         writeChatThreadsCache(cache);
-        renderChatThreadList(threadListEl, threadDocs, currentUserId, threadId);
-      }, (error) => {
+        await renderChatThreadList(threadListEl, threadDocs, currentUserId, threadId);
+      }, async (error) => {
         console.warn('Gagal memuat daftar chat:', error);
         const cache = readChatThreadsCache();
         const cachedDocs = Object.entries(cache).map(([id, thread]) => ({ id, ...thread }));
-        renderChatThreadList(threadListEl, cachedDocs, currentUserId, threadId);
+        await renderChatThreadList(threadListEl, cachedDocs, currentUserId, threadId);
       });
     } catch (error) {
       console.warn('Gagal membuka daftar chat:', error);
@@ -1282,39 +1565,34 @@ async function renderChat() {
 
 /* ======================= end chat system ======================= */
 
-function getUserAvatarMarkupByName(userName, userId, fallbackText = 'P') {
-  const users = readStorage(STORAGE_KEYS.USERS, []);
-  const matchedUser = users.find((entry) => {
-    const candidates = [
-      entry?.id,
-      entry?.uid,
-      entry?.email,
-      entry?.name,
-      entry?.username
-    ].filter(Boolean).map((value) => normalizeUserIdentifier(value).toLowerCase());
+async function getUserAvatarMarkupByName(userName, userId, fallbackText = 'P', preferredPhotoUrl = '') {
+  const matchedUser = await resolveUserForMarketplaceLookup(userName, userId);
+  const photoUrl = preferredPhotoUrl || getUserPhotoUrl(matchedUser || null);
+  const displayName = matchedUser?.name || userName || fallbackText;
 
-    const target = normalizeUserIdentifier(userId || userName || '').toLowerCase();
-    return target && candidates.includes(target)
-      || normalizeUserIdentifier(entry?.name || '').toLowerCase() === normalizeUserIdentifier(userName || '').toLowerCase()
-      || normalizeUserIdentifier(entry?.email || '').toLowerCase() === normalizeUserIdentifier(userName || '').toLowerCase();
-  });
-
-  const photoUrl = getUserPhotoUrl(matchedUser || null);
   return photoUrl
-    ? `<span class="avatar has-photo"><img src="${escapeHtml(photoUrl)}" alt="${escapeHtml(getSafeUserName(userName || matchedUser?.name || fallbackText))}" /></span>`
-    : `<span class="avatar">${escapeHtml((matchedUser?.name || userName || fallbackText).charAt(0).toUpperCase())}</span>`;
+    ? `<span class="avatar has-photo"><img src="${escapeHtml(photoUrl)}" alt="${escapeHtml(getSafeUserName(displayName))}" /></span>`
+    : `<span class="avatar">${escapeHtml((displayName || fallbackText).charAt(0).toUpperCase())}</span>`;
 }
 
-function renderProductCards(items) {
-  return items.map((item) => {
+async function renderProductCards(items) {
+  const renderedCards = [];
+
+  for (const item of items) {
     const normalized = normalizeProduct(item);
     const imageMarkup = normalized.imageUrl ? `<img src="${normalized.imageUrl}" alt="${escapeHtml(normalized.name)}" style="width: 100%; height: 100%; object-fit: cover;" />` : normalized.image;
     const statusLabel = normalized.status || 'Tersedia';
     const statusStyle = statusLabel === 'Terjual'
       ? 'background: rgba(220, 38, 38, 0.08); color: #b91c1c; border: 1px solid rgba(220, 38, 38, 0.18);'
       : 'background: rgba(34, 197, 94, 0.08); color: #15803d; border: 1px solid rgba(34, 197, 94, 0.18);';
-    const sellerAvatarMarkup = getUserAvatarMarkupByName(normalized.seller, normalized.sellerId || normalized.ownerId || '', normalized.sellerInitial || 'P');
-    return `
+    const sellerAvatarMarkup = await getUserAvatarMarkupByName(
+      normalized.seller,
+      normalized.sellerId || normalized.ownerId || '',
+      normalized.sellerInitial || 'P',
+      normalized.sellerPhotoUrl || ''
+    );
+
+    renderedCards.push(`
       <article class="product-card compact-card" data-category="${normalized.category}">
         <div class="image">${imageMarkup} <span class="chip">${escapeHtml(normalized.label)}</span></div>
         <div class="product-body">
@@ -1332,8 +1610,10 @@ function renderProductCards(items) {
           </div>
         </div>
       </article>
-    `;
-  }).join('');
+    `);
+  }
+
+  return renderedCards.join('');
 }
 
 function renderHomeProductsLoadingState() {
@@ -1427,7 +1707,7 @@ async function renderHomeProducts() {
   ensureDemoData();
   const renderFromItems = async (items) => {
     const normalized = items.map(normalizeProduct);
-    container.innerHTML = renderProductCards(normalized);
+    container.innerHTML = await renderProductCards(normalized);
 
     const filterButtons = document.querySelectorAll('[data-filter]');
     const cards = document.querySelectorAll('[data-category]');
@@ -1825,6 +2105,7 @@ async function handleSellSubmit(event) {
       location: payload.location || 'Jakarta',
       seller: user.name || 'Seller',
       sellerInitial: (user.name || 'S').charAt(0).toUpperCase(),
+      sellerPhotoUrl: getUserPhotoUrl(user) || '',
       sellerId: user.id || user.uid || auth.currentUser?.uid || '',
       ownerId: user.id || user.uid || auth.currentUser?.uid || '',
       image: payload.category === 'pakaian' ? '👕' : payload.category === 'aksesori' ? '⌚' : '🎁',
@@ -2171,6 +2452,7 @@ async function bindEditForm() {
         image: imageUrls[0] || normalized.imageUrl || normalized.image || productEmoji(payload.category || normalized.category),
         seller: user?.name || normalized.seller || 'Seller',
         sellerInitial: (user?.name || normalized.seller || 'S').charAt(0).toUpperCase(),
+        sellerPhotoUrl: getUserPhotoUrl(user || null) || normalized.sellerPhotoUrl || '',
         ownerId: normalized.ownerId || user?.id || user?.uid || '',
         sellerId: normalized.sellerId || normalized.ownerId || user?.id || user?.uid || ''
       };
@@ -2662,32 +2944,6 @@ async function renderMyProducts() {
   window.__marketplaceMyProductsCleanup = unsubscribe;
 }
 
-async function uploadProfilePhoto(file, userId) {
-  if (!file || !userId) return '';
-
-  const safeUserId = normalizeUserIdentifier(userId || 'user').trim() || 'user';
-  const fallbackDataUrl = await fileToDataUrl(file).catch(() => '');
-  const isLocalOrigin = window.location.protocol === 'file:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-
-  if (isLocalOrigin) {
-    console.warn('Local origin detected; skipping Firebase Storage upload for profile photo to avoid CORS hang.');
-    return fallbackDataUrl || '';
-  }
-
-  try {
-    const photoRef = ref(storage, `marketplace_users/${safeUserId}/profile-photo`);
-    await withTimeout(uploadBytes(photoRef, file), 8000, 'Upload foto profil');
-    return await withTimeout(getDownloadURL(photoRef), 8000, 'Mendapatkan URL foto profil');
-  } catch (error) {
-    console.warn('Profile photo upload to Firebase failed, using local fallback instead.', error);
-    const fallback = fallbackDataUrl || (file && typeof URL !== 'undefined' && typeof URL.createObjectURL === 'function' ? URL.createObjectURL(file) : '');
-    if (fallback) {
-      return fallback;
-    }
-    throw new Error('Gagal mengunggah foto profil. Silakan pilih foto lain atau coba lagi.');
-  }
-}
-
 function findUserByIdentifier(value) {
   const target = normalizeUserIdentifier(value || '').toLowerCase();
   if (!target) return null;
@@ -2732,14 +2988,49 @@ function renderProfile() {
     fileNameLabel.textContent = file ? `Terpilih: ${file.name}` : '';
   };
 
+  const syncProfilePhotoPreview = (photoUrl) => {
+    if (!photoPreview) return;
+    const resolvedPhoto = photoUrl || getUserPhotoUrl(user);
+    if (resolvedPhoto) {
+      photoPreview.classList.add('has-photo');
+      if (previewImage) {
+        previewImage.src = resolvedPhoto;
+        previewImage.hidden = false;
+      }
+    } else {
+      photoPreview.classList.remove('has-photo');
+      if (previewImage) previewImage.hidden = true;
+    }
+  };
+
   if (selectPhotoButton && photoInput) {
     selectPhotoButton.addEventListener('click', () => photoInput.click());
     photoInput.addEventListener('change', (event) => {
       const file = event.target.files && event.target.files[0];
+
+      if (!file) {
+        updateSelectedFileLabel(null);
+        return;
+      }
+
+      if (!file.type || !file.type.startsWith('image/')) {
+        showPopup('File yang dipilih harus berupa gambar (JPG, PNG, atau WebP).', 'Format tidak didukung', 'error');
+        photoInput.value = '';
+        updateSelectedFileLabel(null);
+        return;
+      }
+
+      if (file.size > PROFILE_PHOTO_MAX_SOURCE_BYTES) {
+        showPopup('Ukuran foto maksimal 2 MB. Silakan pilih foto yang lebih kecil.', 'Foto terlalu besar', 'error');
+        photoInput.value = '';
+        updateSelectedFileLabel(null);
+        return;
+      }
+
       updateSelectedFileLabel(file);
 
-      if (!file) return;
-
+      // Preview only — this is NOT what gets saved. The actual compressed
+      // version is generated by uploadProfilePhoto() on submit.
       const reader = new FileReader();
       reader.onload = (loadEvent) => {
         const result = String(loadEvent.target?.result || '');
@@ -2756,21 +3047,6 @@ function renderProfile() {
     submitButton.style.zIndex = '2';
     submitButton.style.pointerEvents = 'auto';
   }
-
-  const syncProfilePhotoPreview = (photoUrl) => {
-    if (!photoPreview) return;
-    const resolvedPhoto = photoUrl || getUserPhotoUrl(user);
-    if (resolvedPhoto) {
-      photoPreview.classList.add('has-photo');
-      if (previewImage) {
-        previewImage.src = resolvedPhoto;
-        previewImage.hidden = false;
-      }
-    } else {
-      photoPreview.classList.remove('has-photo');
-      if (previewImage) previewImage.hidden = true;
-    }
-  };
 
   updateSelectedFileLabel(photoInput && photoInput.files && photoInput.files[0] ? photoInput.files[0] : null);
   syncProfilePhotoPreview(getUserPhotoUrl(user));
@@ -2844,6 +3120,9 @@ function renderProfile() {
     const formData = new FormData(form);
     const file = photoInput && photoInput.files && photoInput.files[0] ? photoInput.files[0] : null;
     const userId = user.id || user.uid || auth.currentUser?.uid || '';
+
+    // Start from the current canonical photo (single field) — never carry
+    // forward legacy duplicate fields (`photo`, `profilePhotoUrl`, `avatarUrl`).
     let photoUrl = getUserPhotoUrl(user) || '';
 
     if (submitButton) {
@@ -2852,12 +3131,16 @@ function renderProfile() {
     }
 
     try {
-      if (file && userId) {
-        photoUrl = await uploadProfilePhoto(file, userId);
+      if (file) {
+        photoUrl = await uploadProfilePhoto(file);
       }
 
+      // Strip legacy photo-related keys out of the spread so they can never
+      // silently re-enter the saved object.
+      const { photo: _legacyPhoto, profilePhotoUrl: _legacyProfilePhotoUrl, avatarUrl: _legacyAvatarUrl, ...restUser } = user;
+
       const updatedUser = {
-        ...user,
+        ...restUser,
         name: formData.get('fullName') || user.name,
         username: formData.get('username') || user.username,
         email: formData.get('email') || user.email,
@@ -2868,12 +3151,19 @@ function renderProfile() {
         location: formData.get('alamat') || user.location || user.address || user.city,
         latitude: formData.get('latitude') || user.latitude || '',
         longitude: formData.get('longitude') || user.longitude || '',
-        photoUrl,
-        profilePhotoUrl: photoUrl,
+        photoUrl
       };
 
       if (userId) {
-        await setDoc(doc(db, 'marketplace_users', userId), updatedUser, { merge: true });
+        // Write the canonical field AND explicitly delete the old duplicate
+        // fields from Firestore itself (deleteField), so previously-bloated
+        // documents shrink back down instead of staying triplicated forever.
+        await setDoc(doc(db, 'marketplace_users', userId), {
+          ...updatedUser,
+          photo: deleteField(),
+          profilePhotoUrl: deleteField(),
+          avatarUrl: deleteField()
+        }, { merge: true });
       }
 
       const users = readStorage(STORAGE_KEYS.USERS, []);
@@ -2885,6 +3175,7 @@ function renderProfile() {
       }
       writeStorage(STORAGE_KEYS.USERS, users);
       setCurrentUser(updatedUser);
+      await syncSellerPhotosAcrossProducts(updatedUser);
       hydrateUserProfileUI();
       syncProfilePhotoPreview(photoUrl);
       showPopup('Profil berhasil diperbarui.', 'Berhasil', 'success');
@@ -3069,10 +3360,17 @@ async function renderProductDetail() {
   const detailSeller = document.querySelector('[data-detail-seller]');
   if (detailSeller) detailSeller.textContent = normalized.seller;
 
+  // Seller avatar on the product detail page: resolve via
+  // resolveUserForMarketplaceLookup so it falls back to Firestore when the
+  // seller isn't cached in this browser's localStorage yet (e.g. a buyer
+  // opening the marketplace for the very first time on a new device).
+  // findUserByIdentifier() alone (localStorage-only) was the cause of
+  // seller photos silently not appearing on other devices.
   const detailSellerInitial = document.querySelector('[data-detail-seller-initial]');
   if (detailSellerInitial) {
-    const sellerUser = findUserByIdentifier(normalized.sellerId || normalized.ownerId || resolveUserIdByName(normalized.seller) || normalized.seller || '');
-    const sellerPhoto = getUserPhotoUrl(sellerUser || null);
+    const sellerIdentifier = normalized.sellerId || normalized.ownerId || resolveUserIdByName(normalized.seller) || normalized.seller || '';
+    const sellerUser = await resolveUserForMarketplaceLookup(normalized.seller, sellerIdentifier);
+    const sellerPhoto = normalized.sellerPhotoUrl || getUserPhotoUrl(sellerUser || null);
     if (sellerPhoto) {
       detailSellerInitial.innerHTML = `<img src="${escapeHtml(sellerPhoto)}" alt="${escapeHtml(normalized.seller)}" />`;
       detailSellerInitial.classList.add('has-photo');
@@ -3191,7 +3489,34 @@ function bindLogoutButtons() {
   });
 }
 
+function bindRepairSellerPhotosButton() {
+  const button = document.querySelector('[data-repair-seller-photos]');
+  if (!button) return;
+
+  button.addEventListener('click', async () => {
+    const originalText = button.textContent;
+    button.disabled = true;
+    button.textContent = 'Memperbaiki avatar...';
+
+    try {
+      const updatedCount = await repairMarketplaceSellerPhotos({ silent: false });
+      if (updatedCount > 0) {
+        showPopup(`Berhasil memperbarui avatar untuk ${updatedCount} produk lama.`, 'Berhasil', 'success');
+      } else {
+        showPopup('Semua produk sudah memiliki avatar seller yang lengkap.', 'Info', 'info');
+      }
+    } catch (error) {
+      console.error('Repair seller photos failed:', error);
+      showPopup('Gagal memperbaiki avatar produk lama. Silakan coba lagi nanti.', 'Gagal', 'error');
+    } finally {
+      button.disabled = false;
+      button.textContent = originalText;
+    }
+  });
+}
+
 async function init() {
+  await migrateExistingProductSellerPhotos();
   ensureDemoData();
   handleSidebarState();
   bindLogoutButtons();
