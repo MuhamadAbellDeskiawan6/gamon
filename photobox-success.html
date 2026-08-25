@@ -17,7 +17,7 @@
         <div id="successContent" class="hidden space-y-6">
             <div class="space-y-2">
                 <div class="inline-flex items-center justify-center w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full text-2xl mb-2">
-                    ✅
+                    <span class="material-symbols-outlined text-[2rem]">check_circle</span>
                 </div>
                 <h1 class="text-2xl font-bold text-slate-800">Pesanan Photobox Berhasil!</h1>
                 <p class="text-xs text-slate-500">Tunjukkan halaman ini saat mengambil merchandise di lokasi kami.</p>
@@ -52,15 +52,17 @@
 
             <div class="bg-blue-50 border border-blue-200 rounded-2xl p-4 text-left space-y-3">
                 <div class="flex items-center space-x-2 text-blue-900 font-bold text-xs">
-                    <span>📍 Lokasi Pengambilan</span>
+                    <span class="material-symbols-outlined text-sm">location_on</span>
+                    <span>Lokasi Pengambilan</span>
                 </div>
                 <p class="text-xs text-blue-800 leading-relaxed">
                     Jl. Kelayan A Gg. Sidodadi No.75 RT.009 RW.001, Kel. Murung Raya, Kec. Banjarmasin Selatan, Kota Banjarmasin
                 </p>
                 <p class="text-xs text-blue-700 font-semibold">Buka setiap hari. Tunjukkan order ID ini saat datang.</p>
                 <div class="pt-1">
-                    <a href="https://maps.google.com/?q=-3.341675686710689,114.5969296323192" target="_blank" class="inline-flex items-center justify-center w-full bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold py-2.5 rounded-xl transition shadow-sm">
-                        🗺️ Buka Google Maps
+                    <a href="https://maps.google.com/?q=-3.341675686710689,114.5969296323192" target="_blank" class="inline-flex items-center justify-center gap-2 w-full bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold py-2.5 rounded-xl transition shadow-sm">
+                        <span class="material-symbols-outlined text-sm">map</span>
+                        <span>Buka Google Maps</span>
                     </a>
                 </div>
             </div>
@@ -72,7 +74,7 @@
 
         <div id="errorContent" class="hidden space-y-4 py-8">
             <div class="inline-flex items-center justify-center w-16 h-16 bg-rose-100 text-rose-600 rounded-full text-2xl mb-2">
-                ❌
+                <span class="material-symbols-outlined text-[2rem]">error</span>
             </div>
             <h2 id="errorTitle" class="text-lg font-bold text-slate-800">Gagal Memuat Pesanan</h2>
             <p id="errorMessage" class="text-xs text-slate-500"></p>

@@ -125,8 +125,8 @@ function openModal(data, id) {
     const isPhotobox = data.type === 'photobox';
 
     document.getElementById('modalBadgeEl').innerHTML = isPhotobox
-        ? '<span class="modal-badge badge-photobox">📸 Photobox</span>'
-        : '<span class="modal-badge badge-curhat">💌 Curhat</span>';
+        ? '<span class="modal-badge badge-photobox"><span class="material-symbols-outlined" style="font-size:13px;vertical-align:middle;">photo_camera</span> Photobox</span>'
+        : '<span class="modal-badge badge-curhat"><span class="material-symbols-outlined" style="font-size:13px;vertical-align:middle;">mail</span> Curhat</span>';
 
     const nama = esc(data.nama || 'Anonim');
     const tujuan = esc(data.tujuan || 'Seseorang');
@@ -250,7 +250,7 @@ function placeBubbles(postsList) {
 
             const short = (s, n) => s && s.length > n ? s.slice(0, n - 1) + '…' : (s || '');
             bubble.innerHTML = `
-                <span class="bubble-emoji">${item.type === 'photobox' ? '📸' : '💌'}</span>
+                <span class="bubble-emoji material-symbols-outlined">${item.type === 'photobox' ? 'photo_camera' : 'mail'}</span>
                 <span class="bubble-from">${short(item.nama || 'Anonim', 7)}</span>
                 <span class="bubble-to">${short(item.tujuan || 'Seseorang', 7)}</span>
                 <span class="bubble-likes">♥ ${item.likes || 0}</span>
@@ -325,7 +325,7 @@ async function loadPosts(isLoadMore = false) {
     if (!isLoadMore) {
         posts = [];
         lastVisible = null;
-        setLoadingMessage('Memuat pesan-pesan rindu... ✦');
+        setLoadingMessage('Memuat pesan-pesan rindu...');
     } else {
         setLoadingMessage('Memuat lebih banyak pesan...');
     }
@@ -372,7 +372,7 @@ async function loadPosts(isLoadMore = false) {
         }
     } catch (e) {
         console.error('Gagal load data:', e);
-        setLoadingMessage('Gagal memuat pesan 😢');
+        setLoadingMessage('Gagal memuat pesan');
         bubbleCanvas.innerHTML = '';
     } finally {
         isLoading = false;

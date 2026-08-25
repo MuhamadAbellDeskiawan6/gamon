@@ -6,7 +6,7 @@
     <title>Remnics By Gamon Tawing</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Playfair+Display:ital,wght=1,500;1,600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Chewy&family=Baloo+2:wght@400;500;600;700;800&family=Nunito+Round:wght@400;500;600;700;800&family=Itim&display=swap" rel="stylesheet">
 
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/selfie_segmentation.js" crossorigin="anonymous"></script>
@@ -16,6 +16,24 @@
         body {
             background: linear-gradient(180deg, #fdfbfb 0%, #ebedee 100%);
         }
+        body, input, textarea, button, select, label, p, h1, h2, h3, h4, div {
+            font-family: "Nunito Round", "Baloo 2", "Chewy", "Itim", sans-serif !important;
+        }
+        .material-symbols-outlined {
+            font-family: 'Material Symbols Outlined' !important;
+            font-style: normal;
+            font-weight: normal;
+            font-size: inherit;
+            line-height: 1;
+            letter-spacing: normal;
+            text-transform: none;
+            display: inline-block;
+            white-space: nowrap;
+            word-wrap: normal;
+            direction: ltr;
+            -webkit-font-smoothing: antialiased;
+            font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+        }
         .bg-thumb {
             cursor: pointer;
             transition: all 0.2s ease;
@@ -23,9 +41,6 @@
         .bg-thumb.active {
             border-color: #1e293b;
             transform: scale(1.03);
-        }
-        .material-symbols-outlined {
-            font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
         }
         @keyframes float {
             0%, 100% { transform: translateY(0px) rotate(12deg); }
@@ -110,7 +125,7 @@
         }
     </style>
 </head>
-<body class="font-['Plus_Jakarta+Sans'] flex flex-col items-center min-h-screen p-3 sm:p-6 lg:p-10 relative overflow-x-hidden select-none py-10">
+<body class="font-['Nunito_Round'] flex flex-col items-center min-h-screen p-3 sm:p-6 lg:p-10 relative overflow-x-hidden select-none py-10">
 
     <!-- MAIN PAGE WRAPPER -->
     <div class="w-full max-w-6xl relative z-10">
@@ -126,10 +141,11 @@
 
             <div class="text-center max-w-xl mx-auto">
                 <div class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-neutral-200/60 text-neutral-700 font-medium text-[10px] tracking-wider uppercase mb-2">
-                    🔒 Secure Payment Verified
+                    <span class="material-symbols-outlined text-[12px]">lock</span>
+                    Secure Payment Verified
                 </div>
-                <h1 class="text-2xl sm:text-3xl font-bold text-neutral-900 tracking-tight font-['Playfair_Display'] italic">
-                    Remnics <span class="not-italic text-sm text-neutral-400">by Gamon Tawing</span>
+                <h1 class="text-2xl sm:text-3xl font-bold text-neutral-900 tracking-tight font-['Chewy'] leading-none">
+                    Remnics <span class="text-sm text-neutral-400 font-['Baloo_2']">by Gamon Tawing</span>
                 </h1>
                 <p class="text-[11px] sm:text-xs text-neutral-500 mt-1.5 max-w-sm mx-auto leading-relaxed">
                     Abadikan foto berdua, simpan pesan rahasia, dan terima berupa fisik <span class="font-semibold text-neutral-800 underline decoration-neutral-300">Merchandise Polaroid Minimalis</span> tepat di depan rumah.
@@ -149,7 +165,7 @@
                         <div class="w-4 h-4 sm:w-5 sm:h-5 rounded-full border-2 border-gray-400 bg-transparent mb-[-4px] shadow-sm z-30"></div>
                         <div class="bg-white/90 backdrop-blur-sm p-1.5 pb-4 sm:p-2 sm:pb-6 rounded-lg shadow-[0_8px_20px_rgba(0,0,0,0.06)] border border-white/60 w-full text-center">
                             <img id="assetCoupleKeychain" src="https://images.unsplash.com/photo-1516589178581-6cd7833ae3b2?auto=format&fit=crop&w=300&q=80" alt="Merchandise Polaroid" class="w-full aspect-square object-cover rounded-md grayscale-[20%]">
-                            <span class="block mt-1 sm:mt-2 font-['Playfair_Display'] italic text-[8px] sm:text-[9px] text-gray-400">core memory</span>
+                            <span class="block mt-1 sm:mt-2 font-['Itim'] text-[8px] sm:text-[9px] text-gray-400">core memory</span>
                         </div>
                     </div>
 
@@ -157,7 +173,7 @@
                     <div class="booth-sticker absolute -bottom-10 -left-6 w-24 sm:w-28 md:w-28 flex-col items-center pointer-events-none z-20 animate-float-reverse origin-bottom">
                         <div class="bg-white/90 backdrop-blur-sm p-1.5 pb-4 sm:p-2 sm:pb-6 rounded-lg shadow-[0_8px_20px_rgba(0,0,0,0.06)] border border-white/60 w-full text-center">
                             <img id="assetPolaroidCamera" src="https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?auto=format&fit=crop&w=300&q=80" alt="Polaroid Camera Physical" class="w-full aspect-square object-cover rounded-md">
-                            <span class="block mt-1 sm:mt-2 font-['Playfair_Display'] italic text-[8px] sm:text-[9px] text-gray-400">instax 90s</span>
+                            <span class="block mt-1 sm:mt-2 font-['Itim'] text-[8px] sm:text-[9px] text-gray-400">instax 90s</span>
                         </div>
                     </div>
 
@@ -195,7 +211,7 @@ height:64.10%;
                                 <div id="flashOverlay" class="absolute inset-0 bg-white opacity-0 transition-opacity duration-100 pointer-events-none z-40"></div>
 
                                 <!-- Countdown -->
-                                <div id="countdownDisplay" class="hidden absolute inset-0 flex items-center justify-center text-7xl font-light text-white font-['Playfair_Display'] z-50 bg-black/30 backdrop-blur-xs">
+                                <div id="countdownDisplay" class="hidden absolute inset-0 flex items-center justify-center text-7xl font-light text-white font-['Baloo_2'] z-50 bg-black/30 backdrop-blur-xs">
                                     5
                                 </div>
                             </div>
@@ -236,8 +252,9 @@ height:64.10%;
 
                     <!-- FRAME SELECTOR -->
                     <div id="frameSelector" class="hidden mb-1 text-left">
-                        <label class="block text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-2">
-                            🖼 Pilih Frame
+                        <label class="block text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-2 flex items-center gap-1">
+                            <span class="material-symbols-outlined text-sm">photo_library</span>
+                            Pilih Frame
                         </label>
                         <div id="frameOptions" class="flex gap-2 overflow-x-auto pb-1"></div>
                         <p id="frameLoadingMessage" class="mt-2 text-[10px] text-neutral-400">Memuat daftar frame...</p>
@@ -310,8 +327,9 @@ height:64.10%;
                                 <span class="material-symbols-outlined text-xs" style="font-variation-settings: 'FILL' 1, 'wght' 300, 'GRAD' 0, 'opsz' 24;">diamond</span>
                                 Program Launching
                             </span>
-                            <h2 class="text-[18px] sm:text-[20px] font-semibold leading-tight text-neutral-900 font-['Playfair_Display'] italic">
-                                Mau Ada Photobooth di Pernikahanmu? 💍
+                            <h2 class="text-[18px] sm:text-[20px] font-semibold leading-tight text-neutral-900 font-['Baloo_2'] flex items-center gap-2">
+                                <span>Mau Ada Photobooth di Pernikahanmu?</span>
+                                <span class="material-symbols-outlined text-[20px] text-rose-500">diamond</span>
                             </h2>
                             <p class="mt-1 text-[11px] sm:text-xs font-medium leading-relaxed text-neutral-700">
                                 Gamon Tawing sedang membuka kerja sama Wedding Photobooth GRATIS untuk acara pernikahan terpilih.
@@ -1949,7 +1967,7 @@ height:64.10%;
 
         if (!guestMode) {
             ctx.fillStyle = frameTextColor;
-            ctx.font = "italic 500 22px 'Playfair Display', serif";
+            ctx.font = "600 22px 'Baloo 2', 'Nunito Round', sans-serif";
 
             ctx.textAlign = "left";
             ctx.fillText(`Dear: ${tujuan}`, 100, 1145);
@@ -1992,7 +2010,7 @@ height:64.10%;
 
             if (pesan && pesan.trim() !== '') {
                 ctx.fillStyle = frameTextColor;
-                ctx.font = "italic 500 24px 'Playfair Display', serif";
+                ctx.font = "600 24px 'Baloo 2', 'Nunito Round', sans-serif";
                 ctx.textAlign = 'left';
 
                 const words = pesan.split(' ');

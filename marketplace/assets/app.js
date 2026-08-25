@@ -169,7 +169,7 @@ function showConfirm({
     overlay.setAttribute('data-confirm-overlay', '');
     overlay.innerHTML = `
       <div class="modal-card modal-card-confirm" role="dialog" aria-modal="true">
-        <div class="modal-icon" data-confirm-icon>⚠️</div>
+        <div class="modal-icon" data-confirm-icon><span class="material-symbols-outlined">warning</span></div>
         <h3 data-confirm-title></h3>
         <p data-confirm-message></p>
         <div class="modal-actions modal-actions-split">
@@ -197,7 +197,13 @@ function showConfirm({
   card.style.borderColor = tone === 'error' ? '#f6c0c0' : tone === 'warning' ? '#f5d7ae' : '#dce7ff';
   card.style.boxShadow = tone === 'error' ? '0 18px 50px rgba(177, 54, 54, 0.14)' : tone === 'warning' ? '0 18px 50px rgba(210, 129, 36, 0.14)' : '0 18px 50px rgba(0,0,0,0.16)';
   if (iconEl) {
-    iconEl.textContent = tone === 'error' ? '🗑️' : tone === 'success' ? '✅' : '⚠️';
+    const iconMap = {
+      error: 'delete',
+      success: 'check_circle',
+      warning: 'warning'
+    };
+    const iconName = iconMap[tone] || 'warning';
+    iconEl.innerHTML = `<span class="material-symbols-outlined">${iconName}</span>`;
   }
 
   const close = () => {
@@ -1152,9 +1158,9 @@ function productLabel(category) {
 }
 
 function productEmoji(category) {
-  if (category === 'pakaian') return '👕';
-  if (category === 'aksesori') return '⌚';
-  return '🎁';
+  if (category === 'pakaian') return 'checkroom';
+  if (category === 'aksesori') return 'watch';
+  return 'card_giftcard';
 }
 
 function normalizeProduct(item) {
@@ -1646,7 +1652,7 @@ async function getUserAvatarMarkupByName(userName, userId, fallbackText = 'P', p
     : `<span class="avatar">${escapeHtml((displayName || fallbackText).charAt(0).toUpperCase())}</span>`;
 }
 
-function chunkProducts(items, chunkSize = 5) {
+function chunkProducts(items, chunkSize = 4) {
   const chunks = [];
   for (let index = 0; index < items.length; index += chunkSize) {
     chunks.push(items.slice(index, index + chunkSize));
@@ -1696,7 +1702,7 @@ async function renderProductCards(items) {
 }
 
 function renderProductCarousel(items) {
-  const chunks = chunkProducts(items, 5);
+  const chunks = chunkProducts(items, 4);
   if (!chunks.length) {
     return `
       <div class="product-carousel product-carousel-empty">
@@ -2153,7 +2159,7 @@ async function renderDashboard() {
       productList.innerHTML = `
         <div style="display: grid; place-items: center; text-align: center; min-height: 180px;">
           <div>
-            <div style="font-size: 2.5rem; margin-bottom: 12px;">📦</div>
+            <div style="font-size: 2.5rem; margin-bottom: 12px;"><span class="material-symbols-outlined">inventory_2</span></div>
             <h3 style="margin: 0 0 8px;">Belum ada produk</h3>
             <p class="muted" style="margin: 0;">Mulai dengan menambahkan barang pertama Anda.</p>
           </div>
