@@ -3,17 +3,230 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pesan Suara Gamon Booth</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>Pesan Suara Rahasia - Gamon Tawing</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    fontFamily: {
+                        "body-md": ["Inter"],
+                        "display-lg": ["Playfair Display"],
+                        "label-md": ["Inter"]
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        html, body {
+            margin: 0;
+            min-height: 100%;
+        }
+
+        body {
+            background: linear-gradient(180deg, #010A17 0%, #0A4267 30%, #20658E 60%, #6BADC4 100%) fixed;
+            min-height: 100vh;
+            overflow-x: hidden;
+            color: rgba(255,255,255,0.9);
+        }
+
+        .star-particle {
+            position: absolute;
+            background: #e7d8ff;
+            border-radius: 50%;
+            opacity: 0.55;
+            pointer-events: none;
+            box-shadow: 0 0 6px rgba(231,216,255,0.6);
+        }
+
+        .space-decor {
+            position: absolute;
+            pointer-events: none;
+            opacity: 0.2;
+            filter: blur(4px);
+            animation: spaceFloat 18s infinite ease-in-out alternate;
+        }
+
+        @keyframes spaceFloat {
+            0% { transform: translateY(0px) rotate(0deg) scale(1); }
+            100% { transform: translateY(-30px) rotate(15deg) scale(1.15); }
+        }
+
+        @keyframes pulse-soft {
+            0%, 100% { transform: scale(1); opacity: 0.4; }
+            50% { transform: scale(1.5); opacity: 0.7; }
+        }
+
+        #gtSkyLayer {
+            position: fixed;
+            inset: 0;
+            z-index: 2;
+            pointer-events: none;
+            overflow: hidden;
+        }
+
+        .gt-cloud {
+            position: absolute;
+            bottom: -6%;
+            width: 620px;
+            max-width: 62vw;
+            opacity: 0.5;
+            will-change: transform;
+            transform: translate3d(0,0,0);
+        }
+
+        .gt-cloud img {
+            width: 100%;
+            display: block;
+        }
+
+        .gt-cloud-left { left: -12%; }
+        .gt-cloud-right { right: -14%; transform: scaleX(-1); }
+
+        .content-shell {
+            position: relative;
+            z-index: 10;
+            max-width: 980px;
+            width: min(100% - 24px, 980px);
+            margin: 0 auto;
+            padding: 2rem 0 3rem;
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.09);
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 18px 42px -18px rgba(1,10,23,0.45);
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.7rem 1rem;
+            border-radius: 9999px;
+            background: linear-gradient(135deg, #f9d8c5 0%, #f7d9e8 35%, #dfe7ff 100%);
+            color: #2f1f26;
+            font-weight: 600;
+            border: 1px solid rgba(255,255,255,0.45);
+            box-shadow: 0 8px 24px rgba(1,10,23,0.2);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .back-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 12px 26px rgba(1,10,23,0.28);
+        }
+
+        .voice-card {
+            width: min(100%, 460px);
+            margin: 0 auto;
+            border-radius: 28px;
+            padding: 2rem 1.5rem;
+            text-align: center;
+        }
+
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+
+        #audioPlayer {
+            width: 100%;
+            border-radius: 999px;
+            margin-top: 1rem;
+            background: rgba(255,255,255,0.04);
+        }
+
+        @media (max-width: 768px) {
+            .gt-cloud { display: none; }
+            .content-shell {
+                width: min(100% - 18px, 980px);
+                padding-top: 1.25rem;
+            }
+        }
+    </style>
 </head>
-<body class="bg-pink-50 flex items-center justify-center min-h-screen p-4">
-    <div class="bg-white p-6 rounded-2xl shadow-lg w-full max-w-sm text-center border border-pink-100">
-        <h2 class="text-xl font-bold text-gray-800">Pesan Suara Rahasia 💌</h2>
-        <p class="text-xs text-gray-500 mt-1 mb-6">Jika anda pengguna Iphone silahkan putar 2x untuk</p>
-        
-        <div id="loading" class="text-sm text-gray-400">Memuat audio...</div>
-        <audio id="audioPlayer" class="w-full hidden" controls></audio>
+<body class="font-body-md text-white selection:bg-primary-container selection:text-white">
+    <div id="spaceBackground" class="fixed inset-0 pointer-events-none z-0">
+        <div class="fixed inset-0" id="stars"></div>
     </div>
+
+    <div id="gtSkyLayer">
+        <div class="gt-cloud gt-cloud-left" id="gtCloudLeft">
+            <img src="https://soft-zoom-63098134.figma.site/_assets/v11/0d6dfd3f90b930f21726f2ed56a3320d79b7a797.png" alt="" />
+        </div>
+        <div class="gt-cloud gt-cloud-right" id="gtCloudRight">
+            <img src="https://soft-zoom-63098134.figma.site/_assets/v11/0d6dfd3f90b930f21726f2ed56a3320d79b7a797.png" alt="" />
+        </div>
+    </div>
+
+    <main class="content-shell">
+        <a class="back-btn mb-5" href="index.html">
+            <span class="material-symbols-outlined">arrow_back</span>
+            <span>Kembali</span>
+        </a>
+
+        <div class="glass-card voice-card">
+            <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-white/10 border border-white/15 mb-4">
+                <span class="material-symbols-outlined text-3xl text-pink-200">headphones</span>
+            </div>
+            <h2 class="text-2xl font-bold text-white">Pesan Suara Rahasia</h2>
+            <p class="text-sm text-white/70 mt-2 mb-6">Jika Anda pengguna iPhone, silakan putar dua kali untuk kualitas audio yang lebih optimal.</p>
+
+            <div id="loading" class="text-sm text-white/60">Memuat audio...</div>
+            <audio id="audioPlayer" class="hidden" controls></audio>
+        </div>
+    </main>
+
+    <script>
+        const starsEl = document.getElementById('stars');
+        for (let i = 0; i < 60; i++) {
+            const s = document.createElement('div');
+            s.className = 'star-particle';
+            const sz = 2 + Math.random() * 4;
+            s.style.cssText = `width:${sz}px;height:${sz}px;left:${Math.random()*100}%;top:${Math.random()*100}%;animation:pulse-soft ${3+Math.random()*6}s infinite ease-in-out;animation-delay:${Math.random()*5}s`;
+            starsEl.appendChild(s);
+        }
+
+        const spaceEmojis = ['☁️', '🪐', '✨', '☁️', '🌙'];
+        for (let i = 0; i < 6; i++) {
+            const decor = document.createElement('div');
+            decor.className = 'space-decor';
+            decor.textContent = spaceEmojis[i % spaceEmojis.length];
+            decor.style.fontSize = (40 + Math.random() * 60) + 'px';
+            decor.style.left = (Math.random() * 90) + '%';
+            decor.style.top = (Math.random() * 80) + '%';
+            decor.style.animationDelay = (Math.random() * -10) + 's';
+            decor.style.animationDuration = (15 + Math.random() * 15) + 's';
+            document.getElementById('spaceBackground').appendChild(decor);
+        }
+
+        (function () {
+            const cloudL = document.getElementById('gtCloudLeft');
+            const cloudR = document.getElementById('gtCloudRight');
+            if (!cloudL || !cloudR) return;
+
+            let targetY = 0, currentY = 0;
+            function onScroll() {
+                targetY = window.scrollY || window.pageYOffset || 0;
+            }
+            window.addEventListener('scroll', onScroll, { passive: true });
+
+            function tick() {
+                currentY += (targetY - currentY) * 0.06;
+                cloudL.style.transform = `translate3d(${-currentY * 0.03}px, ${-currentY * 0.05}px, 0)`;
+                cloudR.style.transform = `translate3d(${currentY * 0.03}px, ${-currentY * 0.05}px, 0) scaleX(-1)`;
+                requestAnimationFrame(tick);
+            }
+            requestAnimationFrame(tick);
+        })();
+    </script>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
@@ -31,7 +244,6 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // Ambil orderId dari parameter URL (?orderId=xxxx)
         const urlParams = new URLSearchParams(window.location.search);
         const orderId = urlParams.get('orderId');
 
@@ -42,7 +254,6 @@
             }
 
             try {
-                // Cari dokumen di 'photobox_order' yang orderId-nya cocok
                 const q = query(collection(db, "photobox_order"), where("orderId", "==", orderId));
                 const querySnapshot = await getDocs(q);
 

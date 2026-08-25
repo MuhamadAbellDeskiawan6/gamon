@@ -98,94 +98,227 @@
         }
     </script>
 <style>
+        html, body {
+            margin: 0;
+            min-height: 100%;
+        }
+
         body {
-            background: linear-gradient(135deg, #fef8fa 0%, #fce4ec 50%, #f2ecee 100%);
+            background: linear-gradient(180deg, #010A17 0%, #0A4267 30%, #20658E 60%, #6BADC4 100%) fixed;
             min-height: 100vh;
+            overflow-x: hidden;
+            color: rgba(255,255,255,0.9);
         }
+
+        .star-particle {
+            position: absolute;
+            background: #e7d8ff;
+            border-radius: 50%;
+            opacity: 0.55;
+            pointer-events: none;
+            box-shadow: 0 0 6px rgba(231,216,255,0.6);
+        }
+
+        .space-decor {
+            position: absolute;
+            pointer-events: none;
+            opacity: 0.2;
+            filter: blur(4px);
+            animation: spaceFloat 18s infinite ease-in-out alternate;
+        }
+
+        @keyframes spaceFloat {
+            0% { transform: translateY(0px) rotate(0deg) scale(1); }
+            100% { transform: translateY(-30px) rotate(15deg) scale(1.15); }
+        }
+
+        @keyframes pulse-soft {
+            0%, 100% { transform: scale(1); opacity: 0.4; }
+            50% { transform: scale(1.5); opacity: 0.7; }
+        }
+
+        #gtSkyLayer {
+            position: fixed;
+            inset: 0;
+            z-index: 2;
+            pointer-events: none;
+            overflow: hidden;
+        }
+
+        .gt-cloud {
+            position: absolute;
+            bottom: -6%;
+            width: 620px;
+            max-width: 62vw;
+            opacity: 0.5;
+            will-change: transform;
+            transform: translate3d(0,0,0);
+        }
+
+        .gt-cloud img {
+            width: 100%;
+            display: block;
+        }
+
+        .gt-cloud-left { left: -12%; }
+        .gt-cloud-right { right: -14%; transform: scaleX(-1); }
+
+        .content-shell {
+            position: relative;
+            z-index: 10;
+            max-width: 980px;
+            width: min(100% - 24px, 980px);
+            margin: 0 auto;
+            padding: 2rem 0 3rem;
+        }
+
         .glass-card {
-            background: rgba(255, 255, 255, 0.7);
-            backdrop-filter: blur(16px);
-            border: 1px solid rgba(255, 255, 255, 0.5);
-            box-shadow: 0 8px 32px 0 rgba(107, 90, 96, 0.08);
+            background: rgba(255, 255, 255, 0.09);
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 18px 42px -18px rgba(1,10,23,0.45);
         }
+
         .input-focus:focus {
-            box-shadow: 0 0 0 4px rgba(252, 228, 236, 0.5);
-            border-color: #d7c1c8;
+            box-shadow: 0 0 0 4px rgba(252, 228, 236, 0.22);
+            border-color: rgba(255,255,255,0.4);
         }
+
         .material-symbols-outlined {
             font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
         }
-        /* Style Tambahan untuk Peta Input */
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.7rem 1rem;
+            border-radius: 9999px;
+            background: linear-gradient(135deg, #f9d8c5 0%, #f7d9e8 35%, #dfe7ff 100%);
+            color: #2f1f26;
+            font-weight: 600;
+            border: 1px solid rgba(255,255,255,0.45);
+            box-shadow: 0 8px 24px rgba(1,10,23,0.2);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .back-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 12px 26px rgba(1,10,23,0.28);
+        }
+
+        .submit-btn {
+            background: linear-gradient(135deg, #f9d8c5 0%, #f7d9e8 35%, #dfe7ff 100%);
+            color: #2f1f26;
+            box-shadow: 0 10px 24px rgba(1,10,23,0.2);
+        }
+
+        .submit-btn:hover {
+            filter: brightness(1.02);
+        }
+
         #inputMap {
             height: 250px;
             width: 100%;
-            border-radius: 0.5rem;
-            border: 1px solid #d0c3c7;
+            border-radius: 0.85rem;
+            border: 1px solid rgba(255,255,255,0.15);
             z-index: 1;
+        }
+
+        .leaflet-container {
+            background: rgba(12, 35, 48, 0.7);
+            border-radius: 0.85rem;
+        }
+
+        .text-soft {
+            color: rgba(255,255,255,0.74);
+        }
+
+        @media (max-width: 768px) {
+            .gt-cloud { display: none; }
+            .content-shell {
+                width: min(100% - 18px, 980px);
+                padding-top: 1.25rem;
+            }
         }
     </style>
 </head>
-<body class="font-body-md text-on-surface selection:bg-primary-container selection:text-on-primary-container">
-<main class="relative z-10 flex flex-col items-center justify-center min-h-screen px-margin-mobile md:px-container-padding py-section-gap">
-<a class="self-start mb-unit flex items-center gap-2 text-on-surface-variant hover:text-primary transition-colors duration-200 group" href="index.html">
+<body class="font-body-md text-white/90 selection:bg-primary-container selection:text-white">
+<div class="fixed inset-0 pointer-events-none z-0" id="spaceBackground">
+    <div class="fixed inset-0" id="stars"></div>
+</div>
+
+<div id="gtSkyLayer">
+    <div class="gt-cloud gt-cloud-left" id="gtCloudLeft">
+        <img src="https://soft-zoom-63098134.figma.site/_assets/v11/0d6dfd3f90b930f21726f2ed56a3320d79b7a797.png" alt="" />
+    </div>
+    <div class="gt-cloud gt-cloud-right" id="gtCloudRight">
+        <img src="https://soft-zoom-63098134.figma.site/_assets/v11/0d6dfd3f90b930f21726f2ed56a3320d79b7a797.png" alt="" />
+    </div>
+</div>
+
+<main class="content-shell">
+<a class="back-btn self-start mb-5 group" href="index.html">
 <span class="material-symbols-outlined transition-transform group-hover:-translate-x-1">arrow_back</span>
-<span class="font-label-md text-label-md">Kembali ke Beranda</span>
+<span>Kembali</span>
 </a>
-<section class="glass-card w-full max-w-2xl p-gutter md:p-container-padding rounded-xl">
-<div class="mb-gutter text-center">
-<h1 class="font-display-lg text-headline-md md:text-display-lg text-primary mb-2 flex items-center justify-center gap-2">Sampaikan Gamonmu <span class="material-symbols-outlined text-[1.3em]">favorite</span></h1>
-<p class="font-body-md text-on-surface-variant">Tidak perlu memendam semuanya sendirian. Bagikan ceritamu secara anonim.</p>
+
+<section class="glass-card w-full p-5 sm:p-8 md:p-10 rounded-[30px]">
+<div class="mb-8 text-center">
+<h1 class="font-display-lg text-3xl sm:text-4xl md:text-5xl text-white mb-3 flex items-center justify-center gap-2">Sampaikan Gamonmu <span class="material-symbols-outlined text-[1.3em]">favorite</span></h1>
+<p class="font-body-md text-soft">Tidak perlu memendam semuanya sendirian. Bagikan ceritamu secara anonim.</p>
 </div>
-<div class="bg-primary-container/30 border border-primary-container/50 rounded-lg p-unit mb-gutter flex items-center gap-3">
-<span class="material-symbols-outlined text-primary-fixed-variant" style="font-variation-settings: 'FILL' 1;">encrypted</span>
-<p class="font-label-md text-label-md text-on-primary-container">Privasi Terjamin: Pesan anda aman terenkripsi di sistem kami.</p>
+<div class="bg-white/6 border border-white/15 rounded-2xl p-4 mb-8 flex items-center gap-3">
+<span class="material-symbols-outlined text-white" style="font-variation-settings: 'FILL' 1;">encrypted</span>
+<p class="font-label-md text-label-md text-white/90">Privasi Terjamin: Pesan Anda aman terenkripsi di sistem kami.</p>
 </div>
-<form class="space-y-gutter" id="submitForm">
-<div class="space-y-unit">
+<form class="space-y-6" id="submitForm">
+<div class="space-y-4">
 <div>
-<label class="block font-label-md text-label-md text-on-surface-variant mb-1" for="senderName">Nama kamu</label>
-<input class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-gutter py-2 text-on-surface focus:outline-none input-focus transition-all" id="senderName" placeholder="Siapa yang menyimpan rasa ini?" required="" type="text"/>
-</div>
-<div>
-<label class="block font-label-md text-label-md text-on-surface-variant mb-1" for="receiverName">Untuk siapa</label>
-<input class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-gutter py-2 text-on-surface focus:outline-none input-focus transition-all" id="receiverName" placeholder="Kepada siapa pesan ini tertuju?" required="" type="text"/>
+<label class="block font-label-md text-label-md text-white/80 mb-2" for="senderName">Nama kamu</label>
+<input class="w-full bg-white/5 border border-white/15 rounded-xl px-4 py-3 text-white placeholder:text-white/40 focus:outline-none input-focus transition-all" id="senderName" placeholder="Siapa yang menyimpan rasa ini?" required="" type="text"/>
 </div>
 <div>
-<label class="block font-label-md text-label-md text-on-surface-variant mb-1" for="messageContent">Pesan kamu</label>
-<textarea class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-gutter py-2 text-on-surface focus:outline-none input-focus transition-all resize-none" id="messageContent" placeholder="Tuliskan semua kata yang tak sempat terucap..." required="" rows="5"></textarea>
+<label class="block font-label-md text-label-md text-white/80 mb-2" for="receiverName">Untuk siapa</label>
+<input class="w-full bg-white/5 border border-white/15 rounded-xl px-4 py-3 text-white placeholder:text-white/40 focus:outline-none input-focus transition-all" id="receiverName" placeholder="Kepada siapa pesan ini tertuju?" required="" type="text"/>
+</div>
+<div>
+<label class="block font-label-md text-label-md text-white/80 mb-2" for="messageContent">Pesan kamu</label>
+<textarea class="w-full bg-white/5 border border-white/15 rounded-xl px-4 py-3 text-white placeholder:text-white/40 focus:outline-none input-focus transition-all resize-none" id="messageContent" placeholder="Tuliskan semua kata yang tak sempat terucap..." required="" rows="5"></textarea>
 </div>
 </div>
 
-<div class="space-y-unit">
-<div class="flex items-center gap-3 mb-3">
+<div class="space-y-4">
+<div class="flex items-center gap-3">
 <label class="flex items-center gap-2 cursor-pointer">
-<input type="checkbox" id="enableLocation" class="w-4 h-4 rounded border-outline-variant cursor-pointer" />
-<span class="font-label-md text-label-md text-on-surface-variant">Tandai Lokasi Kenangan Gamonmu (Opsional)</span>
+<input type="checkbox" id="enableLocation" class="w-4 h-4 rounded border-white/30 cursor-pointer bg-transparent" />
+<span class="font-label-md text-label-md text-white/80">Tandai Lokasi Kenangan Gamonmu (Opsional)</span>
 </label>
 </div>
 
-<div id="locationContainer" class="hidden space-y-unit">
+<div id="locationContainer" class="hidden space-y-3">
 <div id="inputMap"></div>
-<p class="text-xs text-on-surface-variant italic mt-1">Sistem mendeteksi otomatis koordinat: <span id="coordsDisplay" class="font-mono font-bold">-3.3167, 114.5900 (Banjarmasin)</span></p>
+<p class="text-xs text-white/70 italic">Sistem mendeteksi otomatis koordinat: <span id="coordsDisplay" class="font-mono font-bold text-white/90">-3.3167, 114.5900 (Banjarmasin)</span></p>
 </div>
 
 <input type="hidden" id="latitude" value="">
 <input type="hidden" id="longitude" value="">
 </div>
 
-<div class="space-y-unit">
-<label class="block font-label-md text-label-md text-on-surface-variant mb-1">Rekam VN (Opsional)</label>
-<div class="flex flex-col items-center gap-unit bg-surface-container-low rounded-xl p-gutter border border-dashed border-outline-variant" id="recorderContainer">
-<button class="flex items-center gap-2 px-gutter py-2 rounded-full bg-secondary-container text-on-secondary-container border border-secondary-fixed-dim hover:brightness-95 transition-all duration-200 active:scale-95" id="recordBtn" type="button">
+<div class="space-y-4">
+<label class="block font-label-md text-label-md text-white/80 mb-2">Rekam VN (Opsional)</label>
+<div class="flex flex-col items-center gap-3 bg-white/5 rounded-2xl p-4 border border-dashed border-white/15" id="recorderContainer">
+<button class="flex items-center gap-2 px-4 py-3 rounded-full bg-white/10 text-white border border-white/15 hover:brightness-110 transition-all duration-200 active:scale-95" id="recordBtn" type="button">
 <span class="material-symbols-outlined" id="recordIcon">mic</span>
 <span class="font-label-md" id="recordText">Rekam VN (Opsional)</span>
 </button>
 <div class="hidden flex flex-col items-center animate-pulse" id="recordingStatus">
-<div class="w-3 h-3 bg-error rounded-full mb-1"></div>
-<span class="text-error font-label-md">Sedang merekam...</span>
+<div class="w-3 h-3 bg-red-400 rounded-full mb-1"></div>
+<span class="text-red-200 font-label-md">Sedang merekam...</span>
 </div>
 <div class="hidden w-full space-y-2" id="audioPreview">
-<div class="flex items-center gap-2 text-primary">
+<div class="flex items-center gap-2 text-white">
 <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">check_circle</span>
 <span class="font-label-md">VN siap dikirim!</span>
 </div>
@@ -193,8 +326,8 @@
 </div>
 </div>
 </div>
-<div class="pt-unit">
-<button class="w-full py-gutter rounded-xl bg-primary text-on-primary font-headline-sm hover:brightness-110 shadow-lg shadow-primary/20 transition-all duration-300 active:scale-95 flex justify-center items-center gap-3" id="submitBtn" type="submit">
+<div class="pt-2">
+<button class="submit-btn w-full py-3.5 rounded-xl font-headline-sm hover:brightness-110 shadow-lg transition-all duration-300 active:scale-95 flex justify-center items-center gap-3" id="submitBtn" type="submit">
 <span id="btnText">Kirim Gamon</span>
 <span class="hidden animate-spin material-symbols-outlined" id="loader">progress_activity</span>
 </button>
@@ -204,6 +337,50 @@
 </main>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+    const spaceBg = document.getElementById('spaceBackground');
+    const starsEl = document.getElementById('stars');
+    for (let i = 0; i < 60; i++) {
+        const s = document.createElement('div');
+        s.className = 'star-particle';
+        const sz = 2 + Math.random() * 4;
+        s.style.cssText = `width:${sz}px;height:${sz}px;left:${Math.random()*100}%;top:${Math.random()*100}%;animation:pulse-soft ${3+Math.random()*6}s infinite ease-in-out;animation-delay:${Math.random()*5}s`;
+        starsEl.appendChild(s);
+    }
+
+    const spaceEmojis = ['☁️', '🪐', '✨', '☁️', '🌙'];
+    for (let i = 0; i < 6; i++) {
+        const decor = document.createElement('div');
+        decor.className = 'space-decor';
+        decor.textContent = spaceEmojis[i % spaceEmojis.length];
+        decor.style.fontSize = (40 + Math.random() * 60) + 'px';
+        decor.style.left = (Math.random() * 90) + '%';
+        decor.style.top = (Math.random() * 80) + '%';
+        decor.style.animationDelay = (Math.random() * -10) + 's';
+        decor.style.animationDuration = (15 + Math.random() * 15) + 's';
+        spaceBg.appendChild(decor);
+    }
+
+    (function () {
+        const cloudL = document.getElementById('gtCloudLeft');
+        const cloudR = document.getElementById('gtCloudRight');
+        if (!cloudL || !cloudR) return;
+
+        let targetY = 0, currentY = 0;
+        function onScroll() {
+            targetY = window.scrollY || window.pageYOffset || 0;
+        }
+        window.addEventListener('scroll', onScroll, { passive: true });
+
+        function tick() {
+            currentY += (targetY - currentY) * 0.06;
+            cloudL.style.transform = `translate3d(${-currentY * 0.03}px, ${-currentY * 0.05}px, 0)`;
+            cloudR.style.transform = `translate3d(${currentY * 0.03}px, ${-currentY * 0.05}px, 0) scaleX(-1)`;
+            requestAnimationFrame(tick);
+        }
+        requestAnimationFrame(tick);
+    })();
+</script>
 
 <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";

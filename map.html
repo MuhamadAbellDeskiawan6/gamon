@@ -101,54 +101,181 @@
         }
     </script>
     <style>
+        html, body {
+            margin: 0;
+            min-height: 100%;
+        }
+
         body {
-            background: linear-gradient(135deg, #fef8fa 0%, #fce4ec 50%, #f2ecee 100%);
+            background: linear-gradient(180deg, #010A17 0%, #0A4267 30%, #20658E 60%, #6BADC4 100%) fixed;
             min-height: 100vh;
+            overflow-x: hidden;
+            color: rgba(255,255,255,0.9);
         }
+
+        .star-particle {
+            position: absolute;
+            background: #e7d8ff;
+            border-radius: 50%;
+            opacity: 0.55;
+            pointer-events: none;
+            box-shadow: 0 0 6px rgba(231,216,255,0.6);
+        }
+
+        .space-decor {
+            position: absolute;
+            pointer-events: none;
+            opacity: 0.2;
+            filter: blur(4px);
+            animation: spaceFloat 18s infinite ease-in-out alternate;
+        }
+
+        @keyframes spaceFloat {
+            0% { transform: translateY(0px) rotate(0deg) scale(1); }
+            100% { transform: translateY(-30px) rotate(15deg) scale(1.15); }
+        }
+
+        @keyframes pulse-soft {
+            0%, 100% { transform: scale(1); opacity: 0.4; }
+            50% { transform: scale(1.5); opacity: 0.7; }
+        }
+
+        #gtSkyLayer {
+            position: fixed;
+            inset: 0;
+            z-index: 2;
+            pointer-events: none;
+            overflow: hidden;
+        }
+
+        .gt-cloud {
+            position: absolute;
+            bottom: -6%;
+            width: 620px;
+            max-width: 62vw;
+            opacity: 0.5;
+            will-change: transform;
+            transform: translate3d(0,0,0);
+        }
+
+        .gt-cloud img {
+            width: 100%;
+            display: block;
+        }
+
+        .gt-cloud-left { left: -12%; }
+        .gt-cloud-right { right: -14%; transform: scaleX(-1); }
+
+        .content-shell {
+            position: relative;
+            z-index: 10;
+            max-width: 1100px;
+            width: min(100% - 24px, 1100px);
+            margin: 0 auto;
+            padding: 2rem 0 3rem;
+        }
+
         .glass-card {
-            background: rgba(255, 255, 255, 0.7);
-            backdrop-filter: blur(16px);
-            border: 1px solid rgba(255, 255, 255, 0.5);
-            box-shadow: 0 8px 32px rgba(107, 90, 96, 0.08);
+            background: rgba(255, 255, 255, 0.09);
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 18px 42px -18px rgba(1,10,23,0.45);
         }
-        .font-body-md { font-family: 'Inter', sans-serif; }
-        .font-display-lg { font-family: 'Playfair Display', serif; }
-        .font-label-md { font-family: 'Inter', sans-serif; }
-        #mainMap { height: 520px; width: 100%; border-radius: 1rem; z-index: 1; box-shadow: 0 8px 30px rgba(107,90,96,0.12); border: 1px solid rgba(208, 195, 199, 0.6); }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.7rem 1rem;
+            border-radius: 9999px;
+            background: linear-gradient(135deg, #f9d8c5 0%, #f7d9e8 35%, #dfe7ff 100%);
+            color: #2f1f26;
+            font-weight: 600;
+            border: 1px solid rgba(255,255,255,0.45);
+            box-shadow: 0 8px 24px rgba(1,10,23,0.2);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .back-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 12px 26px rgba(1,10,23,0.28);
+        }
+
+        .metric-card {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 1.25rem;
+            color: rgba(255,255,255,0.9);
+        }
+
+        #mainMap {
+            height: 540px;
+            width: 100%;
+            border-radius: 1.1rem;
+            z-index: 1;
+            box-shadow: 0 12px 32px rgba(1,10,23,0.2);
+            border: 1px solid rgba(255,255,255,0.12);
+        }
+
+        .leaflet-container {
+            background: rgba(12, 35, 48, 0.7);
+            border-radius: 1.1rem;
+        }
+
+        @media (max-width: 768px) {
+            .gt-cloud { display: none; }
+            .content-shell {
+                width: min(100% - 18px, 1100px);
+                padding-top: 1.25rem;
+            }
+            #mainMap { height: 420px; }
+        }
     </style>
 </head>
-<body class="font-body-md text-on-surface selection:bg-primary-container selection:text-on-primary-container p-margin-mobile md:px-container-padding md:py-section-gap bg-background">
-    <main class="max-w-6xl mx-auto space-y-gutter">
-        
-        <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <a class="inline-flex items-center gap-2 text-on-surface-variant hover:text-primary transition-colors" href="index.html">
-                <span class="material-symbols-outlined">arrow_back</span>
-                <span class="font-label-md">Kembali ke Beranda</span>
-            </a>
-        </div>
+<body class="font-body-md text-white selection:bg-primary-container selection:text-white">
+    <div id="spaceBackground" class="fixed inset-0 pointer-events-none z-0">
+        <div class="fixed inset-0" id="stars"></div>
+    </div>
 
-        <div class="text-center py-4">
-            <h1 class="font-display-lg text-headline-md md:text-display-lg font-semibold text-primary">Peta Persebaran Gamon Nasional</h1>
-            <p class="text-on-surface-variant mt-2 text-body-md md:text-body-lg max-w-2xl mx-auto">Melihat seberapa banyak titik rindu dan kenangan tak tersampaikan di seluruh penjuru Indonesia.</p>
+    <div id="gtSkyLayer">
+        <div class="gt-cloud gt-cloud-left" id="gtCloudLeft">
+            <img src="https://soft-zoom-63098134.figma.site/_assets/v11/0d6dfd3f90b930f21726f2ed56a3320d79b7a797.png" alt="" />
         </div>
+        <div class="gt-cloud gt-cloud-right" id="gtCloudRight">
+            <img src="https://soft-zoom-63098134.figma.site/_assets/v11/0d6dfd3f90b930f21726f2ed56a3320d79b7a797.png" alt="" />
+        </div>
+    </div>
 
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-md mx-auto">
-            <div class="glass-card p-gutter rounded-xl text-center">
-                <h3 class="text-xs font-semibold text-on-surface-variant uppercase tracking-wider">Total Titik Galau Terdeteksi</h3>
-                <p class="text-3xl font-bold text-error mt-1" id="totalGamonPoints">0</p>
+    <main class="content-shell">
+        <a class="back-btn self-start mb-5" href="index.html">
+            <span class="material-symbols-outlined">arrow_back</span>
+            <span>Kembali</span>
+        </a>
+
+        <section class="glass-card p-4 sm:p-6 md:p-8 rounded-[30px]">
+            <div class="text-center py-2 mb-6">
+                <h1 class="font-display-lg text-3xl sm:text-4xl md:text-5xl font-semibold text-white mb-3">Peta Persebaran Gamon Nasional</h1>
+                <p class="text-white/75 mt-2 text-base md:text-lg max-w-2xl mx-auto">Melihat seberapa banyak titik rindu dan kenangan tak tersampaikan di seluruh penjuru Indonesia.</p>
             </div>
-            <div class="glass-card p-gutter rounded-xl text-center flex flex-col justify-center items-center">
-                <span class="text-xs font-semibold text-on-surface-variant uppercase tracking-wider">Status Pemetaan</span>
-                <p class="text-green-600 font-semibold text-sm mt-1 flex items-center gap-1">
-                    <span class="w-2 h-2 bg-green-500 rounded-full animate-ping"></span> Realtime Terhubung
-                </p>
-            </div>
-        </div>
 
-        <div class="glass-card p-3 md:p-5 rounded-2xl">
-            <div id="mainMap"></div>
-        </div>
-        
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-md mx-auto mb-6">
+                <div class="metric-card p-5 text-center">
+                    <h3 class="text-xs font-semibold uppercase tracking-wider text-white/70">Total Titik Galau Terdeteksi</h3>
+                    <p class="text-3xl font-bold text-pink-200 mt-2" id="totalGamonPoints">0</p>
+                </div>
+                <div class="metric-card p-5 text-center flex flex-col justify-center items-center">
+                    <span class="text-xs font-semibold uppercase tracking-wider text-white/70">Status Pemetaan</span>
+                    <p class="text-emerald-300 font-semibold text-sm mt-2 flex items-center gap-2">
+                        <span class="w-2 h-2 bg-emerald-400 rounded-full animate-ping"></span> Realtime Terhubung
+                    </p>
+                </div>
+            </div>
+
+            <div class="glass-card p-3 md:p-5 rounded-2xl bg-white/5">
+                <div id="mainMap"></div>
+            </div>
+        </section>
     </main>
 
     <!-- Leaflet -->
@@ -156,6 +283,50 @@
 
 <!-- Marker Cluster -->
 <script src="https://unpkg.com/leaflet.markercluster/dist/leaflet.markercluster.js"></script>
+
+<script>
+    const starsEl = document.getElementById('stars');
+    for (let i = 0; i < 60; i++) {
+        const s = document.createElement('div');
+        s.className = 'star-particle';
+        const sz = 2 + Math.random() * 4;
+        s.style.cssText = `width:${sz}px;height:${sz}px;left:${Math.random()*100}%;top:${Math.random()*100}%;animation:pulse-soft ${3+Math.random()*6}s infinite ease-in-out;animation-delay:${Math.random()*5}s`;
+        starsEl.appendChild(s);
+    }
+
+    const spaceEmojis = ['☁️', '🪐', '✨', '☁️', '🌙'];
+    for (let i = 0; i < 6; i++) {
+        const decor = document.createElement('div');
+        decor.className = 'space-decor';
+        decor.textContent = spaceEmojis[i % spaceEmojis.length];
+        decor.style.fontSize = (40 + Math.random() * 60) + 'px';
+        decor.style.left = (Math.random() * 90) + '%';
+        decor.style.top = (Math.random() * 80) + '%';
+        decor.style.animationDelay = (Math.random() * -10) + 's';
+        decor.style.animationDuration = (15 + Math.random() * 15) + 's';
+        document.getElementById('spaceBackground').appendChild(decor);
+    }
+
+    (function () {
+        const cloudL = document.getElementById('gtCloudLeft');
+        const cloudR = document.getElementById('gtCloudRight');
+        if (!cloudL || !cloudR) return;
+
+        let targetY = 0, currentY = 0;
+        function onScroll() {
+            targetY = window.scrollY || window.pageYOffset || 0;
+        }
+        window.addEventListener('scroll', onScroll, { passive: true });
+
+        function tick() {
+            currentY += (targetY - currentY) * 0.06;
+            cloudL.style.transform = `translate3d(${-currentY * 0.03}px, ${-currentY * 0.05}px, 0)`;
+            cloudR.style.transform = `translate3d(${currentY * 0.03}px, ${-currentY * 0.05}px, 0) scaleX(-1)`;
+            requestAnimationFrame(tick);
+        }
+        requestAnimationFrame(tick);
+    })();
+</script>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
@@ -173,22 +344,15 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-// MAP
 const mainMap = L.map('mainMap').setView([-2.5489, 118.0149], 5);
 
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '© OpenStreetMap'
 }).addTo(mainMap);
 
-// =========================
-// ✅ INIT MARKER CLUSTER
-// =========================
 const markers = L.markerClusterGroup();
 mainMap.addLayer(markers);
 
-// =========================
-// LOAD DATA FIRESTORE
-// =========================
 async function loadGamonMarkers() {
     try {
         const snapshot = await getDocs(collection(db, "gamon"));
@@ -199,11 +363,10 @@ async function loadGamonMarkers() {
             const data = doc.data();
 
             if (data.latitude != null && data.longitude != null) {
-
                 count++;
 
                 const popup = `
-                    <div style="font-family: Inter; min-width:160px">
+                    <div style="font-family: Inter; min-width:160px; color:#1d1b1d;">
                         <b>Dari:</b> ${data.nama || '-'}<br>
                         <b>Untuk:</b> ${data.tujuan || '-'}<br>
                         <hr>

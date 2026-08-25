@@ -92,97 +92,194 @@
     </script>
     <style>
         body {
-            background: linear-gradient(135deg, #fff5f8 0%, #f3e8ff 50%, #ffffff 100%);
+            background: linear-gradient(180deg, #010A17 0%, #0A4267 30%, #20658E 60%, #6BADC4 100%) fixed;
             min-height: 100vh;
             overflow-x: hidden;
+            color: rgba(255,255,255,0.9);
         }
+
         .star-particle {
             position: absolute;
-            background: #b794f4;
+            background: #e7d8ff;
             border-radius: 50%;
-            opacity: 0.4;
+            opacity: 0.55;
             pointer-events: none;
-            box-shadow: 0 0 5px rgba(183, 148, 244, 0.5);
+            box-shadow: 0 0 6px rgba(231,216,255,0.6);
         }
-        .glass-card {
-            background: rgba(255, 255, 255, 0.55);
-            backdrop-filter: blur(16px);
-            border: 1px solid rgba(255, 255, 255, 0.5);
-            box-shadow: 0 10px 30px -10px rgba(107, 90, 96, 0.08);
+
+        .space-decor {
+            position: absolute;
+            pointer-events: none;
+            opacity: 0.2;
+            filter: blur(4px);
+            animation: spaceFloat 18s infinite ease-in-out alternate;
         }
+
+        @keyframes spaceFloat {
+            0% { transform: translateY(0px) rotate(0deg) scale(1); }
+            100% { transform: translateY(-30px) rotate(15deg) scale(1.15); }
+        }
+
         @keyframes pulse-soft {
             0%, 100% { transform: scale(1); opacity: 0.4; }
             50% { transform: scale(1.5); opacity: 0.7; }
         }
+
+        #gtSkyLayer {
+            position: fixed;
+            inset: 0;
+            z-index: 2;
+            pointer-events: none;
+            overflow: hidden;
+        }
+
+        .gt-cloud {
+            position: absolute;
+            bottom: -6%;
+            width: 620px;
+            max-width: 62vw;
+            opacity: 0.5;
+            will-change: transform;
+            transform: translate3d(0,0,0);
+        }
+
+        .gt-cloud img {
+            width: 100%;
+            display: block;
+        }
+
+        .gt-cloud-left { left: -12%; }
+        .gt-cloud-right { right: -14%; transform: scaleX(-1); }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.09);
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 18px 42px -18px rgba(1,10,23,0.45);
+        }
+
+        .content-shell {
+            position: relative;
+            z-index: 10;
+            width: min(1120px, calc(100% - 32px));
+            margin: 0 auto;
+            padding-top: 6.5rem;
+            padding-bottom: 5rem;
+        }
+
+        .section-title {
+            color: rgba(255,255,255,0.96);
+            letter-spacing: -0.02em;
+        }
+
+        .section-text {
+            color: rgba(255,255,255,0.74);
+        }
+
+        .info-tile {
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 1rem;
+            padding: 1rem 1.1rem;
+        }
+
+        .feature-pill {
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 0.9rem;
+            padding: 0.9rem 1rem;
+        }
+
+        .gradient-btn {
+            background: linear-gradient(135deg, #f9d8c5 0%, #f7d9e8 35%, #dfe7ff 100%);
+            color: #2f1f26;
+            box-shadow: 0 8px 24px rgba(1,10,23,0.25);
+        }
+
+        @media (max-width: 768px) {
+            .gt-cloud { display: none; }
+            .content-shell {
+                width: min(100% - 24px, 1120px);
+                padding-top: 5.5rem;
+            }
+        }
     </style>
 </head>
-<body class="text-on-surface selection:bg-primary-container">
+<body class="text-white/90 selection:bg-primary-container">
+    <div class="fixed inset-0 pointer-events-none z-0" id="spaceBackground">
+        <div class="fixed inset-0" id="stars"></div>
+    </div>
 
-    <!-- Star Particles Background Layer -->
-    <div class="fixed inset-0 pointer-events-none z-0" id="stars"></div>
+    <div id="gtSkyLayer">
+        <div class="gt-cloud gt-cloud-left" id="gtCloudLeft">
+            <img src="https://soft-zoom-63098134.figma.site/_assets/v11/0d6dfd3f90b930f21726f2ed56a3320d79b7a797.png" alt="" />
+        </div>
+        <div class="gt-cloud gt-cloud-right" id="gtCloudRight">
+            <img src="https://soft-zoom-63098134.figma.site/_assets/v11/0d6dfd3f90b930f21726f2ed56a3320d79b7a797.png" alt="" />
+        </div>
+    </div>
 
-    <main class="relative z-10 pt-20 pb-32 max-w-4xl mx-auto px-6">
-        
-        <!-- Header Section -->
-        <header class="text-center mb-12">
-            <div class="mx-auto max-w-xs bg-transparent overflow-hidden mb-4">
-                <img src="image/logo/Gamon%20Tawing.png" alt="Gamon Tawing" class="mx-auto h-44 w-auto object-cover object-top bg-transparent" />
-            </div>
-            <h1 class="font-display-lg text-4xl font-semibold text-primary mb-4">Tentang Gamon Tawing</h1>
-            <p class="font-body-lg text-on-surface-variant italic max-w-2xl mx-auto">
+    <main class="content-shell">
+        <div class="mb-6 flex justify-start">
+            <a href="index.html" class="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-full gradient-btn font-semibold transition-all hover:shadow-lg hover:scale-[1.02] active:scale-95 border border-white/50 text-sm sm:text-base">
+                <span class="material-symbols-outlined text-sm">arrow_back</span>
+                Kembali
+            </a>
+        </div>
+
+        <header class="text-center mb-10 sm:mb-12">
+            <h1 class="font-display-lg text-3xl sm:text-4xl md:text-5xl font-semibold text-white mb-4">Tentang Gamon Tawing</h1>
+            <p class="font-body-lg text-white/80 italic max-w-2xl mx-auto leading-relaxed">
                 "Tempat di mana rindu, kenangan, dan perasaan yang belum selesai menemukan ruang untuk bercerita."
             </p>
         </header>
 
-        <!-- Main Content Area -->
-        <div class="glass-card rounded-[32px] p-8 md:p-12 space-y-12">
-            
-            <!-- APA ITU -->
+        <div class="glass-card rounded-[30px] p-5 sm:p-8 md:p-12 space-y-8 sm:space-y-10">
             <section>
-                <div class="flex items-center gap-2 mb-4 text-primary">
+                <div class="flex items-center gap-2 mb-4 text-white">
                     <span class="material-symbols-outlined text-2xl">auto_awesome</span>
-                    <h2 class="font-headline-md text-2xl font-medium">Apa Itu Gamon Tawing?</h2>
+                    <h2 class="font-headline-md text-2xl sm:text-3xl font-medium section-title">Apa Itu Gamon Tawing?</h2>
                 </div>
-                <p class="font-body-md text-on-surface-variant leading-relaxed">
+                <p class="font-body-md section-text leading-relaxed text-base sm:text-lg">
                     Gamon Tawing adalah platform digital yang menyediakan ruang bagi siapa saja untuk mengekspresikan perasaan, mengenang kenangan, menyampaikan pesan yang belum sempat terucap, serta berbagi cerita secara aman dan nyaman.
                 </p>
             </section>
 
-            <hr class="border-outline-variant/30">
+            <hr class="border-white/15">
 
-            <!-- INFORMASI PLATFORM -->
             <section>
-                <div class="flex items-center gap-2 mb-6 text-primary">
+                <div class="flex items-center gap-2 mb-6 text-white">
                     <span class="material-symbols-outlined text-2xl">info</span>
-                    <h2 class="font-headline-md text-2xl font-medium">Informasi Platform</h2>
+                    <h2 class="font-headline-md text-2xl sm:text-3xl font-medium section-title">Informasi Platform</h2>
                 </div>
                 <div class="grid md:grid-cols-2 gap-4">
-                    <div class="bg-surface-container-low/70 rounded-2xl p-5 border border-white/40">
-                        <div class="font-semibold text-primary mb-1">Nama Platform</div>
-                        <div class="text-on-surface-variant">Gamon Tawing</div>
+                    <div class="info-tile">
+                        <div class="font-semibold text-white mb-1">Nama Platform</div>
+                        <div class="section-text">Gamon Tawing</div>
                     </div>
-                    <div class="bg-surface-container-low/70 rounded-2xl p-5 border border-white/40">
-                        <div class="font-semibold text-primary mb-1">Didirikan</div>
-                        <div class="text-on-surface-variant">Since 2025</div>
+                    <div class="info-tile">
+                        <div class="font-semibold text-white mb-1">Didirikan</div>
+                        <div class="section-text">Since 2025</div>
                     </div>
-                    <div class="bg-surface-container-low/70 rounded-2xl p-5 border border-white/40">
-                        <div class="font-semibold text-primary mb-1">Lokasi asal</div>
-                        <div class="text-on-surface-variant">Banjarmasin, Kalimantan Selatan</div>
+                    <div class="info-tile">
+                        <div class="font-semibold text-white mb-1">Lokasi asal</div>
+                        <div class="section-text">Banjarmasin, Kalimantan Selatan</div>
                     </div>
-                    <div class="bg-surface-container-low/70 rounded-2xl p-5 border border-white/40">
-                        <div class="font-semibold text-primary mb-1">Bidang</div>
-                        <div class="text-on-surface-variant">Digital Platform & Creative Technology</div>
+                    <div class="info-tile">
+                        <div class="font-semibold text-white mb-1">Bidang</div>
+                        <div class="section-text">Digital Platform & Creative Technology</div>
                     </div>
                 </div>
             </section>
 
             <section>
-                <div class="bg-surface-container-low/70 rounded-2xl p-6 border border-white/40 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div class="info-tile flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                     <div>
-                        <div class="font-semibold text-primary mb-1">Ikuti Kami</div>
-                        <p class="text-on-surface-variant">Stay update dengan cerita dan kegiatan terbaru melalui Instagram resmi kami.</p>
+                        <div class="font-semibold text-white mb-1">Ikuti Kami</div>
+                        <p class="section-text">Stay update dengan cerita dan kegiatan terbaru melalui Instagram resmi kami.</p>
                     </div>
-                    <a href="https://www.instagram.com/gamontawing/" target="_blank" rel="noreferrer noopener" class="inline-flex items-center gap-2 px-5 py-3 rounded-full bg-gradient-to-r from-[#f4dce4] to-[#e1d2f5] text-on-primary-fixed-variant font-semibold shadow-sm hover:shadow-md transition">
+                    <a href="https://www.instagram.com/gamontawing/" target="_blank" rel="noreferrer noopener" class="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-full gradient-btn font-semibold shadow-sm hover:shadow-md transition-all hover:scale-[1.02] active:scale-95">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="min-w-[20px] min-h-[20px]">
                             <path d="M7.75 2H16.25C19.0457 2 21.25 4.20435 21.25 7V17C21.25 19.7957 19.0457 22 16.25 22H7.75C4.95435 22 2.75 19.7957 2.75 17V7C2.75 4.20435 4.95435 2 7.75 2Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
                             <path d="M15.5 11.9999C15.5 14.0611 14.0611 15.5 11.9999 15.5C9.93875 15.5 8.49985 14.0611 8.49985 11.9999C8.49985 9.9387 9.93875 8.4998 11.9999 8.4998C14.0611 8.4998 15.5 9.9387 15.5 11.9999Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
@@ -193,15 +290,14 @@
                 </div>
             </section>
 
-            <hr class="border-outline-variant/30">
+            <hr class="border-white/15">
 
-            <!-- MENGAPA -->
             <section>
-                <div class="flex items-center gap-2 mb-4 text-primary">
+                <div class="flex items-center gap-2 mb-4 text-white">
                     <span class="material-symbols-outlined text-2xl">favorite</span>
-                    <h2 class="font-headline-md text-2xl font-medium">Mengapa Kami Membuat Ini?</h2>
+                    <h2 class="font-headline-md text-2xl sm:text-3xl font-medium section-title">Mengapa Kami Membuat Ini?</h2>
                 </div>
-                <div class="font-body-md text-on-surface-variant space-y-4 leading-relaxed">
+                <div class="font-body-md section-text space-y-4 leading-relaxed text-base sm:text-lg">
                     <p>Banyak orang mengalami kehilangan, penolakan, perpisahan, patah hati, dan berbagai tekanan emosional tanpa memiliki tempat yang nyaman untuk mengekspresikan perasaannya.</p>
                     <p>Tidak sedikit konflik, tindakan impulsif, hingga tekanan psikologis berat yang berawal dari emosi yang dipendam terlalu lama tanpa adanya ruang untuk bercerita dan mendapatkan pelepasan emosi yang sehat.</p>
                     <p>Gamon Tawing hadir sebagai ruang digital yang memungkinkan setiap orang menuliskan isi hati mereka, mengenang kenangan, menyampaikan pesan yang belum sempat terucap, serta menemukan bahwa mereka tidak sendirian dalam menghadapi rasa kehilangan.</p>
@@ -209,99 +305,89 @@
                 </div>
             </section>
 
-            <hr class="border-outline-variant/30">
+            <hr class="border-white/15">
 
-            <!-- FITUR -->
             <section>
-                <div class="flex items-center gap-2 mb-6 text-primary">
+                <div class="flex items-center gap-2 mb-6 text-white">
                     <span class="material-symbols-outlined text-2xl">apps</span>
-                    <h2 class="font-headline-md text-2xl font-medium">Fitur Platform</h2>
+                    <h2 class="font-headline-md text-2xl sm:text-3xl font-medium section-title">Fitur Platform</h2>
                 </div>
                 <div class="grid sm:grid-cols-2 md:grid-cols-3 gap-4">
-                    <div class="bg-surface-container-low/70 rounded-xl p-4 flex items-center gap-3 border border-white/40">
-                        <span class="material-symbols-outlined text-xl">mail</span> <span class="font-medium text-on-surface-variant">Pesan Gamon</span>
+                    <div class="feature-pill flex items-center gap-3 text-white/90">
+                        <span class="material-symbols-outlined text-xl">mail</span> <span class="font-medium">Pesan Gamon</span>
                     </div>
-                    <div class="bg-surface-container-low/70 rounded-xl p-4 flex items-center gap-3 border border-white/40">
-                        <span class="material-symbols-outlined text-xl">mic</span> <span class="font-medium text-on-surface-variant">Voice Note Curhat</span>
+                    <div class="feature-pill flex items-center gap-3 text-white/90">
+                        <span class="material-symbols-outlined text-xl">shopping_bag</span> <span class="font-medium">Marketplace Mantan</span>
                     </div>
-                    <div class="bg-surface-container-low/70 rounded-xl p-4 flex items-center gap-3 border border-white/40">
-                        <span class="material-symbols-outlined text-xl">favorite</span> <span class="font-medium text-on-surface-variant">Dukungan Komunitas</span>
+                    <div class="feature-pill flex items-center gap-3 text-white/90">
+                        <span class="material-symbols-outlined text-xl">favorite</span> <span class="font-medium">Dukungan Komunitas</span>
                     </div>
-                    <div class="bg-surface-container-low/70 rounded-xl p-4 flex items-center gap-3 border border-white/40">
-                        <span class="material-symbols-outlined text-xl">map</span> <span class="font-medium text-on-surface-variant">Peta Persebaran Cerita</span>
+                    <div class="feature-pill flex items-center gap-3 text-white/90">
+                        <span class="material-symbols-outlined text-xl">map</span> <span class="font-medium">Peta Persebaran Cerita</span>
                     </div>
-                    <div class="bg-surface-container-low/70 rounded-xl p-4 flex items-center gap-3 border border-white/40">
-                        <span class="material-symbols-outlined text-xl">smart_toy</span> <span class="font-medium text-on-surface-variant">AI Curhat</span>
+                    <div class="feature-pill flex items-center gap-3 text-white/90">
+                        <span class="material-symbols-outlined text-xl">smart_toy</span> <span class="font-medium">AI Curhat</span>
                     </div>
-                    <div class="bg-surface-container-low/70 rounded-xl p-4 flex items-center gap-3 border border-white/40">
-                        <span class="material-symbols-outlined text-xl">photo_camera</span> <span class="font-medium text-on-surface-variant">Gamon Photobooth</span>
+                    <div class="feature-pill flex items-center gap-3 text-white/90">
+                        <span class="material-symbols-outlined text-xl">photo_camera</span> <span class="font-medium">Gamon Photobooth</span>
                     </div>
                 </div>
             </section>
 
-            <hr class="border-outline-variant/30">
+            <hr class="border-white/15">
 
-            <!-- VISI & MISI -->
             <section class="grid md:grid-cols-2 gap-8">
                 <div>
-                    <div class="flex items-center gap-2 mb-3 text-primary">
+                    <div class="flex items-center gap-2 mb-3 text-white">
                         <span class="material-symbols-outlined text-xl">visibility</span>
-                        <h3 class="font-headline-sm text-xl font-medium">Visi</h3>
+                        <h3 class="font-headline-sm text-xl font-medium section-title">Visi</h3>
                     </div>
-                    <p class="font-body-md text-on-surface-variant leading-relaxed">
+                    <p class="font-body-md section-text leading-relaxed text-base sm:text-lg">
                         Menjadi platform digital yang membantu masyarakat mengekspresikan emosi, mengenang kenangan, serta menemukan ketenangan melalui teknologi dan cerita.
                     </p>
                 </div>
                 <div>
-                    <div class="flex items-center gap-2 mb-3 text-primary">
+                    <div class="flex items-center gap-2 mb-3 text-white">
                         <span class="material-symbols-outlined text-xl">track_changes</span>
-                        <h3 class="font-headline-sm text-xl font-medium">Misi</h3>
+                        <h3 class="font-headline-sm text-xl font-medium section-title">Misi</h3>
                     </div>
-                    <ul class="font-body-md text-on-surface-variant space-y-2">
+                    <ul class="font-body-md section-text space-y-2 text-base sm:text-lg">
                         <li class="flex items-start gap-2">
-                            <span class="text-primary-fixed-dim mt-1">•</span>
+                            <span class="text-pink-200 mt-1">•</span>
                             <span>Menyediakan ruang ekspresi yang mudah diakses.</span>
                         </li>
                         <li class="flex items-start gap-2">
-                            <span class="text-primary-fixed-dim mt-1">•</span>
+                            <span class="text-pink-200 mt-1">•</span>
                             <span>Mengembangkan teknologi pendukung kesehatan emosional positif.</span>
                         </li>
                         <li class="flex items-start gap-2">
-                            <span class="text-primary-fixed-dim mt-1">•</span>
+                            <span class="text-pink-200 mt-1">•</span>
                             <span>Membangun komunitas yang saling memahami.</span>
                         </li>
                     </ul>
                 </div>
             </section>
 
-            <hr class="border-outline-variant/30">
+            <hr class="border-white/15">
 
-            <!-- DISCLAIMER -->
-            <section class="bg-error-container/20 border border-error/10 rounded-2xl p-6">
-                <div class="flex items-center gap-2 mb-3 text-error">
+            <section class="bg-white/5 border border-white/10 rounded-2xl p-5 sm:p-6">
+                <div class="flex items-center gap-2 mb-3 text-pink-200">
                     <span class="material-symbols-outlined">warning</span>
-                    <h2 class="font-headline-sm text-lg font-semibold">Disclaimer</h2>
+                    <h2 class="font-headline-sm text-lg font-semibold text-white">Disclaimer</h2>
                 </div>
-                <div class="font-body-md text-on-surface-variant space-y-3 text-sm leading-relaxed">
+                <div class="font-body-md section-text space-y-3 text-sm sm:text-base leading-relaxed">
                     <p>Gamon Tawing bukan layanan psikologi, psikiatri, maupun konseling profesional. Platform ini dibuat sebagai media ekspresi, berbagi cerita, dan dukungan komunitas bagi masyarakat.</p>
                     <p>Jika Anda mengalami kondisi darurat, krisis emosional berat, atau keinginan menyakiti diri sendiri, segera hubungi keluarga, tenaga kesehatan, psikolog, psikiater, atau layanan darurat yang tersedia di wilayah Anda.</p>
                 </div>
             </section>
 
-            <!-- Back Actions -->
-            <div class="pt-6 text-center border-t border-outline-variant/20">
-                <p class="text-xs text-on-surface-variant/70 mb-6">Dibuat dengan ❤️ sejak 2025.</p>
-                <a href="index.html" class="inline-flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-[#f4dce4] to-[#e1d2f5] text-on-primary-fixed-variant font-semibold rounded-full shadow-md hover:shadow-lg hover:scale-105 transition-all active:scale-95 border border-white/50">
-                    <span class="material-symbols-outlined text-sm">arrow_back</span>
-                    Kembali ke Beranda
-                </a>
+            <div class="pt-4 text-center border-t border-white/10">
+                <p class="text-xs text-white/65">Dibuat dengan ❤️ sejak 2025.</p>
             </div>
-
         </div>
     </main>
 
     <script>
-        // Soft Sparkle Particle Generator
         const starsContainer = document.getElementById('stars');
         const starCount = 60;
 
@@ -317,6 +403,40 @@
             star.style.animationDelay = `${Math.random() * 5}s`;
             starsContainer.appendChild(star);
         }
+
+        const spaceBg = document.getElementById('spaceBackground');
+        const spaceEmojis = ['☁️', '🪐', '✨', '☁️', '🌙'];
+        for (let i = 0; i < 6; i++) {
+            const decor = document.createElement('div');
+            decor.className = 'space-decor';
+            decor.textContent = spaceEmojis[i % spaceEmojis.length];
+            decor.style.fontSize = (40 + Math.random() * 60) + 'px';
+            decor.style.left = (Math.random() * 90) + '%';
+            decor.style.top = (Math.random() * 80) + '%';
+            decor.style.animationDelay = (Math.random() * -10) + 's';
+            decor.style.animationDuration = (15 + Math.random() * 15) + 's';
+            spaceBg.appendChild(decor);
+        }
+
+        (function () {
+            const cloudL = document.getElementById('gtCloudLeft');
+            const cloudR = document.getElementById('gtCloudRight');
+            if (!cloudL || !cloudR) return;
+
+            let targetY = 0, currentY = 0;
+            function onScroll() {
+                targetY = window.scrollY || window.pageYOffset || 0;
+            }
+            window.addEventListener('scroll', onScroll, { passive: true });
+
+            function tick() {
+                currentY += (targetY - currentY) * 0.06;
+                cloudL.style.transform = `translate3d(${-currentY * 0.03}px, ${-currentY * 0.05}px, 0)`;
+                cloudR.style.transform = `translate3d(${currentY * 0.03}px, ${-currentY * 0.05}px, 0) scaleX(-1)`;
+                requestAnimationFrame(tick);
+            }
+            requestAnimationFrame(tick);
+        })();
     </script>
 </body>
 </html>

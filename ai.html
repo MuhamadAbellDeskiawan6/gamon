@@ -101,35 +101,88 @@
             margin: 0;
         }
         body {
-            background: linear-gradient(135deg, #fff5f8 0%, #f3e8ff 50%, #ffffff 100%);
+            background: linear-gradient(180deg, #010A17 0%, #0A4267 30%, #20658E 60%, #6BADC4 100%) fixed;
             overflow: hidden;
             min-height: 100vh;
             min-height: 100dvh;
             font-family: Inter, sans-serif;
             -webkit-overflow-scrolling: touch;
+            color: rgba(255,255,255,0.9);
         }
         body.voice-open {
             overflow: hidden;
         }
+
+        .star-particle {
+            position: absolute;
+            background: #e7d8ff;
+            border-radius: 50%;
+            opacity: 0.55;
+            pointer-events: none;
+            box-shadow: 0 0 6px rgba(231,216,255,0.6);
+        }
+
+        .space-decor {
+            position: absolute;
+            pointer-events: none;
+            opacity: 0.2;
+            filter: blur(4px);
+            animation: spaceFloat 18s infinite ease-in-out alternate;
+        }
+
+        @keyframes spaceFloat {
+            0% { transform: translateY(0px) rotate(0deg) scale(1); }
+            100% { transform: translateY(-30px) rotate(15deg) scale(1.15); }
+        }
+
+        #gtSkyLayer {
+            position: fixed;
+            inset: 0;
+            z-index: 2;
+            pointer-events: none;
+            overflow: hidden;
+        }
+
+        .gt-cloud {
+            position: absolute;
+            bottom: -6%;
+            width: 620px;
+            max-width: 62vw;
+            opacity: 0.5;
+            will-change: transform;
+            transform: translate3d(0,0,0);
+        }
+
+        .gt-cloud img {
+            width: 100%;
+            display: block;
+        }
+
+        .gt-cloud-left { left: -12%; }
+        .gt-cloud-right { right: -14%; transform: scaleX(-1); }
+
         .app-shell {
+            position: relative;
+            z-index: 10;
+            height: 100vh;
             min-height: 100vh;
-            min-height: 100dvh;
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 1rem;
-            padding-bottom: calc(env(safe-area-inset-bottom) + 1rem);
+            padding: 1.5rem 1rem 2.25rem;
+            padding-bottom: calc(env(safe-area-inset-bottom) + 2rem);
             box-sizing: border-box;
         }
         .glass-card {
-            width: min(100%, 760px);
-            height: min(85vh, 820px);
+            width: min(100%, 860px);
+            height: min(82vh, 760px);
             min-height: 520px;
-            max-height: calc(100dvh - 1rem);
-            background: rgba(255, 255, 255, 0.52);
-            backdrop-filter: blur(16px);
-            border: 1px solid rgba(255, 255, 255, 0.45);
-            box-shadow: 0 18px 40px -22px rgba(107, 90, 96, 0.28);
+            max-height: calc(100vh - 2rem);
+            background: rgba(255, 255, 255, 0.09);
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 18px 42px -18px rgba(1,10,23,0.45);
             display: flex;
             flex-direction: column;
             overflow: hidden;
@@ -142,13 +195,13 @@
             overscroll-behavior: contain;
             scroll-behavior: smooth;
             padding: 1rem;
-            background: rgba(248, 242, 244, 0.58);
+            background: rgba(255,255,255,0.04);
         }
         .chat-box::-webkit-scrollbar {
             width: 8px;
         }
         .chat-box::-webkit-scrollbar-thumb {
-            background: rgba(107, 90, 96, 0.28);
+            background: rgba(255,255,255,0.22);
             border-radius: 999px;
         }
         .chat-box::-webkit-scrollbar-track {
@@ -167,13 +220,15 @@
         }
         .me {
             margin-left: auto;
-            background: linear-gradient(135deg, #d7c1c8, #f4dce4);
-            color: #25181e;
+            background: linear-gradient(135deg, #f9d8c5 0%, #f7d9e8 35%, #dfe7ff 100%);
+            color: #2f1f26;
             border-bottom-right-radius: 8px;
+            border: 1px solid rgba(255,255,255,0.3);
         }
         .ai {
-            background: #f2ecee;
-            color: #1d1b1d;
+            background: rgba(255,255,255,0.08);
+            color: rgba(255,255,255,0.92);
+            border: 1px solid rgba(255,255,255,0.12);
             border-bottom-left-radius: 8px;
         }
         .typing {
@@ -183,16 +238,17 @@
             min-width: 150px;
         }
         @media (max-width: 768px) {
+            .gt-cloud { display: none; }
             .app-shell {
-                padding: 0.5rem;
-                padding-bottom: calc(env(safe-area-inset-bottom) + 0.75rem);
+                padding: 0.75rem 0.75rem 1.25rem;
                 align-items: stretch;
+                height: 100dvh;
             }
             .glass-card {
                 width: 100%;
-                height: calc(100dvh - 0.75rem);
-                max-height: calc(100dvh - 0.75rem);
+                height: calc(100dvh - 1.5rem);
                 min-height: 0;
+                max-height: calc(100dvh - 1.5rem);
                 border-radius: 20px;
             }
             .chat-box {
@@ -210,8 +266,8 @@
             to { opacity: 1; transform: translateY(0); }
         }
         .input-focus:focus {
-            box-shadow: 0 0 0 4px rgba(252, 228, 236, 0.5);
-            border-color: #d7c1c8;
+            box-shadow: 0 0 0 4px rgba(252, 228, 236, 0.25);
+            border-color: rgba(255,255,255,0.35);
         }
         .send-btn:hover {
             transform: translateY(-1px) scale(1.01);
@@ -223,7 +279,6 @@
             resize: none;
         }
 
-        /* ===== Voice AI launcher (toolbar button) ===== */
         .voice-ai-launcher {
             display: inline-flex;
             align-items: center;
@@ -232,35 +287,25 @@
             height: 52px;
             padding: 0 18px;
             border-radius: 9999px;
-            background: linear-gradient(135deg, #f4dce4, #ecdeee);
-            border: 1px solid #d7c1c8;
-            color: #4d3a41;
+            background: linear-gradient(135deg, #f4dce4 0%, #ecdeee 100%);
+            border: 1px solid rgba(255,255,255,0.4);
+            color: #2f1f26;
             font-weight: 600;
             font-size: 14px;
             white-space: nowrap;
             cursor: pointer;
             transition: transform 0.15s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+            box-shadow: 0 8px 24px rgba(1,10,23,0.2);
         }
-        .voice-ai-launcher .material-symbols-outlined {
-            font-size: 20px;
-        }
+        .voice-ai-launcher .material-symbols-outlined { font-size: 20px; }
         .voice-ai-launcher:hover {
             transform: translateY(-1px);
-            box-shadow: 0 10px 20px -12px rgba(107, 90, 96, 0.4);
+            box-shadow: 0 10px 20px -12px rgba(1,10,23,0.38);
         }
-        .voice-ai-launcher:active {
-            transform: scale(0.97);
-        }
-        .voice-ai-launcher.unsupported {
-            opacity: 0.45;
-            cursor: not-allowed;
-        }
-        .voice-ai-launcher.unsupported:hover {
-            transform: none;
-            box-shadow: none;
-        }
+        .voice-ai-launcher:active { transform: scale(0.97); }
+        .voice-ai-launcher.unsupported { opacity: 0.45; cursor: not-allowed; }
+        .voice-ai-launcher.unsupported:hover { transform: none; box-shadow: none; }
 
-        /* ===== Voice AI overlay ===== */
         .voice-overlay {
             position: fixed;
             inset: 0;
@@ -270,20 +315,16 @@
             justify-content: center;
             padding: 1rem;
         }
-        .voice-overlay[hidden] {
-            display: none;
-        }
+        .voice-overlay[hidden] { display: none; }
         .voice-overlay-backdrop {
             position: absolute;
             inset: 0;
-            background: rgba(37, 24, 30, 0.38);
+            background: rgba(1,10,23,0.45);
             backdrop-filter: blur(2px);
             opacity: 0;
             transition: opacity 0.28s ease;
         }
-        .voice-overlay.open .voice-overlay-backdrop {
-            opacity: 1;
-        }
+        .voice-overlay.open .voice-overlay-backdrop { opacity: 1; }
         .voice-panel {
             position: relative;
             width: min(420px, 100%);
@@ -292,7 +333,7 @@
             backdrop-filter: blur(20px);
             border: 1px solid rgba(255, 255, 255, 0.6);
             border-radius: 32px;
-            box-shadow: 0 30px 60px -20px rgba(107, 90, 96, 0.35);
+            box-shadow: 0 30px 60px -20px rgba(1,10,23,0.35);
             padding: 2.25rem 1.75rem 1.75rem;
             display: flex;
             flex-direction: column;
@@ -308,9 +349,7 @@
             opacity: 1;
         }
         @media (max-width: 640px) {
-            .voice-overlay {
-                padding: 0;
-            }
+            .voice-overlay { padding: 0; }
             .voice-panel {
                 width: 100%;
                 height: 100%;
@@ -335,9 +374,7 @@
             color: #6b5a60;
             cursor: pointer;
         }
-        .voice-close-x:hover {
-            background: rgba(255, 255, 255, 0.9);
-        }
+        .voice-close-x:hover { background: rgba(255, 255, 255, 0.9); }
         .voice-panel-eyebrow {
             font-size: 12px;
             letter-spacing: 0.14em;
@@ -359,9 +396,7 @@
             min-height: 18px;
             max-width: 280px;
         }
-        .voice-controls {
-            margin: 0.85rem 0 0.35rem;
-        }
+        .voice-controls { margin: 0.85rem 0 0.35rem; }
         .voice-close-btn {
             margin-top: 0.5rem;
             padding: 10px 22px;
@@ -374,14 +409,9 @@
             cursor: pointer;
             transition: background 0.2s ease;
         }
-        .voice-close-btn:hover {
-            background: rgba(107, 90, 96, 0.14);
-        }
+        .voice-close-btn:hover { background: rgba(107, 90, 96, 0.14); }
 
-        /* ===== AI Orb ===== */
-        .orb-wrap {
-            margin: 1rem 0;
-        }
+        .orb-wrap { margin: 1rem 0; }
         .orb {
             --vol: 1;
             position: relative;
@@ -415,9 +445,7 @@
             0%, 100% { transform: scale(calc(var(--vol, 1) * 1)); }
             50% { transform: scale(calc(var(--vol, 1) * 1.045)); }
         }
-        .orb-listening {
-            animation: orbBreatheListening 1.6s ease-in-out infinite;
-        }
+        .orb-listening { animation: orbBreatheListening 1.6s ease-in-out infinite; }
         @keyframes orbBreatheListening {
             0%, 100% { transform: scale(calc(var(--vol, 1) * 1)); }
             50% { transform: scale(calc(var(--vol, 1) * 1.08)); }
@@ -450,11 +478,8 @@
             0%, 100% { transform: scale(1); }
             50% { transform: scale(1.09); }
         }
-        .orb-error {
-            background: radial-gradient(circle at 32% 28%, #ffffff 0%, #ffdad6 40%, #ffb4a9 100%);
-        }
+        .orb-error { background: radial-gradient(circle at 32% 28%, #ffffff 0%, #ffdad6 40%, #ffb4a9 100%); }
 
-        /* ===== Voice mic control inside overlay ===== */
         .mic-btn {
             position: relative;
             width: 64px;
@@ -470,9 +495,7 @@
             transition: background 0.25s ease, color 0.25s ease, border-color 0.25s ease, transform 0.15s ease;
             cursor: pointer;
         }
-        .mic-btn:active {
-            transform: scale(0.96);
-        }
+        .mic-btn:active { transform: scale(0.96); }
         .mic-btn .ring {
             position: absolute;
             inset: -6px;
@@ -527,23 +550,20 @@
             gap: 8px;
             padding: 10px 16px;
             border-radius: 9999px;
-            background: rgba(255, 255, 255, 0.7);
-            border: 1px solid rgba(107, 90, 96, 0.15);
-            color: #4d3a41;
+            background: linear-gradient(135deg, #f9d8c5 0%, #f7d9e8 35%, #dfe7ff 100%);
+            border: 1px solid rgba(255,255,255,0.45);
+            color: #2f1f26;
             font-weight: 600;
             font-size: 14px;
-            box-shadow: 0 8px 20px -16px rgba(107, 90, 96, 0.45);
+            box-shadow: 0 8px 20px -16px rgba(1,10,23,0.45);
             transition: transform 0.15s ease, box-shadow 0.2s ease, background 0.2s ease;
             cursor: pointer;
         }
         .back-btn:hover {
             transform: translateY(-1px);
-            background: rgba(255, 255, 255, 0.9);
-            box-shadow: 0 12px 22px -16px rgba(107, 90, 96, 0.48);
+            box-shadow: 0 12px 22px -16px rgba(1,10,23,0.48);
         }
-        .back-btn:active {
-            transform: scale(0.98);
-        }
+        .back-btn:active { transform: scale(0.98); }
 
         @media (prefers-reduced-motion: reduce) {
             .orb, .orb-listening, .orb-processing, .orb-speaking,
@@ -554,8 +574,21 @@
     </style>
 </head>
 
-<body class="font-body-md text-on-surface selection:bg-primary-container selection:text-on-primary-container">
-<main class="app-shell relative z-10">
+<body class="font-body-md text-white/90 selection:bg-primary-container selection:text-on-primary-container">
+<div class="fixed inset-0 pointer-events-none z-0" id="spaceBackground">
+  <div class="fixed inset-0" id="stars"></div>
+</div>
+
+<div id="gtSkyLayer">
+    <div class="gt-cloud gt-cloud-left" id="gtCloudLeft">
+        <img src="https://soft-zoom-63098134.figma.site/_assets/v11/0d6dfd3f90b930f21726f2ed56a3320d79b7a797.png" alt="" />
+    </div>
+    <div class="gt-cloud gt-cloud-right" id="gtCloudRight">
+        <img src="https://soft-zoom-63098134.figma.site/_assets/v11/0d6dfd3f90b930f21726f2ed56a3320d79b7a797.png" alt="" />
+    </div>
+</div>
+
+<main class="app-shell">
   <section id="glass-card" class="glass-card rounded-[28px] p-4 md:p-5">
     <div class="mb-4 text-center">
       <div class="mb-3 flex justify-start">
@@ -564,13 +597,13 @@
           <span>Kembali</span>
         </button>
       </div>
-      <h1 class="font-display-lg text-headline-md md:text-display-lg text-primary mb-2 flex items-center justify-center gap-2"><span class="material-symbols-outlined text-[1.6em]">favorite</span> AI Curhat Gamon</h1>
-      <p class="font-body-md text-on-surface-variant">Curhatlah dengan AI yang penuh empati tentang perasaanmu.</p>
+      <h1 class="font-display-lg text-3xl sm:text-4xl md:text-5xl text-white mb-2 flex items-center justify-center gap-2"><span class="material-symbols-outlined text-[1.6em]">favorite</span> AI Curhat Gamon</h1>
+      <p class="font-body-md text-white/75">Curhatlah dengan AI yang penuh empati tentang perasaanmu.</p>
     </div>
 
     <div id="chat" class="chat-box rounded-2xl"></div>
 
-    <p id="hint-text" class="text-center text-[13px] text-on-surface-variant mt-2 mb-1">
+    <p id="hint-text" class="text-center text-[13px] text-white/70 mt-2 mb-1">
       Tulis curhatanmu, atau ketuk <strong>Voice AI</strong> untuk ngobrol langsung pakai suara.
     </p>
 
@@ -580,9 +613,9 @@
         <span>Voice AI</span>
       </button>
 
-      <textarea id="input" rows="1" class="flex-1 bg-surface-container-lowest border border-outline-variant rounded-2xl px-4 py-3 text-on-surface focus:outline-none input-focus transition-all w-full min-h-[52px] max-h-[140px] leading-6 order-2 sm:order-none" placeholder="Tulis curhatanmu..."></textarea>
+      <textarea id="input" rows="1" class="flex-1 border border-white/15 rounded-2xl px-4 py-3 text-white placeholder:text-white/40 focus:outline-none input-focus transition-all w-full min-h-[52px] max-h-[140px] leading-6 order-2 sm:order-none bg-white/5" placeholder="Tulis curhatanmu..."></textarea>
 
-      <button onclick="send()" class="bg-primary text-on-primary px-5 py-3 rounded-2xl font-semibold hover:brightness-110 shadow-lg shadow-primary/20 transition-all duration-300 send-btn flex items-center justify-center gap-2 w-full sm:w-auto min-w-[120px] h-[52px] order-3 sm:order-none">
+      <button onclick="send()" class="bg-gradient-to-r from-[#f9d8c5] via-[#f7d9e8] to-[#dfe7ff] text-[#2f1f26] px-5 py-3 rounded-2xl font-semibold hover:brightness-110 shadow-lg shadow-primary/20 transition-all duration-300 send-btn flex items-center justify-center gap-2 w-full sm:w-auto min-w-[120px] h-[52px] order-3 sm:order-none">
         <span class="material-symbols-outlined">send</span>
         <span>Kirim</span>
       </button>
@@ -625,6 +658,49 @@
 </div>
 
 <script>
+const spaceBg = document.getElementById('spaceBackground');
+const starsEl = document.getElementById('stars');
+for (let i = 0; i < 60; i++) {
+  const s = document.createElement('div');
+  s.className = 'star-particle';
+  const sz = 2 + Math.random() * 4;
+  s.style.cssText = `width:${sz}px;height:${sz}px;left:${Math.random()*100}%;top:${Math.random()*100}%;animation:pulse-soft ${3+Math.random()*6}s infinite ease-in-out;animation-delay:${Math.random()*5}s`;
+  starsEl.appendChild(s);
+}
+
+const spaceEmojis = ['☁️', '🪐', '✨', '☁️', '🌙'];
+for (let i = 0; i < 6; i++) {
+  const decor = document.createElement('div');
+  decor.className = 'space-decor';
+  decor.textContent = spaceEmojis[i % spaceEmojis.length];
+  decor.style.fontSize = (40 + Math.random() * 60) + 'px';
+  decor.style.left = (Math.random() * 90) + '%';
+  decor.style.top = (Math.random() * 80) + '%';
+  decor.style.animationDelay = (Math.random() * -10) + 's';
+  decor.style.animationDuration = (15 + Math.random() * 15) + 's';
+  spaceBg.appendChild(decor);
+}
+
+(function () {
+  const cloudL = document.getElementById('gtCloudLeft');
+  const cloudR = document.getElementById('gtCloudRight');
+  if (!cloudL || !cloudR) return;
+
+  let targetY = 0, currentY = 0;
+  function onScroll() {
+    targetY = window.scrollY || window.pageYOffset || 0;
+  }
+  window.addEventListener('scroll', onScroll, { passive: true });
+
+  function tick() {
+    currentY += (targetY - currentY) * 0.06;
+    cloudL.style.transform = `translate3d(${-currentY * 0.03}px, ${-currentY * 0.05}px, 0)`;
+    cloudR.style.transform = `translate3d(${currentY * 0.03}px, ${-currentY * 0.05}px, 0) scaleX(-1)`;
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+})();
+
 /* =========================================================
    Shared refs
    ========================================================= */
