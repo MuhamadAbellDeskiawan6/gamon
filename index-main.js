@@ -118,11 +118,29 @@ function closeModal() {
     if (modalAudio) {
         modalAudio.pause();
     }
+    const photoToggle = document.getElementById('modalPhotoToggle');
+    const photoShell = document.getElementById('modalPhotoShell');
+    if (photoToggle) {
+        photoToggle.hidden = true;
+        photoToggle.setAttribute('aria-expanded', 'false');
+    }
+    photoShell?.classList.remove('open');
+}
+
+function setPhotoboxPreviewState(isOpen) {
+    const photoToggle = document.getElementById('modalPhotoToggle');
+    const photoShell = document.getElementById('modalPhotoShell');
+    if (!photoToggle || !photoShell) return;
+    photoToggle.setAttribute('aria-expanded', String(isOpen));
+    photoShell.classList.toggle('open', isOpen);
 }
 
 function openModal(data, id) {
     currentPost = { data, id };
     const isPhotobox = data.type === 'photobox';
+    const photoToggle = document.getElementById('modalPhotoToggle');
+    const photoShell = document.getElementById('modalPhotoShell');
+    const photo = document.getElementById('modalPhoto');
 
     document.getElementById('modalBadgeEl').innerHTML = isPhotobox
         ? '<span class="modal-badge badge-photobox"><span class="material-symbols-outlined" style="font-size:13px;vertical-align:middle;">photo_camera</span> Photobox</span>'
@@ -137,22 +155,18 @@ function openModal(data, id) {
         : (isPhotobox ? 'Foto tanpa pesan.' : '');
     document.getElementById('modalMsg').textContent = modalMessage;
 
-    const photo = document.getElementById('modalPhoto');
-    if (data.photoUrl) {
-        photo.src = data.photoUrl;
-        photo.style.display = 'block';
-    } else {
-        photo.style.display = 'none';
-        photo.src = '';
+    if (photo) {
+        photo.src = data.photoUrl || '';
     }
 
-    const audioEl = document.getElementById('modalAudio');
-    if (data.audioUrl) {
-        audioEl.src = data.audioUrl;
-        audioEl.classList.add('has-audio');
-    } else {
-        audioEl.src = '';
-        audioEl.classList.remove('has-audio');
+    if (photoToggle) {
+        if (isPhotobox && data.photoUrl) {
+            photoToggle.hidden = false;
+            setPhotoboxPreviewState(false);
+        } else {
+            photoToggle.hidden = true;
+            photoShell?.classList.remove('open');
+        }
     }
 
     const waktu = data.waktu ? new Date(Number(data.waktu)).toLocaleDateString('id-ID') : '-';
@@ -464,7 +478,13 @@ function initMusic() {
 
 function initModal() {
     const modalCloseButton = document.getElementById('modalClose');
+    const modalPhotoToggle = document.getElementById('modalPhotoToggle');
     modalCloseButton?.addEventListener('click', closeModal);
+    modalPhotoToggle?.addEventListener('click', () => {
+        if (!currentPost || !currentPost.data || currentPost.data.type !== 'photobox') return;
+        const nextState = !document.getElementById('modalPhotoShell')?.classList.contains('open');
+        setPhotoboxPreviewState(nextState);
+    });
     document.getElementById('modalOverlay')?.addEventListener('click', (e) => {
         if (e.target === e.currentTarget) closeModal();
     });

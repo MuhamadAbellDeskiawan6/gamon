@@ -235,6 +235,18 @@
             color: rgba(255,255,255,0.74);
         }
 
+        .match-panel {
+            overflow: hidden;
+            max-height: 0;
+            opacity: 0;
+            transition: max-height 0.35s ease, opacity 0.3s ease, margin 0.35s ease, padding 0.35s ease;
+        }
+
+        .match-panel.is-visible {
+            max-height: 420px;
+            opacity: 1;
+        }
+
         @media (max-width: 768px) {
             .gt-cloud { display: none; }
             .content-shell {
@@ -304,6 +316,26 @@
 
 <input type="hidden" id="latitude" value="">
 <input type="hidden" id="longitude" value="">
+</div>
+
+<div class="space-y-4 pt-1">
+<div class="flex items-center gap-3">
+<label class="flex items-center gap-2 cursor-pointer">
+<input type="checkbox" id="enableMutualMatch" class="w-4 h-4 rounded border-white/30 cursor-pointer bg-transparent" />
+<span class="font-label-md text-label-md text-white/80">Aku masih pengen balikan sama dia 🥺</span>
+</label>
+</div>
+
+<div id="mutualMatchContainer" class="match-panel bg-white/5 border border-white/15 rounded-2xl p-4 space-y-4">
+<div>
+<label class="block font-label-md text-label-md text-white/80 mb-2" for="selfContact">Kontak kamu (nomor HP/nama)</label>
+<input class="w-full bg-white/5 border border-white/15 rounded-xl px-4 py-3 text-white placeholder:text-white/40 focus:outline-none input-focus transition-all" id="selfContact" placeholder="Cth: 0812xxxx atau nama kamu" type="text"/>
+</div>
+<div>
+<label class="block font-label-md text-label-md text-white/80 mb-2" for="exContact">Kontak mantan kamu (nomor HP/nama)</label>
+<input class="w-full bg-white/5 border border-white/15 rounded-xl px-4 py-3 text-white placeholder:text-white/40 focus:outline-none input-focus transition-all" id="exContact" placeholder="Cth: +62812xxxx atau nama mantan" type="text"/>
+</div>
+</div>
 </div>
 
 <div class="space-y-4">
@@ -384,7 +416,16 @@
 
 <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import {
+            getFirestore,
+            collection,
+            addDoc,
+            query,
+            where,
+            getDocs,
+            updateDoc,
+            doc
+        } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         const firebaseConfig = {
           apiKey: "AIzaSyC247K8yyL67aWV95KNQy8CkMZsjgGCudQ",
@@ -398,6 +439,206 @@
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
+
+        const enableMutualMatch = document.getElementById('enableMutualMatch');
+        const mutualMatchContainer = document.getElementById('mutualMatchContainer');
+
+        function toggleMutualMatchPanel() {
+            mutualMatchContainer.classList.toggle('is-visible', enableMutualMatch.checked);
+            mutualMatchContainer.classList.toggle('hidden', !enableMutualMatch.checked);
+        }
+
+        enableMutualMatch.addEventListener('change', toggleMutualMatchPanel);
+        toggleMutualMatchPanel();
+
+        function normalizeIdentity(rawValue) {
+            const trimmed = String(rawValue || '').trim().toLowerCase();
+            if (!trimmed) {
+                return '';
+            }
+
+            const digitsOnly = trimmed.replace(/\D/g, '');
+            if (digitsOnly.length >= 8) {
+                let canonical = digitsOnly;
+                if (canonical.startsWith('0')) canonical = '62' + canonical.slice(1);
+                if (!canonical.startsWith('62')) canonical = '62' + canonical;
+                return canonical;
+            }
+
+            return trimmed.normalize('NFKC').replace(/\s+/g, ' ');
+        }
+
+        async function hashIdentity(rawValue) {
+            const normalized = normalizeIdentity(rawValue);
+            if (!normalized) {
+                return '';
+            }
+            const encoder = new TextEncoder();
+            const data = encoder.encode(normalized);
+            const digest = await window.crypto.subtle.digest('SHA-256', data);
+            return Array.from(new Uint8Array(digest)).map(byte => byte.toString(16).padStart(2, '0')).join('');
+        }
+
+        async function findMutualMatchRequest(selfHash, exHash, currentRequestId) {
+            const queryOne = query(
+                collection(db, 'matchRequests'),
+                where('status', '==', 'pending'),
+                where('selfIdentityHash', '==', exHash)
+            );
+            const queryTwo = query(
+                collection(db, 'matchRequests'),
+                where('status', '==', 'pending'),
+                where('exIdentityHash', '==', selfHash)
+            );
+
+            const [matchesOne, matchesTwo] = await Promise.all([
+                getDocs(queryOne),
+                getDocs(queryTwo)
+            ]);
+
+            const candidates = [...matchesOne.docs, ...matchesTwo.docs];
+            return candidates.find(docSnap => {
+                const data = docSnap.data();
+                if (docSnap.id === currentRequestId) return false;
+                return data.selfIdentityHash === exHash && data.exIdentityHash === selfHash;
+            }) || null;
+        }
+
+        function buildMatchConfirmUrl({ requestId, matchId }) {
+            if (matchId) {
+                return `match-confirm.html?id=${encodeURIComponent(matchId)}&requestId=${encodeURIComponent(requestId)}`;
+            }
+            return `match-confirm.html?requestId=${encodeURIComponent(requestId)}`;
+        }
+
+        async function createMutualMatchFlow({ curhatId, selfContactText, exContactText }) {
+            const selfHash = await hashIdentity(selfContactText);
+            const exHash = await hashIdentity(exContactText);
+
+            if (!selfHash || !exHash) {
+                return null;
+            }
+
+            const requestRef = await addDoc(collection(db, 'matchRequests'), {
+                selfIdentityHash: selfHash,
+                exIdentityHash: exHash,
+                curhatId,
+                status: 'pending',
+                matchId: null,
+                createdAt: Date.now()
+            });
+
+            const pendingMatchUrl = buildMatchConfirmUrl({ requestId: requestRef.id });
+
+            await Promise.all([
+                updateDoc(doc(db, 'gamon', curhatId), {
+                    matchRequestId: requestRef.id,
+                    matchStatus: 'pending',
+                    matchId: null,
+                    matchUrl: pendingMatchUrl,
+                    updatedAt: Date.now()
+                }),
+                addDoc(collection(db, 'matchContacts'), {
+                    requestId: requestRef.id,
+                    matchId: null,
+                    curhatId,
+                    ownerIdentityHash: selfHash,
+                    contactText: selfContactText.trim(),
+                    createdAt: Date.now()
+                })
+            ]);
+
+            // Catatan keamanan: pendekatan ini masih terbatas jika semua logic berjalan dari browser tanpa auth / secret server-side.
+            // Ini hanya mengurangi akses iseng, bukan proteksi sensitif yang kuat untuk data nyata.
+            localStorage.setItem('gamon.lastMutualMatchRequestId', requestRef.id);
+
+            const pairedRequest = await findMutualMatchRequest(selfHash, exHash, requestRef.id);
+            if (!pairedRequest) {
+                return {
+                    matchId: null,
+                    requestId: requestRef.id,
+                    matchUrl: pendingMatchUrl
+                };
+            }
+
+            const matchDocRef = await addDoc(collection(db, 'matches'), {
+                requestIds: [requestRef.id, pairedRequest.id],
+                curhatIds: [curhatId, pairedRequest.data().curhatId || null],
+                status: 'pending_confirmation',
+                confirmedBy: {
+                    [requestRef.id]: false,
+                    [pairedRequest.id]: false
+                },
+                createdAt: Date.now()
+            });
+
+            const matchUrl = buildMatchConfirmUrl({
+                requestId: requestRef.id,
+                matchId: matchDocRef.id
+            });
+
+            await Promise.all([
+                updateDoc(doc(db, 'matchRequests', requestRef.id), {
+                    status: 'matched',
+                    matchId: matchDocRef.id,
+                    matchedWithRequestId: pairedRequest.id,
+                    updatedAt: Date.now()
+                }),
+                updateDoc(doc(db, 'matchRequests', pairedRequest.id), {
+                    status: 'matched',
+                    matchId: matchDocRef.id,
+                    matchedWithRequestId: requestRef.id,
+                    updatedAt: Date.now()
+                }),
+                updateDoc(doc(db, 'gamon', curhatId), {
+                    matchRequestId: requestRef.id,
+                    matchId: matchDocRef.id,
+                    matchStatus: 'matched',
+                    matchUrl,
+                    updatedAt: Date.now()
+                }),
+                updateDoc(doc(db, 'gamon', pairedRequest.data().curhatId), {
+                    matchRequestId: pairedRequest.id,
+                    matchId: matchDocRef.id,
+                    matchStatus: 'matched',
+                    matchUrl: buildMatchConfirmUrl({
+                        requestId: pairedRequest.id,
+                        matchId: matchDocRef.id
+                    }),
+                    updatedAt: Date.now()
+                })
+            ]);
+
+            const otherContactSnapshot = await getDocs(
+                query(collection(db, 'matchContacts'), where('requestId', '==', pairedRequest.id))
+            );
+
+            if (!otherContactSnapshot.empty) {
+                const contactDoc = otherContactSnapshot.docs[0];
+                await updateDoc(contactDoc.ref, {
+                    matchId: matchDocRef.id,
+                    updatedAt: Date.now()
+                });
+            }
+
+            const selfContactSnapshot = await getDocs(
+                query(collection(db, 'matchContacts'), where('requestId', '==', requestRef.id))
+            );
+
+            if (!selfContactSnapshot.empty) {
+                const selfContactDoc = selfContactSnapshot.docs[0];
+                await updateDoc(selfContactDoc.ref, {
+                    matchId: matchDocRef.id,
+                    updatedAt: Date.now()
+                });
+            }
+
+            return {
+                matchId: matchDocRef.id,
+                requestId: requestRef.id,
+                matchUrl
+            };
+        }
 
         // --- INISIALISASI PETA INPUT (LEAFLET) ---
         // Titik awal di Banjarmasin (bisa diganti titik tengah Indonesia jika mau)
@@ -561,8 +802,8 @@
 
             const latVal = document.getElementById('latitude').value;
             const lngVal = document.getElementById('longitude').value;
+            const isMutualMatchSelected = enableMutualMatch.checked;
 
-            // Prepare data dengan lokasi opsional
             const gamonData = {
                 nama: document.getElementById('senderName').value,
                 tujuan: document.getElementById('receiverName').value,
@@ -571,20 +812,40 @@
                 waktu: Date.now()
             };
 
-            // Tambahkan latitude & longitude hanya jika lokasi diaktifkan
             if (latVal && lngVal) {
                 gamonData.latitude = parseFloat(latVal);
                 gamonData.longitude = parseFloat(lngVal);
             }
 
             try {
-                await addDoc(collection(db, 'gamon'), gamonData);
+                const gamonRef = await addDoc(collection(db, 'gamon'), gamonData);
+
+                if (isMutualMatchSelected) {
+                    const selfContactText = document.getElementById('selfContact').value;
+                    const exContactText = document.getElementById('exContact').value;
+
+                    if (!selfContactText.trim() || !exContactText.trim()) {
+                        throw new Error('Kontak untuk mutual match harus diisi lengkap.');
+                    }
+
+                    const matchData = await createMutualMatchFlow({
+                        curhatId: gamonRef.id,
+                        selfContactText,
+                        exContactText
+                    });
+
+                    if (matchData && matchData.requestId) {
+                        localStorage.setItem('gamon.lastMutualMatchRequestId', matchData.requestId);
+                        window.location.href = buildMatchConfirmUrl(matchData);
+                        return;
+                    }
+                }
 
                 alert('Gamonmu telah terkirim dan dipetakan.');
                 window.location.href = 'index.html';
             } catch (err) {
                 console.error(err);
-                alert('Gagal mengirim pesan.');
+                alert(err.message || 'Gagal mengirim pesan.');
             } finally {
                 submitBtn.disabled = false;
                 btnText.innerText = 'Kirim Gamon';

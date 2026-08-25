@@ -1,0 +1,1074 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>Konfirmasi Mutual Match - Gamon Tawing</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "outline": "#7f7478",
+                        "inverse-on-surface": "#f5eff1",
+                        "secondary-fixed": "#ecdeee",
+                        "primary-fixed": "#f4dce4",
+                        "on-primary": "#ffffff",
+                        "secondary": "#655b68",
+                        "on-surface-variant": "#4d4447",
+                        "on-error-container": "#93000a",
+                        "surface-dim": "#ded9db",
+                        "on-secondary": "#ffffff",
+                        "on-surface": "#1d1b1d",
+                        "surface-container-highest": "#e7e1e3",
+                        "surface-container-high": "#ece7e9",
+                        "on-primary-fixed-variant": "#524249",
+                        "outline-variant": "#d0c3c7",
+                        "background": "#fef8fa",
+                        "on-secondary-fixed-variant": "#4d4450",
+                        "tertiary-container": "#d9edf6",
+                        "error-container": "#ffdad6",
+                        "tertiary": "#4f6169",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-container": "#f2ecee",
+                        "secondary-container": "#ecdeee",
+                        "tertiary-fixed-dim": "#b6cad2",
+                        "on-primary-container": "#76646b",
+                        "surface-bright": "#fef8fa",
+                        "primary-fixed-dim": "#d7c1c8",
+                        "primary": "#6b5a60",
+                        "inverse-surface": "#323031",
+                        "on-primary-fixed": "#25181e",
+                        "on-secondary-container": "#6b616e",
+                        "on-tertiary-container": "#596c73",
+                        "on-tertiary-fixed": "#0b1e24",
+                        "inverse-primary": "#d7c1c8",
+                        "on-tertiary": "#ffffff",
+                        "tertiary-fixed": "#d2e6ef",
+                        "secondary-fixed-dim": "#cfc2d2",
+                        "surface": "#fef8fa",
+                        "on-error": "#ffffff",
+                        "primary-container": "#fce4ec",
+                        "surface-variant": "#e7e1e3",
+                        "error": "#ba1a1a",
+                        "on-tertiary-fixed-variant": "#374951",
+                        "on-background": "#1d1b1d",
+                        "surface-tint": "#6b5a60",
+                        "on-secondary-fixed": "#201924",
+                        "surface-container-low": "#f8f2f4"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "unit": "8px",
+                        "section-gap": "80px",
+                        "gutter": "24px",
+                        "container-padding": "40px",
+                        "margin-mobile": "20px"
+                    },
+                    "fontFamily": {
+                        "body-lg": ["Inter"],
+                        "body-md": ["Inter"],
+                        "display-lg": ["Playfair Display"],
+                        "label-md": ["Inter"],
+                        "headline-sm": ["Playfair Display"],
+                        "headline-md": ["Playfair Display"]
+                    },
+                    "fontSize": {
+                        "body-lg": ["18px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                        "body-md": ["16px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                        "display-lg": ["48px", {"lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                        "label-md": ["14px", {"lineHeight": "1", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                        "headline-sm": ["24px", {"lineHeight": "1.4", "fontWeight": "500"}],
+                        "headline-md": ["32px", {"lineHeight": "1.3", "fontWeight": "500"}]
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        html, body {
+            margin: 0;
+            min-height: 100%;
+        }
+
+        body {
+            background: linear-gradient(180deg, #010A17 0%, #0A4267 30%, #20658E 60%, #6BADC4 100%) fixed;
+            min-height: 100vh;
+            overflow-x: hidden;
+            color: rgba(255,255,255,0.9);
+        }
+
+        .star-particle {
+            position: absolute;
+            background: #e7d8ff;
+            border-radius: 50%;
+            opacity: 0.55;
+            pointer-events: none;
+            box-shadow: 0 0 6px rgba(231,216,255,0.6);
+        }
+
+        .space-decor {
+            position: absolute;
+            pointer-events: none;
+            opacity: 0.2;
+            filter: blur(4px);
+            animation: spaceFloat 18s infinite ease-in-out alternate;
+        }
+
+        @keyframes spaceFloat {
+            0% { transform: translateY(0px) rotate(0deg) scale(1); }
+            100% { transform: translateY(-30px) rotate(15deg) scale(1.15); }
+        }
+
+        @keyframes pulse-soft {
+            0%, 100% { transform: scale(1); opacity: 0.4; }
+            50% { transform: scale(1.5); opacity: 0.7; }
+        }
+
+        #gtSkyLayer {
+            position: fixed;
+            inset: 0;
+            z-index: 2;
+            pointer-events: none;
+            overflow: hidden;
+        }
+
+        .gt-cloud {
+            position: absolute;
+            bottom: -6%;
+            width: 620px;
+            max-width: 62vw;
+            opacity: 0.5;
+            will-change: transform;
+            transform: translate3d(0,0,0);
+        }
+
+        .gt-cloud img {
+            width: 100%;
+            display: block;
+        }
+
+        .gt-cloud-left { left: -12%; }
+        .gt-cloud-right { right: -14%; transform: scaleX(-1); }
+
+        .content-shell {
+            position: relative;
+            z-index: 10;
+            max-width: 980px;
+            width: min(100% - 24px, 980px);
+            margin: 0 auto;
+            padding: 2rem 0 3rem;
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.09);
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 18px 42px -18px rgba(1,10,23,0.45);
+        }
+
+        .input-focus:focus {
+            box-shadow: 0 0 0 4px rgba(252, 228, 236, 0.22);
+            border-color: rgba(255,255,255,0.4);
+        }
+
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.7rem 1rem;
+            border-radius: 9999px;
+            background: linear-gradient(135deg, #f9d8c5 0%, #f7d9e8 35%, #dfe7ff 100%);
+            color: #2f1f26;
+            font-weight: 600;
+            border: 1px solid rgba(255,255,255,0.45);
+            box-shadow: 0 8px 24px rgba(1,10,23,0.2);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .back-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 12px 26px rgba(1,10,23,0.28);
+        }
+
+        .submit-btn {
+            background: linear-gradient(135deg, #f9d8c5 0%, #f7d9e8 35%, #dfe7ff 100%);
+            color: #2f1f26;
+            box-shadow: 0 10px 24px rgba(1,10,23,0.2);
+        }
+
+        .submit-btn:hover {
+            filter: brightness(1.02);
+        }
+
+        .text-soft {
+            color: rgba(255,255,255,0.74);
+        }
+
+        @media (max-width: 768px) {
+            .gt-cloud { display: none; }
+            .content-shell {
+                width: min(100% - 18px, 980px);
+                padding-top: 1.25rem;
+            }
+        }
+    </style>
+</head>
+<body class="font-body-md text-white/90 selection:bg-primary-container selection:text-white">
+<div class="fixed inset-0 pointer-events-none z-0" id="spaceBackground">
+    <div class="fixed inset-0" id="stars"></div>
+</div>
+
+<div id="gtSkyLayer">
+    <div class="gt-cloud gt-cloud-left" id="gtCloudLeft">
+        <img src="https://soft-zoom-63098134.figma.site/_assets/v11/0d6dfd3f90b930f21726f2ed56a3320d79b7a797.png" alt="" />
+    </div>
+    <div class="gt-cloud gt-cloud-right" id="gtCloudRight">
+        <img src="https://soft-zoom-63098134.figma.site/_assets/v11/0d6dfd3f90b930f21726f2ed56a3320d79b7a797.png" alt="" />
+    </div>
+</div>
+
+<main class="content-shell">
+    <a class="back-btn self-start mb-5 group" href="index.html">
+        <span class="material-symbols-outlined transition-transform group-hover:-translate-x-1">arrow_back</span>
+        <span>Kembali</span>
+    </a>
+
+    <section class="glass-card w-full p-5 sm:p-8 md:p-10 rounded-[30px]">
+        <div class="mb-8 text-center">
+            <h1 class="font-display-lg text-3xl sm:text-4xl md:text-5xl text-white mb-3 flex items-center justify-center gap-2">
+                Match Confirmation
+                <span class="material-symbols-outlined text-[1.3em]">favorite</span>
+            </h1>
+            <p class="font-body-md text-soft">Masih ada ruang buat jelas dan tulus.</p>
+        </div>
+
+        <div class="bg-white/6 border border-white/15 rounded-2xl p-4 mb-6 flex items-center gap-3">
+            <span class="material-symbols-outlined text-white" style="font-variation-settings: 'FILL' 1;">favorite</span>
+            <p id="statusBadge" class="font-label-md text-label-md text-white/90">Memeriksa status...</p>
+        </div>
+
+        <div class="space-y-6">
+            <p id="statusMessage" class="text-lg leading-relaxed text-white/85">
+                Menunggu konfirmasi dari dia juga...
+            </p>
+
+            <button id="confirmBtn" type="button" class="submit-btn w-full py-3.5 rounded-xl font-headline-sm hover:brightness-110 shadow-lg transition-all duration-300 active:scale-95 flex justify-center items-center gap-3">
+                <span>Iya, aku masih beneran mau 🥹</span>
+            </button>
+
+            <button id="downloadCardBtn" type="button" class="w-full py-3.5 rounded-xl border border-white/20 bg-white/8 text-white/95 font-semibold hover:bg-white/12 transition-all duration-300">
+                Download kartu gamon
+            </button>
+
+            <div id="contactPanel" class="hidden mt-6 rounded-2xl border border-white/15 bg-white/5 p-5">
+                <p class="font-label-md text-label-md text-white/80 mb-2">Kontak mantan kamu</p>
+                <div id="contactValue" class="text-xl font-semibold text-white/95 break-words">-</div>
+                <a id="contactWhatsAppBtn" href="#" target="_blank" rel="noopener noreferrer" class="hidden mt-4 inline-flex items-center justify-center gap-2 rounded-full bg-[#25D366] px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-[#25D366]/30 transition hover:brightness-110">
+                    <span class="material-symbols-outlined text-base">chat</span>
+                    <span>Chat WhatsApp</span>
+                </a>
+            </div>
+        </div>
+    </section>
+</main>
+
+<script>
+    const spaceBg = document.getElementById('spaceBackground');
+    const starsEl = document.getElementById('stars');
+    for (let i = 0; i < 60; i++) {
+        const s = document.createElement('div');
+        s.className = 'star-particle';
+        const sz = 2 + Math.random() * 4;
+        s.style.cssText = `width:${sz}px;height:${sz}px;left:${Math.random()*100}%;top:${Math.random()*100}%;animation:pulse-soft ${3+Math.random()*6}s infinite ease-in-out;animation-delay:${Math.random()*5}s`;
+        starsEl.appendChild(s);
+    }
+
+    const spaceEmojis = ['☁️', '🪐', '✨', '☁️', '🌙'];
+    for (let i = 0; i < 6; i++) {
+        const decor = document.createElement('div');
+        decor.className = 'space-decor';
+        decor.textContent = spaceEmojis[i % spaceEmojis.length];
+        decor.style.fontSize = (40 + Math.random() * 60) + 'px';
+        decor.style.left = (Math.random() * 90) + '%';
+        decor.style.top = (Math.random() * 80) + '%';
+        decor.style.animationDelay = (Math.random() * -10) + 's';
+        decor.style.animationDuration = (15 + Math.random() * 15) + 's';
+        spaceBg.appendChild(decor);
+    }
+
+    (function () {
+        const cloudL = document.getElementById('gtCloudLeft');
+        const cloudR = document.getElementById('gtCloudRight');
+        if (!cloudL || !cloudR) return;
+
+        let targetY = 0, currentY = 0;
+        function onScroll() {
+            targetY = window.scrollY || window.pageYOffset || 0;
+        }
+        window.addEventListener('scroll', onScroll, { passive: true });
+
+        function tick() {
+            currentY += (targetY - currentY) * 0.06;
+            cloudL.style.transform = `translate3d(${-currentY * 0.03}px, ${-currentY * 0.05}px, 0)`;
+            cloudR.style.transform = `translate3d(${currentY * 0.03}px, ${-currentY * 0.05}px, 0) scaleX(-1)`;
+            requestAnimationFrame(tick);
+        }
+        requestAnimationFrame(tick);
+    })();
+</script>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import {
+        getFirestore,
+        doc,
+        updateDoc,
+        onSnapshot,
+        query,
+        collection,
+        where,
+        getDocs,
+        getDoc
+    } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyC247K8yyL67aWV95KNQy8CkMZsjgGCudQ",
+      authDomain: "gamon-tawing.firebaseapp.com",
+      projectId: "gamon-tawing",
+      storageBucket: "gamon-tawing.firebasestorage.app",
+      messagingSenderId: "370162915989",
+      appId: "1:370162915989:web:76779062da83aa0c5c999c",
+      measurementId: "G-DDRQKDZXV7"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    const params = new URLSearchParams(window.location.search);
+    let matchId = params.get('id');
+    const requestId = params.get('requestId');
+    const statusBadge = document.getElementById('statusBadge');
+    const statusMessage = document.getElementById('statusMessage');
+    const confirmBtn = document.getElementById('confirmBtn');
+    const contactPanel = document.getElementById('contactPanel');
+    const contactValue = document.getElementById('contactValue');
+    const contactWhatsAppBtn = document.getElementById('contactWhatsAppBtn');
+    const downloadCardBtn = document.getElementById('downloadCardBtn');
+    let activeMatchUnsubscribe = null;
+
+    if (!requestId) {
+        statusBadge.textContent = 'Link tidak valid';
+        statusMessage.textContent = 'Link konfirmasi ini tidak lengkap. Silakan cek ulang tautannya.';
+        confirmBtn.disabled = true;
+        confirmBtn.classList.add('opacity-50', 'cursor-not-allowed');
+        throw new Error('Missing request id');
+    }
+
+    function getCurrentConfirmUrl() {
+        const baseUrl = `${window.location.origin}${window.location.pathname}`;
+        const url = new URL(baseUrl);
+        url.searchParams.set('requestId', requestId);
+        if (matchId) {
+            url.searchParams.set('id', matchId);
+        }
+        return url.toString();
+    }
+
+    function escapeHtml(value) {
+        return String(value || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    function buildCardHtml({ name, recipient, message, createdAt, statusLabel }) {
+        const confirmUrl = getCurrentConfirmUrl();
+        const qrImage = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(confirmUrl)}`;
+        const cleanMessage = message && message.trim() ? message.trim() : 'Tidak ada pesan tambahan.';
+        const safeName = escapeHtml(name || 'Anonim');
+        const safeRecipient = escapeHtml(recipient || 'Seseorang');
+        const safeMessage = escapeHtml(cleanMessage).replace(/\n/g, '<br>');
+        const safeDate = escapeHtml(createdAt || 'Tanggal tidak tersedia');
+        const safeStatus = escapeHtml(statusLabel || 'Menunggu match');
+        const safeStatusTone = safeStatus.toLowerCase().includes('sudah') || safeStatus.toLowerCase().includes('match') ? '#dff7e8' : '#fce7f3';
+
+        return `
+            <html>
+                <head>
+                    <meta charset="utf-8" />
+                    <title>Kartu Gamon</title>
+                    <style>
+                        @page { size: A5 portrait; margin: 12mm; }
+                        * { box-sizing: border-box; }
+                        body {
+                            margin: 0;
+                            font-family: "Segoe UI", Arial, sans-serif;
+                            background: radial-gradient(circle at top left, rgba(255,255,255,0.2), transparent 32%),
+                                        linear-gradient(180deg, #010A17 0%, #0A4267 30%, #20658E 60%, #6BADC4 100%);
+                            color: #fff;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            min-height: 100vh;
+                            padding: 24px;
+                        }
+                        .card {
+                            width: 440px;
+                            border-radius: 32px;
+                            background: rgba(255,255,255,0.10);
+                            border: 1px solid rgba(255,255,255,0.22);
+                            box-shadow: 0 20px 52px -18px rgba(1,10,23,0.55);
+                            backdrop-filter: blur(10px);
+                            -webkit-backdrop-filter: blur(10px);
+                            overflow: hidden;
+                            position: relative;
+                        }
+                        .card::before, .card::after {
+                            content: "";
+                            position: absolute;
+                            border-radius: 50%;
+                            background: rgba(255,255,255,0.05);
+                            pointer-events: none;
+                        }
+                        .card::before {
+                            width: 250px;
+                            height: 250px;
+                            right: -70px;
+                            top: -80px;
+                        }
+                        .card::after {
+                            width: 180px;
+                            height: 180px;
+                            left: -60px;
+                            bottom: -40px;
+                        }
+                        .content {
+                            position: relative;
+                            z-index: 1;
+                            padding: 24px 24px 20px;
+                        }
+                        .topbar {
+                            display: flex;
+                            align-items: center;
+                            justify-content: space-between;
+                            margin-bottom: 18px;
+                        }
+                        .brand {
+                            display: inline-flex;
+                            align-items: center;
+                            gap: 8px;
+                            background: rgba(255,255,255,0.12);
+                            border: 1px solid rgba(255,255,255,0.18);
+                            border-radius: 999px;
+                            padding: 7px 12px;
+                            font-size: 10px;
+                            font-weight: 700;
+                            letter-spacing: 0.14em;
+                            text-transform: uppercase;
+                            color: rgba(255,255,255,0.9);
+                        }
+                        .brand-mark {
+                            width: 9px;
+                            height: 9px;
+                            border-radius: 50%;
+                            background: linear-gradient(135deg, #f9d8c5, #dfe7ff);
+                            box-shadow: 0 0 12px rgba(249,216,197,0.9);
+                        }
+                        .status-pill {
+                            display: inline-flex;
+                            align-items: center;
+                            justify-content: center;
+                            padding: 7px 12px;
+                            border-radius: 999px;
+                            font-size: 11px;
+                            font-weight: 700;
+                            color: #1d1b1d;
+                            background: ${safeStatusTone};
+                            border: 1px solid rgba(255,255,255,0.22);
+                        }
+                        .title {
+                            margin: 0;
+                            font-family: Georgia, "Times New Roman", serif;
+                            font-size: 34px;
+                            font-weight: 700;
+                            letter-spacing: -0.04em;
+                        }
+                        .subtitle {
+                            margin: 8px 0 0;
+                            color: rgba(255,255,255,0.76);
+                            font-size: 12px;
+                            letter-spacing: 0.08em;
+                            text-transform: uppercase;
+                        }
+                        .meta {
+                            margin-top: 18px;
+                            display: grid;
+                            grid-template-columns: 1fr 1fr;
+                            gap: 12px;
+                        }
+                        .panel {
+                            background: rgba(255,255,255,0.06);
+                            border: 1px solid rgba(255,255,255,0.12);
+                            border-radius: 18px;
+                            padding: 12px 12px 10px;
+                        }
+                        .label {
+                            display: block;
+                            margin-bottom: 6px;
+                            font-size: 10px;
+                            letter-spacing: 0.12em;
+                            text-transform: uppercase;
+                            color: rgba(255,255,255,0.7);
+                        }
+                        .value {
+                            font-size: 14px;
+                            line-height: 1.5;
+                            color: rgba(255,255,255,0.98);
+                            word-break: break-word;
+                        }
+                        .message-panel {
+                            margin-top: 12px;
+                            background: rgba(255,255,255,0.06);
+                            border: 1px solid rgba(255,255,255,0.12);
+                            border-radius: 18px;
+                            padding: 14px 14px 12px;
+                        }
+                        .message-panel .value {
+                            font-style: italic;
+                            color: rgba(255,255,255,0.9);
+                        }
+                        .footer-row {
+                            margin-top: 18px;
+                            display: flex;
+                            align-items: center;
+                            justify-content: space-between;
+                            gap: 16px;
+                        }
+                        .qr-wrap {
+                            width: 136px;
+                            height: 136px;
+                            border-radius: 18px;
+                            padding: 8px;
+                            background: rgba(255,255,255,0.9);
+                            border: 1px solid rgba(255,255,255,0.18);
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            flex-shrink: 0;
+                        }
+                        .qr-wrap img {
+                            width: 100%;
+                            height: 100%;
+                            object-fit: contain;
+                            display: block;
+                        }
+                        .footer-copy {
+                            flex: 1;
+                            font-size: 11px;
+                            line-height: 1.5;
+                            color: rgba(255,255,255,0.8);
+                        }
+                        .thin {
+                            font-weight: 600;
+                            color: rgba(255,255,255,0.95);
+                        }
+                        @media print {
+                            body {
+                                padding: 0;
+                                background: #fff;
+                            }
+                            .card {
+                                box-shadow: none;
+                                border: 1px solid rgba(0,0,0,0.08);
+                            }
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="card">
+                        <div class="content">
+                            <div class="topbar">
+                                <div class="brand"><span class="brand-mark"></span>Gamon Tawing</div>
+                                <div class="status-pill">${safeStatus}</div>
+                            </div>
+
+                            <h1 class="title">Kartu Gamon</h1>
+                            <p class="subtitle">Curhat & match card</p>
+
+                            <div class="meta">
+                                <div class="panel">
+                                    <span class="label">Nama kamu</span>
+                                    <div class="value">${safeName}</div>
+                                </div>
+                                <div class="panel">
+                                    <span class="label">Untuk</span>
+                                    <div class="value">${safeRecipient}</div>
+                                </div>
+                            </div>
+
+                            <div class="message-panel">
+                                <span class="label">Pesan</span>
+                                <div class="value">${safeMessage}</div>
+                            </div>
+
+                            <div class="footer-row">
+                                <div class="qr-wrap">
+                                    <img src="${qrImage}" alt="QR kartu gamon" />
+                                </div>
+                                <div class="footer-copy">
+                                    <div class="thin">Scan QR ini</div>
+                                    untuk membuka halaman<br />konfirmasi match kapan saja.<br /><br />
+                                    <span style="opacity:0.85;">Dibuat: ${safeDate}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </body>
+            </html>
+        `;
+    }
+
+    function loadImage(src) {
+        return new Promise((resolve) => {
+            if (!src) {
+                resolve(null);
+                return;
+            }
+
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            img.referrerPolicy = 'no-referrer';
+            img.onload = () => resolve(img);
+            img.onerror = () => resolve(null);
+            img.src = src;
+        });
+    }
+
+    function roundedRect(ctx, x, y, width, height, radius) {
+        ctx.beginPath();
+        ctx.moveTo(x + radius, y);
+        ctx.lineTo(x + width - radius, y);
+        ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+        ctx.lineTo(x + width, y + height - radius);
+        ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+        ctx.lineTo(x + radius, y + height);
+        ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+        ctx.lineTo(x, y + radius);
+        ctx.quadraticCurveTo(x, y, x + radius, y);
+        ctx.closePath();
+    }
+
+    async function exportCardAsImage({ name, recipient, message, createdAt, statusLabel }) {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        const width = 1200;
+        const height = 1600;
+        canvas.width = width;
+        canvas.height = height;
+
+        const bgGradient = ctx.createLinearGradient(0, 0, width, height);
+        bgGradient.addColorStop(0, '#010A17');
+        bgGradient.addColorStop(0.35, '#0A4267');
+        bgGradient.addColorStop(0.7, '#20658E');
+        bgGradient.addColorStop(1, '#6BADC4');
+        ctx.fillStyle = bgGradient;
+        ctx.fillRect(0, 0, width, height);
+
+        ctx.fillStyle = 'rgba(255,255,255,0.08)';
+        for (let i = 0; i < 26; i++) {
+            const x = (i * 97) % width;
+            const y = (i * 149) % height;
+            const r = 2 + ((i * 7) % 6);
+            ctx.beginPath();
+            ctx.arc(x + 20, y + 20, r, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        const cardX = 120;
+        const cardY = 120;
+        const cardW = width - 240;
+        const cardH = height - 240;
+
+        roundedRect(ctx, cardX, cardY, cardW, cardH, 52);
+        ctx.fillStyle = 'rgba(255,255,255,0.10)';
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(255,255,255,0.22)';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+
+        ctx.fillStyle = 'rgba(255,255,255,0.08)';
+        ctx.beginPath();
+        ctx.arc(cardX + cardW - 110, cardY + 80, 180, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = 'rgba(255,255,255,0.08)';
+        ctx.beginPath();
+        ctx.arc(cardX + 90, cardY + cardH - 90, 170, 0, Math.PI * 2);
+        ctx.fill();
+
+        const brandX = cardX + 54;
+        const brandY = cardY + 54;
+        ctx.fillStyle = '#FCE8F3';
+        ctx.beginPath();
+        ctx.arc(brandX + 16, brandY + 16, 12, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = '700 34px Segoe UI';
+        ctx.textAlign = 'left';
+        ctx.fillText('GAMON TAWING', brandX + 42, brandY + 24);
+
+        const statusText = String(statusLabel || 'Menunggu match');
+        const statusWidth = 250;
+        const statusX = cardX + cardW - 300;
+        const statusY = cardY + 60;
+        roundedRect(ctx, statusX, statusY - 18, statusWidth, 52, 26);
+        ctx.fillStyle = '#DFF7E8';
+        ctx.fill();
+        ctx.fillStyle = '#1D1B1D';
+        ctx.font = '700 26px Segoe UI';
+        ctx.textAlign = 'center';
+        ctx.fillText(statusText, statusX + statusWidth / 2, statusY + 11);
+
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = '700 84px Georgia';
+        ctx.textAlign = 'left';
+        ctx.fillText('Kartu Gamon', cardX + 54, cardY + 160);
+
+        ctx.fillStyle = 'rgba(255,255,255,0.78)';
+        ctx.font = '600 22px Segoe UI';
+        ctx.fillText('Curhat & match card', cardX + 58, cardY + 200);
+
+        const labelStyle = { font: '700 22px Segoe UI', color: '#D8E7F5' };
+        const valueStyle = { font: '600 40px Segoe UI', color: '#FFFFFF' };
+
+        const metaY = cardY + 300;
+        const leftMetaX = cardX + 54;
+        const rightMetaX = cardX + cardW / 2 + 18;
+        const metaW = cardW / 2 - 72;
+        const metaH = 150;
+
+        roundedRect(ctx, leftMetaX, metaY, metaW, 150, 28);
+        ctx.fillStyle = 'rgba(255,255,255,0.06)';
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+        ctx.stroke();
+
+        roundedRect(ctx, rightMetaX, metaY, metaW, 150, 28);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = '#D8E7F5';
+        ctx.font = labelStyle.font;
+        ctx.textAlign = 'left';
+        ctx.fillText('Nama kamu', leftMetaX + 28, metaY + 46);
+        ctx.fillText('Untuk', rightMetaX + 28, metaY + 46);
+
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = valueStyle.font;
+        ctx.fillText((name || 'Anonim').slice(0, 18), leftMetaX + 28, metaY + 100);
+        ctx.fillText((recipient || 'Seseorang').slice(0, 18), rightMetaX + 28, metaY + 100);
+
+        const messageBoxY = cardY + 510;
+        const messageBoxW = cardW - 108;
+        roundedRect(ctx, cardX + 54, messageBoxY, messageBoxW, 270, 30);
+        ctx.fillStyle = 'rgba(255,255,255,0.06)';
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+        ctx.stroke();
+
+        ctx.fillStyle = '#D8E7F5';
+        ctx.font = '700 22px Segoe UI';
+        ctx.fillText('Pesan', cardX + 82, messageBoxY + 42);
+
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = '600 30px Segoe UI';
+        const trimmedMessage = (message || 'Tidak ada pesan tambahan.').replace(/\s+/g, ' ').trim();
+        const messageLines = [];
+        let currentLine = '';
+        const words = trimmedMessage.split(' ');
+        for (const word of words) {
+            const testLine = currentLine ? `${currentLine} ${word}` : word;
+            if (ctx.measureText(testLine).width > messageBoxW - 120) {
+                messageLines.push(currentLine);
+                currentLine = word;
+            } else {
+                currentLine = testLine;
+            }
+        }
+        if (currentLine) messageLines.push(currentLine);
+        const visibleLines = messageLines.slice(0, 6);
+        visibleLines.forEach((line, index) => {
+            ctx.fillText(line, cardX + 82, messageBoxY + 90 + index * 34);
+        });
+
+        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=420x420&data=${encodeURIComponent(getCurrentConfirmUrl())}`;
+        const qrImage = await loadImage(qrUrl);
+        const qrSize = 240;
+        const qrX = cardX + cardW - 58 - qrSize;
+        const qrY = cardY + cardH - 240;
+        roundedRect(ctx, qrX, qrY, qrSize, qrSize, 26);
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fill();
+
+        if (qrImage) {
+            try {
+                ctx.drawImage(qrImage, qrX + 14, qrY + 14, qrSize - 28, qrSize - 28);
+            } catch (error) {
+                console.warn('QR canvas draw failed, continuing without QR image.', error);
+            }
+        }
+
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = '600 26px Segoe UI';
+        ctx.textAlign = 'left';
+        const footerY = qrY + qrSize + 40;
+        ctx.fillText('Scan QR ini untuk', cardX + 54, footerY);
+        ctx.fillText('membuka halaman konfirmasi', cardX + 54, footerY + 36);
+        ctx.fillText('kapan saja.', cardX + 54, footerY + 72);
+
+        ctx.fillStyle = 'rgba(255,255,255,0.85)';
+        ctx.font = '600 22px Segoe UI';
+        ctx.fillText(`Dibuat: ${createdAt || 'Tanggal tidak tersedia'}`, cardX + 54, cardY + cardH - 54);
+
+        const link = document.createElement('a');
+        link.download = 'kartu-gamon.png';
+        const outputUrl = canvas.toDataURL('image/png');
+        link.href = outputUrl;
+        link.click();
+    }
+
+    const requestRef = doc(db, 'matchRequests', requestId);
+
+    function normalizePhoneForWa(rawText) {
+        const digits = String(rawText || '').replace(/\D/g, '');
+        if (!digits || digits.length < 8) return null;
+
+        let number = digits;
+        if (number.startsWith('0')) {
+            number = '62' + number.slice(1);
+        } else if (!number.startsWith('62')) {
+            number = '62' + number;
+        }
+
+        return number;
+    }
+
+    function buildWhatsAppLink(rawText) {
+        const phone = normalizePhoneForWa(rawText);
+        if (!phone) return null;
+
+        const text = encodeURIComponent('Hai, aku lihat kontak ini dari halaman Gamon Tawing.');
+        return `https://wa.me/${phone}?text=${text}`;
+    }
+
+    function setWaitingState(customMessage) {
+        statusBadge.textContent = 'Menunggu konfirmasi';
+        statusMessage.textContent = customMessage || 'Belum ada match yang terbentuk. Link ini akan berubah otomatis saat ada user lain yang submit dan cocok.';
+        confirmBtn.disabled = true;
+        confirmBtn.textContent = 'Menunggu match...';
+        confirmBtn.classList.add('opacity-60', 'cursor-not-allowed');
+        contactPanel.classList.add('hidden');
+        if (contactWhatsAppBtn) {
+            contactWhatsAppBtn.classList.add('hidden');
+            contactWhatsAppBtn.href = '#';
+        }
+    }
+
+    async function loadOtherContact(currentMatchId) {
+        if (!currentMatchId) {
+            contactPanel.classList.add('hidden');
+            if (contactWhatsAppBtn) {
+                contactWhatsAppBtn.classList.add('hidden');
+                contactWhatsAppBtn.href = '#';
+            }
+            return;
+        }
+
+        const contactsQuery = query(collection(db, 'matchContacts'), where('matchId', '==', currentMatchId));
+        const snapshot = await getDocs(contactsQuery);
+        const otherContact = snapshot.docs.find(item => item.data().requestId !== requestId);
+        const otherValue = otherContact?.data()?.contactText || 'Kontak belum terbuka sampai keduanya konfirmasi.';
+
+        contactValue.textContent = otherValue;
+        contactPanel.classList.remove('hidden');
+
+        if (contactWhatsAppBtn) {
+            const waLink = buildWhatsAppLink(otherValue);
+            if (waLink) {
+                contactWhatsAppBtn.href = waLink;
+                contactWhatsAppBtn.classList.remove('hidden');
+            } else {
+                contactWhatsAppBtn.href = '#';
+                contactWhatsAppBtn.classList.add('hidden');
+            }
+        }
+    }
+
+    function bindMatchListener(currentMatchId) {
+        if (!currentMatchId) {
+            setWaitingState();
+            return;
+        }
+
+        if (activeMatchUnsubscribe) {
+            activeMatchUnsubscribe();
+        }
+
+        const matchRef = doc(db, 'matches', currentMatchId);
+        activeMatchUnsubscribe = onSnapshot(matchRef, async (snapshot) => {
+            if (!snapshot.exists()) {
+                statusBadge.textContent = 'Match tidak ditemukan';
+                statusMessage.textContent = 'Dokumen match ini tidak ditemukan atau sudah kedaluwarsa.';
+                confirmBtn.disabled = true;
+                return;
+            }
+
+            const data = snapshot.data();
+            const confirmedBy = data.confirmedBy || {};
+            const requestIds = data.requestIds || [];
+            const otherRequestId = requestIds.find((id) => id !== requestId) || null;
+            const isCurrentConfirmed = Boolean(confirmedBy[requestId]);
+            const isOtherConfirmed = otherRequestId ? Boolean(confirmedBy[otherRequestId]) : false;
+
+            if (data.status === 'confirmed' || (isCurrentConfirmed && isOtherConfirmed)) {
+                statusBadge.textContent = 'Sudah sama-sama mau';
+                statusMessage.textContent = 'Akhirnya, kalian berdua sama-sama mau. Kontak mantanmu sudah bisa dibuka.';
+                confirmBtn.disabled = true;
+                confirmBtn.textContent = 'Sudah konfirmasi';
+                confirmBtn.classList.add('opacity-60', 'cursor-not-allowed');
+                await loadOtherContact(currentMatchId);
+                return;
+            }
+
+            if (isCurrentConfirmed) {
+                statusBadge.textContent = 'Kamu sudah konfirmasi';
+                statusMessage.textContent = 'Kamu sudah menandai konfirmasi. Menunggu dia juga ya…';
+                confirmBtn.disabled = true;
+                confirmBtn.textContent = 'Kamu sudah konfirmasi';
+                confirmBtn.classList.add('opacity-60', 'cursor-not-allowed');
+                contactPanel.classList.add('hidden');
+                return;
+            }
+
+            statusBadge.textContent = 'Menunggu konfirmasi';
+            statusMessage.textContent = 'Menunggu konfirmasi dari dia juga...';
+            confirmBtn.disabled = false;
+            confirmBtn.textContent = 'Iya, aku masih beneran mau 🥹';
+            confirmBtn.classList.remove('opacity-60', 'cursor-not-allowed');
+            contactPanel.classList.add('hidden');
+        });
+    }
+
+    onSnapshot(requestRef, async (snapshot) => {
+        if (!snapshot.exists()) {
+            statusBadge.textContent = 'Link tidak valid';
+            statusMessage.textContent = 'Request ini tidak ditemukan atau sudah kedaluwarsa.';
+            confirmBtn.disabled = true;
+            return;
+        }
+
+        const requestData = snapshot.data();
+        const resolvedMatchId = matchId || requestData.matchId || null;
+
+        if (requestData.curhatId) {
+            const curhatSnap = await getDoc(doc(db, 'gamon', requestData.curhatId));
+            const curhatData = curhatSnap.exists() ? curhatSnap.data() : {};
+            if (downloadCardBtn) {
+                downloadCardBtn.onclick = async () => {
+                    try {
+                        downloadCardBtn.disabled = true;
+                        downloadCardBtn.textContent = 'Membuat gambar...';
+
+                        await exportCardAsImage({
+                            name: curhatData.nama || 'Anonim',
+                            recipient: curhatData.tujuan || 'Seseorang',
+                            message: curhatData.pesan || '',
+                            createdAt: curhatData.waktu ? new Date(Number(curhatData.waktu)).toLocaleString('id-ID') : 'Tanggal tidak tersedia',
+                            statusLabel: resolvedMatchId ? 'Sudah ada match' : 'Menunggu match'
+                        });
+                    } catch (error) {
+                        console.error(error);
+                        alert('Gagal membuat file gambar kartu. Silakan coba lagi.');
+                    } finally {
+                        downloadCardBtn.disabled = false;
+                        downloadCardBtn.textContent = 'Download kartu gamon';
+                    }
+                };
+            }
+        }
+
+        if (resolvedMatchId) {
+            matchId = resolvedMatchId;
+            bindMatchListener(matchId);
+            return;
+        }
+
+        setWaitingState('Belum ada match yang terbentuk. Kartu gamon ini bisa diunduh dan QR-nya tetap membuka halaman konfirmasi ini kapan saja.');
+    });
+
+    confirmBtn.addEventListener('click', async () => {
+        if (!matchId) {
+            alert('Belum ada match yang terbentuk. Tunggu sampai pasanganmu mengisi form dan cocok dulu ya.');
+            return;
+        }
+
+        try {
+            confirmBtn.disabled = true;
+            confirmBtn.textContent = 'Mengirim konfirmasi...';
+
+            const matchRef = doc(db, 'matches', matchId);
+            const matchSnapshot = await getDocs(query(collection(db, 'matches'), where('__name__', '==', matchId)));
+            const currentMatch = matchSnapshot.empty ? null : matchSnapshot.docs[0];
+            const currentData = currentMatch?.data() || {};
+            const nextConfirmedBy = {
+                ...(currentData.confirmedBy || {}),
+                [requestId]: true
+            };
+
+            const allConfirmed = (currentData.requestIds || []).every((id) => Boolean(nextConfirmedBy[id]));
+
+            await updateDoc(matchRef, {
+                confirmedBy: nextConfirmedBy,
+                status: allConfirmed ? 'confirmed' : 'pending_confirmation',
+                updatedAt: Date.now()
+            });
+
+            await updateDoc(requestRef, {
+                confirmedBy: {
+                    ...(currentData.confirmedBy || {}),
+                    [requestId]: true
+                },
+                status: allConfirmed ? 'confirmed' : 'matched',
+                updatedAt: Date.now()
+            });
+
+        } catch (error) {
+            console.error(error);
+            alert('Gagal mengirim konfirmasi. Silakan coba lagi.');
+            confirmBtn.disabled = false;
+            confirmBtn.textContent = 'Iya, aku masih beneran mau 🥹';
+        }
+    });
+</script>
+</body>
+</html>

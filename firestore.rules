@@ -1,0 +1,55 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Catatan keamanan penting:
+    // Karena semua logic ini berjalan di browser tanpa Firebase Auth yang valid,
+    // rules di bawah ini hanya best-effort untuk membatasi write/update ke field konfirmasi
+    // dan membatasi pembacaan kontak pribadi setelah match berstatus 'confirmed'.
+    // Ini bukan proteksi production-grade untuk data sensitif; ini hanya mencegah akses iseng
+    // di demo / prototipe dan tidak menggantikan backend auth + secret key yang benar-benar aman.
+
+    match /gamon/{docId} {
+      allow read: if true;
+      allow create: if true;
+      allow update, delete: if false;
+    }
+
+    match /matchRequests/{requestId} {
+      allow create: if true;
+      allow read: if true;
+      allow update: if
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['status', 'matchId', 'matchedWithRequestId', 'updatedAt', 'confirmedBy']) &&
+        (
+          request.resource.data.status == 'matched' ||
+          request.resource.data.status == 'confirmed' ||
+          request.resource.data.status == 'pending'
+        );
+    }
+
+    match /matches/{matchId} {
+      allow create: if true;
+      allow read: if true;
+      allow update: if
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'confirmedBy', 'updatedAt']) &&
+        request.resource.data.confirmedBy is map &&
+        request.resource.data.status in ['pending_confirmation', 'confirmed'];
+    }
+
+    match /matchContacts/{contactId} {
+      allow create: if true;
+      allow update: if
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['matchId', 'updatedAt']) &&
+        resource.data.matchId == null;
+
+      allow read: if
+        resource.data.matchId != null &&
+        exists(/databases/$(database)/documents/matches/$(resource.data.matchId)) &&
+        get(/databases/$(database)/documents/matches/$(resource.data.matchId)).data.status == 'confirmed' &&
+        (
+          get(/databases/$(database)/documents/matches/$(resource.data.matchId)).data.requestIds[0] == resource.data.requestId ||
+          get(/databases/$(database)/documents/matches/$(resource.data.matchId)).data.requestIds[1] == resource.data.requestId
+        );
+    }
+  }
+}

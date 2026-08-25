@@ -209,7 +209,24 @@
     #modalHeader { font-size: 15px; font-weight: 700; color: rgba(255, 255, 255, 0.96); margin-bottom: 12px; line-height: 1.4; }
     #modalHeader .to-label { color: rgba(255, 255, 255, 0.8); font-weight: 400; font-size: 13px; }
 
-    #modalPhoto { width: 100%; border-radius: 12px; margin-bottom: 12px; display: none; }
+    #modalPhoto { width: 100%; border-radius: 12px; display: block; }
+    .modal-photo-toggle {
+        width: 100%; border: 1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.08);
+        color: rgba(255,255,255,0.95); border-radius: 12px; padding: 10px 12px; display: flex;
+        align-items: center; justify-content: space-between; gap: 8px; cursor: pointer; margin-bottom: 12px;
+        font-size: 12px; font-weight: 700; letter-spacing: 0.02em; transition: background .15s ease;
+    }
+    .modal-photo-toggle:hover { background: rgba(255,255,255,0.12); }
+    .modal-photo-toggle .material-symbols-outlined {
+        font-size: 18px; transition: transform .2s ease;
+    }
+    .modal-photo-toggle[aria-expanded="true"] .material-symbols-outlined { transform: rotate(180deg); }
+    .modal-photo-shell {
+        max-height: 0; opacity: 0; overflow: hidden; margin-top: 0; transition: max-height .28s ease, opacity .2s ease, margin-top .2s ease;
+    }
+    .modal-photo-shell.open {
+        max-height: 460px; opacity: 1; margin-top: 0;
+    }
 
     #modalMsg {
         font-size: 14px; color: rgba(255, 255, 255, 0.92); line-height: 1.7; font-style: italic;
@@ -334,7 +351,13 @@
         <button id="modalClose">✕</button>
         <div id="modalBadgeEl"></div>
         <div id="modalHeader"></div>
-        <img id="modalPhoto" alt="foto" />
+        <button id="modalPhotoToggle" class="modal-photo-toggle" type="button" aria-expanded="false" hidden>
+            <span>Hasil photobox</span>
+            <span class="material-symbols-outlined">keyboard_arrow_down</span>
+        </button>
+        <div id="modalPhotoShell" class="modal-photo-shell">
+            <img id="modalPhoto" alt="foto" />
+        </div>
         <div id="modalMsg"></div>
         <audio id="modalAudio" controls></audio>
         <div class="modal-footer">
@@ -581,6 +604,24 @@
         console.warn('likedPosts localStorage invalid, reset to []');
     }
 
+    const photoToggle = document.getElementById('modalPhotoToggle');
+    const photoShell = document.getElementById('modalPhotoShell');
+    const photo = document.getElementById('modalPhoto');
+
+    function setPhotoboxPreviewState(isOpen) {
+        if (!photoToggle || !photoShell) return;
+        photoToggle.setAttribute('aria-expanded', String(isOpen));
+        photoShell.classList.toggle('open', isOpen);
+    }
+
+    if (photoToggle) {
+        photoToggle.addEventListener('click', () => {
+            if (!currentPost || !currentPost.data || currentPost.data.type !== 'photobox') return;
+            const nextState = !photoShell?.classList.contains('open');
+            setPhotoboxPreviewState(nextState);
+        });
+    }
+
     function openModal(data, id) {
         currentPost = { data, id };
         const isPhotobox = data.type === 'photobox';
@@ -597,9 +638,24 @@
             : (isPhotobox ? 'Foto tanpa pesan.' : '');
         document.getElementById('modalMsg').textContent = modalMessage;
 
-        const photo = document.getElementById('modalPhoto');
-        if (data.photoUrl) { photo.src = data.photoUrl; photo.style.display = 'block'; }
-        else { photo.style.display = 'none'; photo.src = ''; }
+        if (photo) {
+            if (data.photoUrl) {
+                photo.src = data.photoUrl;
+            } else {
+                photo.src = '';
+            }
+        }
+
+        if (photoToggle) {
+            if (isPhotobox && data.photoUrl) {
+                photoToggle.hidden = false;
+                photoToggle.setAttribute('aria-expanded', 'false');
+                photoShell?.classList.remove('open');
+            } else {
+                photoToggle.hidden = true;
+                photoShell?.classList.remove('open');
+            }
+        }
 
         const audioEl = document.getElementById('modalAudio');
         if (data.audioUrl) { audioEl.src = data.audioUrl; audioEl.classList.add('has-audio'); }
@@ -631,6 +687,11 @@
         if (modalAudio) {
             modalAudio.pause();
         }
+        if (photoToggle) {
+            photoToggle.hidden = true;
+            photoToggle.setAttribute('aria-expanded', 'false');
+        }
+        photoShell?.classList.remove('open');
     }
 
     const modalCloseButton = document.getElementById('modalClose');
