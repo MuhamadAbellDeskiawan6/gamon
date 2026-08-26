@@ -988,6 +988,16 @@
                 return;
             }
 
+            if (isOtherConfirmed) {
+                statusBadge.textContent = 'Dia sudah konfirmasi';
+                statusMessage.textContent = 'Mantanmu sudah konfirmasi. Kalau dia mau balikan, kamu tinggal tekan tombol di bawah ya.';
+                confirmBtn.disabled = false;
+                confirmBtn.textContent = 'Iya, aku masih beneran mau 🥹';
+                confirmBtn.classList.remove('opacity-60', 'cursor-not-allowed');
+                contactPanel.classList.add('hidden');
+                return;
+            }
+
             statusBadge.textContent = 'Match ditemukan';
             statusMessage.textContent = 'Wah, kalian ternyata masih mau balikan nih. Tekan tombol di bawah untuk konfirmasi.';
             confirmBtn.disabled = false;

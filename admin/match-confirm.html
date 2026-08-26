@@ -43,9 +43,20 @@
                     <h2 class="text-2xl font-bold text-slate-900">Kelola Match Confirm / Balikan</h2>
                     <p class="text-sm text-slate-500">Daftar pasangan yang mendaftar fitu balikan, status match, serta nomor kontak untuk tindak lanjut admin.</p>
                 </div>
-                <button onclick="loadMatchConfirmRequests()" class="rounded-lg bg-slate-800 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700">
-                    Refresh Data
-                </button>
+                <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
+                    <div class="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2">
+                        <label for="statusFilter" class="text-xs font-semibold uppercase tracking-wide text-slate-500">Filter</label>
+                        <select id="statusFilter" class="border-0 bg-transparent text-sm font-medium text-slate-700 outline-none">
+                            <option value="all">Semua</option>
+                            <option value="waiting">Masih menunggu</option>
+                            <option value="partial_confirmed">Salah satu sudah konfirmasi</option>
+                            <option value="matched">Sudah match</option>
+                        </select>
+                    </div>
+                    <button onclick="loadMatchConfirmRequests()" class="rounded-lg bg-slate-800 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700">
+                        Refresh Data
+                    </button>
+                </div>
             </div>
 
             <div class="mb-6 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
@@ -87,8 +98,19 @@
         const PAGE_SIZE = 8;
         let matchRequests = [];
         let currentPage = 1;
+        let selectedFilter = 'all';
 
-        window.addEventListener('DOMContentLoaded', bootPage);
+        window.addEventListener('DOMContentLoaded', () => {
+            const statusFilter = document.getElementById('statusFilter');
+            if (statusFilter) {
+                statusFilter.addEventListener('change', (event) => {
+                    selectedFilter = event.target.value || 'all';
+                    currentPage = 1;
+                    renderTable();
+                });
+            }
+            bootPage();
+        });
 
         async function bootPage() {
             const ok = await verifyAdminPageSession();
@@ -128,6 +150,7 @@
 
         function getStatusClasses(status) {
             if (status === 'matched' || status === 'confirmed') return 'bg-emerald-100 text-emerald-800';
+            if (status === 'partial_confirmed') return 'bg-violet-100 text-violet-800';
             if (status === 'waiting') return 'bg-amber-100 text-amber-800';
             return 'bg-slate-100 text-slate-700';
         }
@@ -165,12 +188,15 @@
         function renderTable() {
             const tbody = document.getElementById('matchTableBody');
             const controls = document.getElementById('paginationControls');
-            const total = matchRequests.length;
+            const filteredRequests = selectedFilter === 'all'
+                ? matchRequests
+                : matchRequests.filter((item) => item.status === selectedFilter);
+            const total = filteredRequests.length;
             const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
             if (currentPage > pages) currentPage = pages;
 
             const startIndex = (currentPage - 1) * PAGE_SIZE;
-            const visible = matchRequests.slice(startIndex, startIndex + PAGE_SIZE);
+            const visible = filteredRequests.slice(startIndex, startIndex + PAGE_SIZE);
 
             if (!visible.length) {
                 tbody.innerHTML = '<tr><td colspan="6" class="text-center py-8 text-slate-400">Belum ada data match confirm atau balikan.</td></tr>';
@@ -180,7 +206,7 @@
                     const pairName = item.primaryName && item.partnerName ? `${escapeHtml(item.primaryName)} ↔ ${escapeHtml(item.partnerName)}` : escapeHtml(item.primaryName || 'Anonim');
                     const primaryContact = escapeHtml(item.primaryContact || 'Kontak belum diisi');
                     const partnerContact = escapeHtml(item.partnerContact || 'Kontak belum diisi');
-                    const statusLabel = item.status === 'matched' ? 'Sudah match' : 'Masih menunggu';
+                    const statusLabel = item.status === 'matched' ? 'Sudah match' : item.status === 'partial_confirmed' ? 'Salah satu sudah konfirmasi' : 'Masih menunggu';
                     const waPrimary = item.primaryWa || '';
                     const waPartner = item.partnerWa || '';
 
@@ -223,7 +249,10 @@
         }
 
         function goPage(page) {
-            const totalPages = Math.max(1, Math.ceil(matchRequests.length / PAGE_SIZE));
+            const filteredRequests = selectedFilter === 'all'
+                ? matchRequests
+                : matchRequests.filter((item) => item.status === selectedFilter);
+            const totalPages = Math.max(1, Math.ceil(filteredRequests.length / PAGE_SIZE));
             if (page < 1 || page > totalPages) return;
             currentPage = page;
             renderTable();

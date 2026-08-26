@@ -658,8 +658,21 @@ async function handleGetMatchConfirmRequests(req, res) {
             const firstContact = (contactMap.get(requestId) || []).sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0))[0];
             const partnerContact = otherRequestId ? (contactMap.get(String(otherRequestId)) || []).sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0))[0] : null;
 
-            const status = request.status === 'matched' || request.status === 'confirmed' || Boolean(request.matchId) ? 'matched' : 'waiting';
-            const statusLabel = status === 'matched' ? 'Sudah match' : 'Masih menunggu';
+            const confirmedBy = matchDoc.confirmedBy || {};
+            const requestIds = Array.isArray(matchDoc.requestIds) ? matchDoc.requestIds.map(String) : [];
+            const confirmedCount = requestIds.filter((id) => Boolean(confirmedBy[id])).length;
+
+            let status = 'waiting';
+            let statusLabel = 'Masih menunggu';
+
+            if (request.status === 'matched' || request.status === 'confirmed' || request.status === 'pending_confirmation' || Boolean(request.matchId)) {
+                status = 'matched';
+                statusLabel = 'Sudah match';
+            } else if (requestIds.length > 0 && confirmedCount > 0) {
+                status = 'partial_confirmed';
+                statusLabel = 'Salah satu sudah konfirmasi';
+            }
+
             const firstNumber = (firstContact?.contactText || '').trim();
             const secondNumber = (partnerContact?.contactText || '').trim();
 
