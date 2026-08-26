@@ -78,7 +78,7 @@ input, textarea, select, button { font: inherit; }
   align-items: center;
   gap: 12px;
   min-width: 0;
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   font-weight: 800;
   color: var(--primary-strong);
   letter-spacing: 0.02em;
@@ -105,7 +105,9 @@ input, textarea, select, button { font: inherit; }
 .nav-links {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 22px;
+  flex: 1 1 auto;
   color: var(--muted);
   font-weight: 600;
 }
@@ -145,7 +147,7 @@ input, textarea, select, button { font: inherit; }
 .mobile-nav-links a {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   gap: 12px;
   padding: 12px 14px;
   border: 1px solid rgba(106, 76, 101, 0.10);
@@ -158,14 +160,11 @@ input, textarea, select, button { font: inherit; }
 }
 
 .mobile-nav-links a::after {
-  content: '›';
-  color: var(--secondary-strong);
-  font-size: 1.2rem;
-  line-height: 1;
+  content: none;
 }
 
 .mobile-nav-links a:hover {
-  transform: translateX(2px);
+  transform: translateY(-1px);
   border-color: rgba(241, 81, 146, 0.24);
   background: linear-gradient(180deg, rgba(255,255,255,1), rgba(255,239,246,0.92));
   box-shadow: 0 10px 22px rgba(94, 59, 92, 0.08);
@@ -2104,6 +2103,7 @@ footer {
 
   .header-menu-toggle {
     display: flex;
+    margin-left: auto;
   }
 
   .nav-actions {
@@ -2144,13 +2144,37 @@ footer {
   .mobile-menu-panel {
     top: calc(100% + 12px);
     right: 0;
-    width: min(85vw, 300px);
+    left: auto;
+    width: min(86vw, 300px);
     padding: 14px;
+    margin-left: auto;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.96);
+    border: 1px solid rgba(106, 76, 101, 0.12);
+    box-shadow: 0 18px 40px rgba(62, 48, 64, 0.14);
+  }
+
+  .mobile-nav-links {
+    gap: 10px;
   }
 
   .mobile-nav-links a {
     padding: 11px 12px;
     border-radius: 12px;
+    justify-content: center;
+    text-align: center;
+  }
+
+  .mobile-menu-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    padding-top: 10px;
+  }
+
+  .mobile-menu-actions .btn {
+    width: 100%;
+    justify-content: center;
   }
 
   .nav > .nav-actions {

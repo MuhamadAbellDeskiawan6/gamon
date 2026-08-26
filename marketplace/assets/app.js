@@ -1780,6 +1780,54 @@ function renderHomeProductsLoadingState() {
   `;
 }
 
+function formatCompactMetric(value, label) {
+  if (value >= 1000) {
+    const compact = (value / 1000).toFixed(1).replace(/\.0$/, '');
+    return `${compact}k ${label}`;
+  }
+
+  return `${value} ${label}`;
+}
+
+async function refreshMarketplaceLandingMetrics() {
+  const itemsEl = document.querySelector('[data-metric-items]');
+  const buyersEl = document.querySelector('[data-metric-buyers]');
+
+  if (!itemsEl && !buyersEl) return;
+
+  try {
+    const [productsSnapshot, usersSnapshot] = await Promise.all([
+      getDocs(collection(db, 'marketplace_products')),
+      getDocs(collection(db, 'marketplace_users'))
+    ]);
+
+    const products = productsSnapshot.docs.map((docSnap) => docSnap.data());
+    const activeItems = products.filter((product) => {
+      const status = String(product?.status || '').trim().toLowerCase();
+      const sold = Boolean(product?.isSold || product?.sold || product?.is_sold);
+      return !sold && status !== 'terjual';
+    }).length;
+
+    const buyers = usersSnapshot.docs.filter((docSnap) => {
+      const user = docSnap.data() || {};
+      const role = String(user.role || '').trim().toLowerCase();
+      return role === 'buyer' || role === 'both' || !role;
+    }).length;
+
+    if (itemsEl) {
+      itemsEl.textContent = formatCompactMetric(Math.max(activeItems, 0), 'item aktif');
+    }
+
+    if (buyersEl) {
+      buyersEl.textContent = formatCompactMetric(Math.max(buyers, 0), 'pembeli');
+    }
+  } catch (error) {
+    console.warn('Gagal memuat metric marketplace dari Firestore:', error);
+    if (itemsEl) itemsEl.textContent = '0 item aktif';
+    if (buyersEl) buyersEl.textContent = '0 pembeli';
+  }
+}
+
 function renderBuyerProductsLoadingState() {
   return `
     <div class="product-loading-state" aria-live="polite" aria-label="Sedang memuat barang untuk dibeli">
@@ -3373,6 +3421,27 @@ function bindPasswordToggles() {
   });
 }
 
+function bindBrandScrollToTop() {
+  const brandLinks = document.querySelectorAll('.brand');
+  if (!brandLinks.length) return;
+
+  brandLinks.forEach((link) => {
+    link.addEventListener('click', (event) => {
+      const currentPath = window.location.pathname;
+      const isMarketplaceHome = currentPath.endsWith('/marketplace/index.html') || currentPath.endsWith('/marketplace/') || currentPath.endsWith('/marketplace');
+
+      if (isMarketplaceHome) {
+        event.preventDefault();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        return;
+      }
+
+      event.preventDefault();
+      window.location.href = 'index.html';
+    });
+  });
+}
+
 function bindHeaderActionsMenu() {
   const headerToggle = document.querySelector('.header-menu-toggle');
   const headerActions = document.querySelector('[data-header-actions]');
@@ -3720,6 +3789,7 @@ async function init() {
 
   const page = document.body.dataset.page;
   bindKineticHeroIfNeeded();
+  bindBrandScrollToTop();
 
   if (page === 'login' || page === 'register') {
     bindAuthPage();
@@ -3767,6 +3837,7 @@ async function init() {
   }
 
   await renderHomeProducts();
+  await refreshMarketplaceLandingMetrics();
 }
 
 document.addEventListener('DOMContentLoaded', init);

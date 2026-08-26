@@ -20,12 +20,13 @@
   <body data-page="home">
     <header class="topbar">
       <div class="container nav">
-        <a href="../index.html" class="brand" aria-label="Kembali ke halaman utama Gamon">
+        <a href="#top" class="brand" aria-label="Kembali ke bagian atas halaman Marketplace Mantan">
           <span class="brand-mark">G</span>
           <span>Marketplace Mantan</span>
         </a>
 
         <nav class="nav-links" aria-label="Navigasi utama">
+          <a href="../index.html">Gamon</a>
           <a href="#explore">Jelajahi</a>
           <a href="#why">Kenapa Kami</a>
           <a href="#how">Cara Kerja</a>
@@ -34,20 +35,19 @@
 
         <div class="header-actions-wrap">
           <div class="nav-actions" data-header-actions>
-            <a class="btn btn-secondary" href="../index.html">Gamon</a>
             <a class="btn btn-secondary" href="login.html">Masuk</a>
             <a class="btn btn-primary" href="register.html">Daftar</a>
           </div>
 
           <div class="mobile-menu-panel" data-mobile-menu-panel>
             <nav class="mobile-nav-links" aria-label="Navigasi utama mobile">
+              <a href="../index.html">Gamon</a>
               <a href="#explore">Jelajahi</a>
               <a href="#why">Kenapa Kami</a>
               <a href="#how">Cara Kerja</a>
               <a href="#reviews">Ulasan</a>
             </nav>
             <div class="mobile-menu-actions">
-              <a class="btn btn-secondary" href="../index.html">Gamon</a>
               <a class="btn btn-secondary" href="login.html">Masuk</a>
               <a class="btn btn-primary" href="register.html">Daftar</a>
             </div>
@@ -83,8 +83,8 @@
             </div>
 
             <div class="meta-row">
-              <span class="meta-pill"><span class="material-symbols-outlined" style="font-size:14px;vertical-align:middle;">bolt</span> 2.4k item aktif</span>
-              <span class="meta-pill"><span class="material-symbols-outlined" style="font-size:14px;vertical-align:middle;">chat</span> 1.2k pembeli</span>
+              <span class="meta-pill"><span class="material-symbols-outlined" style="font-size:14px;vertical-align:middle;">bolt</span> <span data-metric-items>0 item aktif</span></span>
+              <span class="meta-pill"><span class="material-symbols-outlined" style="font-size:14px;vertical-align:middle;">chat</span> <span data-metric-buyers>0 pembeli</span></span>
               <span class="meta-pill"><span class="material-symbols-outlined" style="font-size:14px;vertical-align:middle;">lock</span> Transaksi aman</span>
             </div>
           </div>
@@ -195,46 +195,11 @@
           </div>
         </div>
 
-        <div class="grid-products">
-          <article class="product-card">
-            <div class="product-body">
-              <div class="seller-row">
-                <span class="seller-meta"><span class="avatar">N</span> Nabila</span>
-                <span>⭐ 5.0</span>
-              </div>
-              <p>“Aku jual hoodie lama dan langsung ada pembeli yang tertarik. Prosesnya terasa lebih ringan dan tidak canggung.”</p>
-            </div>
-          </article>
-
-          <article class="product-card">
-            <div class="product-body">
-              <div class="seller-row">
-                <span class="seller-meta"><span class="avatar">F</span> Farras</span>
-                <span>⭐ 4.9</span>
-              </div>
-              <p>“Mudah, enak dilihat, dan aku merasa lebih aman karena semua akun wajib login.”</p>
-            </div>
-          </article>
-
-          <article class="product-card">
-            <div class="product-body">
-              <div class="seller-row">
-                <span class="seller-meta"><span class="avatar">Y</span> Yuni</span>
-                <span>⭐ 5.0</span>
-              </div>
-              <p>“Terasa seperti marketplace yang manusiawi, bukan sekadar jual beli benda.”</p>
-            </div>
-          </article>
-
-          <article class="product-card">
-            <div class="product-body">
-              <div class="seller-row">
-                <span class="seller-meta"><span class="avatar">M</span> Miko</span>
-                <span>⭐ 4.8</span>
-              </div>
-              <p>“Aku suka fitur chat-nya, jadi tidak perlu ribet menebak kepastian dari barang.”</p>
-            </div>
-          </article>
+        <div class="review-empty-state" data-review-empty>
+          <div class="review-empty-content">
+            <span class="material-symbols-outlined">rate_review</span>
+            <p>Belum ada testimoni saat ini. Setelah ada transaksi dan ulasan dari pembeli, review ini akan muncul di sini.</p>
+          </div>
         </div>
       </section>
     </main>
