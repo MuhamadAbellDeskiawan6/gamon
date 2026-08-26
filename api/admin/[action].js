@@ -586,6 +586,109 @@ async function handleGetWeddingRequests(req, res) {
     }
 }
 
+function normalizeContactForWa(value) {
+    const digits = String(value || '').replace(/\D/g, '');
+    if (!digits) return '';
+    if (digits.startsWith('0')) return `62${digits.slice(1)}`;
+    if (digits.startsWith('62')) return digits;
+    return `62${digits}`;
+}
+
+async function handleGetMatchConfirmRequests(req, res) {
+    if (req.method !== 'GET') {
+        return res.status(405).json({ success: false, message: 'Method Not Allowed' });
+    }
+
+    const authResult = await requireAdmin(req, res);
+    if (!authResult) return;
+
+    try {
+        const db = getAdminDb();
+        const [requestsSnap, matchesSnap, contactsSnap, gamonSnap] = await Promise.all([
+            db.collection('matchRequests').get(),
+            db.collection('matches').get(),
+            db.collection('matchContacts').get(),
+            db.collection('gamon').get(),
+        ]);
+
+        const requestMap = new Map();
+        const finalRequests = requestsSnap.docs
+            .map((doc) => ({ id: doc.id, ...doc.data() }))
+            .filter((request) => request && (request.status === 'pending' || request.status === 'matched' || request.status === 'confirmed' || request.matchId || request.curhatId))
+            .sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0));
+
+        for (const request of finalRequests) {
+            requestMap.set(String(request.id), request);
+        }
+
+        const matchMap = new Map();
+        for (const matchDoc of matchesSnap.docs) {
+            matchMap.set(matchDoc.id, matchDoc.data() || {});
+        }
+
+        const contactMap = new Map();
+        for (const contactDoc of contactsSnap.docs) {
+            const data = contactDoc.data() || {};
+            const key = String(data.requestId || '');
+            if (!key) continue;
+            const arr = contactMap.get(key) || [];
+            arr.push({
+                id: contactDoc.id,
+                contactText: String(data.contactText || '').trim(),
+                matchId: data.matchId || null,
+                createdAt: data.createdAt || null,
+            });
+            contactMap.set(key, arr);
+        }
+
+        const gamonMap = new Map();
+        for (const doc of gamonSnap.docs) {
+            gamonMap.set(doc.id, doc.data() || {});
+        }
+
+        const rows = finalRequests.map((request) => {
+            const requestId = String(request.id || request.requestId || '');
+            const requestGamon = gamonMap.get(request.curhatId) || {};
+            const matchDoc = request.matchId ? matchMap.get(request.matchId) || {} : {};
+            const requestIds = Array.isArray(matchDoc.requestIds) ? matchDoc.requestIds.map(String) : [];
+            const otherRequestId = requestIds.find((id) => id !== requestId) || request.matchedWithRequestId || null;
+            const otherRequest = otherRequestId ? requestMap.get(String(otherRequestId)) || null : null;
+            const otherGamon = otherRequest?.curhatId ? gamonMap.get(otherRequest.curhatId) || {} : {};
+
+            const firstContact = (contactMap.get(requestId) || []).sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0))[0];
+            const partnerContact = otherRequestId ? (contactMap.get(String(otherRequestId)) || []).sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0))[0] : null;
+
+            const status = request.status === 'matched' || request.status === 'confirmed' || Boolean(request.matchId) ? 'matched' : 'waiting';
+            const statusLabel = status === 'matched' ? 'Sudah match' : 'Masih menunggu';
+            const firstNumber = (firstContact?.contactText || '').trim();
+            const secondNumber = (partnerContact?.contactText || '').trim();
+
+            return {
+                requestId,
+                matchId: request.matchId || null,
+                status,
+                statusLabel,
+                pairName: otherRequest ? `${requestGamon.nama || 'Anonim'} & ${otherGamon.nama || 'Anonim'}` : (requestGamon.nama || 'Anonim'),
+                primaryName: requestGamon.nama || 'Anonim',
+                primaryTarget: requestGamon.tujuan || 'Seseorang',
+                partnerName: otherGamon.nama || null,
+                partnerTarget: otherGamon.tujuan || null,
+                primaryContact: firstNumber || 'Kontak belum diisi',
+                partnerContact: secondNumber || 'Kontak belum diisi',
+                primaryWa: normalizeContactForWa(firstNumber),
+                partnerWa: normalizeContactForWa(secondNumber),
+                createdAt: request.createdAt || null,
+                matchStatus: matchDoc.status || request.status || 'pending',
+                matchLabel: matchDoc.status ? String(matchDoc.status).replace(/_/g, ' ') : request.status || 'pending'
+            };
+        });
+
+        return res.status(200).json({ success: true, data: rows });
+    } catch (error) {
+        return res.status(500).json({ success: false, message: error.message });
+    }
+}
+
 async function handleGetMarketplaceItems(req, res) {
     if (req.method !== 'GET') {
         return res.status(405).json({ success: false, message: 'Method Not Allowed' });
@@ -707,6 +810,8 @@ export default async function handler(req, res) {
             return handleGetRedeemCodes(req, res);
         case 'get-wedding-requests':
             return handleGetWeddingRequests(req, res);
+        case 'get-match-confirm-requests':
+            return handleGetMatchConfirmRequests(req, res);
         case 'get-marketplace-items':
             return handleGetMarketplaceItems(req, res);
         case 'get-marketplace-orders':
