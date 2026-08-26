@@ -209,6 +209,10 @@
                     const statusLabel = item.status === 'matched' ? 'Sudah match' : item.status === 'partial_confirmed' ? 'Salah satu sudah konfirmasi' : 'Masih menunggu';
                     const waPrimary = item.primaryWa || '';
                     const waPartner = item.partnerWa || '';
+                    const primaryStatusPill = item.primaryConfirmed ? 'Sudah konfirmasi' : 'Belum konfirmasi';
+                    const partnerStatusPill = item.partnerConfirmed ? 'Sudah konfirmasi' : 'Belum konfirmasi';
+                    const primaryStatusClass = item.primaryConfirmed ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800';
+                    const partnerStatusClass = item.partnerConfirmed ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800';
 
                     tbody.innerHTML += `
                         <tr class="hover:bg-slate-50 transition">
@@ -219,7 +223,16 @@
                             </td>
                             <td class="px-5 py-4 align-top">
                                 <span class="inline-flex items-center rounded-full px-3 py-1 text-[11px] font-semibold ${getStatusClasses(item.status)}">${statusLabel}</span>
-                                <div class="mt-2 text-[11px] text-slate-500">${escapeHtml(item.matchLabel || item.statusLabel || 'pending')}</div>
+                                <div class="mt-2 space-y-1 text-[11px] text-slate-600">
+                                    <div class="flex items-center justify-between gap-2 rounded-md bg-slate-100 px-2 py-1">
+                                        <span>${escapeHtml(item.primaryName || 'Anonim')}</span>
+                                        <span class="rounded-full px-2 py-0.5 font-semibold ${primaryStatusClass}">${primaryStatusPill}</span>
+                                    </div>
+                                    <div class="flex items-center justify-between gap-2 rounded-md bg-slate-100 px-2 py-1">
+                                        <span>${escapeHtml(item.partnerName || 'Pasangan')}</span>
+                                        <span class="rounded-full px-2 py-0.5 font-semibold ${partnerStatusClass}">${partnerStatusPill}</span>
+                                    </div>
+                                </div>
                             </td>
                             <td class="px-5 py-4 align-top">
                                 <div class="text-[12px] text-slate-700">${primaryContact}</div>

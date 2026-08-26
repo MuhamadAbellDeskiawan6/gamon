@@ -659,8 +659,10 @@ async function handleGetMatchConfirmRequests(req, res) {
             const partnerContact = otherRequestId ? (contactMap.get(String(otherRequestId)) || []).sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0))[0] : null;
 
             const confirmedBy = matchDoc.confirmedBy || {};
-            const requestIds = Array.isArray(matchDoc.requestIds) ? matchDoc.requestIds.map(String) : [];
-            const confirmedCount = requestIds.filter((id) => Boolean(confirmedBy[id])).length;
+            const confirmedRequestIds = Array.isArray(matchDoc.requestIds) ? matchDoc.requestIds.map(String) : [];
+            const confirmedCount = confirmedRequestIds.filter((id) => Boolean(confirmedBy[id])).length;
+            const currentConfirmed = Boolean(confirmedBy[requestId]);
+            const partnerConfirmed = otherRequestId ? Boolean(confirmedBy[String(otherRequestId)]) : false;
 
             let status = 'waiting';
             let statusLabel = 'Masih menunggu';
@@ -668,7 +670,7 @@ async function handleGetMatchConfirmRequests(req, res) {
             if (request.status === 'matched' || request.status === 'confirmed' || request.status === 'pending_confirmation' || Boolean(request.matchId)) {
                 status = 'matched';
                 statusLabel = 'Sudah match';
-            } else if (requestIds.length > 0 && confirmedCount > 0) {
+            } else if (confirmedRequestIds.length > 0 && confirmedCount > 0) {
                 status = 'partial_confirmed';
                 statusLabel = 'Salah satu sudah konfirmasi';
             }
@@ -686,6 +688,8 @@ async function handleGetMatchConfirmRequests(req, res) {
                 primaryTarget: requestGamon.tujuan || 'Seseorang',
                 partnerName: otherGamon.nama || null,
                 partnerTarget: otherGamon.tujuan || null,
+                primaryConfirmed: currentConfirmed,
+                partnerConfirmed,
                 primaryContact: firstNumber || 'Kontak belum diisi',
                 partnerContact: secondNumber || 'Kontak belum diisi',
                 primaryWa: normalizeContactForWa(firstNumber),

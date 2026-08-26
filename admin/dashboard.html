@@ -38,28 +38,14 @@
         </aside>
 
         <main class="px-4 py-8 lg:px-8">
-        <div class="flex justify-between items-center mb-6">
+        <div class="flex justify-between items-center mb-6 gap-3">
             <div>
                 <h2 class="text-2xl font-bold">Daftar Antrean Pickup Photobox</h2>
                 <p class="text-slate-500 text-sm">Semua pesanan diambil langsung di lokasi Gamon Booth. Gunakan menu verifikasi saat pelanggan datang.</p>
             </div>
-            <div class="flex items-center gap-2 flex-wrap">
-                <a href="/admin/match-confirm.html" class="bg-violet-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-violet-700 transition cursor-pointer">
-                    Match Confirm
-                </a>
-                <a href="/admin/wedding-requests.html" class="bg-emerald-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-emerald-700 transition cursor-pointer">
-                    Pengajuan Wedding
-                </a>
-                <a href="/admin/frames.html" class="bg-pink-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-pink-700 transition cursor-pointer">
-                    Kelola Frame
-                </a>
-                <a href="/admin/redeem-codes.html" class="bg-slate-800 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-slate-700 transition cursor-pointer">
-                    Kode Redeem
-                </a>
-                <button onclick="loadOrders()" class="bg-slate-800 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-slate-700 transition cursor-pointer">
-                    Refresh Data
-                </button>
-            </div>
+            <button onclick="loadOrders()" class="bg-slate-800 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-slate-700 transition cursor-pointer">
+                Refresh Data
+            </button>
         </div>
 
         <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
