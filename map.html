@@ -8,11 +8,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600&display=swap" rel="stylesheet"/>
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.css" />
-<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.Default.css" />
-
-<script src="https://unpkg.com/leaflet.markercluster/dist/leaflet.markercluster.js"></script>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link href="https://unpkg.com/maplibre-gl@3.3.1/dist/maplibre-gl.css" rel="stylesheet" />
     <script id="tailwind-config">
         tailwind.config = {
             darkMode: "class",
@@ -218,10 +214,26 @@
             border: 1px solid rgba(255,255,255,0.12);
         }
 
-        .leaflet-container {
+        #mainMap {
             background: rgba(12, 35, 48, 0.7);
+        }
+
+        .maplibregl-map {
             border-radius: 1.1rem;
         }
+
+        .maplibregl-popup-content {
+            color: #1d1b1d;
+            border-radius: 0.75rem;
+            padding: 0.85rem 0.9rem;
+            font-family: Inter, sans-serif;
+            background: rgba(255,255,255,0.96);
+        }
+
+        .maplibregl-popup-tip {
+            border-top-color: rgba(255, 255, 255, 0.96);
+        }
+
 
         @media (max-width: 768px) {
             .gt-cloud { display: none; }
@@ -278,120 +290,220 @@
         </section>
     </main>
 
-    <!-- Leaflet -->
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/maplibre-gl@3.3.1/dist/maplibre-gl.js"></script>
 
-<!-- Marker Cluster -->
-<script src="https://unpkg.com/leaflet.markercluster/dist/leaflet.markercluster.js"></script>
-
-<script>
-    const starsEl = document.getElementById('stars');
-    for (let i = 0; i < 60; i++) {
-        const s = document.createElement('div');
-        s.className = 'star-particle';
-        const sz = 2 + Math.random() * 4;
-        s.style.cssText = `width:${sz}px;height:${sz}px;left:${Math.random()*100}%;top:${Math.random()*100}%;animation:pulse-soft ${3+Math.random()*6}s infinite ease-in-out;animation-delay:${Math.random()*5}s`;
-        starsEl.appendChild(s);
-    }
-
-    const spaceEmojis = ['☁️', '🪐', '✨', '☁️', '🌙'];
-    for (let i = 0; i < 6; i++) {
-        const decor = document.createElement('div');
-        decor.className = 'space-decor';
-        decor.textContent = spaceEmojis[i % spaceEmojis.length];
-        decor.style.fontSize = (40 + Math.random() * 60) + 'px';
-        decor.style.left = (Math.random() * 90) + '%';
-        decor.style.top = (Math.random() * 80) + '%';
-        decor.style.animationDelay = (Math.random() * -10) + 's';
-        decor.style.animationDuration = (15 + Math.random() * 15) + 's';
-        document.getElementById('spaceBackground').appendChild(decor);
-    }
-
-    (function () {
-        const cloudL = document.getElementById('gtCloudLeft');
-        const cloudR = document.getElementById('gtCloudRight');
-        if (!cloudL || !cloudR) return;
-
-        let targetY = 0, currentY = 0;
-        function onScroll() {
-            targetY = window.scrollY || window.pageYOffset || 0;
+    <script>
+        const starsEl = document.getElementById('stars');
+        for (let i = 0; i < 60; i++) {
+            const s = document.createElement('div');
+            s.className = 'star-particle';
+            const sz = 2 + Math.random() * 4;
+            s.style.cssText = `width:${sz}px;height:${sz}px;left:${Math.random()*100}%;top:${Math.random()*100}%;animation:pulse-soft ${3+Math.random()*6}s infinite ease-in-out;animation-delay:${Math.random()*5}s`;
+            starsEl.appendChild(s);
         }
-        window.addEventListener('scroll', onScroll, { passive: true });
 
-        function tick() {
-            currentY += (targetY - currentY) * 0.06;
-            cloudL.style.transform = `translate3d(${-currentY * 0.03}px, ${-currentY * 0.05}px, 0)`;
-            cloudR.style.transform = `translate3d(${currentY * 0.03}px, ${-currentY * 0.05}px, 0) scaleX(-1)`;
-            requestAnimationFrame(tick);
+        const spaceEmojis = ['☁️', '🪐', '✨', '☁️', '🌙'];
+        for (let i = 0; i < 6; i++) {
+            const decor = document.createElement('div');
+            decor.className = 'space-decor';
+            decor.textContent = spaceEmojis[i % spaceEmojis.length];
+            decor.style.fontSize = (40 + Math.random() * 60) + 'px';
+            decor.style.left = (Math.random() * 90) + '%';
+            decor.style.top = (Math.random() * 80) + '%';
+            decor.style.animationDelay = (Math.random() * -10) + 's';
+            decor.style.animationDuration = (15 + Math.random() * 15) + 's';
+            document.getElementById('spaceBackground').appendChild(decor);
         }
-        requestAnimationFrame(tick);
-    })();
-</script>
 
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        (function () {
+            const cloudL = document.getElementById('gtCloudLeft');
+            const cloudR = document.getElementById('gtCloudRight');
+            if (!cloudL || !cloudR) return;
 
-const firebaseConfig = {
-    apiKey: "AIzaSyC247K8yyL67aWV95KNQz...",
-    authDomain: "gamon-tawing.firebaseapp.com",
-    projectId: "gamon-tawing",
-    storageBucket: "gamon-tawing.appspot.com",
-    messagingSenderId: "370162915989",
-    appId: "1:370162915989:web:76779062da83aa0c5c999c"
-};
-
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
-
-const mainMap = L.map('mainMap').setView([-2.5489, 118.0149], 5);
-
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '© OpenStreetMap'
-}).addTo(mainMap);
-
-const markers = L.markerClusterGroup();
-mainMap.addLayer(markers);
-
-async function loadGamonMarkers() {
-    try {
-        const snapshot = await getDocs(collection(db, "gamon"));
-
-        let count = 0;
-
-        snapshot.forEach((doc) => {
-            const data = doc.data();
-
-            if (data.latitude != null && data.longitude != null) {
-                count++;
-
-                const popup = `
-                    <div style="font-family: Inter; min-width:160px; color:#1d1b1d;">
-                        <b>Dari:</b> ${data.nama || '-'}<br>
-                        <b>Untuk:</b> ${data.tujuan || '-'}<br>
-                        <hr>
-                        <i>"${data.pesan || ''}"</i>
-                    </div>
-                `;
-
-                const marker = L.marker([
-                    data.latitude,
-                    data.longitude
-                ]).bindPopup(popup);
-
-                markers.addLayer(marker);
+            let targetY = 0, currentY = 0;
+            function onScroll() {
+                targetY = window.scrollY || window.pageYOffset || 0;
             }
+            window.addEventListener('scroll', onScroll, { passive: true });
+
+            function tick() {
+                currentY += (targetY - currentY) * 0.06;
+                cloudL.style.transform = `translate3d(${-currentY * 0.03}px, ${-currentY * 0.05}px, 0)`;
+                cloudR.style.transform = `translate3d(${currentY * 0.03}px, ${-currentY * 0.05}px, 0) scaleX(-1)`;
+                requestAnimationFrame(tick);
+            }
+            requestAnimationFrame(tick);
+        })();
+    </script>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyC247K8yyL67aWV95KNQz...",
+            authDomain: "gamon-tawing.firebaseapp.com",
+            projectId: "gamon-tawing",
+            storageBucket: "gamon-tawing.appspot.com",
+            messagingSenderId: "370162915989",
+            appId: "1:370162915989:web:76779062da83aa0c5c999c"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        const map = new maplibregl.Map({
+            container: 'mainMap',
+            style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
+            center: [118.0149, -2.5489],
+            zoom: 4.5,
+            minZoom: 2,
+            maxZoom: 18,
+            attributionControl: true
         });
 
-        document.getElementById("totalGamonPoints").innerText = count;
+        map.addControl(new maplibregl.NavigationControl({
+            showCompass: true,
+            showZoom: true
+        }), 'top-right');
 
-    } catch (err) {
-        console.error(err);
-    }
-}
+        map.addControl(new maplibregl.FullscreenControl(), 'top-right');
+        map.addControl(new maplibregl.GeolocateControl({
+            positionOptions: {
+                enableHighAccuracy: true
+            },
+            trackUserLocation: false,
+            showUserHeading: true
+        }), 'top-left');
 
-loadGamonMarkers();
+        const bounds = new maplibregl.LngLatBounds();
 
-</script>
+        function buildGeoJSON(items) {
+            return {
+                type: 'FeatureCollection',
+                features: items.map((item) => ({
+                    type: 'Feature',
+                    properties: {
+                        id: item.id,
+                        nama: item.nama || 'Anonim',
+                        tujuan: item.tujuan || '-',
+                        pesan: item.pesan || ''
+                    },
+                    geometry: {
+                        type: 'Point',
+                        coordinates: [Number(item.longitude), Number(item.latitude)]
+                    }
+                }))
+            };
+        }
+
+        async function loadGamonMarkers() {
+            try {
+                const snapshot = await getDocs(collection(db, 'gamon'));
+                const items = [];
+
+                snapshot.forEach((doc) => {
+                    const data = doc.data();
+                    const lat = Number(data.latitude);
+                    const lng = Number(data.longitude);
+
+                    if (Number.isFinite(lat) && Number.isFinite(lng)) {
+                        items.push({
+                            id: doc.id,
+                            nama: data.nama || 'Anonim',
+                            tujuan: data.tujuan || '-',
+                            pesan: data.pesan || '',
+                            latitude: lat,
+                            longitude: lng
+                        });
+                    }
+                });
+
+                document.getElementById('totalGamonPoints').textContent = items.length;
+
+                if (!items.length) return;
+
+                const geojson = buildGeoJSON(items);
+
+                if (map.getSource('gamon-source')) {
+                    map.getSource('gamon-source').setData(geojson);
+                } else {
+                    map.addSource('gamon-source', {
+                        type: 'geojson',
+                        data: geojson,
+                        cluster: true,
+                        clusterRadius: 50,
+                        clusterMaxZoom: 14
+                    });
+
+                    map.addLayer({
+                        id: 'gamon-clusters',
+                        type: 'circle',
+                        source: 'gamon-source',
+                        filter: ['has', 'point_count'],
+                        paint: {
+                            'circle-color': '#3b82f6',
+                            'circle-radius': [
+                                'step',
+                                ['get', 'point_count'],
+                                16,
+                                10, 24,
+                                25, 30,
+                                50, 38,
+                                100, 46
+                            ],
+                            'circle-stroke-width': 2,
+                            'circle-stroke-color': '#ffffff',
+                            'circle-opacity': 0.95
+                        }
+                    });
+
+                    map.addLayer({
+                        id: 'gamon-cluster-count',
+                        type: 'symbol',
+                        source: 'gamon-source',
+                        filter: ['has', 'point_count'],
+                        layout: {
+                            'text-field': ['get', 'point_count_abbreviated'],
+                            'text-font': ['Open Sans Semibold', 'Arial Unicode MS Bold'],
+                            'text-size': 12
+                        },
+                        paint: {
+                            'text-color': '#ffffff'
+                        }
+                    });
+
+                    map.addLayer({
+                        id: 'gamon-points',
+                        type: 'circle',
+                        source: 'gamon-source',
+                        filter: ['!', ['has', 'point_count']],
+                        paint: {
+                            'circle-color': '#f25c86',
+                            'circle-radius': 7,
+                            'circle-stroke-width': 2,
+                            'circle-stroke-color': '#ffffff'
+                        }
+                    });
+                }
+
+                items.forEach((item) => {
+                    bounds.extend([item.longitude, item.latitude]);
+                });
+
+                map.fitBounds(bounds, {
+                    padding: 40,
+                    maxZoom: 5,
+                    duration: 0
+                });
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        map.on('load', () => {
+            loadGamonMarkers();
+        });
+    </script>
 </body>
 </html>
