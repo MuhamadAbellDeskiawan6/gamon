@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Edit Undangan - Gamon Undangan</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="assets/style.css" />
+  </head>
+  <body data-page="edit">
+    <header class="topbar compact">
+      <div class="container nav-wrap">
+        <a class="brand" href="dashboard.html">
+          <span class="brand-mark">G</span>
+          <span>Gamon Undangan</span>
+        </a>
+      </div>
+    </header>
+
+    <main class="form-shell container">
+      <div class="page-header">
+        <div>
+          <span class="eyebrow">Undangan</span>
+          <h1 id="formTitle">Edit undangan</h1>
+        </div>
+        <a class="btn btn-secondary" href="dashboard.html">Kembali ke dashboard</a>
+      </div>
+
+      <form id="invitationForm" class="invite-form" novalidate>
+        <div class="form-grid">
+          <div class="field-group">
+            <h3>Informasi utama</h3>
+
+            <label>
+              <span>Pilih template</span>
+              <div class="template-picker" data-template-picker>
+                <button type="button" class="template-option active" data-template-option="classic">
+                  <span class="template-swatch classic-swatch"></span>
+                  <span>Classic Romance</span>
+                </button>
+                <button type="button" class="template-option" data-template-option="lavender">
+                  <span class="template-swatch lavender-swatch"></span>
+                  <span>Lavender Bloom</span>
+                </button>
+                <button type="button" class="template-option" data-template-option="sunset">
+                  <span class="template-swatch sunset-swatch"></span>
+                  <span>Sunset Grace</span>
+                </button>
+                <button type="button" class="template-option" data-template-option="forest">
+                  <span class="template-swatch forest-swatch"></span>
+                  <span>Forest Garden</span>
+                </button>
+              </div>
+              <input type="hidden" name="templateId" value="classic" />
+            </label>
+
+            <label>
+              <span>Nama undangan / judul</span>
+              <input type="text" name="title" placeholder="Contoh: Rizki & Sinta" required />
+            </label>
+
+            <label>
+              <span>Format sapaan tamu default</span>
+              <input type="text" name="guestGreeting" placeholder="Contoh: Bapak/Ibu/Saudara/i" />
+            </label>
+
+            <label>
+              <span>Nama pria</span>
+              <input type="text" name="groomName" placeholder="Contoh: Rizki Pratama" required />
+            </label>
+
+            <label>
+              <span>Nama perempuan</span>
+              <input type="text" name="brideName" placeholder="Contoh: Sinta Dewi" required />
+            </label>
+
+            <label>
+              <span>Nama orang tua pria</span>
+              <input type="text" name="parentGroom" placeholder="Contoh: Bapak A & Ibu B" required />
+            </label>
+
+            <label>
+              <span>Nama orang tua perempuan</span>
+              <input type="text" name="parentBride" placeholder="Contoh: Bapak C & Ibu D" required />
+            </label>
+          </div>
+
+          <div class="field-group">
+            <h3>Detail acara</h3>
+
+            <label>
+              <span>Tanggal akad</span>
+              <input type="date" name="akadDate" required />
+            </label>
+
+            <label>
+              <span>Waktu akad</span>
+              <input type="time" name="akadTime" required />
+            </label>
+
+            <label>
+              <span>Tempat akad</span>
+              <input type="text" name="akadPlace" placeholder="Contoh: Masjid Al-Hidayah" required />
+            </label>
+
+            <label>
+              <span>Tanggal resepsi</span>
+              <input type="date" name="receptionDate" required />
+            </label>
+
+            <label>
+              <span>Waktu resepsi</span>
+              <input type="time" name="receptionTime" required />
+            </label>
+
+            <label>
+              <span>Tempat resepsi</span>
+              <input type="text" name="receptionPlace" placeholder="Contoh: Aula Bunga Melati" required />
+            </label>
+
+            <label>
+              <span>Alamat lengkap</span>
+              <textarea name="address" rows="3" placeholder="Contoh: Jl. Mawar No. 25, Kota Bandung"></textarea>
+            </label>
+
+            <label>
+              <span>Lokasi acara</span>
+              <div class="map-link-row">
+                <input type="url" name="mapLink" placeholder="https://maps.google.com/?q=Gedung+Bina+Satria+Banjarbaru atau link share Google Maps yang punya titik exact" />
+                <button class="btn btn-secondary" type="button" data-open-map-search>Pilih di Maps</button>
+              </div>
+              <input type="hidden" name="locationLat" />
+              <input type="hidden" name="locationLng" />
+              <small class="muted">Kalau mau yang paling gampang, klik tombol pilih lokasi di Maps. Sistem akan menyimpan titik exact otomatis tanpa API key.</small>
+            </label>
+
+            <label>
+              <span>Tanggal hitung mundur</span>
+              <input type="date" name="countdownDate" />
+            </label>
+          </div>
+        </div>
+
+        <div class="field-group full-width">
+          <h3>Media & foto</h3>
+
+          <div class="music-search-wrap">
+            <label>
+              <span>Cari musik gratis (opsional)</span>
+              <div class="music-search-row">
+                <input type="text" data-music-search-input placeholder="Contoh: Wedding song, romantis, piano" />
+                <button class="btn btn-secondary" type="button" data-music-search-button>Cari</button>
+              </div>
+            </label>
+
+            <div class="music-results" data-music-results></div>
+
+            <div class="music-selected" data-music-selected hidden>
+              <strong>Dipilih:</strong>
+              <span data-music-selected-label></span>
+              <button class="btn btn-link" type="button" data-clear-music-selection>Hapus</button>
+            </div>
+          </div>
+
+          <input type="hidden" name="musicUrl" />
+
+          <div class="field upload-field">
+            <label for="groomPhoto">Upload foto mempelai pria (opsional)</label>
+            <div class="image-upload-shell compact">
+              <div class="upload-dropzone compact-dropzone" data-upload-dropzone="groomPhoto">
+                <input id="groomPhoto" name="groomPhoto" type="file" accept="image/png,image/jpeg,image/webp" hidden />
+                <div class="upload-inner">
+                  <div class="upload-icon">⇪</div>
+                  <button class="btn btn-primary btn-upload" type="button" data-browse-files="groomPhoto">Browse</button>
+                  <div class="upload-hint">drop a file here</div>
+                  <small class="muted">*Foto khusus mempelai pria.</small>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="field upload-field">
+            <label for="bridePhoto">Upload foto mempelai wanita (opsional)</label>
+            <div class="image-upload-shell compact">
+              <div class="upload-dropzone compact-dropzone" data-upload-dropzone="bridePhoto">
+                <input id="bridePhoto" name="bridePhoto" type="file" accept="image/png,image/jpeg,image/webp" hidden />
+                <div class="upload-inner">
+                  <div class="upload-icon">⇪</div>
+                  <button class="btn btn-primary btn-upload" type="button" data-browse-files="bridePhoto">Browse</button>
+                  <div class="upload-hint">drop a file here</div>
+                  <small class="muted">*Foto khusus mempelai wanita.</small>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="field upload-field">
+            <label for="openingPhoto">Upload foto opening utama (opsional)</label>
+            <div class="image-upload-shell compact">
+              <div class="upload-dropzone compact-dropzone" data-upload-dropzone="openingPhoto">
+                <input id="openingPhoto" name="openingPhoto" type="file" accept="image/png,image/jpeg,image/webp" hidden />
+                <div class="upload-inner">
+                  <div class="upload-icon">⇪</div>
+                  <button class="btn btn-primary btn-upload" type="button" data-browse-files="openingPhoto">Browse</button>
+                  <div class="upload-hint">drop a file here</div>
+                  <small class="muted">*JPG, PNG, atau WebP. Ukuran otomatis diperkecil agar aman untuk Firestore.</small>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="field upload-field">
+            <label for="galleryPhotos">Upload foto gallery (maksimal 3 foto, opsional)</label>
+            <div class="image-upload-shell compact">
+              <div class="upload-dropzone compact-dropzone" data-upload-dropzone="galleryPhotos">
+                <input id="galleryPhotos" name="galleryPhotos" type="file" accept="image/png,image/jpeg,image/webp" multiple hidden />
+                <div class="upload-inner">
+                  <div class="upload-icon">⇪</div>
+                  <button class="btn btn-primary btn-upload" type="button" data-browse-files="galleryPhotos">Browse</button>
+                  <div class="upload-hint">drop a file here</div>
+                  <small class="muted">*Maksimal 3 foto, format JPG/PNG/WebP, ukuran otomatis dikompresi.</small>
+                </div>
+              </div>
+              <div class="uploaded-files" data-uploaded-files="galleryPhotos">
+                <div class="uploaded-files-title">Uploaded files</div>
+                <div class="uploaded-file-list" data-uploaded-file-list="galleryPhotos"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="field-group full-width">
+          <h3>Link & cerita</h3>
+
+          <label>
+            <span>Slug / nama link undangan</span>
+            <input type="text" name="shareSlug" placeholder="contoh: rizki-sinta-maret-2026" />
+          </label>
+
+          <label>
+            <span>Deskripsi singkat</span>
+            <textarea name="story" rows="5" placeholder="Tulis ucapan singkat atau cerita tentang perjalanan kalian..."></textarea>
+          </label>
+
+          <label>
+            <span>Pesan untuk RSVP</span>
+            <textarea name="rsvpMessage" rows="3" placeholder="Contoh: Mohon konfirmasi kehadiran sebelum tanggal ..."></textarea>
+          </label>
+        </div>
+
+        <div class="form-actions">
+          <button class="btn btn-primary" type="submit">Simpan perubahan</button>
+          <button class="btn btn-secondary" type="button" data-cancel-form>Batalkan</button>
+        </div>
+        <div class="form-message" data-form-message></div>
+      </form>
+    </main>
+
+    <div class="location-picker-modal hidden" data-map-picker-modal aria-hidden="true">
+      <div class="location-picker-backdrop" data-map-picker-close></div>
+      <div class="location-picker-panel" role="dialog" aria-modal="true" aria-label="Pilih titik lokasi acara">
+        <div class="location-picker-header">
+          <h3>Pilih titik lokasi</h3>
+          <button type="button" class="location-picker-close" data-map-picker-close aria-label="Tutup">×</button>
+        </div>
+        <div id="locationMapPicker" style="height: 380px; width: 100%;"></div>
+        <div class="location-picker-footer">
+          <div class="location-picker-label" data-location-picker-label>Titik belum dipilih</div>
+          <button class="btn btn-primary" type="button" data-location-picker-confirm>Pilih lokasi ini</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script type="module" src="assets/app.js"></script>
+  </body>
+</html>

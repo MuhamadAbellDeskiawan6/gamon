@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Profil - Gamon Undangan</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="assets/style.css" />
+  </head>
+  <body data-page="profil">
+    <header class="topbar">
+      <div class="container nav-wrap">
+        <a class="brand" href="index.html">
+          <span class="brand-mark">G</span>
+          <span>Gamon Undangan</span>
+        </a>
+        <div class="nav-actions">
+          <button class="btn btn-secondary" type="button" data-logout>Keluar</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="dashboard-shell container">
+      <aside class="sidebar">
+        <div class="user-box">
+          <div class="avatar" data-user-initial>U</div>
+          <div>
+            <strong data-user-name>Pengguna</strong>
+            <small data-user-email>email@example.com</small>
+          </div>
+        </div>
+
+        <nav class="side-nav">
+          <a href="dashboard.html">Dashboard</a>
+          <a href="form.html">Buat undangan</a>
+          <a class="active" href="profil.html">Profil</a>
+          <a href="index.html">Landing page</a>
+        </nav>
+      </aside>
+
+      <section class="main-panel">
+        <div class="panel-heading">
+          <div>
+            <span class="eyebrow">Profil</span>
+            <h1>Data akun</h1>
+          </div>
+        </div>
+
+        <div class="section-box">
+          <div class="section-head">
+            <h2>Informasi pribadi</h2>
+          </div>
+
+          <form id="profileForm" class="auth-form" novalidate>
+            <label>
+              <span>Nama lengkap</span>
+              <input type="text" name="name" placeholder="Nama lengkap" />
+            </label>
+            <label>
+              <span>Email</span>
+              <input type="email" name="email" placeholder="Email" />
+            </label>
+            <button class="btn btn-primary" type="submit">Simpan profil</button>
+            <div class="form-message" data-form-message></div>
+          </form>
+        </div>
+      </section>
+    </main>
+
+    <script type="module" src="assets/app.js"></script>
+  </body>
+</html>

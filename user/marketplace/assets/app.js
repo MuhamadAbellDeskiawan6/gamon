@@ -6,7 +6,7 @@ const firebaseConfig = {
   apiKey: 'AIzaSyC247K8yyL67aWV95KNQy8CkMZsjgGCudQ',
   authDomain: 'gamon-tawing.firebaseapp.com',
   projectId: 'gamon-tawing',
-  storageBucket: 'gamon-tawing.appspot.com',
+  storageBucket: 'gamon-tawing.firebasestorage.app',
   messagingSenderId: '370162915989',
   appId: '1:370162915989:web:76779062da83aa0c5c999c',
   measurementId: 'G-DDRQKDZXV7'
@@ -3428,7 +3428,7 @@ function bindBrandScrollToTop() {
   brandLinks.forEach((link) => {
     link.addEventListener('click', (event) => {
       const currentPath = window.location.pathname;
-      const isMarketplaceHome = currentPath.endsWith('/marketplace/index.html') || currentPath.endsWith('/marketplace/') || currentPath.endsWith('/marketplace');
+      const isMarketplaceHome = currentPath.endsWith('/user/marketplace/index.html') || currentPath.endsWith('/user/marketplace/') || currentPath.endsWith('/user/marketplace');
 
       if (isMarketplaceHome) {
         event.preventDefault();

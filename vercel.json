@@ -1,0 +1,9 @@
+{
+  "rewrites": [
+    { "source": "/login", "destination": "/user/undangan/login.html" },
+    { "source": "/register", "destination": "/user/undangan/register.html" },
+    { "source": "/dashboard", "destination": "/user/undangan/dashboard.html" },
+    { "source": "/preview", "destination": "/user/undangan/preview.html" },
+    { "source": "/", "destination": "/user/undangan/index.html" }
+  ]
+}

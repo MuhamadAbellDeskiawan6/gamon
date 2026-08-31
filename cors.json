@@ -1,0 +1,29 @@
+[
+  {
+    "origin": [
+      "http://localhost:3000",
+      "http://127.0.0.1:3000",
+      "https://gamon-tawing.firebaseapp.com",
+      "https://gamon-tawing.web.app",
+      "https://gamon-tawing.vercel.app",
+      "https://*.vercel.app",
+      "http://localhost:8080"
+    ],
+    "method": [
+      "GET",
+      "HEAD",
+      "PUT",
+      "POST",
+      "DELETE",
+      "OPTIONS"
+    ],
+    "maxAgeSeconds": 3600,
+    "responseHeader": [
+      "Content-Type",
+      "Authorization",
+      "x-goog-meta-*",
+      "x-goog-upload-*",
+      "Access-Control-Allow-Origin"
+    ]
+  }
+]

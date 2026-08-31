@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+
+<html class="scroll-smooth" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Elizabeth &amp; James - Wedding Invitation</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&amp;family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+  tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        "colors": {
+                "on-primary-fixed-variant": "#603f2d",
+                "on-surface": "#1c1c1a",
+                "on-tertiary-container": "#33501c",
+                "surface-container": "#f0edea",
+                "error-container": "#ffdad6",
+                "primary-fixed": "#ffdbca",
+                "surface-tint": "#7a5642",
+                "on-secondary-container": "#795d43",
+                "tertiary-fixed-dim": "#aed18f",
+                "surface-container-low": "#f6f3f0",
+                "surface-dim": "#dcdad7",
+                "on-tertiary": "#ffffff",
+                "tertiary-container": "#9fc281",
+                "on-background": "#1c1c1a",
+                "on-tertiary-fixed-variant": "#314e1b",
+                "surface-bright": "#fcf9f6",
+                "error": "#ba1a1a",
+                "surface-container-highest": "#e5e2df",
+                "primary-container": "#dcae96",
+                "on-surface-variant": "#50443e",
+                "on-secondary-fixed": "#2a1704",
+                "on-primary-fixed": "#2e1506",
+                "on-primary-container": "#62412e",
+                "on-tertiary-fixed": "#0b2000",
+                "secondary": "#74593f",
+                "secondary-fixed-dim": "#e3c0a0",
+                "inverse-surface": "#31302f",
+                "on-primary": "#ffffff",
+                "outline-variant": "#d4c3bb",
+                "on-error-container": "#93000a",
+                "background": "#fcf9f6",
+                "surface-container-lowest": "#ffffff",
+                "inverse-primary": "#ecbda4",
+                "surface-container-high": "#eae8e5",
+                "primary": "#7a5642",
+                "outline": "#82746d",
+                "on-secondary": "#ffffff",
+                "on-secondary-fixed-variant": "#5a422a",
+                "on-error": "#ffffff",
+                "surface-variant": "#e5e2df",
+                "primary-fixed-dim": "#ecbda4",
+                "inverse-on-surface": "#f3f0ed",
+                "surface": "#fcf9f6",
+                "tertiary": "#486730",
+                "secondary-fixed": "#ffdcbe",
+                "tertiary-fixed": "#c9eea9",
+                "secondary-container": "#fed9b8"
+        },
+        "borderRadius": {
+                "DEFAULT": "0.25rem",
+                "lg": "0.5rem",
+                "xl": "0.75rem",
+                "full": "9999px"
+        },
+        "spacing": {
+                "stack-lg": "32px",
+                "margin-desktop": "40px",
+                "stack-md": "16px",
+                "stack-sm": "8px",
+                "gutter": "24px",
+                "margin-mobile": "16px",
+                "unit": "8px",
+                "section-padding": "80px",
+                "container-max": "1140px"
+        },
+        "fontFamily": {
+                "headline-md": [
+                        "Playfair Display", "serif"
+                ],
+                "label-sm": [
+                        "Open Sans", "sans-serif"
+                ],
+                "display-lg": [
+                        "Playfair Display", "serif"
+                ],
+                "headline-lg": [
+                        "Playfair Display", "serif"
+                ],
+                "body-lg": [
+                        "Open Sans", "sans-serif"
+                ],
+                "headline-lg-mobile": [
+                        "Playfair Display", "serif"
+                ],
+                "body-md": [
+                        "Open Sans", "sans-serif"
+                ],
+                "label-md": [
+                        "Open Sans", "sans-serif"
+                ],
+                "headline-sm": [
+                        "Playfair Display", "serif"
+                ]
+        },
+        "fontSize": {
+                "headline-md": [
+                        "24px",
+                        {
+                                "lineHeight": "32px",
+                                "fontWeight": "600"
+                        }
+                ],
+                "label-sm": [
+                        "12px",
+                        {
+                                "lineHeight": "16px",
+                                "letterSpacing": "0.05em",
+                                "fontWeight": "600"
+                        }
+                ],
+                "display-lg": [
+                        "48px",
+                        {
+                                "lineHeight": "56px",
+                                "letterSpacing": "-0.02em",
+                                "fontWeight": "700"
+                        }
+                ],
+                "headline-lg": [
+                        "32px",
+                        {
+                                "lineHeight": "40px",
+                                "fontWeight": "600"
+                        }
+                ],
+                "body-lg": [
+                        "18px",
+                        {
+                                "lineHeight": "28px",
+                                "fontWeight": "400"
+                        }
+                ],
+                "headline-lg-mobile": [
+                        "28px",
+                        {
+                                "lineHeight": "36px",
+                                "fontWeight": "600"
+                        }
+                ],
+                "body-md": [
+                        "16px",
+                        {
+                                "lineHeight": "24px",
+                                "fontWeight": "400"
+                        }
+                ],
+                "label-md": [
+                        "14px",
+                        {
+                                "lineHeight": "20px",
+                                "letterSpacing": "0.05em",
+                                "fontWeight": "600"
+                        }
+                ],
+                "headline-sm": [
+                        "20px",
+                        {
+                                "lineHeight": "28px",
+                                "fontWeight": "500"
+                        }
+                ]
+        }
+},
+    },
+  }
+</script>
+<style>
+        .floral-divider {
+            height: 1px;
+            background: linear-gradient(to right, transparent, #dcae96, transparent);
+            position: relative;
+            margin: 2rem 0;
+        }
+        .floral-divider::after {
+            content: "✿";
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #dcae96;
+            background-color: #fcf9f6;
+            padding: 0 10px;
+            font-size: 16px;
+        }
+        
+        .soft-shadow {
+            box-shadow: 0 12px 40px rgba(122, 86, 66, 0.08);
+        }
+
+        .gold-border-focus:focus-within {
+            border-bottom-color: #dcae96;
+            box-shadow: 0 1px 0 #dcae96;
+        }
+        
+        input[type="radio"]:checked, input[type="checkbox"]:checked {
+            background-color: #7a5642;
+            border-color: #7a5642;
+        }
+        
+        .timer-unit {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: rgba(252, 249, 246, 0.85);
+            padding: 16px 12px;
+            border-radius: 16px;
+            min-width: 70px;
+            border: 1px solid rgba(220, 174, 150, 0.4);
+        }
+
+        .soft-edge-image {
+            border-radius: 60px 16px 60px 16px;
+        }
+
+        .floating-music-toggle {
+            display: flex;
+            height: 3rem;
+            width: 3rem;
+            align-items: center;
+            justify-content: center;
+            border-radius: 9999px;
+            background: rgba(122, 86, 66, 0.9);
+            color: #fff;
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            box-shadow: 0 12px 30px rgba(122, 86, 66, 0.25);
+            transition: transform 0.2s ease, opacity 0.2s ease;
+        }
+
+        .floating-music-toggle:hover {
+            transform: scale(1.04);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+      background-image: radial-gradient(#dcae96 0.5px, transparent 0.5px);
+      background-size: 24px 24px;
+      background-color: #fcf9f6;
+    }
+  </style>
+</head>
+<body class="bg-background text-on-surface font-body-md antialiased md:max-w-container-max md:mx-auto">
+<div class="fixed right-4 top-4 z-50">
+  <audio id="bgMusic" loop preload="auto" src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3"></audio>
+  <button id="musicToggleButton" type="button" aria-label="Play music" class="floating-music-toggle">
+    <span id="musicIcon" class="material-symbols-outlined text-xl">music_note</span>
+  </button>
+</div>
+<main class="pb-24 md:pt-0">
+<!-- 1. Cover -->
+<section class="relative h-screen w-full flex flex-col justify-end items-center pb-20 md:pb-section-padding" id="cover">
+<div class="absolute inset-0 z-0">
+<div class="w-full h-full bg-cover bg-center" data-alt="An elegant, cinematic photograph of a couple embracing in a lush, ancient forest. The soft, dappled sunlight filters through the tall trees, creating a romantic and intimate atmosphere. The tone is deeply emotional, with a sophisticated, light-filled aesthetic utilizing a soft champagne and muted forest green color palette. High editorial fashion style." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDLIdbOZNPEuY4qMQUqvWE63T9lv-XqNpdxrCjqzmwqcAEy_GleIK9muah0uGddymuAWn0uaqQTPvbFJHfMIW_BD-OJvOV7jof3bezJ8DS2TlvFW75DjlGSUsTdijlTBRJqgl5umZqMkDUkFGTUEXPeOeorj45nMq4MdaRCIcRKBUtXywciEV2Tyrrrox3H0tyEcBfxe1No1uinp7AiRhBZpHVN0OvY3F6w3P68_D60tI0BV6vnZKAw')"></div>
+<div class="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-transparent"></div>
+</div>
+<div class="relative z-10 text-center px-margin-mobile flex flex-col items-center bg-surface/40 p-8 rounded-[40px] backdrop-blur-sm border border-surface/50">
+<span class="material-symbols-outlined text-primary mb-2 opacity-70">local_florist</span>
+<p class="font-label-sm text-label-sm text-on-surface-variant tracking-widest uppercase mb-4 opacity-80">Pernikahan</p>
+<h1 class="font-display-lg text-headline-lg-mobile md:text-display-lg text-primary mb-8 leading-tight">
+                    Elizabeth <span class="italic font-light opacity-80 mx-2 text-secondary">&amp;</span> James
+                </h1>
+<a class="bg-primary text-on-primary font-label-md text-label-md px-8 py-4 rounded-full uppercase tracking-wider hover:shadow-lg transition-all flex items-center gap-2" href="#intro">
+                    Buka Undangan <span class="material-symbols-outlined text-sm">expand_more</span>
+</a>
+</div>
+</section>
+<!-- 2. Introduction -->
+<section class="py-section-padding px-margin-mobile text-center max-w-2xl mx-auto flex flex-col items-center" id="intro">
+<div class="floral-divider w-full max-w-[200px] mb-12"></div>
+<p class="font-headline-md text-headline-sm md:text-headline-md text-primary italic leading-relaxed mb-8">
+                "Sesuatu yang membuat jiwa kita sama, jiwa saya dan jiwa Anda pun sama."
+            </p>
+<p class="font-label-sm text-label-sm text-on-surface-variant tracking-widest uppercase mb-6 opacity-70">— Emily Brontë —</p>
+<p class="font-body-md text-body-md text-on-surface leading-relaxed mt-4">
+                Dengan bahagia kami mengundang Bapak/Ibu/Saudara/i untuk merayakan awal babak baru dalam hidup kami. Kasih sayang dan dukungan Anda telah membentuk perjalanan kami, dan kami tidak bisa membayangkan melangkah maju tanpa kehadiran Anda.
+            </p>
+<div class="floral-divider w-full max-w-[200px] mt-12"></div>
+</section>
+<!-- 3. Bride & Groom -->
+<section class="py-section-padding px-margin-mobile max-w-4xl mx-auto">
+<div class="grid grid-cols-1 md:grid-cols-2 gap-stack-lg">
+<!-- Elizabeth -->
+<div class="flex flex-col items-center text-center bg-surface-container-lowest p-8 rounded-[40px] soft-shadow border border-primary/10">
+<div class="w-56 h-56 soft-edge-image overflow-hidden mb-6 border-4 border-surface shadow-sm">
+<img class="w-full h-full object-cover" data-alt="A refined, editorial-style portrait of the bride, Elizabeth. She is looking thoughtfully off-camera, bathed in soft, natural light that highlights her elegant features. The background is a soft, blurred champagne tone, maintaining the minimalist and romantic aesthetic of the design system. Intimate and sophisticated mood." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBiDS4z38FHQndzg8oTAh39dscSDrM4zUvFHsJBDrq7PAWDjx09a4U-ggHf7ZC2QYN39TOKp22DI2TQyV6PIMXS0qOwkeSHG8vw5gQqHXwT0EWljriMUHt8hboWHuupgQU2GSe0NU6vgw-s5iazhr_LX8fzC4AVGfM2qQIn7tXq678h7erdN9TVdtpLatkzV0_CR1xKIXIZHknxnSlgLfw9JDX9fwMcU-gvLM9Na9bdcuLIvwyeztrg"/>
+</div>
+<h2 class="font-headline-md text-headline-sm text-primary mb-2">Elizabeth Anne Smith</h2>
+<p class="font-label-sm text-label-sm text-on-surface-variant text-sm italic mb-1">Daughter of</p>
+<p class="font-body-md text-body-md text-on-surface">Margaret &amp; Robert Smith</p>
+</div>
+<!-- James -->
+<div class="flex flex-col items-center text-center bg-surface-container-lowest p-8 rounded-[40px] soft-shadow border border-primary/10 md:mt-12">
+<div class="w-56 h-56 soft-edge-image overflow-hidden mb-6 border-4 border-surface shadow-sm">
+<img class="w-full h-full object-cover" data-alt="A handsome, sophisticated portrait of the groom, James. He is wearing a tailored suit, looking relaxed and confident. The lighting is warm and natural, creating an intimate, high-end editorial feel against a soft, neutral champagne background. Consistent with a minimalist, luxury aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBj2tG3LgZnXzh6XA4DAlC98wXMjdxrLVaznaCG4GrvkY3ZImP-wPf-M4p-uAI3WU-e8eorXpKe4Su436ylf0yrprF7cC5CWsIPdLp3vP2su7v-u6euMTzFpKZ-sW3b-4efORB0KNsFCO7a-Mzlnc4mn7KHWrNTh8YP-6wQECoAoYJI_lhhXBtSuN2OV1g2IKWz4R_lZhuypa0FbSmtbOgYvY3_gj9Q0_fwZ61thqeF5FmPizrtvQ--"/>
+</div>
+<h2 class="font-headline-md text-headline-sm text-primary mb-2">James William Taylor</h2>
+<p class="font-label-sm text-label-sm text-on-surface-variant text-sm italic mb-1">Son of</p>
+<p class="font-body-md text-body-md text-on-surface">Eleanor &amp; David Taylor</p>
+</div>
+</div>
+</section>
+<!-- 4. Event Details -->
+<section class="py-section-padding px-margin-mobile bg-surface-container-low rounded-[60px] mx-4 my-8 relative overflow-hidden soft-shadow border border-primary/10" id="details">
+<div class="absolute top-0 right-0 w-64 h-64 bg-primary-container rounded-full mix-blend-multiply filter blur-3xl opacity-40 translate-x-1/2 -translate-y-1/2"></div>
+<div class="absolute bottom-0 left-0 w-64 h-64 bg-tertiary-container rounded-full mix-blend-multiply filter blur-3xl opacity-30 -translate-x-1/2 translate-y-1/2"></div>
+<div class="relative z-10 flex flex-col items-center text-center max-w-2xl mx-auto">
+<span class="material-symbols-outlined text-primary mb-4 text-4xl" style="font-variation-settings: 'FILL' 1;">favorite</span>
+<h2 class="font-display-lg text-headline-lg-mobile text-primary mb-8">Perayaan</h2>
+<div class="bg-surface-container-lowest/80 backdrop-blur-md w-full rounded-[40px] p-8 mb-8 border border-primary/20">
+<h3 class="font-headline-md text-headline-sm text-secondary mb-2">Sabtu, 24 Agustus 2024</h3>
+<p class="font-body-md text-body-md text-on-surface-variant mb-6">Upacara dimulai pukul 16.30 <br/> Resepsi dilanjutkan setelahnya</p>
+<h3 class="font-headline-md text-headline-sm text-secondary mb-2">The Glass House</h3>
+<p class="font-body-md text-body-md text-on-surface-variant mb-6">145 W 53rd St<br/>New York, NY 10019</p>
+<div class="mb-6 overflow-hidden rounded-[24px] border border-primary/20 bg-surface-container-low">
+  <iframe
+    class="h-56 w-full border-0"
+    src="https://www.google.com/maps?q=145+W+53rd+St+New+York+NY+10019&output=embed&z=16"
+    loading="lazy"
+    allowfullscreen
+    referrerpolicy="no-referrer-when-downgrade"
+  ></iframe>
+</div>
+<a class="inline-flex items-center justify-center bg-transparent border border-primary text-primary font-label-md text-label-md px-8 py-3 rounded-full uppercase tracking-wider hover:bg-primary/10 transition-colors" href="https://www.google.com/maps?q=145+W+53rd+St+New+York+NY+10019" target="_blank" rel="noreferrer">
+  Lihat Lokasi
+</a>
+</div>
+<!-- Countdown -->
+<div class="flex justify-center gap-4 mt-4">
+<div class="timer-unit">
+<span class="font-headline-md text-headline-sm text-primary">120</span>
+<span class="font-label-sm text-label-sm text-secondary text-[10px] mt-1 tracking-widest">DAYS</span>
+</div>
+<div class="timer-unit">
+<span class="font-headline-md text-headline-sm text-primary">14</span>
+<span class="font-label-sm text-label-sm text-secondary text-[10px] mt-1 tracking-widest">HRS</span>
+</div>
+<div class="timer-unit">
+<span class="font-headline-md text-headline-sm text-primary">45</span>
+<span class="font-label-sm text-label-sm text-secondary text-[10px] mt-1 tracking-widest">MIN</span>
+</div>
+</div>
+</div>
+</section>
+<!-- 5. RSVP -->
+<section class="py-section-padding px-margin-mobile max-w-lg mx-auto" id="rsvp">
+<div class="text-center mb-10">
+<h2 class="font-display-lg text-headline-lg-mobile text-primary mb-4">RSVP</h2>
+<p class="font-body-md text-body-md text-on-surface-variant">Mohon balasan paling lambat 1 Juli 2024</p>
+<div class="floral-divider w-full max-w-[150px] mx-auto mt-6"></div>
+</div>
+<form class="space-y-6 bg-surface-container-lowest p-8 md:p-12 rounded-[40px] soft-shadow border border-primary/20">
+<div class="space-y-1 gold-border-focus border-b border-outline-variant pb-2 transition-colors">
+<label class="font-label-sm text-label-sm text-secondary block uppercase text-xs tracking-wider" for="name">Nama Lengkap</label>
+<input class="w-full bg-transparent border-none focus:ring-0 text-on-surface font-body-md p-0 placeholder-on-surface-variant/40" id="name" name="name" placeholder="Elizabeth Bennet &amp; Mr. Darcy" required="" type="text"/>
+</div>
+<div class="space-y-4 py-4">
+<p class="font-label-sm text-label-sm text-secondary uppercase text-xs tracking-wider">Apakah Anda hadir?</p>
+<div class="flex flex-col sm:flex-row gap-4">
+<label class="flex items-center space-x-3 cursor-pointer group">
+<input checked="" class="form-radio text-primary focus:ring-primary/50 border-outline-variant w-5 h-5 bg-transparent" name="attending" type="radio" value="yes"/>
+<span class="font-body-md text-body-md text-on-surface group-hover:text-primary transition-colors">Dengan Senang Hati Hadir</span>
+</label>
+<label class="flex items-center space-x-3 cursor-pointer group">
+<input class="form-radio text-primary focus:ring-primary/50 border-outline-variant w-5 h-5 bg-transparent" name="attending" type="radio" value="no"/>
+<span class="font-body-md text-body-md text-on-surface group-hover:text-primary transition-colors">Dengan Menyesal Tidak Dapat Hadir</span>
+</label>
+</div>
+</div>
+<div class="space-y-1 gold-border-focus border-b border-outline-variant pb-2 transition-colors">
+<label class="font-label-sm text-label-sm text-secondary block uppercase text-xs tracking-wider" for="guests">Jumlah Tamu</label>
+<select class="w-full bg-transparent border-none focus:ring-0 text-on-surface font-body-md p-0 appearance-none cursor-pointer" id="guests" name="guests">
+<option value="1">1 Guest</option>
+<option selected="" value="2">2 Guests</option>
+<option value="3">3 Guests</option>
+<option value="4">4 Guests</option>
+</select>
+</div>
+<div class="space-y-1 gold-border-focus border-b border-outline-variant pb-2 transition-colors">
+<label class="font-label-sm text-label-sm text-secondary block uppercase text-xs tracking-wider" for="song">Request Lagu (Opsional)</label>
+<input class="w-full bg-transparent border-none focus:ring-0 text-on-surface font-body-md p-0 placeholder-on-surface-variant/40" id="song" name="song" placeholder="I'll definitely dance to..." type="text"/>
+</div>
+<div class="pt-6">
+<button class="w-full bg-primary text-on-primary font-label-md text-label-md py-4 rounded-full uppercase tracking-wider hover:shadow-lg transition-all" type="submit">
+                        Kirim Balasan
+                    </button>
+</div>
+</form>
+</section>
+<!-- 6. Gallery -->
+<section class="py-section-padding px-margin-mobile" id="gallery">
+<div class="text-center mb-10">
+<h2 class="font-display-lg text-headline-lg-mobile text-primary mb-4">Momen</h2>
+<div class="floral-divider w-full max-w-[150px] mx-auto"></div>
+</div>
+<div class="mx-auto grid max-w-5xl grid-cols-1 justify-items-center gap-3 sm:grid-cols-2 md:grid-cols-3 md:gap-4">
+<div class="group w-full max-w-[280px] overflow-hidden soft-edge-image soft-shadow">
+<img class="h-40 w-full object-cover transition-transform duration-700 group-hover:scale-105 md:h-52" data-alt="A beautiful engagement photo of the couple laughing together on a vintage sailboat. The lighting is golden hour, casting a warm, champagne glow over the water. The aesthetic is romantic, editorial, and sophisticated, reflecting a high-end lifestyle tone with muted colors." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCUTYpRDa-qumt6PxM2__FcpGFDeJSnCYX4ImPdlN8egoCA_N9RC98NJ-wWprAQowDmiwsQZ_HkZx7j217Ot9WseVnuZy5FOaP50pQ6cJXZR3ePSmNcG8jtbfcJrt6KkFewMzfr4twNZ33h-Y2Sm5KH5qHuT6aUYdKrqDJdWNPfclU3zVniBdcYTcP4A-K_fqui5Yk2jGTe810w172Jx2BM16u9EaaJpX23LgjrMxqLnhfItWZxHXX2"/>
+</div>
+<div class="group w-full max-w-[280px] overflow-hidden soft-edge-image soft-shadow">
+<img class="h-40 w-full object-cover transition-transform duration-700 group-hover:scale-105 md:h-52" data-alt="A close-up, detail shot of the couple holding hands, focusing on the elegant engagement ring. The background is a soft, blurry forest green, emphasizing the intricate details of the ring and their connection. Minimalist and luxurious aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCg8P8jayQVFpF763ya17DSUp_955QR7w9CkeQcBrgGVjzezhjxhjdbAGzQRik9s2N1_ovo4qHPDTSgdNa4fJ32zTwWKJ8hXqb7FHJhL-ywNFUg5hOQpyLJPsmjaKHo4GoIcmzD_bHYi4mZIDlqrbJSX_U-yLVssCJmD5llxULogj-BEw4NRwlUDO5I6mkOnbxhT-8HOj59cXbHUaLzPIwRz8tzuRAf365SIQpLHwtBYu6V9nVZJO2t"/>
+</div>
+<div class="group w-full max-w-[280px] overflow-hidden soft-edge-image soft-shadow">
+<img class="h-40 w-full object-cover transition-transform duration-700 group-hover:scale-105 md:h-52" data-alt="A candid, editorial-style black and white photo of the couple walking away from the camera down a cobblestone street. The mood is timeless and romantic, with strong contrasts yet retaining a soft, delicate grain that feels vintage and premium." src="https://lh3.googleusercontent.com/aida-public/AB6AXuB3SJfI2c51FUEx8b2Cv_oatjYN3mPFw-WChvJUDziUWm2mvfYYHCdd4NMX6rAAsmh6tQU7RmPGVqq_QZn7uXLMu9E8lUHNcjiTBR9uSLy6jTbi3ZMoJwtuSReNfqwec-ruz8qeirutMubVQEPj_CL4nSIXNueNIcZ56YfG1_mu-CI2kBwdbqdjn3vaSaIEd8O4wwD4vEE9TQBjuvt73sdbIm5EzwKKlk2AaTJJBfP2eBBJrzUImiKF"/>
+</div>
+</div>
+</section>
+</main>
+<!-- Footer -->
+<footer class="bg-surface-container-lowest w-full py-section-padding flex flex-col items-center text-center px-margin-mobile mt-section-padding border-t border-primary/20 pb-24 md:pb-section-padding">
+<span class="material-symbols-outlined text-primary mb-4 text-3xl opacity-80">local_florist</span>
+<h4 class="font-display-lg text-headline-sm text-primary mb-4">E &amp; J Wedding</h4>
+<p class="font-body-md text-body-md text-on-surface-variant mb-6 max-w-sm mx-auto">
+            Dibuat dengan cinta untuk Elizabeth &amp; James. © 2024
+        </p>
+<div class="flex gap-4">
+<a class="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors text-sm" href="#">Kebijakan Privasi</a>
+<span class="text-on-surface-variant/50">•</span>
+<a class="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors text-sm" href="#">Bantuan</a>
+</div>
+</footer>
+<script>
+  const musicEl = document.getElementById('bgMusic');
+  const musicToggleButton = document.getElementById('musicToggleButton');
+  const musicIcon = document.getElementById('musicIcon');
+  let isPlaying = false;
+
+  const updateMusicButton = () => {
+    musicIcon.textContent = isPlaying ? 'pause' : 'music_note';
+    musicToggleButton.setAttribute('aria-label', isPlaying ? 'Pause music' : 'Play music');
+  };
+
+  const tryAutoplay = async () => {
+    try {
+      musicEl.volume = 0.45;
+      await musicEl.play();
+      isPlaying = true;
+      updateMusicButton();
+    } catch (error) {
+      isPlaying = false;
+      updateMusicButton();
+    }
+  };
+
+  musicToggleButton.addEventListener('click', async () => {
+    if (!musicEl) return;
+
+    if (isPlaying) {
+      musicEl.pause();
+      isPlaying = false;
+    } else {
+      try {
+        await musicEl.play();
+        isPlaying = true;
+      } catch (error) {
+        isPlaying = false;
+      }
+    }
+
+    updateMusicButton();
+  });
+
+  tryAutoplay();
+</script>
+<script>
+  const sunsetParams = new URLSearchParams(window.location.search);
+  const sunsetSlug = sunsetParams.get('slug');
+
+  if (!sunsetSlug) {
+    document.body.innerHTML = `
+      <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:#f5f3f3;color:#1b1c1c;">
+        <div style="max-width:560px;margin:30px auto 0;text-align:center;padding:40px 20px;border-radius:24px;background:rgba(255,255,255,0.78);border:1px solid rgba(107,75,93,0.08);">
+          <h1 style="margin:0 0 12px;font-family:'Georgia','Times New Roman',serif;font-size:clamp(2.4rem,4vw,4rem);color:#685d4a;line-height:1.1;font-weight:400;">Undangan tidak ditemukan</h1>
+          <p style="margin:0;color:#4b463d;line-height:1.7;font-family:Inter,Arial,sans-serif;font-size:1rem;">Link yang Anda buka belum memiliki slug undangan.</p>
+        </div>
+      </div>
+    `;
+  }
+</script>
+</body></html>

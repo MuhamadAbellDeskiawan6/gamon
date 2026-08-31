@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Daftar - Gamon Undangan</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="assets/style.css" />
+  </head>
+  <body data-page="register">
+    <header class="topbar compact">
+      <div class="container nav-wrap">
+        <a class="brand" href="index.html">
+          <span class="brand-mark">G</span>
+          <span>Gamon Undangan</span>
+        </a>
+      </div>
+    </header>
+
+    <main class="auth-wrap">
+      <div class="auth-card">
+        <div class="auth-copy">
+          <span class="eyebrow">Daftar akun</span>
+          <h1>Buat akun undanganmu</h1>
+          <p>Selamat datang. Silakan buat akun agar kamu bisa menyimpan dan mengelola undangan digitalmu.</p>
+        </div>
+
+        <form id="registerForm" class="auth-form" novalidate>
+          <label>
+            <span>Nama lengkap</span>
+            <input type="text" name="name" placeholder="Contoh: Sinta Dewi" required />
+          </label>
+          <label>
+            <span>Email</span>
+            <input type="email" name="email" placeholder="contoh@email.com" required />
+          </label>
+          <label>
+            <span>Password</span>
+            <input type="password" name="password" placeholder="Minimal 6 karakter" minlength="6" required />
+          </label>
+          <button class="btn btn-primary full" type="submit">Daftar sekarang</button>
+          <p class="auth-link">Sudah punya akun? <a href="login.html">Masuk di sini</a></p>
+          <div class="form-message" data-form-message></div>
+        </form>
+      </div>
+    </main>
+
+    <script type="module" src="assets/app.js"></script>
+  </body>
+</html>

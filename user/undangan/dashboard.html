@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dashboard - Gamon Undangan</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="assets/style.css" />
+  </head>
+  <body data-page="dashboard">
+    <header class="topbar">
+      <div class="container nav-wrap">
+        <a class="brand" href="index.html">
+          <span class="brand-mark">G</span>
+          <span>Gamon Undangan</span>
+        </a>
+        <div class="nav-actions">
+          <button class="btn btn-secondary" type="button" data-logout>Keluar</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="dashboard-shell container">
+      <aside class="sidebar">
+        <div class="user-box">
+          <div class="avatar" data-user-initial>U</div>
+          <div>
+            <strong data-user-name>Pengguna</strong>
+            <small data-user-email>email@example.com</small>
+          </div>
+        </div>
+
+        <nav class="side-nav">
+          <a class="active" href="dashboard.html">Dashboard</a>
+          <a href="form.html">Buat undangan</a>
+          <a href="profil.html">Profil</a>
+          <a href="index.html">Landing page</a>
+        </nav>
+      </aside>
+
+      <section class="main-panel">
+        <div class="panel-heading">
+          <div>
+            <span class="eyebrow">Halo</span>
+            <h1 data-greeting>Halo, Pengguna</h1>
+          </div>
+          <a class="btn btn-primary" href="form.html">+ Buat undangan</a>
+        </div>
+
+        <div class="summary-grid">
+          <div class="summary-card">
+            <span>Total undangan</span>
+            <strong data-total-invitations>0</strong>
+          </div>
+          <div class="summary-card">
+            <span>Sudah dibagikan</span>
+            <strong data-shared-count>0</strong>
+          </div>
+          <div class="summary-card">
+            <span>Template dipilih</span>
+            <strong data-template-count>0</strong>
+          </div>
+        </div>
+
+        <div class="section-box">
+          <div class="section-head">
+            <h2>Daftar undangan</h2>
+            <a href="form.html">Tambah baru</a>
+          </div>
+          <div id="invitationList" class="invitation-list"></div>
+        </div>
+      </section>
+    </main>
+
+    <script type="module" src="assets/app.js"></script>
+  </body>
+</html>

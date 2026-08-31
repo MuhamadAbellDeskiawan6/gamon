@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Masuk - Gamon Undangan</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="assets/style.css" />
+  </head>
+  <body data-page="login">
+    <header class="topbar compact">
+      <div class="container nav-wrap">
+        <a class="brand" href="index.html">
+          <span class="brand-mark">G</span>
+          <span>Gamon Undangan</span>
+        </a>
+      </div>
+    </header>
+
+    <main class="auth-wrap">
+      <div class="auth-card">
+        <div class="auth-copy">
+          <span class="eyebrow">Masuk akun</span>
+          <h1>Selamat datang kembali</h1>
+          <p>Masuk ke dashboard untuk mengelola undangan, mengedit data, dan menyalin link undangan.</p>
+        </div>
+
+        <form id="loginForm" class="auth-form" novalidate>
+          <label>
+            <span>Email</span>
+            <input type="email" name="email" placeholder="contoh@email.com" required />
+          </label>
+          <label>
+            <span>Password</span>
+            <input type="password" name="password" placeholder="Masukkan password" required />
+          </label>
+          <button class="btn btn-primary full" type="submit">Masuk</button>
+          <p class="auth-link">Belum punya akun? <a href="register.html">Daftar di sini</a></p>
+          <div class="form-message" data-form-message></div>
+        </form>
+      </div>
+    </main>
+
+    <script type="module" src="assets/app.js"></script>
+  </body>
+</html>
