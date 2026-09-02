@@ -237,15 +237,15 @@
 
           <div class="mt-8 flex justify-center gap-6">
             <div class="timer-unit">
-              <span class="font-display-lg text-headline-lg text-primary">120</span>
+              <span id="countdownDays" class="font-display-lg text-headline-lg text-primary">0</span>
               <span class="mt-2 font-label-sm text-label-sm tracking-widest text-secondary">DAYS</span>
             </div>
             <div class="timer-unit">
-              <span class="font-display-lg text-headline-lg text-primary">14</span>
+              <span id="countdownHours" class="font-display-lg text-headline-lg text-primary">0</span>
               <span class="mt-2 font-label-sm text-label-sm tracking-widest text-secondary">HRS</span>
             </div>
             <div class="timer-unit">
-              <span class="font-display-lg text-headline-lg text-primary">45</span>
+              <span id="countdownMinutes" class="font-display-lg text-headline-lg text-primary">0</span>
               <span class="mt-2 font-label-sm text-label-sm tracking-widest text-secondary">MIN</span>
             </div>
           </div>
@@ -259,10 +259,10 @@
           <div class="floral-divider mx-auto mt-8 w-full max-w-[150px]"></div>
         </div>
 
-        <form class="space-y-8 rounded border border-secondary/30 bg-surface-container-lowest p-8 soft-shadow md:p-12">
+        <form id="rsvpForm" class="space-y-8 rounded border border-secondary/30 bg-surface-container-lowest p-8 soft-shadow md:p-12" data-rsvp-form>
           <div class="gold-border-focus space-y-2 border-b-2 border-outline-variant pb-2 transition-colors">
             <label class="block font-label-sm text-label-sm uppercase tracking-wider text-secondary" for="name">Nama Lengkap</label>
-            <input class="w-full border-none bg-transparent p-0 text-lg font-body-md text-primary placeholder-on-surface-variant/40 focus:ring-0" id="name" name="name" placeholder="Elizabeth Bennet &amp; Mr. Darcy" required type="text" />
+            <input class="w-full border-none bg-transparent p-0 text-lg font-body-md text-primary placeholder-on-surface-variant/40 focus:ring-0" id="name" name="name" placeholder="Tamu Undangan" required type="text" />
           </div>
 
           <div class="space-y-4 py-4">
@@ -290,8 +290,8 @@
           </div>
 
           <div class="gold-border-focus space-y-2 border-b-2 border-outline-variant pb-2 transition-colors">
-            <label class="block font-label-sm text-label-sm uppercase tracking-wider text-secondary" for="song">Request Lagu (Opsional)</label>
-            <input class="w-full border-none bg-transparent p-0 text-lg font-body-md text-primary placeholder-on-surface-variant/40 focus:ring-0" id="song" name="song" placeholder="Saya ingin menari sambil mendengar..." type="text" />
+            <label class="block font-label-sm text-label-sm uppercase tracking-wider text-secondary" for="message">Pesan, doa, atau alasan</label>
+            <textarea class="min-h-[120px] w-full resize-none border-none bg-transparent p-0 text-lg font-body-md text-primary placeholder-on-surface-variant/40 focus:ring-0" id="message" name="message" placeholder="Tulis pesan, doa, atau alasan Anda..." required></textarea>
           </div>
 
           <div class="pt-8">
@@ -299,7 +299,14 @@
               Kirim Balasan
             </button>
           </div>
+
+          <div class="rsvp-message rounded-xl border border-secondary/20 bg-primary/5 p-3 text-sm text-on-surface" data-rsvp-message></div>
         </form>
+
+        <div class="mt-8 rounded border border-secondary/30 bg-surface-container-lowest p-5 soft-shadow">
+          <h3 class="mb-4 font-display-lg text-headline-lg-mobile text-primary">Daftar Balasan</h3>
+          <div class="space-y-3" data-rsvp-list></div>
+        </div>
       </section>
 
       <section class="bg-surface-container-low px-margin-mobile py-24" id="gallery">
@@ -322,9 +329,9 @@
     </main>
 
     <footer class="flex w-full flex-col items-center border-t-4 border-secondary bg-primary px-margin-mobile py-16 pb-32 text-center text-on-primary md:pb-16">
-      <h4 class="mb-4 font-display-lg text-headline-sm">E &amp; J Wedding</h4>
+      <h4 class="mb-4 font-display-lg text-headline-sm">Elizabeth &amp; James</h4>
       <p class="mx-auto mb-6 max-w-sm font-body-md text-body-md opacity-80">
-        Dibuat dengan cinta untuk Elizabeth &amp; James. © 2024
+        Dibuat dengan cinta untuk Elizabeth &amp; James. © 2026
       </p>
       <div class="flex gap-4">
         <a class="font-body-md text-body-md text-sm opacity-80 transition-colors hover:text-secondary hover:opacity-100" href="#">Kebijakan Privasi</a>

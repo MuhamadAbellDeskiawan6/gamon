@@ -200,9 +200,32 @@ function slugify(value) {
     .slice(0, 80);
 }
 
+function normalizeDateInputValue(value) {
+  if (value === null || value === undefined || value === '') {
+    return '';
+  }
+
+  if (value instanceof Date) {
+    return value.toISOString().split('T')[0];
+  }
+
+  const raw = String(value).trim();
+  if (!raw) return '';
+
+  const dateOnlyMatch = raw.match(/^\d{4}-\d{2}-\d{2}$/);
+  if (dateOnlyMatch) return raw;
+
+  const parsed = new Date(raw);
+  if (Number.isNaN(parsed.getTime())) return '';
+
+  const iso = parsed.toISOString().split('T')[0];
+  return iso || '';
+}
+
 function formatDate(dateString) {
-  if (!dateString) return '-';
-  const date = new Date(dateString + 'T00:00:00');
+  const normalized = normalizeDateInputValue(dateString);
+  if (!normalized) return '-';
+  const date = new Date(normalized + 'T00:00:00');
   if (Number.isNaN(date.getTime())) return dateString;
   return new Intl.DateTimeFormat('id-ID', {
     day: 'numeric',
@@ -554,8 +577,10 @@ function renderClassicInvitationTemplate(invitation, guestName) {
   const venueName = invitation.receptionPlace || 'Tempat Resepsi';
   const venueAddress = invitation.address || 'Alamat lengkap akan ditampilkan di sini.';
   const mapLink = mapTarget;
-  const countdownDate = invitation.countdownDate || invitation.receptionDate || invitation.akadDate || '';
-  const countdownParts = countdownDate ? getCountdownParts(countdownDate) : { days: 0, hours: 0, minutes: 0, seconds: 0 };
+  const countdownDate = getEffectiveCountdownDate(invitation);
+  const countdownParts = countdownDate ? getCountdownParts(countdownDate) : { days: 0, hours: 0, minutes: 0, seconds: 0, isExpired: true };
+  const countdownBanner = countdownParts.isExpired ? 'Hari H' : 'Hitung Mundur';
+  const countdownSubtitle = countdownParts.isExpired ? 'Acara sedang berlangsung / sudah dimulai' : 'Menuju hari bahagia kami';
 
   return `
     <main class="pb-24">
@@ -635,19 +660,30 @@ function renderClassicInvitationTemplate(invitation, guestName) {
             ${mapLink ? `<a class="rounded-lg border border-primary bg-transparent px-6 py-3 font-label-md text-label-md uppercase tracking-wider text-primary transition-colors hover:bg-primary/5" href="${escapeHtml(mapLink)}" target="_blank" rel="noreferrer">Lihat Lokasi</a>` : '<button class="rounded-lg border border-primary bg-transparent px-6 py-3 font-label-md text-label-md uppercase tracking-wider text-primary transition-colors hover:bg-primary/5" type="button">Lihat Lokasi</button>'}
           </div>
 
-          <div class="mt-4 flex justify-center gap-4">
-            <div class="timer-unit">
-              <span class="font-headline-sm text-headline-sm text-primary">${countdownParts.days}</span>
-              <span class="mt-1 text-[10px] font-label-md text-label-md text-on-surface-variant">HARI</span>
+          <div class="mt-4 text-center">
+            <div class="mb-2 text-[10px] font-label-md uppercase tracking-[0.2em] text-on-surface-variant">
+              ${countdownBanner}
             </div>
-            <div class="timer-unit">
-              <span class="font-headline-sm text-headline-sm text-primary">${countdownParts.hours}</span>
-              <span class="mt-1 text-[10px] font-label-md text-label-md text-on-surface-variant">JAM</span>
-            </div>
-            <div class="timer-unit">
-              <span class="font-headline-sm text-headline-sm text-primary">${countdownParts.minutes}</span>
-              <span class="mt-1 text-[10px] font-label-md text-label-md text-on-surface-variant">MENIT</span>
-            </div>
+            ${countdownParts.isExpired ? `
+              <div class="timer-unit mx-auto max-w-xs">
+                <span class="font-headline-sm text-headline-sm text-primary">${countdownSubtitle}</span>
+              </div>
+            ` : `
+              <div class="flex justify-center gap-4">
+                <div class="timer-unit">
+                  <span class="font-headline-sm text-headline-sm text-primary">${countdownParts.days}</span>
+                  <span class="mt-1 text-[10px] font-label-md text-label-md text-on-surface-variant">HARI</span>
+                </div>
+                <div class="timer-unit">
+                  <span class="font-headline-sm text-headline-sm text-primary">${countdownParts.hours}</span>
+                  <span class="mt-1 text-[10px] font-label-md text-label-md text-on-surface-variant">JAM</span>
+                </div>
+                <div class="timer-unit">
+                  <span class="font-headline-sm text-headline-sm text-primary">${countdownParts.minutes}</span>
+                  <span class="mt-1 text-[10px] font-label-md text-label-md text-on-surface-variant">MENIT</span>
+                </div>
+              </div>
+            `}
           </div>
         </div>
       </section>
@@ -659,7 +695,7 @@ function renderClassicInvitationTemplate(invitation, guestName) {
           <p class="mt-2 font-body-md text-body-md text-on-surface-variant">Mohon balasan paling lambat ${escapeHtml(receptionDateLabel)}</p>
           <div class="floral-divider mx-auto mt-6 w-full max-w-[150px]"></div>
         </div>
-        <form class="space-y-6 rounded-2xl border border-surface-container bg-surface-container-lowest p-6 soft-shadow md:p-10">
+        <form id="rsvpForm" class="space-y-6 rounded-2xl border border-surface-container bg-surface-container-lowest p-6 soft-shadow md:p-10" data-rsvp-form>
           <div class="gold-border-focus space-y-1 border-b border-outline-variant pb-2 transition-colors">
             <label class="block font-label-md text-label-md uppercase tracking-wider text-on-surface-variant" for="guestNameInput">Nama Lengkap</label>
             <input id="guestNameInput" class="w-full border-none bg-transparent p-0 font-body-md text-on-surface placeholder-on-surface-variant/40 focus:ring-0" name="guestName" placeholder="${escapeHtml(guestName || 'Tamu Undangan')}" value="${escapeHtml(guestName || '')}" required type="text" />
@@ -687,15 +723,21 @@ function renderClassicInvitationTemplate(invitation, guestName) {
             </select>
           </div>
           <div class="gold-border-focus space-y-1 border-b border-outline-variant pb-2 transition-colors">
-            <label class="block font-label-md text-label-md uppercase tracking-wider text-on-surface-variant" for="song">Request Lagu (Opsional)</label>
-            <input id="song" class="w-full border-none bg-transparent p-0 font-body-md text-on-surface placeholder-on-surface-variant/40 focus:ring-0" name="song" placeholder="Saya ingin menari sambil mendengar..." type="text" />
+            <label class="block font-label-md text-label-md uppercase tracking-wider text-on-surface-variant" for="message">Pesan, doa, atau alasan</label>
+            <textarea id="message" class="min-h-[110px] w-full resize-none border-none bg-transparent p-0 font-body-md text-on-surface placeholder-on-surface-variant/40 focus:ring-0" name="message" placeholder="Tulis pesan, doa, atau alasan Anda..." required></textarea>
           </div>
           <div class="pt-4">
             <button class="w-full rounded-lg border border-inverse-primary/30 bg-secondary px-4 py-4 font-label-md text-label-md uppercase tracking-wider text-on-secondary transition-all hover:shadow-lg" type="submit">
               Kirim Balasan
             </button>
           </div>
+          <div class="rsvp-message" data-rsvp-message></div>
         </form>
+
+        <div class="mt-8 rounded-2xl border border-surface-container bg-surface-container-lowest p-5 soft-shadow">
+          <h3 class="mb-4 font-headline-sm text-headline-sm text-primary">Daftar balasan</h3>
+          <div class="space-y-3" data-rsvp-list></div>
+        </div>
       </section>
 
       <section class="px-margin-mobile py-stack-lg" id="gallery">
@@ -1105,6 +1147,29 @@ function getInvitationFromUrl() {
   return getInvitations().find((item) => item.id === id) || null;
 }
 
+async function loadInvitationByIdForEdit(invitationId) {
+  if (!invitationId) return null;
+
+  try {
+    const invitationRef = doc(db, 'gamon_wedding_invitations', invitationId);
+    const snapshot = await getDoc(invitationRef);
+
+    if (!snapshot.exists()) {
+      return null;
+    }
+
+    const data = snapshot.data();
+    if (state.currentUser?.uid && data.ownerUid && data.ownerUid !== state.currentUser.uid) {
+      return null;
+    }
+
+    return { id: snapshot.id, ...data };
+  } catch (error) {
+    console.error('Gagal memuat data undangan untuk edit:', error);
+    return null;
+  }
+}
+
 function syncFormFieldValue(form, key, value) {
   const field = form.elements.namedItem(key);
   if (!field) return;
@@ -1127,6 +1192,11 @@ function syncFormFieldValue(form, key, value) {
 
   if (field.tagName === 'SELECT') {
     field.value = value ?? '';
+    return;
+  }
+
+  if (field.type === 'date') {
+    field.value = normalizeDateInputValue(value);
     return;
   }
 
@@ -1286,7 +1356,9 @@ async function saveInvitation(payload, invitationId = null) {
     address: sanitizedPayload.address || '',
     musicUrl: sanitizedPayload.musicUrl || '',
     galleryImages,
-    countdownDate: sanitizedPayload.countdownDate || sanitizedPayload.receptionDate || '',
+    akadDate: normalizeDateInputValue(sanitizedPayload.akadDate || ''),
+    receptionDate: normalizeDateInputValue(sanitizedPayload.receptionDate || ''),
+    countdownDate: normalizeDateInputValue(sanitizedPayload.countdownDate || sanitizedPayload.receptionDate || ''),
     rsvpMessage: sanitizedPayload.rsvpMessage || 'Mohon konfirmasi kehadiran Anda.',
     updatedAt: new Date().toISOString(),
     createdAt: sanitizedPayload.createdAt || new Date().toISOString()
@@ -1687,6 +1759,8 @@ function initInvitationForm() {
   const form = document.getElementById('invitationForm');
   if (!form) return;
 
+  let activeInvitation = getInvitationFromUrl();
+
   bindMarketplaceStyleUpload('openingPhoto');
   bindMarketplaceStyleUpload('groomPhoto');
   bindMarketplaceStyleUpload('bridePhoto');
@@ -1699,13 +1773,14 @@ function initInvitationForm() {
   const hydrateEditForm = async () => {
     const params = new URLSearchParams(window.location.search);
     const invitationId = params.get('id');
-    let invitation = getInvitationFromUrl();
 
-    if (!invitation && invitationId) {
-      invitation = await loadInvitationByIdForEdit(invitationId);
+    if (!activeInvitation && invitationId) {
+      activeInvitation = await loadInvitationByIdForEdit(invitationId);
     }
 
-    if (invitation) fillFormFromInvitation(invitation);
+    if (activeInvitation) {
+      fillFormFromInvitation(activeInvitation);
+    }
   };
 
   hydrateEditForm();
@@ -1800,7 +1875,7 @@ function initInvitationForm() {
         }
       }
 
-      const savedId = await saveInvitation(payload, invitation?.id || null);
+      const savedId = await saveInvitation(payload, activeInvitation?.id || null);
       setMessage(messageEl, 'Undangan berhasil disimpan.', 'success');
       setTimeout(() => {
         window.location.href = `dashboard.html?id=${savedId}`;
@@ -2021,20 +2096,45 @@ function sanitizePayloadForFirestore(payload) {
   return sanitized;
 }
 
+function getEffectiveCountdownDate(invitation = {}) {
+  const countdownDate = normalizeDateInputValue(invitation.countdownDate);
+  const receptionDate = normalizeDateInputValue(invitation.receptionDate);
+  const akadDate = normalizeDateInputValue(invitation.akadDate);
+
+  const eventDates = [receptionDate, akadDate].filter(Boolean);
+  const latestEventDate = eventDates.length
+    ? eventDates.reduce((latest, value) => new Date(value + 'T00:00:00').getTime() > new Date(latest + 'T00:00:00').getTime() ? value : latest)
+    : '';
+
+  if (!countdownDate) return latestEventDate || '';
+  if (!latestEventDate) return countdownDate;
+
+  const countdownMs = new Date(countdownDate + 'T00:00:00').getTime();
+  const latestEventMs = new Date(latestEventDate + 'T00:00:00').getTime();
+
+  return countdownMs >= latestEventMs ? countdownDate : latestEventDate;
+}
+
 function getCountdownParts(targetDate) {
-  const date = new Date(targetDate + 'T00:00:00');
+  const normalized = normalizeDateInputValue(targetDate);
+  if (!normalized) {
+    return { days: 0, hours: 0, minutes: 0, seconds: 0, isExpired: true };
+  }
+
+  const date = new Date(normalized + 'T00:00:00');
   const now = new Date();
   const diff = date.getTime() - now.getTime();
 
-  if (diff <= 0) {
-    return { days: 0, hours: 0, minutes: 0, seconds: 0 };
+  if (Number.isNaN(date.getTime()) || diff <= 0) {
+    return { days: 0, hours: 0, minutes: 0, seconds: 0, isExpired: true };
   }
 
   return {
     days: Math.floor(diff / (1000 * 60 * 60 * 24)),
     hours: Math.floor((diff / (1000 * 60 * 60)) % 24),
     minutes: Math.floor((diff / (1000 * 60)) % 60),
-    seconds: Math.floor((diff / 1000) % 60)
+    seconds: Math.floor((diff / 1000) % 60),
+    isExpired: false
   };
 }
 
@@ -2132,9 +2232,45 @@ function buildGoogleMapsEmbedUrl(value) {
   }
 }
 
+function getRsvpStorageKey() {
+  const slug = new URLSearchParams(window.location.search).get('slug') || 'default';
+  return `gamon_rsvp_${window.location.pathname}_${slug}`;
+}
+
+function renderRsvpList(container) {
+  const listEl = container.querySelector('[data-rsvp-list]');
+  if (!listEl) return;
+
+  try {
+    const raw = localStorage.getItem(getRsvpStorageKey());
+    const entries = raw ? JSON.parse(raw) : [];
+
+    listEl.classList.add('rsvp-list');
+
+    if (!Array.isArray(entries) || entries.length === 0) {
+      listEl.innerHTML = '<p class="text-sm text-on-surface-variant">Belum ada balasan. Jadilah yang pertama mengirimkan pesan.</p>';
+      return;
+    }
+
+    listEl.innerHTML = entries.slice(0, 12).map((entry) => `
+      <article class="rsvp-list-item">
+        <div class="rsvp-list-header">
+          <strong>${escapeHtml(entry.guest || 'Tamu')}</strong>
+          <span>${escapeHtml(entry.status || 'Hadir')}</span>
+        </div>
+        <p>${escapeHtml(entry.message || 'Tidak ada pesan.')}</p>
+      </article>
+    `).join('');
+  } catch {
+    listEl.innerHTML = '<p class="text-sm text-on-surface-variant">Belum ada balasan.</p>';
+  }
+}
+
 function attachRsvpHandler(container) {
   const form = container.querySelector('#rsvpForm');
   if (!form) return;
+
+  renderRsvpList(container);
 
   form.addEventListener('submit', (event) => {
     event.preventDefault();
@@ -2142,7 +2278,8 @@ function attachRsvpHandler(container) {
     const formData = new FormData(form);
     const guest = String(formData.get('guestName') || formData.get('name') || '').trim();
     const attendingValue = formData.get('attending') || formData.get('attendance') || 'yes';
-    const status = String(attendingValue).toLowerCase() === 'no' ? 'tidak dapat hadir' : 'akan hadir';
+    const status = String(attendingValue).toLowerCase() === 'no' ? 'Tidak hadir' : 'Hadir';
+    const messageText = String(formData.get('message') || '').trim();
 
     if (!guest) {
       if (message) {
@@ -2152,26 +2289,37 @@ function attachRsvpHandler(container) {
       return;
     }
 
-    if (message) {
-      const responseText = status === 'tidak dapat hadir'
-        ? `Terima kasih, ${guest}. Kami menerima kabar bahwa Anda tidak dapat hadir.`
-        : `Terima kasih, ${guest}. Konfirmasi kehadiran Anda telah tercatat.`;
-      message.textContent = responseText;
-      message.className = 'rsvp-message success';
+    if (!messageText) {
+      if (message) {
+        message.textContent = 'Silakan tulis pesan, doa, atau alasan Anda.';
+        message.className = 'rsvp-message error';
+      }
+      return;
     }
 
+    const entry = { guest, status, message: messageText, submittedAt: new Date().toISOString() };
+    const savedKey = getRsvpStorageKey();
+
     try {
-      const savedKey = `gamon_rsvp_${window.location.pathname}_${new URLSearchParams(window.location.search).get('slug') || 'default'}`;
-      localStorage.setItem(savedKey, JSON.stringify({
-        guest,
-        status,
-        submittedAt: new Date().toISOString()
-      }));
+      const current = JSON.parse(localStorage.getItem(savedKey) || '[]');
+      const nextEntries = Array.isArray(current) ? [entry, ...current] : [entry];
+      localStorage.setItem(savedKey, JSON.stringify(nextEntries.slice(0, 25)));
     } catch {
       // ignore localStorage failures in restricted environments
     }
 
+    if (message) {
+      const responseText = status === 'Tidak hadir'
+        ? `Terima kasih, ${guest}. Kami menerima kabar bahwa Anda tidak dapat hadir.`
+        : `Terima kasih, ${guest}. Konfirmasi kehadiran Anda telah tercatat.`;
+      message.textContent = `${responseText} Pesan Anda juga sudah ditambahkan.`;
+      message.className = 'rsvp-message success';
+    }
+
+    renderRsvpList(container);
     form.reset();
+    const guestNameInput = form.querySelector('input[name="guestName"]');
+    if (guestNameInput) guestNameInput.value = guest;
   });
 }
 
@@ -2349,6 +2497,7 @@ async function loadPublicInvitationBySlug() {
     if (templateId === 'classic') {
       container.innerHTML = renderClassicInvitationTemplate(invitation, displayGuestName);
       initFloatingMusicPlayer(container);
+      attachRsvpHandler(container);
       return;
     }
 

@@ -342,15 +342,15 @@
 <!-- Countdown -->
 <div class="flex justify-center gap-4 mt-4">
 <div class="timer-unit">
-<span class="font-headline-md text-headline-sm text-primary">120</span>
+<span id="countdownDays" class="font-headline-md text-headline-sm text-primary">0</span>
 <span class="font-label-sm text-label-sm text-secondary text-[10px] mt-1 tracking-widest">DAYS</span>
 </div>
 <div class="timer-unit">
-<span class="font-headline-md text-headline-sm text-primary">14</span>
+<span id="countdownHours" class="font-headline-md text-headline-sm text-primary">0</span>
 <span class="font-label-sm text-label-sm text-secondary text-[10px] mt-1 tracking-widest">HRS</span>
 </div>
 <div class="timer-unit">
-<span class="font-headline-md text-headline-sm text-primary">45</span>
+<span id="countdownMinutes" class="font-headline-md text-headline-sm text-primary">0</span>
 <span class="font-label-sm text-label-sm text-secondary text-[10px] mt-1 tracking-widest">MIN</span>
 </div>
 </div>
@@ -363,10 +363,10 @@
 <p class="font-body-md text-body-md text-on-surface-variant">Mohon balasan paling lambat 1 Juli 2024</p>
 <div class="floral-divider w-full max-w-[150px] mx-auto mt-6"></div>
 </div>
-<form class="space-y-6 bg-surface-container-lowest p-8 md:p-12 rounded-[40px] soft-shadow border border-primary/20">
+<form id="rsvpForm" class="space-y-6 bg-surface-container-lowest p-8 md:p-12 rounded-[40px] soft-shadow border border-primary/20" data-rsvp-form>
 <div class="space-y-1 gold-border-focus border-b border-outline-variant pb-2 transition-colors">
 <label class="font-label-sm text-label-sm text-secondary block uppercase text-xs tracking-wider" for="name">Nama Lengkap</label>
-<input class="w-full bg-transparent border-none focus:ring-0 text-on-surface font-body-md p-0 placeholder-on-surface-variant/40" id="name" name="name" placeholder="Elizabeth Bennet &amp; Mr. Darcy" required="" type="text"/>
+<input class="w-full bg-transparent border-none focus:ring-0 text-on-surface font-body-md p-0 placeholder-on-surface-variant/40" id="name" name="name" placeholder="Tamu Undangan" required="" type="text"/>
 </div>
 <div class="space-y-4 py-4">
 <p class="font-label-sm text-label-sm text-secondary uppercase text-xs tracking-wider">Apakah Anda hadir?</p>
@@ -384,22 +384,27 @@
 <div class="space-y-1 gold-border-focus border-b border-outline-variant pb-2 transition-colors">
 <label class="font-label-sm text-label-sm text-secondary block uppercase text-xs tracking-wider" for="guests">Jumlah Tamu</label>
 <select class="w-full bg-transparent border-none focus:ring-0 text-on-surface font-body-md p-0 appearance-none cursor-pointer" id="guests" name="guests">
-<option value="1">1 Guest</option>
-<option selected="" value="2">2 Guests</option>
-<option value="3">3 Guests</option>
-<option value="4">4 Guests</option>
+<option value="1">1 Tamu</option>
+<option selected="" value="2">2 Tamu</option>
+<option value="3">3 Tamu</option>
+<option value="4">4 Tamu</option>
 </select>
 </div>
 <div class="space-y-1 gold-border-focus border-b border-outline-variant pb-2 transition-colors">
-<label class="font-label-sm text-label-sm text-secondary block uppercase text-xs tracking-wider" for="song">Request Lagu (Opsional)</label>
-<input class="w-full bg-transparent border-none focus:ring-0 text-on-surface font-body-md p-0 placeholder-on-surface-variant/40" id="song" name="song" placeholder="I'll definitely dance to..." type="text"/>
+<label class="font-label-sm text-label-sm text-secondary block uppercase text-xs tracking-wider" for="message">Pesan, doa, atau alasan</label>
+<textarea class="min-h-[120px] w-full resize-none bg-transparent border-none focus:ring-0 text-on-surface font-body-md p-0 placeholder-on-surface-variant/40" id="message" name="message" placeholder="Tulis pesan, doa, atau alasan Anda..." required=""></textarea>
 </div>
 <div class="pt-6">
 <button class="w-full bg-primary text-on-primary font-label-md text-label-md py-4 rounded-full uppercase tracking-wider hover:shadow-lg transition-all" type="submit">
                         Kirim Balasan
                     </button>
 </div>
+<div class="rsvp-message rounded-xl border border-primary/20 bg-primary/5 p-3 text-sm text-on-surface" data-rsvp-message></div>
 </form>
+<div class="mt-8 rounded-[40px] border border-primary/20 bg-surface-container-lowest p-5 soft-shadow">
+  <h3 class="mb-4 font-display-lg text-headline-lg-mobile text-primary">Daftar Balasan</h3>
+  <div class="space-y-3" data-rsvp-list></div>
+</div>
 </section>
 <!-- 6. Gallery -->
 <section class="py-section-padding px-margin-mobile" id="gallery">
@@ -423,9 +428,9 @@
 <!-- Footer -->
 <footer class="bg-surface-container-lowest w-full py-section-padding flex flex-col items-center text-center px-margin-mobile mt-section-padding border-t border-primary/20 pb-24 md:pb-section-padding">
 <span class="material-symbols-outlined text-primary mb-4 text-3xl opacity-80">local_florist</span>
-<h4 class="font-display-lg text-headline-sm text-primary mb-4">E &amp; J Wedding</h4>
+<h4 class="font-display-lg text-headline-sm text-primary mb-4">Elizabeth &amp; James</h4>
 <p class="font-body-md text-body-md text-on-surface-variant mb-6 max-w-sm mx-auto">
-            Dibuat dengan cinta untuk Elizabeth &amp; James. © 2024
+            Dibuat dengan cinta untuk Elizabeth &amp; James. © 2026
         </p>
 <div class="flex gap-4">
 <a class="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors text-sm" href="#">Kebijakan Privasi</a>
@@ -475,6 +480,44 @@
   });
 
   tryAutoplay();
+</script>
+<script>
+  const rsvpFormSunsetLegacy = document.querySelector('[data-rsvp-form]');
+  const rsvpListSunsetLegacy = document.querySelector('[data-rsvp-list]');
+  const rsvpMessageSunsetLegacy = document.querySelector('[data-rsvp-message]');
+
+  if (rsvpFormSunsetLegacy) {
+    rsvpFormSunsetLegacy.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const formData = new FormData(rsvpFormSunsetLegacy);
+      const name = (formData.get('name') || 'Tamu undangan').toString().trim() || 'Tamu undangan';
+      const attending = (formData.get('attending') || 'yes').toString();
+      const guests = (formData.get('guests') || '2').toString();
+      const message = (formData.get('message') || '').toString().trim() || 'Tidak ada pesan tambahan.';
+
+      const card = document.createElement('div');
+      card.className = 'rounded-xl border border-primary/20 bg-primary/5 p-3';
+      card.innerHTML = `
+        <div class="flex items-center justify-between gap-3">
+          <strong class="text-primary">${name}</strong>
+          <span class="rounded-full bg-primary/10 px-2 py-1 text-xs uppercase tracking-wide text-primary">${attending === 'yes' ? 'Hadir' : 'Tidak hadir'}</span>
+        </div>
+        <p class="mt-2 text-sm text-on-surface-variant">Jumlah tamu: ${guests}</p>
+        <p class="mt-2 text-sm text-on-surface">${message}</p>
+      `;
+
+      if (rsvpListSunsetLegacy) {
+        rsvpListSunsetLegacy.prepend(card);
+      }
+
+      if (rsvpMessageSunsetLegacy) {
+        rsvpMessageSunsetLegacy.textContent = `${name} berhasil mengirimkan balasan ${attending === 'yes' ? 'hadir' : 'tidak hadir'} ke acara kami.`;
+        rsvpMessageSunsetLegacy.classList.add('text-primary');
+      }
+
+      rsvpFormSunsetLegacy.reset();
+    });
+  }
 </script>
 <script>
   const sunsetParams = new URLSearchParams(window.location.search);

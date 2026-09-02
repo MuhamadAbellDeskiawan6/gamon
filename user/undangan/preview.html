@@ -2,18 +2,38 @@
 <html lang="id">
   <head>
     <meta charset="UTF-8" />
+    <meta http-equiv="refresh" content="0; url=/templates/preview.html?slug=abell-purnama" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Preview Undangan - Gamon Undangan</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="assets/style.css" />
+    <title>Redirecting to preview...</title>
+    <style>
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        font-family: Inter, Arial, sans-serif;
+        background: #fcf9f6;
+        color: #2d2130;
+      }
+      .redirect-box {
+        text-align: center;
+        padding: 32px 24px;
+        border-radius: 20px;
+        background: rgba(255,255,255,0.9);
+        border: 1px solid rgba(122,86,66,0.1);
+        box-shadow: 0 18px 42px rgba(122,86,66,0.12);
+      }
+      a {
+        color: #7a5642;
+        text-decoration: none;
+        font-weight: 600;
+      }
+    </style>
   </head>
-  <body data-page="preview" class="public-invite-page">
-    <main class="preview-shell">
-      <div id="publicInvitation" class="preview-wrapper"></div>
-    </main>
-
-    <script type="module" src="assets/app.js"></script>
+  <body>
+    <div class="redirect-box">
+      <p>Redirecting ke halaman preview publik...</p>
+      <p><a href="/templates/preview.html?slug=abell-purnama">Klik di sini jika halaman tidak berpindah otomatis</a></p>
+    </div>
   </body>
 </html>
