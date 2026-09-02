@@ -1,126 +1,181 @@
 ﻿<!DOCTYPE html>
-
-<html class="scroll-smooth" lang="en">
+<html lang="id">
   <head>
-    <meta charset="utf-8" />
-    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
-    <title>Abell &amp; Purnama - Wedding Invitation</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Undangan Pernikahan</title>
+    <meta name="description" content="Undangan pernikahan" />
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
     <link href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&display=swap" rel="stylesheet" />
     <script id="tailwind-config">
       tailwind.config = {
-        darkMode: 'class',
+        darkMode: "class",
         theme: {
           extend: {
             colors: {
-              'on-primary-fixed-variant': '#603f2d',
-              'on-surface': '#1c1c1a',
-              'on-tertiary-container': '#33501c',
-              'surface-container': '#f0edea',
-              'error-container': '#ffdad6',
-              'primary-fixed': '#ffdbca',
-              'surface-tint': '#7a5642',
-              'on-secondary-container': '#795d43',
-              'tertiary-fixed-dim': '#aed18f',
-              'surface-container-low': '#f6f3f0',
-              'surface-dim': '#dcdad7',
-              'on-tertiary': '#ffffff',
-              'tertiary-container': '#9fc281',
-              'on-background': '#1c1c1a',
-              'on-tertiary-fixed-variant': '#314e1b',
-              'surface-bright': '#fcf9f6',
-              error: '#ba1a1a',
-              'surface-container-highest': '#e5e2df',
-              'primary-container': '#dcae96',
-              'on-surface-variant': '#50443e',
-              'on-secondary-fixed': '#2a1704',
-              'on-primary-fixed': '#2e1506',
-              'on-primary-container': '#62412e',
-              'on-tertiary-fixed': '#0b2000',
-              secondary: '#74593f',
-              'secondary-fixed-dim': '#e3c0a0',
-              'inverse-surface': '#31302f',
-              'on-primary': '#ffffff',
-              'outline-variant': '#d4c3bb',
-              'on-error-container': '#93000a',
-              background: '#fcf9f6',
-              'surface-container-lowest': '#ffffff',
-              'inverse-primary': '#ecbda4',
-              'surface-container-high': '#eae8e5',
-              primary: '#7a5642',
-              outline: '#82746d',
-              'on-secondary': '#ffffff',
-              'on-secondary-fixed-variant': '#5a422a',
-              'on-error': '#ffffff',
-              'surface-variant': '#e5e2df',
-              'primary-fixed-dim': '#ecbda4',
-              'inverse-on-surface': '#f3f0ed',
-              surface: '#fcf9f6',
-              tertiary: '#486730',
-              'secondary-fixed': '#ffdcbe',
-              'tertiary-fixed': '#c9eea9',
-              'secondary-container': '#fed9b8'
+              "on-primary-fixed-variant": "#603f2d",
+              "on-surface": "#1c1c1a",
+              "on-tertiary-container": "#33501c",
+              "surface-container": "#f0edea",
+              "error-container": "#ffdad6",
+              "primary-fixed": "#ffdbca",
+              "surface-tint": "#7a5642",
+              "on-secondary-container": "#795d43",
+              "tertiary-fixed-dim": "#aed18f",
+              "surface-container-low": "#f6f3f0",
+              "surface-dim": "#dcdad7",
+              "on-tertiary": "#ffffff",
+              "tertiary-container": "#9fc281",
+              "on-background": "#1c1c1a",
+              "on-tertiary-fixed-variant": "#314e1b",
+              "surface-bright": "#fcf9f6",
+              "error": "#ba1a1a",
+              "surface-container-highest": "#e5e2df",
+              "primary-container": "#dcae96",
+              "on-surface-variant": "#50443e",
+              "on-secondary-fixed": "#2a1704",
+              "on-primary-fixed": "#2e1506",
+              "on-primary-container": "#62412e",
+              "on-tertiary-fixed": "#0b2000",
+              "secondary": "#74593f",
+              "secondary-fixed-dim": "#e3c0a0",
+              "inverse-surface": "#31302f",
+              "on-primary": "#ffffff",
+              "outline-variant": "#d4c3bb",
+              "on-error-container": "#93000a",
+              "background": "#fcf9f6",
+              "surface-container-lowest": "#ffffff",
+              "inverse-primary": "#ecbda4",
+              "surface-container-high": "#eae8e5",
+              "primary": "#7a5642",
+              "outline": "#82746d",
+              "on-secondary": "#ffffff",
+              "on-secondary-fixed-variant": "#5a422a",
+              "on-error": "#ffffff",
+              "surface-variant": "#e5e2df",
+              "primary-fixed-dim": "#ecbda4",
+              "inverse-on-surface": "#f3f0ed",
+              "surface": "#fcf9f6",
+              "tertiary": "#486730",
+              "secondary-fixed": "#ffdcbe",
+              "tertiary-fixed": "#c9eea9",
+              "secondary-container": "#fed9b8"
             },
             borderRadius: {
-              DEFAULT: '0.25rem',
-              lg: '0.5rem',
-              xl: '0.75rem',
-              full: '9999px'
+              DEFAULT: "0.25rem",
+              lg: "0.5rem",
+              xl: "0.75rem",
+              full: "9999px"
             },
             spacing: {
-              'stack-lg': '32px',
-              'margin-desktop': '40px',
-              'stack-md': '16px',
-              'stack-sm': '8px',
-              gutter: '24px',
-              'margin-mobile': '16px',
-              unit: '8px',
-              'section-padding': '80px',
-              'container-max': '1140px'
+              "stack-lg": "32px",
+              "margin-desktop": "40px",
+              "stack-md": "16px",
+              "stack-sm": "8px",
+              gutter: "24px",
+              "margin-mobile": "16px",
+              unit: "8px",
+              "section-padding": "80px",
+              "container-max": "1140px"
             },
             fontFamily: {
-              'headline-md': ['Playfair Display', 'serif'],
-              'label-sm': ['Open Sans', 'sans-serif'],
-              'display-lg': ['Playfair Display', 'serif'],
-              'headline-lg': ['Playfair Display', 'serif'],
-              'body-lg': ['Open Sans', 'sans-serif'],
-              'headline-lg-mobile': ['Playfair Display', 'serif'],
-              'body-md': ['Open Sans', 'sans-serif'],
-              'label-md': ['Open Sans', 'sans-serif'],
-              'headline-sm': ['Playfair Display', 'serif']
+              "headline-md": ["Playfair Display", "serif"],
+              "label-sm": ["Open Sans", "sans-serif"],
+              "display-lg": ["Playfair Display", "serif"],
+              "headline-lg": ["Playfair Display", "serif"],
+              "body-lg": ["Open Sans", "sans-serif"],
+              "headline-lg-mobile": ["Playfair Display", "serif"],
+              "body-md": ["Open Sans", "sans-serif"],
+              "label-md": ["Open Sans", "sans-serif"],
+              "headline-sm": ["Playfair Display", "serif"]
             },
             fontSize: {
-              'headline-md': ['24px', { lineHeight: '32px', fontWeight: '600' }],
-              'label-sm': ['12px', { lineHeight: '16px', letterSpacing: '0.05em', fontWeight: '600' }],
-              'display-lg': ['48px', { lineHeight: '56px', letterSpacing: '-0.02em', fontWeight: '700' }],
-              'headline-lg': ['32px', { lineHeight: '40px', fontWeight: '600' }],
-              'body-lg': ['18px', { lineHeight: '28px', fontWeight: '400' }],
-              'headline-lg-mobile': ['28px', { lineHeight: '36px', fontWeight: '600' }],
-              'body-md': ['16px', { lineHeight: '24px', fontWeight: '400' }],
-              'label-md': ['14px', { lineHeight: '20px', letterSpacing: '0.05em', fontWeight: '600' }],
-              'headline-sm': ['20px', { lineHeight: '28px', fontWeight: '500' }]
+              "headline-md": ["24px", { lineHeight: "32px", fontWeight: "600" }],
+              "label-sm": ["12px", { lineHeight: "16px", letterSpacing: "0.05em", fontWeight: "600" }],
+              "display-lg": ["48px", { lineHeight: "56px", letterSpacing: "-0.02em", fontWeight: "700" }],
+              "headline-lg": ["32px", { lineHeight: "40px", fontWeight: "600" }],
+              "body-lg": ["18px", { lineHeight: "28px", fontWeight: "400" }],
+              "headline-lg-mobile": ["28px", { lineHeight: "36px", fontWeight: "600" }],
+              "body-md": ["16px", { lineHeight: "24px", fontWeight: "400" }],
+              "label-md": ["14px", { lineHeight: "20px", letterSpacing: "0.05em", fontWeight: "600" }],
+              "headline-sm": ["20px", { lineHeight: "28px", fontWeight: "500" }]
             }
           }
         }
       };
     </script>
     <style>
-      .floral-divider { height: 1px; background: linear-gradient(to right, transparent, #dcae96, transparent); position: relative; margin: 2rem 0; }
-      .floral-divider::after { content: "✿"; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #dcae96; background-color: #fcf9f6; padding: 0 10px; font-size: 16px; }
-      .soft-shadow { box-shadow: 0 12px 40px rgba(122, 86, 66, 0.08); }
-      .gold-border-focus:focus-within { border-bottom-color: #dcae96; box-shadow: 0 1px 0 #dcae96; }
-      input[type='radio']:checked, input[type='checkbox']:checked { background-color: #7a5642; border-color: #7a5642; }
-      .timer-unit { display: flex; flex-direction: column; align-items: center; background-color: rgba(252, 249, 246, 0.85); padding: 16px 12px; border-radius: 16px; min-width: 70px; border: 1px solid rgba(220, 174, 150, 0.4); }
-      .soft-edge-image { border-radius: 60px 16px 60px 16px; }
-      .floating-music-toggle { display: flex; height: 3rem; width: 3rem; align-items: center; justify-content: center; border-radius: 9999px; background: rgba(122, 86, 66, 0.9); color: #fff; border: 1px solid rgba(255, 255, 255, 0.25); box-shadow: 0 12px 30px rgba(122, 86, 66, 0.25); transition: transform 0.2s ease, opacity 0.2s ease; }
-      .floating-music-toggle:hover { transform: scale(1.04); }
-      body { min-height: max(884px, 100dvh); background-image: radial-gradient(#dcae96 0.5px, transparent 0.5px); background-size: 24px 24px; background-color: #fcf9f6; }
+      .floral-divider {
+        height: 1px;
+        background: linear-gradient(to right, transparent, #dcae96, transparent);
+        position: relative;
+        margin: 2rem 0;
+      }
+      .floral-divider::after {
+        content: "✿";
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        color: #dcae96;
+        background-color: #fcf9f6;
+        padding: 0 10px;
+        font-size: 16px;
+      }
+      .soft-shadow {
+        box-shadow: 0 12px 40px rgba(122, 86, 66, 0.08);
+      }
+      .gold-border-focus:focus-within {
+        border-bottom-color: #dcae96;
+        box-shadow: 0 1px 0 #dcae96;
+      }
+      input[type="radio"]:checked, input[type="checkbox"]:checked {
+        background-color: #7a5642;
+        border-color: #7a5642;
+      }
+      .timer-unit {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        background-color: rgba(252, 249, 246, 0.85);
+        padding: 16px 12px;
+        border-radius: 16px;
+        min-width: 70px;
+        border: 1px solid rgba(220, 174, 150, 0.4);
+      }
+      .soft-edge-image {
+        border-radius: 60px 16px 60px 16px;
+      }
+      .floating-music-toggle {
+        display: flex;
+        height: 3rem;
+        width: 3rem;
+        align-items: center;
+        justify-content: center;
+        border-radius: 9999px;
+        background: rgba(122, 86, 66, 0.9);
+        color: #fff;
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        box-shadow: 0 12px 30px rgba(122, 86, 66, 0.25);
+        transition: transform 0.2s ease, opacity 0.2s ease;
+      }
+      .floating-music-toggle:hover {
+        transform: scale(1.04);
+      }
+      body {
+        min-height: max(884px, 100dvh);
+        background-image: radial-gradient(#dcae96 0.5px, transparent 0.5px);
+        background-size: 24px 24px;
+        background-color: #fcf9f6;
+      }
     </style>
   </head>
   <body class="bg-background text-on-surface font-body-md antialiased md:max-w-container-max md:mx-auto">
     <div class="fixed right-4 top-4 z-50">
-      <audio id="bgMusic" loop preload="auto" src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3"></audio>
+      <audio id="bgMusic" loop preload="auto" src="/music.mp3"></audio>
       <button id="musicToggleButton" type="button" aria-label="Play music" class="floating-music-toggle">
         <span id="musicIcon" class="material-symbols-outlined text-xl">music_note</span>
       </button>
@@ -129,14 +184,14 @@
     <main class="pb-24 md:pt-0">
       <section class="relative h-screen w-full flex flex-col justify-end items-center pb-20 md:pb-section-padding" id="cover">
         <div class="absolute inset-0 z-0">
-          <div class="w-full h-full bg-cover bg-center" style="background-image: url('https://images.unsplash.com/photo-1520854221256-17451cc331bf?auto=format&fit=crop&w=1200&q=80')"></div>
+          <div id="coverBackground" class="w-full h-full bg-cover bg-center" style="background-image: url('https://images.unsplash.com/photo-1520854221256-17451cc331bf?auto=format&fit=crop&w=1200&q=80')"></div>
           <div class="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-transparent"></div>
         </div>
 
         <div class="relative z-10 text-center px-margin-mobile flex flex-col items-center bg-surface/40 p-8 rounded-[40px] backdrop-blur-sm border border-surface/50">
           <span class="material-symbols-outlined text-primary mb-2 opacity-70">local_florist</span>
           <p class="font-label-sm text-label-sm text-on-surface-variant tracking-widest uppercase mb-4 opacity-80">Pernikahan</p>
-          <h1 class="font-display-lg text-headline-lg-mobile md:text-display-lg text-primary mb-8 leading-tight">
+          <h1 id="coupleNames" class="font-display-lg text-headline-lg-mobile md:text-display-lg text-primary mb-8 leading-tight">
             Abell <span class="italic font-light opacity-80 mx-2 text-secondary">&amp;</span> Purnama
           </h1>
           <a class="bg-primary text-on-primary font-label-md text-label-md px-8 py-4 rounded-full uppercase tracking-wider hover:shadow-lg transition-all flex items-center gap-2" href="#intro">
@@ -147,9 +202,9 @@
 
       <section class="py-section-padding px-margin-mobile text-center max-w-2xl mx-auto flex flex-col items-center" id="intro">
         <div class="floral-divider w-full max-w-[200px] mb-12"></div>
-        <p class="font-headline-md text-headline-sm md:text-headline-md text-primary italic leading-relaxed mb-8">"Sesuatu yang membuat jiwa kita sama, jiwa saya dan jiwa Anda pun sama."</p>
+        <p id="quoteText" class="font-headline-md text-headline-sm md:text-headline-md text-primary italic leading-relaxed mb-8">"Sesuatu yang membuat jiwa kita sama, jiwa saya dan jiwa Anda pun sama."</p>
         <p class="font-label-sm text-label-sm text-on-surface-variant tracking-widest uppercase mb-6 opacity-70">— Emily Brontë —</p>
-        <p class="font-body-md text-body-md text-on-surface leading-relaxed mt-4">Dengan bahagia kami mengundang Bapak/Ibu/Saudara/i untuk merayakan awal babak baru dalam hidup kami. Kasih sayang dan dukungan Anda telah membentuk perjalanan kami, dan kami tidak bisa membayangkan melangkah maju tanpa kehadiran Anda.</p>
+        <p id="introText" class="font-body-md text-body-md text-on-surface leading-relaxed mt-4">Dengan bahagia kami mengundang Bapak/Ibu/Saudara/i untuk merayakan awal babak baru dalam hidup kami. Kasih sayang dan dukungan Anda telah membentuk perjalanan kami, dan kami tidak bisa membayangkan melangkah maju tanpa kehadiran Anda.</p>
         <div class="floral-divider w-full max-w-[200px] mt-12"></div>
       </section>
 
@@ -157,19 +212,19 @@
         <div class="grid grid-cols-1 md:grid-cols-2 gap-stack-lg">
           <div class="flex flex-col items-center text-center bg-surface-container-lowest p-8 rounded-[40px] soft-shadow border border-primary/10">
             <div class="w-56 h-56 soft-edge-image overflow-hidden mb-6 border-4 border-surface shadow-sm">
-              <img class="w-full h-full object-cover" src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=800&q=80" alt="Muhamad Abell Deskiawan" />
+              <img id="groomPhoto" class="w-full h-full object-cover" src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=800&q=80" alt="Muhamad Abell Deskiawan" />
             </div>
-            <h2 class="font-headline-md text-headline-sm text-primary mb-2">Muhamad Abell Deskiawan</h2>
+            <h2 id="groomName" class="font-headline-md text-headline-sm text-primary mb-2">Muhamad Abell Deskiawan</h2>
             <p class="font-label-sm text-label-sm text-on-surface-variant text-sm italic mb-1">Putra dari</p>
-            <p class="font-body-md text-body-md text-on-surface">Bapak Jarwo &amp; Ibu Wati</p>
+            <p id="parentGroom" class="font-body-md text-body-md text-on-surface">Bapak Arif &amp; Ibu Siti</p>
           </div>
           <div class="flex flex-col items-center text-center bg-surface-container-lowest p-8 rounded-[40px] soft-shadow border border-primary/10 md:mt-12">
             <div class="w-56 h-56 soft-edge-image overflow-hidden mb-6 border-4 border-surface shadow-sm">
-              <img class="w-full h-full object-cover" src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=800&q=80" alt="Nur Purnamawati" />
+              <img id="bridePhoto" class="w-full h-full object-cover" src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=800&q=80" alt="Nur Purnamawati" />
             </div>
-            <h2 class="font-headline-md text-headline-sm text-primary mb-2">Nur Purnamawati</h2>
+            <h2 id="brideName" class="font-headline-md text-headline-sm text-primary mb-2">Nur Purnamawati</h2>
             <p class="font-label-sm text-label-sm text-on-surface-variant text-sm italic mb-1">Putri dari</p>
-            <p class="font-body-md text-body-md text-on-surface">Bapak Anang Hamid &amp; Ibu Khadijah</p>
+            <p id="parentBride" class="font-body-md text-body-md text-on-surface">Bapak Joko &amp; Ibu Wati</p>
           </div>
         </div>
       </section>
@@ -181,19 +236,19 @@
           <span class="material-symbols-outlined text-primary mb-4 text-4xl" style="font-variation-settings: 'FILL' 1;">location_on</span>
           <h2 class="font-display-lg text-headline-lg-mobile text-primary mb-8">Perayaan</h2>
           <div class="bg-surface-container-lowest/80 backdrop-blur-md w-full rounded-[40px] p-8 mb-8 border border-primary/20">
-            <h3 class="font-headline-md text-headline-sm text-secondary mb-2">5 September 2026</h3>
-            <p class="font-body-md text-body-md text-on-surface-variant mb-6">Upacara dimulai pukul 08:00<br />Resepsi dilanjutkan setelahnya</p>
-            <h3 class="font-headline-md text-headline-sm text-secondary mb-2">Alfin</h3>
-            <p class="font-body-md text-body-md text-on-surface-variant mb-6">Jl. Kelayan A</p>
+            <h3 id="weddingDate" class="font-headline-md text-headline-sm text-secondary mb-2">20 September 2026</h3>
+            <p id="eventSummary" class="font-body-md text-body-md text-on-surface-variant mb-6">Akad dimulai pukul 08:00<br />Resepsi dilanjutkan setelahnya</p>
+            <h3 id="venueName" class="font-headline-md text-headline-sm text-secondary mb-2">Aula Bunga Melati</h3>
+            <p id="venueAddress" class="font-body-md text-body-md text-on-surface-variant mb-6">Jl. Kalimantan No. 14, Banjarmasin</p>
             <div class="mb-6 overflow-hidden rounded-[24px] border border-primary/20 bg-surface-container-low">
-              <iframe class="h-56 w-full border-0" src="https://www.google.com/maps?q=Jl.+Kelayan+A&output=embed&z=16" loading="lazy" allowfullscreen referrerpolicy="no-referrer-when-downgrade"></iframe>
+              <iframe id="mapFrame" class="h-56 w-full border-0" src="https://www.google.com/maps?q=Jl.+Kalimantan+No.+14+Banjarmasin&output=embed&z=16" loading="lazy" allowfullscreen referrerpolicy="no-referrer-when-downgrade"></iframe>
             </div>
-            <a class="inline-flex items-center justify-center bg-transparent border border-primary text-primary font-label-md text-label-md px-8 py-3 rounded-full uppercase tracking-wider hover:bg-primary/10 transition-colors" href="https://www.google.com/maps?q=Jl.+Kelayan+A" target="_blank" rel="noreferrer">Lihat Lokasi</a>
+            <a id="mapLink" class="inline-flex items-center justify-center bg-transparent border border-primary text-primary font-label-md text-label-md px-8 py-3 rounded-full uppercase tracking-wider hover:bg-primary/10 transition-colors" href="https://www.google.com/maps?q=Jl.+Kalimantan+No.+14+Banjarmasin" target="_blank" rel="noreferrer">Lihat Lokasi</a>
           </div>
           <div class="flex justify-center gap-4 mt-4">
-            <div class="timer-unit"><span id="countdownDays" class="font-headline-md text-headline-sm text-primary">3</span><span class="font-label-sm text-label-sm text-secondary text-[10px] mt-1 tracking-widest">HARI</span></div>
-            <div class="timer-unit"><span id="countdownHours" class="font-headline-md text-headline-sm text-primary">7</span><span class="font-label-sm text-label-sm text-secondary text-[10px] mt-1 tracking-widest">JAM</span></div>
-            <div class="timer-unit"><span id="countdownMinutes" class="font-headline-md text-headline-sm text-primary">48</span><span class="font-label-sm text-label-sm text-secondary text-[10px] mt-1 tracking-widest">MENIT</span></div>
+            <div class="timer-unit"><span id="countdownDays" class="font-headline-md text-headline-sm text-primary">18</span><span class="font-label-sm text-label-sm text-secondary text-[10px] mt-1 tracking-widest">HARI</span></div>
+            <div class="timer-unit"><span id="countdownHours" class="font-headline-md text-headline-sm text-primary">08</span><span class="font-label-sm text-label-sm text-secondary text-[10px] mt-1 tracking-widest">JAM</span></div>
+            <div class="timer-unit"><span id="countdownMinutes" class="font-headline-md text-headline-sm text-primary">45</span><span class="font-label-sm text-label-sm text-secondary text-[10px] mt-1 tracking-widest">MENIT</span></div>
           </div>
         </div>
       </section>
@@ -201,7 +256,7 @@
       <section class="py-section-padding px-margin-mobile max-w-lg mx-auto" id="rsvp">
         <div class="text-center mb-10">
           <h2 class="font-display-lg text-headline-lg-mobile text-primary mb-4">RSVP</h2>
-          <p class="font-body-md text-body-md text-on-surface-variant">Mohon balasan paling lambat 6 September 2026</p>
+          <p id="rsvpDeadline" class="font-body-md text-body-md text-on-surface-variant">Mohon balasan paling lambat 15 September 2026</p>
           <div class="floral-divider w-full max-w-[150px] mx-auto mt-6"></div>
         </div>
 
@@ -247,36 +302,269 @@
           <h2 class="font-display-lg text-headline-lg-mobile text-primary mb-4">Momen</h2>
           <div class="floral-divider w-full max-w-[150px] mx-auto"></div>
         </div>
-        <div class="mx-auto grid max-w-5xl grid-cols-1 justify-items-center gap-3 sm:grid-cols-2 md:grid-cols-3 md:gap-4">
-          <div class="group w-full max-w-[280px] overflow-hidden soft-edge-image soft-shadow"><img class="h-40 w-full object-cover transition-transform duration-700 group-hover:scale-105 md:h-52" src="https://images.unsplash.com/photo-1520854221256-17451cc331bf?auto=format&fit=crop&w=800&q=80" alt="Abell & Purnama" /></div>
-          <div class="group w-full max-w-[280px] overflow-hidden soft-edge-image soft-shadow"><img class="h-40 w-full object-cover transition-transform duration-700 group-hover:scale-105 md:h-52" src="https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=800&q=80" alt="Abell & Purnama" /></div>
-          <div class="group w-full max-w-[280px] overflow-hidden soft-edge-image soft-shadow"><img class="h-40 w-full object-cover transition-transform duration-700 group-hover:scale-105 md:h-52" src="https://images.unsplash.com/photo-1522673607200-164d1b6ce486?auto=format&fit=crop&w=800&q=80" alt="Abell & Purnama" /></div>
+        <div id="galleryGrid" class="mx-auto grid max-w-5xl grid-cols-1 justify-items-center gap-3 sm:grid-cols-2 md:grid-cols-3 md:gap-4">
+          <div class="group w-full max-w-[280px] overflow-hidden soft-edge-image soft-shadow"><img class="h-40 w-full object-cover transition-transform duration-700 group-hover:scale-105 md:h-52" src="https://images.unsplash.com/photo-1520854221256-17451cc331bf?auto=format&fit=crop&w=800&q=80" alt="Abell &amp; Purnama" /></div>
+          <div class="group w-full max-w-[280px] overflow-hidden soft-edge-image soft-shadow"><img class="h-40 w-full object-cover transition-transform duration-700 group-hover:scale-105 md:h-52" src="https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=800&q=80" alt="Abell &amp; Purnama" /></div>
+          <div class="group w-full max-w-[280px] overflow-hidden soft-edge-image soft-shadow"><img class="h-40 w-full object-cover transition-transform duration-700 group-hover:scale-105 md:h-52" src="https://images.unsplash.com/photo-1522673607200-164d1b6ce486?auto=format&fit=crop&w=800&q=80" alt="Abell &amp; Purnama" /></div>
         </div>
       </section>
     </main>
 
     <footer class="bg-surface-container-lowest w-full py-section-padding flex flex-col items-center text-center px-margin-mobile mt-section-padding border-t border-primary/20 pb-24 md:pb-section-padding">
       <span class="material-symbols-outlined text-primary mb-4 text-3xl opacity-80">local_florist</span>
-      <h4 class="font-display-lg text-headline-sm text-primary mb-4">Muhamad Abell Deskiawan &amp; Nur Purnamawati</h4>
-      <p class="font-body-md text-body-md text-on-surface-variant mb-6 max-w-sm mx-auto">Dibuat dengan cinta untuk Muhamad Abell Deskiawan &amp; Nur Purnamawati.</p>
+      <h4 id="footerNames" class="font-display-lg text-headline-sm text-primary mb-4">Muhamad Abell Deskiawan &amp; Nur Purnamawati</h4>
+      <p id="footerNote" class="font-body-md text-body-md text-on-surface-variant mb-6 max-w-sm mx-auto">Dibuat dengan cinta untuk Muhamad Abell Deskiawan &amp; Nur Purnamawati.</p>
       <div class="flex gap-4"><a class="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors text-sm" href="#">Kebijakan Privasi</a><span class="text-on-surface-variant/50">•</span><a class="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors text-sm" href="#">Bantuan</a></div>
     </footer>
 
-    <script>
+    <script type="module">
+      import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+      import { getFirestore, collection, query, where, getDocs } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+      const firebaseConfig = {
+        apiKey: 'AIzaSyC247K8yyL67aWV95KNQy8CkMZsjgGCudQ',
+        authDomain: 'gamon-tawing.firebaseapp.com',
+        projectId: 'gamon-tawing',
+        messagingSenderId: '370162915989',
+        appId: '1:370162915989:web:76779062da83aa0c5c999c',
+        measurementId: 'G-DDRQKDZXV7'
+      };
+
+      const app = initializeApp(firebaseConfig);
+      const db = getFirestore(app);
+
+      const defaultInvitation = {
+        shareSlug: 'abell-purnama',
+        title: 'Abell & Purnama',
+        groomName: 'Muhamad Abell Deskiawan',
+        brideName: 'Nur Purnamawati',
+        parentGroom: 'Bapak Arif & Ibu Siti',
+        parentBride: 'Bapak Joko & Ibu Wati',
+        story: 'Dengan bahagia kami mengundang Bapak/Ibu/Saudara/i untuk merayakan awal babak baru dalam hidup kami. Kasih sayang dan dukungan Anda telah membentuk perjalanan kami, dan kami tidak bisa membayangkan melangkah maju tanpa kehadiran Anda.',
+        akadDate: '2026-09-20',
+        akadTime: '08:00',
+        receptionDate: '2026-09-20',
+        receptionTime: '11:00',
+        receptionPlace: 'Aula Bunga Melati',
+        address: 'Jl. Kalimantan No. 14, Banjarmasin',
+        mapLink: 'https://maps.google.com/?q=Jl.+Kalimantan+No.+14+Banjarmasin',
+        openingPhoto: 'https://images.unsplash.com/photo-1520854221256-17451cc331bf?auto=format&fit=crop&w=1200&q=80',
+        galleryImages: [
+          'https://images.unsplash.com/photo-1520854221256-17451cc331bf?auto=format&fit=crop&w=800&q=80',
+          'https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=800&q=80',
+          'https://images.unsplash.com/photo-1522673607200-164d1b6ce486?auto=format&fit=crop&w=800&q=80'
+        ],
+        musicUrl: '/music.mp3',
+        rsvpMessage: 'Mohon balasan paling lambat 15 September 2026'
+      };
+
+      const normalizeShareSlug = (value) => String(value || '').trim().toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-').replace(/^-+|-+$/g, '').slice(0, 80);
+      const formatDate = (dateString) => {
+        if (!dateString) return '-';
+        const clean = String(dateString).trim();
+        const parsed = new Date(clean.includes('-') ? `${clean}T00:00:00` : clean);
+        if (Number.isNaN(parsed.getTime())) return clean;
+        return new Intl.DateTimeFormat('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }).format(parsed);
+      };
+      const normalizeMapsQuery = (value) => {
+        const trimmed = String(value || '').trim();
+        if (!trimmed) return '';
+
+        if (/^https?:\/\//i.test(trimmed)) {
+          try {
+            const url = new URL(trimmed);
+            const query = url.searchParams.get('q') || url.searchParams.get('query');
+            if (query) return query;
+            const pathname = url.pathname.replace(/^\/+/, '');
+            if (pathname && !pathname.includes('/maps')) return pathname;
+          } catch (_error) {
+            return trimmed;
+          }
+        }
+
+        if (/^-?\d+(?:\.\d+)?\s*,\s*-?\d+(?:\.\d+)?$/.test(trimmed)) {
+          return trimmed;
+        }
+
+        return trimmed;
+      };
+
+      const buildMapsUrl = (value) => {
+        const query = normalizeMapsQuery(value);
+        if (!query) return '';
+        return `https://www.google.com/maps?q=${encodeURIComponent(query)}`;
+      };
+
+      const buildMapsEmbedUrl = (target) => {
+        const query = normalizeMapsQuery(target);
+        if (!query) return '';
+        return `https://www.google.com/maps?q=${encodeURIComponent(query)}&output=embed&z=16`;
+      };
+
+      const setText = (selector, value) => {
+        const element = document.querySelector(selector);
+        if (element) element.textContent = value || '';
+      };
+
+      const setHtml = (selector, value) => {
+        const element = document.querySelector(selector);
+        if (element) element.innerHTML = value || '';
+      };
+
+      const setAttr = (selector, attr, value) => {
+        const element = document.querySelector(selector);
+        if (element && value) element.setAttribute(attr, value);
+      };
+
+      const renderGallery = (images) => {
+        const galleryGrid = document.getElementById('galleryGrid');
+        if (!galleryGrid) return;
+        const list = Array.isArray(images) && images.length ? images : defaultInvitation.galleryImages;
+        galleryGrid.innerHTML = list.slice(0, 6).map((src) => `
+          <div class="group w-full max-w-[280px] overflow-hidden soft-edge-image soft-shadow">
+            <img class="h-40 w-full object-cover transition-transform duration-700 group-hover:scale-105 md:h-52" src="${src}" alt="Wedding moment" />
+          </div>
+        `).join('');
+      };
+
+      const getCountdownParts = (countdownDate, akadDate, akadTime) => {
+        const endValue = String(akadDate || countdownDate || '').trim();
+        if (!endValue) {
+          return { days: 0, hours: 0, minutes: 0 };
+        }
+
+        const eventTime = String(akadTime || '00:00').trim();
+        const target = new Date(endValue.includes('T') ? endValue : `${endValue}T${eventTime.includes(':') ? eventTime : '00:00'}:00`);
+        const now = new Date();
+        const diff = Math.max(0, target.getTime() - now.getTime());
+
+        if (Number.isNaN(target.getTime())) {
+          return { days: 0, hours: 0, minutes: 0 };
+        }
+
+        const totalMinutes = Math.floor(diff / (1000 * 60));
+        const days = Math.floor(totalMinutes / (60 * 24));
+        const hours = Math.floor((totalMinutes % (60 * 24)) / 60);
+        const minutes = totalMinutes % 60;
+
+        return { days, hours, minutes };
+      };
+
+      const updateCountdown = (countdownDate, akadDate, akadTime) => {
+        const daysEl = document.getElementById('countdownDays');
+        const hoursEl = document.getElementById('countdownHours');
+        const minutesEl = document.getElementById('countdownMinutes');
+        if (!daysEl || !hoursEl || !minutesEl) return;
+
+        const parts = getCountdownParts(
+          countdownDate || defaultInvitation.countdownDate || defaultInvitation.receptionDate || defaultInvitation.akadDate,
+          akadDate || defaultInvitation.akadDate || defaultInvitation.receptionDate,
+          akadTime || defaultInvitation.akadTime || defaultInvitation.receptionTime
+        );
+        daysEl.textContent = String(parts.days).padStart(2, '0');
+        hoursEl.textContent = String(parts.hours).padStart(2, '0');
+        minutesEl.textContent = String(parts.minutes).padStart(2, '0');
+      };
+
+      const applyInvitation = (invitation) => {
+        const groomName = invitation.groomName || defaultInvitation.groomName;
+        const brideName = invitation.brideName || defaultInvitation.brideName;
+        const parentGroom = invitation.parentGroom || defaultInvitation.parentGroom;
+        const parentBride = invitation.parentBride || defaultInvitation.parentBride;
+        const story = invitation.story || defaultInvitation.story;
+        const venueName = invitation.receptionPlace || invitation.akadPlace || defaultInvitation.receptionPlace;
+        const venueAddress = invitation.address || defaultInvitation.address;
+        const countdownStartDate = invitation.countdownDate || defaultInvitation.countdownDate || invitation.receptionDate || invitation.akadDate || defaultInvitation.akadDate;
+        const akadTargetDate = invitation.akadDate || invitation.receptionDate || defaultInvitation.akadDate;
+        const mapTarget = String(invitation.mapLink || invitation.address || defaultInvitation.mapLink || '').trim();
+        const eventDate = formatDate(invitation.receptionDate || invitation.akadDate || defaultInvitation.akadDate);
+        const eventTime = invitation.receptionTime || invitation.akadTime || defaultInvitation.receptionTime || defaultInvitation.akadTime;
+        const rsvpDeadline = invitation.receptionDate ? `Mohon balasan paling lambat ${formatDate(invitation.receptionDate)}` : defaultInvitation.rsvpMessage;
+        const openingPhoto = invitation.openingPhoto || invitation.galleryImages?.[0] || defaultInvitation.openingPhoto;
+        const mapUrl = buildMapsUrl(mapTarget || venueAddress);
+        const mapEmbedUrl = buildMapsEmbedUrl(mapTarget || venueAddress);
+
+        document.title = `${groomName} & ${brideName} - Wedding Invitation`;
+        setText('#coupleNames', `${groomName} & ${brideName}`);
+        setText('#groomName', groomName);
+        setText('#brideName', brideName);
+        setText('#parentGroom', parentGroom);
+        setText('#parentBride', parentBride);
+        setText('#introText', story);
+        setText('#weddingDate', eventDate);
+        setHtml('#eventSummary', `Akad dimulai pukul ${eventTime}<br />Resepsi dilanjutkan setelahnya`);
+        setText('#venueName', venueName);
+        setText('#venueAddress', venueAddress);
+        setText('#rsvpDeadline', rsvpDeadline);
+        setText('#footerNames', `${groomName} & ${brideName}`);
+        setText('#footerNote', `Dibuat dengan cinta untuk ${groomName} & ${brideName}.`);
+
+        const coverBackground = document.getElementById('coverBackground');
+        if (coverBackground) coverBackground.style.backgroundImage = `url('${openingPhoto}')`;
+
+        const groomPhoto = document.getElementById('groomPhoto');
+        const bridePhoto = document.getElementById('bridePhoto');
+        if (groomPhoto) groomPhoto.src = invitation.groomPhoto || invitation.galleryImages?.[0] || openingPhoto;
+        if (bridePhoto) bridePhoto.src = invitation.bridePhoto || invitation.galleryImages?.[1] || openingPhoto;
+
+        const mapFrame = document.getElementById('mapFrame');
+        const mapLink = document.getElementById('mapLink');
+        if (mapFrame && mapEmbedUrl) mapFrame.src = mapEmbedUrl;
+        if (mapLink && mapUrl) mapLink.href = mapUrl;
+
+        renderGallery(invitation.galleryImages || defaultInvitation.galleryImages);
+        updateCountdown(countdownStartDate, akadTargetDate, invitation.akadTime || defaultInvitation.akadTime || invitation.receptionTime || defaultInvitation.receptionTime);
+        document.getElementById('bgMusic').src = invitation.musicUrl || defaultInvitation.musicUrl;
+        const audio = document.getElementById('bgMusic');
+        if (audio && audio.src) audio.load();
+      };
+
       const musicEl = document.getElementById('bgMusic');
       const musicToggleButton = document.getElementById('musicToggleButton');
       const musicIcon = document.getElementById('musicIcon');
       let isPlaying = false;
-      const updateMusicButton = () => { musicIcon.textContent = isPlaying ? 'pause' : 'music_note'; musicToggleButton.setAttribute('aria-label', isPlaying ? 'Pause music' : 'Play music'); };
-      const tryAutoplay = async () => { try { musicEl.volume = 0.45; await musicEl.play(); isPlaying = true; updateMusicButton(); } catch (error) { isPlaying = false; updateMusicButton(); } };
-      musicToggleButton.addEventListener('click', async () => { if (!musicEl) return; if (isPlaying) { musicEl.pause(); isPlaying = false; } else { try { await musicEl.play(); isPlaying = true; } catch (error) { isPlaying = false; } } updateMusicButton(); });
-      tryAutoplay();
-    </script>
 
-    <script>
+      const updateMusicButton = () => {
+        if (!musicIcon || !musicToggleButton) return;
+        musicIcon.textContent = isPlaying ? 'pause' : 'music_note';
+        musicToggleButton.setAttribute('aria-label', isPlaying ? 'Pause music' : 'Play music');
+      };
+
+      const tryAutoplay = async () => {
+        if (!musicEl) return;
+        try {
+          musicEl.volume = 0.45;
+          await musicEl.play();
+          isPlaying = true;
+          updateMusicButton();
+        } catch (error) {
+          isPlaying = false;
+          updateMusicButton();
+        }
+      };
+
+      if (musicToggleButton) {
+        musicToggleButton.addEventListener('click', async () => {
+          if (!musicEl) return;
+          if (isPlaying) {
+            musicEl.pause();
+            isPlaying = false;
+          } else {
+            try {
+              await musicEl.play();
+              isPlaying = true;
+            } catch (error) {
+              isPlaying = false;
+            }
+          }
+          updateMusicButton();
+        });
+      }
+
       const rsvpFormPreview = document.querySelector('[data-rsvp-form]');
       const rsvpListPreview = document.querySelector('[data-rsvp-list]');
       const rsvpMessagePreview = document.querySelector('[data-rsvp-message]');
+
       if (rsvpFormPreview) {
         rsvpFormPreview.addEventListener('submit', (event) => {
           event.preventDefault();
@@ -288,11 +576,37 @@
           const card = document.createElement('div');
           card.className = 'rounded-xl border border-primary/20 bg-primary/5 p-3';
           card.innerHTML = `<div class="flex items-center justify-between gap-3"><strong class="text-primary">${name}</strong><span class="rounded-full bg-primary/10 px-2 py-1 text-xs uppercase tracking-wide text-primary">${attending === 'yes' ? 'Hadir' : 'Tidak hadir'}</span></div><p class="mt-2 text-sm text-on-surface-variant">Jumlah tamu: ${guests}</p><p class="mt-2 text-sm text-on-surface">${message}</p>`;
-          if (rsvpListPreview) { rsvpListPreview.innerHTML = ''; rsvpListPreview.appendChild(card); }
-          if (rsvpMessagePreview) { rsvpMessagePreview.textContent = `${name} berhasil mengirimkan balasan ${attending === 'yes' ? 'hadir' : 'tidak hadir'} ke acara kami.`; rsvpMessagePreview.classList.add('text-primary'); }
+          if (rsvpListPreview) {
+            rsvpListPreview.innerHTML = '';
+            rsvpListPreview.appendChild(card);
+          }
+          if (rsvpMessagePreview) {
+            rsvpMessagePreview.textContent = `${name} berhasil mengirimkan balasan ${attending === 'yes' ? 'hadir' : 'tidak hadir'} ke acara kami.`;
+            rsvpMessagePreview.classList.add('text-primary');
+          }
           rsvpFormPreview.reset();
         });
       }
+
+      const loadInvitation = async () => {
+        const params = new URLSearchParams(window.location.search);
+        const slug = normalizeShareSlug(params.get('slug') || 'abell-purnama');
+
+        try {
+          const q = query(collection(db, 'gamon_wedding_invitations'), where('shareSlug', '==', slug));
+          const snapshot = await getDocs(q);
+          const invitation = snapshot.docs[0]?.data() || defaultInvitation;
+          applyInvitation(invitation);
+        } catch (error) {
+          console.warn('Gagal memuat data undangan dari Firestore:', error);
+          applyInvitation(defaultInvitation);
+        }
+
+        tryAutoplay();
+      };
+
+      loadInvitation();
     </script>
   </body>
 </html>
+
