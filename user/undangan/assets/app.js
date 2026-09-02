@@ -105,7 +105,7 @@ function getTemplatePreset(templateId = 'classic') {
 
 function getTemplatePagePath(templateId = 'classic') {
   const templateFile = defaultTemplates.find((item) => item.id === templateId)?.file || 'classic.html';
-  return `/user/undangan/templates/${templateFile}`;
+  return `/templates/${templateFile}`;
 }
 
 function getPublicInvitationUrl(invitation = {}, guestName = '') {
@@ -436,15 +436,15 @@ function renderTemplateCards() {
 
 function handleAuthGate() {
   const page = document.body?.dataset?.page;
-  const user = getCurrentUser();
+  const user = getCurrentUser() || auth.currentUser;
 
   if ((page === 'dashboard' || page === 'form' || page === 'profil' || page === 'edit') && !user) {
-    window.location.href = 'login.html';
+    window.location.replace('login.html');
     return;
   }
 
   if ((page === 'login' || page === 'register') && user) {
-    window.location.href = 'dashboard.html';
+    window.location.replace('dashboard.html');
   }
 }
 
@@ -596,7 +596,7 @@ function renderClassicInvitationTemplate(invitation, guestName) {
               <img class="h-full w-full object-cover" src="${groomPhoto}" alt="${escapeHtml(groomName)}" />
             </div>
             <h2 class="mb-2 font-headline-lg-mobile text-headline-sm text-primary">${escapeHtml(groomName)}</h2>
-            <p class="font-body-md text-body-md text-sm italic text-on-surface-variant">Putri dari</p>
+            <p class="font-body-md text-body-md text-sm italic text-on-surface-variant">Putra dari</p>
             <p class="font-body-md text-body-md text-on-surface">${escapeHtml(parentGroom)}</p>
           </div>
 
@@ -605,7 +605,7 @@ function renderClassicInvitationTemplate(invitation, guestName) {
               <img class="h-full w-full object-cover" src="${bridePhoto}" alt="${escapeHtml(brideName)}" />
             </div>
             <h2 class="mb-2 font-headline-lg-mobile text-headline-sm text-primary">${escapeHtml(brideName)}</h2>
-            <p class="font-body-md text-body-md text-sm italic text-on-surface-variant">Putra dari</p>
+            <p class="font-body-md text-body-md text-sm italic text-on-surface-variant">Putri dari</p>
             <p class="font-body-md text-body-md text-on-surface">${escapeHtml(parentBride)}</p>
           </div>
         </div>
@@ -2140,8 +2140,9 @@ function attachRsvpHandler(container) {
     event.preventDefault();
     const message = container.querySelector('[data-rsvp-message]');
     const formData = new FormData(form);
-    const guest = String(formData.get('guestName') || '').trim();
-    const status = String(formData.get('attendance') || 'akan hadir');
+    const guest = String(formData.get('guestName') || formData.get('name') || '').trim();
+    const attendingValue = formData.get('attending') || formData.get('attendance') || 'yes';
+    const status = String(attendingValue).toLowerCase() === 'no' ? 'tidak dapat hadir' : 'akan hadir';
 
     if (!guest) {
       if (message) {
@@ -2152,8 +2153,22 @@ function attachRsvpHandler(container) {
     }
 
     if (message) {
-      message.textContent = `Terima kasih, ${guest}. Status kehadiran Anda: ${status}.`;
+      const responseText = status === 'tidak dapat hadir'
+        ? `Terima kasih, ${guest}. Kami menerima kabar bahwa Anda tidak dapat hadir.`
+        : `Terima kasih, ${guest}. Konfirmasi kehadiran Anda telah tercatat.`;
+      message.textContent = responseText;
       message.className = 'rsvp-message success';
+    }
+
+    try {
+      const savedKey = `gamon_rsvp_${window.location.pathname}_${new URLSearchParams(window.location.search).get('slug') || 'default'}`;
+      localStorage.setItem(savedKey, JSON.stringify({
+        guest,
+        status,
+        submittedAt: new Date().toISOString()
+      }));
+    } catch {
+      // ignore localStorage failures in restricted environments
     }
 
     form.reset();
@@ -2213,8 +2228,16 @@ function initFloatingMusicPlayer(container = document) {
 
 async function getTemplatePageUrl(templateId = 'classic') {
   const templateFile = defaultTemplates.find((item) => item.id === templateId)?.file || 'classic.html';
-  const basePath = window.location.pathname.includes('/templates/') ? '../templates/' : '/user/undangan/templates/';
-  return `${basePath}${templateFile}`;
+  return `/templates/${templateFile}`;
+}
+
+function redirectLegacyPublicInvitePath() {
+  if (!window.location.pathname.includes('/user/undangan/templates/')) return;
+
+  const url = new URL(window.location.href);
+  const rawPath = url.pathname.replace('/user/undangan/templates/', '/templates/');
+  url.pathname = rawPath;
+  window.location.replace(url.toString());
 }
 
 async function loadPublicInvitationBySlug() {
@@ -2230,15 +2253,10 @@ async function loadPublicInvitationBySlug() {
       : (params.get('template') || 'classic')
   ).toLowerCase();
 
-  if (!slug) {
-    container.innerHTML = `
-      <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:#f5f3f3;color:#1b1c1c;">
-        <div style="max-width:560px;margin:30px auto 0;text-align:center;padding:40px 20px;border-radius:24px;background:rgba(255,255,255,0.78);border:1px solid rgba(107,75,93,0.08);">
-          <h1 style="margin:0 0 12px;font-family:'Georgia','Times New Roman',serif;font-size:clamp(2.4rem,4vw,4rem);color:#685d4a;line-height:1.1;font-weight:400;">Undangan tidak ditemukan</h1>
-          <p style="margin:0;color:#4b463d;line-height:1.7;font-family:Inter,Arial,sans-serif;font-size:1rem;">Link yang Anda buka belum memiliki slug undangan.</p>
-        </div>
-      </div>
-    `;
+  if (!slug || !slug.trim() || !/^[a-z0-9-]+$/i.test(slug.trim())) {
+    const redirectUrl = new URL('/404.html', window.location.origin);
+    redirectUrl.searchParams.set('slug', slug || '');
+    window.location.replace(redirectUrl.toString());
     return;
   }
 
@@ -2262,14 +2280,9 @@ async function loadPublicInvitationBySlug() {
     }
 
     if (!invitation) {
-      container.innerHTML = `
-        <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:#f5f3f3;color:#1b1c1c;">
-          <div style="max-width:560px;margin:30px auto 0;text-align:center;padding:40px 20px;border-radius:24px;background:rgba(255,255,255,0.78);border:1px solid rgba(107,75,93,0.08);">
-            <h1 style="margin:0 0 12px;font-family:'Georgia','Times New Roman',serif;font-size:clamp(2.4rem,4vw,4rem);color:#685d4a;line-height:1.1;font-weight:400;">Undangan tidak ditemukan</h1>
-            <p style="margin:0;color:#4b463d;line-height:1.7;font-family:Inter,Arial,sans-serif;font-size:1rem;">Link yang Anda buka mungkin belum dibuat atau sudah diperbarui.</p>
-          </div>
-        </div>
-      `;
+      const redirectUrl = new URL('/404.html', window.location.origin);
+      redirectUrl.searchParams.set('slug', normalizedSlug);
+      window.location.replace(redirectUrl.toString());
       return;
     }
 
@@ -2530,6 +2543,7 @@ async function loadPublicInvitationBySlug() {
 }
 
 function initPage() {
+  redirectLegacyPublicInvitePath();
   renderTemplateCards();
   initAuthState();
   initRegisterForm();

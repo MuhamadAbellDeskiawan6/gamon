@@ -4,6 +4,8 @@
     { "source": "/register", "destination": "/user/undangan/register.html" },
     { "source": "/dashboard", "destination": "/user/undangan/dashboard.html" },
     { "source": "/preview", "destination": "/user/undangan/preview.html" },
+    { "source": "/user/undangan/templates/:path*", "destination": "/templates/:path*" },
+    { "source": "/templates/:path*", "destination": "/templates/:path*" },
     { "source": "/", "destination": "/user/undangan/index.html" }
   ]
 }

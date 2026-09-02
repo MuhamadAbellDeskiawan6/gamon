@@ -1,0 +1,141 @@
+﻿<!DOCTYPE html>
+<html class="scroll-smooth" lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Undangan Pernikahan</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+    <script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "on-primary-container": "#726753",
+              "on-secondary-container": "#52685a",
+              "surface-container": "#efeded",
+              "on-primary-fixed": "#221b0b",
+              "secondary": "#4d6356",
+              "background": "#fbf9f8",
+              "surface-dim": "#dbd9d9",
+              "error": "#ba1a1a",
+              "on-tertiary-container": "#7f6500",
+              "surface-bright": "#fbf9f8",
+              "surface-container-highest": "#e4e2e2",
+              "on-background": "#1b1c1c",
+              "on-secondary": "#ffffff",
+              "on-primary-fixed-variant": "#4f4533",
+              "surface-container-lowest": "#ffffff",
+              "tertiary-fixed": "#ffe088",
+              "on-tertiary": "#ffffff",
+              "secondary-container": "#cde6d5",
+              "outline": "#7d766c",
+              "on-secondary-fixed": "#0b1f15",
+              "primary-fixed-dim": "#d3c5ad",
+              "tertiary-container": "#ffe7a8",
+              "surface-variant": "#e4e2e2",
+              "outline-variant": "#cec5ba",
+              "surface-tint": "#685d4a",
+              "error-container": "#ffdad6",
+              "inverse-primary": "#d3c5ad",
+              "on-primary": "#ffffff",
+              "surface-container-high": "#eae8e7",
+              "surface-container-low": "#f5f3f3",
+              "primary": "#685d4a",
+              "inverse-on-surface": "#f2f0f0",
+              "tertiary": "#735c00",
+              "secondary-fixed-dim": "#b4ccbc",
+              "on-error-container": "#93000a",
+              "on-tertiary-fixed-variant": "#574500",
+              "on-tertiary-fixed": "#241a00",
+              "surface": "#fbf9f8",
+              "on-surface-variant": "#4b463d",
+              "on-error": "#ffffff",
+              "on-surface": "#1b1c1c",
+              "primary-container": "#f7e7ce",
+              "primary-fixed": "#f0e0c8",
+              "secondary-fixed": "#d0e8d7",
+              "on-secondary-fixed-variant": "#364b3f",
+              "inverse-surface": "#303030",
+              "tertiary-fixed-dim": "#e9c349"
+            },
+            borderRadius: {
+              DEFAULT: "0.25rem",
+              lg: "0.5rem",
+              xl: "0.75rem",
+              full: "9999px"
+            },
+            spacing: {
+              unit: "8px",
+              "container-max": "1140px",
+              "stack-lg": "80px",
+              "stack-md": "32px",
+              "margin-mobile": "20px",
+              "stack-sm": "12px",
+              gutter: "24px",
+              "margin-desktop": "64px"
+            },
+            fontFamily: {
+              "display-lg": ["ebGaramond", "serif"],
+              "headline-md": ["ebGaramond", "serif"],
+              "body-md": ["inter", "sans-serif"],
+              "body-lg": ["inter", "sans-serif"],
+              "headline-lg-mobile": ["ebGaramond", "serif"],
+              "headline-lg": ["ebGaramond", "serif"],
+              "label-md": ["inter", "sans-serif"],
+              "headline-sm": ["ebGaramond", "serif"]
+            },
+            fontSize: {
+              "display-lg": ["64px", { lineHeight: "1.1", letterSpacing: "-0.02em", fontWeight: "400" }],
+              "headline-md": ["32px", { lineHeight: "1.3", fontWeight: "400" }],
+              "body-md": ["16px", { lineHeight: "1.6", fontWeight: "400" }],
+              "body-lg": ["18px", { lineHeight: "1.6", fontWeight: "400" }],
+              "headline-lg-mobile": ["32px", { lineHeight: "1.2", fontWeight: "400" }],
+              "headline-lg": ["40px", { lineHeight: "1.2", fontWeight: "400" }],
+              "label-md": ["14px", { lineHeight: "1", letterSpacing: "0.05em", fontWeight: "600" }],
+              "headline-sm": ["24px", { lineHeight: "1.4", fontWeight: "500" }]
+            }
+          }
+        }
+      };
+    </script>
+    <style>
+      .floral-divider {
+        height: 1px;
+        background: linear-gradient(to right, transparent, #d3c5ad, transparent);
+        position: relative;
+        margin: 2rem 0;
+      }
+      .floral-divider::after {
+        content: "✦";
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        color: #d3c5ad;
+        background-color: #fbf9f8;
+        padding: 0 10px;
+        font-size: 14px;
+      }
+      .soft-shadow { box-shadow: 0 10px 30px rgba(77, 99, 86, 0.08); }
+      .gold-border-focus:focus-within { border-bottom-color: #d3c5ad; box-shadow: 0 1px 0 #d3c5ad; }
+      input[type="radio"]:checked, input[type="checkbox"]:checked { background-color: #4d6356; border-color: #4d6356; }
+      .timer-unit {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        background-color: rgba(251, 249, 248, 0.8);
+        padding: 12px;
+        border-radius: 8px;
+        min-width: 60px;
+        border: 1px solid rgba(211, 197, 173, 0.3);
+      }
+    </style>
+  </head>
+  <body class="bg-background text-on-surface font-body-md antialiased md:max-w-container-max md:mx-auto">
+    <div id="publicInvitation"></div>
+    <script type="module" src="../user/undangan/assets/app.js"></script>
+  </body>
+</html>
