@@ -781,18 +781,16 @@ function formatCurrency(value) {
 }
 
 function getCurrentPageIsUserArea() {
-  return window.location.pathname.includes('/user/');
+  return window.location.pathname.includes('/user/marketplace/');
 }
 
 function getProductDetailUrl(productId) {
   const id = encodeURIComponent(productId ?? '');
-  const isLoggedIn = Boolean(currentUser() || auth.currentUser);
-  const targetPage = isLoggedIn ? (getCurrentPageIsUserArea() ? 'product.html' : 'user/product.html') : 'product.html';
-  return `${targetPage}?id=${id}`;
+  return `product.html?id=${id}`;
 }
 
 function getUserChatUrl(sellerName, sellerId, productId = '', productName = '') {
-  const basePage = getCurrentPageIsUserArea() ? 'chat.html' : 'user/chat.html';
+  const basePage = 'chat.html';
   const safeSeller = sellerName || 'Penjual';
   const safeSellerId = sellerId || sellerName || '';
   const query = new URLSearchParams({
@@ -974,7 +972,7 @@ function hydrateUserProfileUI() {
 
 function getAuthTarget() {
   const currentPath = window.location.pathname;
-  return currentPath.includes('/user/') ? '../login.html' : 'login.html';
+  return currentPath.includes('/user/marketplace/') ? 'login.html' : 'login.html';
 }
 
 function requireAuth() {
@@ -2030,7 +2028,7 @@ async function handleAuthSubmit(event) {
     resetLoginAttempts();
     setCurrentUser(user, rememberMe);
     writeStorage(STORAGE_KEYS.USERS, [...(readStorage(STORAGE_KEYS.USERS, []) || []), user].filter((item, index, arr) => arr.findIndex((entry) => entry.email === item.email) === index));
-    window.location.href = 'user/dashboard.html';
+    window.location.href = 'dashboard.html';
   } catch (error) {
     recordFailedLogin();
     console.error(error);
@@ -2096,7 +2094,7 @@ async function bindAuthPage() {
   const savedUser = currentUser();
   if (savedUser) {
     if (window.location.pathname.endsWith('login.html') || window.location.pathname.endsWith('register.html')) {
-      window.location.href = 'user/dashboard.html';
+      window.location.href = 'dashboard.html';
     }
     return;
   }
@@ -2106,7 +2104,7 @@ async function bindAuthPage() {
 
     await syncCurrentUserFromFirebase(firebaseUser, true);
     if (window.location.pathname.endsWith('login.html') || window.location.pathname.endsWith('register.html')) {
-      window.location.href = 'user/dashboard.html';
+      window.location.href = 'dashboard.html';
     }
   });
 }
@@ -3713,7 +3711,7 @@ async function handleLogout() {
     console.error('Logout gagal:', error);
   } finally {
     clearCurrentUser();
-    const target = window.location.pathname.includes('/user/') ? '../index.html' : 'index.html';
+    const target = window.location.pathname.includes('/user/') ? '../../index.html' : 'index.html';
     window.location.href = target;
   }
 }

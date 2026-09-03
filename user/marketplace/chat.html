@@ -3,23 +3,23 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Beli — Marketplace Mantan</title>
+    <title>Chat — Marketplace Mantan</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="../assets/style.css" />
+    <link rel="stylesheet" href="assets/style.css" />
   </head>
-  <body data-page="beli.html">
+  <body data-page="chat.html">
     <header class="topbar">
       <div class="container nav">
-        <a href="../index.html" class="brand" aria-label="Home">
+        <a href="../../index.html" class="brand" aria-label="Home">
           <span class="brand-mark">G</span>
           <span>Marketplace Mantan</span>
         </a>
         <div class="nav-actions">
           <a class="btn btn-secondary" href="profil.html">Profil</a>
-          <a class="btn btn-primary" href="../index.html" data-logout-button>Keluar</a>
+          <a class="btn btn-primary" href="../../index.html" data-logout-button>Keluar</a>
         </div>
       </div>
     </header>
@@ -38,28 +38,46 @@
           <nav aria-label="Sidebar navigasi">
             <a href="dashboard.html"><span class="material-symbols-outlined" style="font-size:17px;vertical-align:middle;">dashboard</span> Dashboard</a>
             <a href="jual.html"><span class="material-symbols-outlined" style="font-size:17px;vertical-align:middle;">sell</span> Jual</a>
-            <a class="active" href="beli.html"><span class="material-symbols-outlined" style="font-size:17px;vertical-align:middle;">shopping_cart</span> Beli</a>
+            <a href="beli.html"><span class="material-symbols-outlined" style="font-size:17px;vertical-align:middle;">shopping_cart</span> Beli</a>
             <a href="my-products.html"><span class="material-symbols-outlined" style="font-size:17px;vertical-align:middle;">inventory_2</span> Barang Saya</a>
             <a href="profil.html"><span class="material-symbols-outlined" style="font-size:17px;vertical-align:middle;">person</span> Profil</a>
-            <a href="chat.html"><span class="material-symbols-outlined" style="font-size:17px;vertical-align:middle;">chat</span> Chat</a>
+            <a class="active" href="chat.html"><span class="material-symbols-outlined" style="font-size:17px;vertical-align:middle;">chat</span> Chat</a>
           </nav>
-          <a class="logout-link" href="../index.html" data-logout-button>↩ Keluar</a>
+          <a class="logout-link" href="../../index.html" data-logout-button><span class="material-symbols-outlined" style="font-size:16px;vertical-align:middle;">logout</span> Keluar</a>
         </aside>
 
         <div class="main-panel">
-          <section class="panel">
-            <div class="top-panel" style="margin-bottom: 20px;">
-              <div>
-                <span class="eyebrow">Belanja</span>
-                <h2 style="margin-top: 12px; font-size: 2rem;">Barang yang kamu suka</h2>
+          <section class="chat-shell">
+            <div class="chat-list">
+              <div class="top-panel" style="margin-bottom: 12px;">
+                <div>
+                  <span class="eyebrow">Inbox</span>
+                  <h3 style="margin-top: 8px;">Percakapan</h3>
+                </div>
               </div>
+
+              <div data-chat-list class="chat-thread-list"></div>
             </div>
 
-            <div class="grid-products" data-buyer-list></div>
+            <div class="chat-conversation">
+              <div class="seller-row">
+                <span class="seller-meta"><span class="avatar">R</span> <span data-chat-contact>Penjual</span></span>
+                <span class="condition">Online</span>
+              </div>
+
+              <div class="chat-product-context" data-chat-product-context hidden></div>
+
+              <div class="chat-thread" data-chat-thread></div>
+
+              <form class="chat-composer" data-chat-form>
+                <input type="text" placeholder="Ketik pesan..." />
+                <button class="btn btn-primary" type="submit">Kirim</button>
+              </form>
+            </div>
           </section>
         </div>
       </div>
     </main>
-    <script type="module" src="../assets/app.js"></script>
+    <script type="module" src="assets/app.js"></script>
   </body>
 </html>

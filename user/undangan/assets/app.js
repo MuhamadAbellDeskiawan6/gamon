@@ -145,29 +145,6 @@ function applyTemplateTheme(templateId = 'classic') {
   return template;
 }
 
-const demoInvitation = {
-  id: 'demo-template',
-  title: 'Aperiam cillum qui f',
-  groomName: 'Aperiam cillum qui f',
-  brideName: 'Rahin Brady & Aaron Knowles',
-  parentGroom: 'Rahin Brady & Aaron Knowles',
-  parentBride: 'Rahin Brady & Aaron Knowles',
-  akadDate: '2027-01-27',
-  akadTime: '09:00',
-  akadPlace: 'Office is a aute',
-  receptionDate: '2027-01-27',
-  receptionTime: '11:30',
-  receptionPlace: 'Office is a aute',
-  address: 'Jl. Merdeka No. 18, Bandung',
-  countdownDate: '2027-01-27',
-  shareSlug: 'demo-undangan',
-  templateId: 'classic',
-  story: 'Dengan memohon ridha Allah SWT, kami mengundang Bapak/Ibu/Saudara/i untuk hadir di momen bahagia kami.',
-  rsvpMessage: 'Terima kasih atas kehadiran Anda. Mohon konfirmasi melalui form RSVP.',
-  createdAt: new Date().toISOString(),
-  updatedAt: new Date().toISOString()
-};
-
 const state = {
   currentUser: null,
   invitations: []
@@ -1203,6 +1180,70 @@ function syncFormFieldValue(form, key, value) {
   field.value = value ?? '';
 }
 
+function setUploadStatus(form, fieldName, status, message) {
+  const dropzone = form.querySelector(`[data-upload-dropzone="${fieldName}"]`);
+  const note = form.querySelector(`[data-upload-status="${fieldName}"]`);
+
+  if (dropzone) {
+    dropzone.classList.remove('is-success', 'is-error');
+    if (status === 'success') dropzone.classList.add('is-success');
+    if (status === 'error') dropzone.classList.add('is-error');
+  }
+
+  if (note) {
+    note.textContent = message || note.textContent;
+    note.classList.remove('is-success', 'is-error');
+    if (status === 'success') note.classList.add('is-success');
+    if (status === 'error') note.classList.add('is-error');
+  }
+}
+
+function hasStoredUpload(form, fieldName) {
+  const dropzone = form.querySelector(`[data-upload-dropzone="${fieldName}"]`);
+  if (!dropzone) return false;
+  return !!dropzone.querySelector('.stored-upload-preview img');
+}
+
+function validateRequiredUploads(form) {
+  const requiredFields = ['groomPhoto', 'bridePhoto', 'openingPhoto'];
+  let isValid = true;
+
+  requiredFields.forEach((fieldName) => {
+    const fileInput = form.querySelector(`input[name="${fieldName}"]`);
+    const hasFile = !!(fileInput && fileInput.files && fileInput.files.length);
+    const hasStored = hasStoredUpload(form, fieldName);
+
+    if (hasFile || hasStored) {
+      const successMessage = fieldName === 'openingPhoto'
+        ? 'Foto opening sudah siap dipakai.'
+        : 'Foto sudah dipilih dan siap dipakai.';
+      setUploadStatus(form, fieldName, 'success', successMessage);
+      return;
+    }
+
+    const errorMessage = fieldName === 'openingPhoto'
+      ? 'Wajib diunggah untuk cover undangan.'
+      : 'Wajib diunggah agar halaman undangan lengkap.';
+    setUploadStatus(form, fieldName, 'error', errorMessage);
+    isValid = false;
+  });
+
+  return isValid;
+}
+
+function syncCountdownDateField(form) {
+  const receptionInput = form.querySelector('input[name="receptionDate"]');
+  const akadInput = form.querySelector('input[name="akadDate"]');
+  const hiddenCountdownInput = form.querySelector('input[name="countdownDate"]');
+
+  if (!hiddenCountdownInput) return;
+
+  const receptionDate = normalizeDateInputValue(receptionInput?.value || '');
+  const akadDate = normalizeDateInputValue(akadInput?.value || '');
+
+  hiddenCountdownInput.value = receptionDate || akadDate || '';
+}
+
 function renderStoredUploadPreview(form, fieldName, imageUrl) {
   if (!imageUrl) return;
 
@@ -1227,6 +1268,11 @@ function renderStoredUploadPreview(form, fieldName, imageUrl) {
       if (input) input.click();
     });
   }
+
+  const statusText = fieldName === 'openingPhoto'
+    ? 'Foto opening sudah tersimpan.'
+    : 'Foto sudah tersimpan.';
+  setUploadStatus(form, fieldName, 'success', statusText);
 }
 
 function renderStoredGalleryPreview(form, galleryImages = []) {
@@ -1309,6 +1355,11 @@ function fillFormFromInvitation(invitation) {
     populateMusicSelectionState(form, invitation.musicUrl);
   }
 
+  const hiddenCountdownInput = form.querySelector('input[name="countdownDate"]');
+  if (hiddenCountdownInput) {
+    hiddenCountdownInput.value = normalizeDateInputValue(invitation.countdownDate || invitation.receptionDate || invitation.akadDate || '');
+  }
+
   if (invitation.openingPhoto) {
     renderStoredUploadPreview(form, 'openingPhoto', invitation.openingPhoto);
   }
@@ -1358,7 +1409,7 @@ async function saveInvitation(payload, invitationId = null) {
     galleryImages,
     akadDate: normalizeDateInputValue(sanitizedPayload.akadDate || ''),
     receptionDate: normalizeDateInputValue(sanitizedPayload.receptionDate || ''),
-    countdownDate: normalizeDateInputValue(sanitizedPayload.countdownDate || sanitizedPayload.receptionDate || ''),
+    countdownDate: normalizeDateInputValue(sanitizedPayload.countdownDate || sanitizedPayload.receptionDate || sanitizedPayload.akadDate || ''),
     rsvpMessage: sanitizedPayload.rsvpMessage || 'Mohon konfirmasi kehadiran Anda.',
     updatedAt: new Date().toISOString(),
     createdAt: sanitizedPayload.createdAt || new Date().toISOString()
@@ -1421,6 +1472,22 @@ function bindMarketplaceStyleUpload(groupName) {
   const renderSelectedFiles = (files = []) => {
     if (!uploadedList) return;
     const list = Array.from(files || []).slice(0, MAX_GALLERY_COUNT);
+
+    const statusNote = form.querySelector(`[data-upload-status="${groupName}"]`);
+    if (statusNote) {
+      const message = list.length
+        ? `Foto siap disimpan (${list.length}/${MAX_GALLERY_COUNT}).`
+        : 'Opsional — maksimal 3 foto.';
+      statusNote.textContent = message;
+      statusNote.classList.toggle('is-success', list.length > 0);
+      statusNote.classList.remove('is-error');
+    }
+
+    const dropzone = form.querySelector(`[data-upload-dropzone="${groupName}"]`);
+    if (dropzone) {
+      dropzone.classList.toggle('is-success', list.length > 0);
+      dropzone.classList.remove('is-error');
+    }
 
     if (!list.length) {
       uploadedList.innerHTML = '';
@@ -1770,6 +1837,45 @@ function initInvitationForm() {
   bindGoogleMapsSearch();
   syncLocationCoordinatesFromMapLink(form);
 
+  const receptionDateInput = form.querySelector('input[name="receptionDate"]');
+  const akadDateInput = form.querySelector('input[name="akadDate"]');
+  const hiddenCountdownInput = form.querySelector('input[name="countdownDate"]');
+
+  const syncCountdownFromInputs = () => {
+    if (!hiddenCountdownInput) return;
+    const receptionDate = normalizeDateInputValue(receptionDateInput?.value || '');
+    const akadDate = normalizeDateInputValue(akadDateInput?.value || '');
+    hiddenCountdownInput.value = receptionDate || akadDate || '';
+  };
+
+  if (receptionDateInput) {
+    receptionDateInput.addEventListener('change', syncCountdownFromInputs);
+    receptionDateInput.addEventListener('input', syncCountdownFromInputs);
+  }
+
+  if (akadDateInput) {
+    akadDateInput.addEventListener('change', syncCountdownFromInputs);
+    akadDateInput.addEventListener('input', syncCountdownFromInputs);
+  }
+
+  if (hiddenCountdownInput) {
+    syncCountdownFromInputs();
+  }
+
+  const requiredUploadFields = ['groomPhoto', 'bridePhoto', 'openingPhoto'];
+  requiredUploadFields.forEach((fieldName) => {
+    const input = form.querySelector(`input[name="${fieldName}"]`);
+    if (!input) return;
+    input.addEventListener('change', () => {
+      const hasFile = !!(input.files && input.files.length);
+      if (!hasFile && hasStoredUpload(form, fieldName)) {
+        setUploadStatus(form, fieldName, 'success', 'Foto sudah tersimpan.');
+        return;
+      }
+      setUploadStatus(form, fieldName, hasFile ? 'success' : 'error', hasFile ? 'Foto siap dipakai.' : 'Wajib diunggah agar halaman undangan lengkap.');
+    });
+  });
+
   const hydrateEditForm = async () => {
     const params = new URLSearchParams(window.location.search);
     const invitationId = params.get('id');
@@ -1812,6 +1918,17 @@ function initInvitationForm() {
       setMessage(messageEl, 'Harap lengkapi semua field penting sebelum menyimpan.', 'error');
       return;
     }
+
+    const requiredUploadsValid = validateRequiredUploads(form);
+    if (!requiredUploadsValid) {
+      setMessage(messageEl, 'Foto mempelai pria, wanita, dan opening utama wajib diunggah sebelum menyimpan.', 'error');
+      return;
+    }
+
+    const receptionInput = form.querySelector('input[name="receptionDate"]');
+    const akadInput = form.querySelector('input[name="akadDate"]');
+    const countdownValue = normalizeDateInputValue(receptionInput?.value || akadInput?.value || payload.receptionDate || payload.akadDate || '');
+    payload.countdownDate = countdownValue;
 
     try {
       const musicFile = form.querySelector('input[name="musicFile"]')?.files?.[0] || null;
@@ -2423,10 +2540,6 @@ async function loadPublicInvitationBySlug() {
         candidates.find((item) => normalizeShareSlug(item.shareSlug || item.title || 'undangan') === normalizedSlug) || null;
     }
 
-    if (!invitation && normalizedSlug === normalizeShareSlug(demoInvitation.shareSlug)) {
-      invitation = { ...demoInvitation, shareSlug: normalizeShareSlug(demoInvitation.shareSlug), templateId: requestedTemplateId };
-    }
-
     if (!invitation) {
       const redirectUrl = new URL('/404.html', window.location.origin);
       redirectUrl.searchParams.set('slug', normalizedSlug);
@@ -2691,6 +2804,41 @@ async function loadPublicInvitationBySlug() {
   }
 }
 
+function initMobileSidebar() {
+  const shell = document.querySelector('.dashboard-shell');
+  const sidebar = document.querySelector('.sidebar');
+  const toggle = document.querySelector('.sidebar-toggle');
+  const backdrop = document.querySelector('.sidebar-backdrop');
+
+  if (!shell || !sidebar || !toggle || !backdrop) return;
+
+  const setSidebarState = (isOpen) => {
+    shell.classList.toggle('sidebar-open', isOpen);
+    sidebar.classList.toggle('is-open', isOpen);
+    toggle.classList.toggle('is-active', isOpen);
+    toggle.setAttribute('aria-expanded', String(isOpen));
+    backdrop.classList.toggle('is-visible', isOpen);
+    document.body.classList.toggle('sidebar-locked', isOpen);
+  };
+
+  toggle.addEventListener('click', () => {
+    const isOpen = !shell.classList.contains('sidebar-open');
+    setSidebarState(isOpen);
+  });
+
+  backdrop.addEventListener('click', () => setSidebarState(false));
+
+  sidebar.querySelectorAll('.side-nav a').forEach((link) => {
+    link.addEventListener('click', () => setSidebarState(false));
+  });
+
+  window.addEventListener('resize', () => {
+    if (window.innerWidth > 820) {
+      setSidebarState(false);
+    }
+  });
+}
+
 function initPage() {
   redirectLegacyPublicInvitePath();
   renderTemplateCards();
@@ -2700,6 +2848,7 @@ function initPage() {
   initLogout();
   initInvitationForm();
   initProfileForm();
+  initMobileSidebar();
   loadPublicInvitationBySlug();
 }
 

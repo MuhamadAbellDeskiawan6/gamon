@@ -152,8 +152,8 @@
     </style>
   </head>
   <body class="bg-background text-on-surface font-body-md antialiased md:max-w-container-max-width md:mx-auto">
-    <div class="fixed right-4 top-4 z-50">
-      <audio id="bgMusic" loop preload="auto" src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3"></audio>
+    <div class="fixed right-4 top-4 z-50" id="musicWrapper" style="display:none;">
+      <audio id="bgMusic" loop preload="auto"></audio>
       <button id="musicToggleButton" type="button" aria-label="Play music" class="floating-music-toggle">
         <span id="musicIcon" class="material-symbols-outlined text-xl">music_note</span>
       </button>
@@ -167,9 +167,7 @@
         </div>
         <div class="relative z-10 mx-4 flex flex-col items-center rounded border border-secondary/30 bg-surface/90 p-8 text-center backdrop-blur-sm">
           <p class="mb-4 font-body-md text-body-md uppercase tracking-widest text-primary opacity-90">Pernikahan</p>
-          <h1 class="mb-8 font-display-lg text-headline-lg-mobile text-primary md:text-display-lg">
-            Elizabeth <span class="mx-2 italic font-light text-secondary opacity-80">&amp;</span> James
-          </h1>
+          <h1 id="coupleNames" class="mb-8 font-display-lg text-headline-lg-mobile text-primary md:text-display-lg"></h1>
           <a class="flex items-center gap-2 rounded border border-secondary/50 bg-primary px-8 py-4 font-label-sm text-label-sm uppercase tracking-wider text-on-primary transition-all hover:bg-primary-container hover:text-on-primary-container" href="#intro">
             Buka Undangan <span class="material-symbols-outlined text-sm">expand_more</span>
           </a>
@@ -178,13 +176,9 @@
 
       <section class="mx-auto flex max-w-2xl flex-col items-center bg-surface px-margin-mobile py-24 text-center" id="intro">
         <div class="floral-divider mb-12 w-full max-w-[200px]"></div>
-        <p class="mb-8 px-4 font-display-lg text-headline-lg-mobile italic leading-relaxed text-primary md:text-headline-lg">
-          "Sesuatu yang membuat jiwa kita sama, jiwa saya dan jiwa Anda pun sama."
-        </p>
-        <p class="mb-6 font-body-lg text-body-lg font-semibold uppercase tracking-widest text-secondary opacity-90">— Emily Brontë —</p>
-        <p class="mt-4 px-4 text-justify font-body-md text-body-md leading-relaxed text-on-surface md:text-center">
-          Dengan bahagia kami mengundang Bapak/Ibu/Saudara/i untuk merayakan awal babak baru dalam hidup kami. Kasih sayang dan dukungan Anda telah membentuk perjalanan kami, dan kami tidak bisa membayangkan melangkah maju tanpa kehadiran Anda.
-        </p>
+        <p id="quoteText" class="mb-8 px-4 font-display-lg text-headline-lg-mobile italic leading-relaxed text-primary md:text-headline-lg"></p>
+        <p id="quoteAuthor" class="mb-6 font-body-lg text-body-lg font-semibold uppercase tracking-widest text-secondary opacity-90"></p>
+        <p id="storyText" class="mt-4 px-4 text-justify font-body-md text-body-md leading-relaxed text-on-surface md:text-center"></p>
         <div class="floral-divider mt-12 w-full max-w-[200px]"></div>
       </section>
 
@@ -192,20 +186,20 @@
         <div class="grid grid-cols-1 gap-12 md:grid-cols-2">
           <div class="flex flex-col items-center rounded bg-surface-container-lowest p-8 text-center soft-shadow">
             <div class="mb-8 h-56 w-56 overflow-hidden rounded-full border-4 border-secondary shadow-lg">
-              <img class="h-full w-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBiDS4z38FHQndzg8oTAh39dscSDrM4zUvFHsJBDrq7PAWDjx09a4U-ggHf7ZC2QYN39TOKp22DI2TQyV6PIMXS0qOwkeSHG8vw5gQqHXwT0EWljriMUHt8hboWHuupgQU2GSe0NU6vgw-s5iazhr_LX8fzC4AVGfM2qQIn7tXq678h7erdN9TVdtpLatkzV0_CR1xKIXIZHknxnSlgLfw9JDX9fwMcU-gvLM9Na9bdcuLIvwyeztrg" alt="Elizabeth" />
+              <img id="groomPhoto" class="h-full w-full object-cover" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==" alt="Groom" />
             </div>
-            <h2 class="mb-2 font-title-md text-headline-lg-mobile text-primary">Elizabeth Anne Smith</h2>
+            <h2 id="groomName" class="mb-2 font-title-md text-headline-lg-mobile text-primary"></h2>
             <p class="mb-1 font-body-md text-body-md text-sm italic text-secondary">Putra dari</p>
-            <p class="font-body-md text-body-md font-semibold text-on-surface">Margaret &amp; Robert Smith</p>
+            <p id="parentGroom" class="font-body-md text-body-md font-semibold text-on-surface"></p>
           </div>
 
           <div class="mt-0 flex flex-col items-center rounded bg-surface-container-lowest p-8 text-center soft-shadow md:mt-16">
             <div class="mb-8 h-56 w-56 overflow-hidden rounded-full border-4 border-secondary shadow-lg">
-              <img class="h-full w-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBj2tG3LgZnXzh6XA4DAlC98wXMjdxrLVaznaCG4GrvkY3ZImP-wPf-M4p-uAI3WU-e8eorXpKe4Su436ylf0yrprF7cC5CWsIPdLp3vP2su7v-u6euMTzFpKZ-sW3b-4efORB0KNsFCO7a-Mzlnc4mn7KHWrNTh8YP-6wQECoAoYJI_lhhXBtSuN2OV1g2IKWz4R_lZhuypa0FbSmtbOgYvY3_gj9Q0_fwZ61thqeF5FmPizrtvQ--" alt="James" />
+              <img id="bridePhoto" class="h-full w-full object-cover" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==" alt="Bride" />
             </div>
-            <h2 class="mb-2 font-title-md text-headline-lg-mobile text-primary">James William Taylor</h2>
+            <h2 id="brideName" class="mb-2 font-title-md text-headline-lg-mobile text-primary"></h2>
             <p class="mb-1 font-body-md text-body-md text-sm italic text-secondary">Putri dari</p>
-            <p class="font-body-md text-body-md font-semibold text-on-surface">Eleanor &amp; David Taylor</p>
+            <p id="parentBride" class="font-body-md text-body-md font-semibold text-on-surface"></p>
           </div>
         </div>
       </section>
@@ -217,20 +211,21 @@
           <h2 class="mb-12 font-display-lg text-headline-lg-mobile text-on-primary">Perayaan</h2>
           <div class="relative mb-10 w-full rounded border-2 border-secondary/50 bg-surface-container-lowest p-10 shadow-2xl">
             <div class="absolute -top-3 left-1/2 -translate-x-1/2 bg-surface-container-lowest px-4 text-2xl text-secondary">✦</div>
-            <h3 class="mb-4 border-b border-secondary/20 pb-4 font-title-md text-headline-lg-mobile text-primary">Sabtu, 24 Agustus 2024</h3>
-            <p class="mb-8 font-body-md text-body-md text-lg text-on-surface">Upacara dimulai pukul 16.30 <br /> Resepsi dilanjutkan setelahnya</p>
-            <h3 class="mb-4 font-title-md text-headline-lg-mobile text-primary">The Glass House</h3>
-            <p class="mb-6 font-body-md text-body-md text-lg text-on-surface">145 W 53rd St<br />New York, NY 10019</p>
-            <div class="mb-6 overflow-hidden rounded border border-secondary/20 bg-surface-container-low">
+            <h3 id="eventDate" class="mb-4 border-b border-secondary/20 pb-4 font-title-md text-headline-lg-mobile text-primary"></h3>
+            <p id="eventTime" class="mb-8 font-body-md text-body-md text-lg text-on-surface"></p>
+            <h3 id="eventPlace" class="mb-4 font-title-md text-headline-lg-mobile text-primary"></h3>
+            <p id="eventAddress" class="mb-6 font-body-md text-body-md text-lg text-on-surface"></p>
+            <div class="mb-6 overflow-hidden rounded border border-secondary/20 bg-surface-container-low" id="mapContainer" style="display:none;">
               <iframe
+                id="mapFrame"
                 class="h-56 w-full border-0"
-                src="https://www.google.com/maps?q=145+W+53rd+St+New+York+NY+10019&output=embed&z=16"
+                src=""
                 loading="lazy"
                 allowfullscreen
                 referrerpolicy="no-referrer-when-downgrade"
               ></iframe>
             </div>
-            <a class="inline-flex w-full items-center justify-center rounded bg-secondary px-8 py-4 font-label-sm text-label-sm uppercase tracking-wider text-on-secondary shadow-md transition-colors hover:bg-secondary-container hover:text-on-secondary-container sm:w-auto" href="https://www.google.com/maps?q=145+W+53rd+St+New+York+NY+10019" target="_blank" rel="noreferrer">
+            <a id="locationLink" class="inline-flex w-full items-center justify-center rounded bg-secondary px-8 py-4 font-label-sm text-label-sm uppercase tracking-wider text-on-secondary shadow-md transition-colors hover:bg-secondary-container hover:text-on-secondary-container sm:w-auto" href="#" target="_blank" rel="noreferrer" style="display:none;">
               Lihat Lokasi
             </a>
           </div>
@@ -255,7 +250,7 @@
       <section class="mx-auto max-w-lg bg-surface px-margin-mobile py-24" id="rsvp">
         <div class="mb-12 text-center">
           <h2 class="mb-4 font-display-lg text-headline-lg-mobile text-primary">RSVP</h2>
-          <p class="font-body-md text-body-md italic text-secondary">Mohon balasan paling lambat 1 Juli 2024</p>
+          <p class="font-body-md text-body-md italic text-secondary" data-rsvp-message></p>
           <div class="floral-divider mx-auto mt-8 w-full max-w-[150px]"></div>
         </div>
 

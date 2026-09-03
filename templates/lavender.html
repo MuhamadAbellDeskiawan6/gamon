@@ -154,8 +154,8 @@
     </style>
   </head>
   <body class="bg-background text-on-surface font-body-md antialiased md:max-w-container-max-width md:mx-auto">
-    <div class="fixed right-4 top-4 z-50">
-      <audio id="bgMusic" loop preload="auto" src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3"></audio>
+    <div class="fixed right-4 top-4 z-50" id="musicWrapper" style="display:none;">
+      <audio id="bgMusic" loop preload="auto"></audio>
       <button id="musicToggleButton" type="button" aria-label="Play music" class="floating-music-toggle">
         <span id="musicIcon" class="material-symbols-outlined text-xl">music_note</span>
       </button>
@@ -164,14 +164,12 @@
     <main class="pb-24 pt-0">
       <section class="relative flex h-screen w-full flex-col items-center justify-end pb-20 md:pb-32" id="cover">
         <div class="absolute inset-0 z-0">
-          <div class="h-full w-full bg-cover bg-center" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDLIdbOZNPEuY4qMQUqvWE63T9lv-XqNpdxrCjqzmwqcAEy_GleIK9muah0uGddymuAWn0uaqQTPvbFJHfMIW_BD-OJvOV7jof3bezJ8DS2TlvFW75DjlGSUsTdijlTBRJqgl5umZqMkDUkFGTUEXPeOeorj45nMq4MdaRCIcRKBUtXywciEV2Tyrrrox3H0tyEcBfxe1No1uinp7AiRhBZpHVN0OvY3F6w3P68_D60tI0BV6vnZKAw')"></div>
+          <div id="coverBackground" class="h-full w-full bg-cover bg-center" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDLIdbOZNPEuY4qMQUqvWE63T9lv-XqNpdxrCjqzmwqcAEy_GleIK9muah0uGddymuAWn0uaqQTPvbFJHfMIW_BD-OJvOV7jof3bezJ8DS2TlvFW75DjlGSUsTdijlTBRJqgl5umZqMkDUkFGTUEXPeOeorj45nMq4MdaRCIcRKBUtXywciEV2Tyrrrox3H0tyEcBfxe1No1uinp7AiRhBZpHVN0OvY3F6w3P68_D60tI0BV6vnZKAw')"></div>
           <div class="absolute inset-0 bg-gradient-to-t from-primary via-primary/60 to-transparent mix-blend-multiply"></div>
         </div>
         <div class="relative z-10 mx-4 flex flex-col items-center rounded border border-secondary/30 bg-surface/90 p-8 text-center backdrop-blur-sm">
           <p class="mb-4 font-body-md text-body-md uppercase tracking-widest text-primary opacity-90">Pernikahan</p>
-          <h1 id="coupleNames" class="mb-8 font-display-lg text-headline-lg-mobile text-primary md:text-display-lg">
-            Elizabeth <span class="mx-2 italic font-light text-secondary opacity-80">&amp;</span> James
-          </h1>
+          <h1 id="coupleNames" class="mb-8 font-display-lg text-headline-lg-mobile text-primary md:text-display-lg"></h1>
           <a class="flex items-center gap-2 rounded border border-secondary/50 bg-primary px-8 py-4 font-label-sm text-label-sm uppercase tracking-wider text-on-primary transition-all hover:bg-primary-container hover:text-on-primary-container" href="#intro">
             Buka Undangan <span class="material-symbols-outlined text-sm">expand_more</span>
           </a>
@@ -180,13 +178,9 @@
 
       <section class="mx-auto flex max-w-2xl flex-col items-center bg-surface px-margin-mobile py-24 text-center" id="intro">
         <div class="floral-divider mb-12 w-full max-w-[200px]"></div>
-        <p class="mb-8 px-4 font-display-lg text-headline-lg-mobile italic leading-relaxed text-primary md:text-headline-lg">
-          "Sesuatu yang membuat jiwa kita sama, jiwa saya dan jiwa Anda pun sama."
-        </p>
-        <p class="mb-6 font-body-lg text-body-lg font-semibold uppercase tracking-widest text-secondary opacity-90">— Emily Brontë —</p>
-        <p class="mt-4 px-4 text-justify font-body-md text-body-md leading-relaxed text-on-surface md:text-center">
-          Dengan bahagia kami mengundang Bapak/Ibu/Saudara/i untuk merayakan awal babak baru dalam hidup kami. Kasih sayang dan dukungan Anda telah membentuk perjalanan kami, dan kami tidak bisa membayangkan melangkah maju tanpa kehadiran Anda.
-        </p>
+        <p id="quoteText" class="mb-8 px-4 font-display-lg text-headline-lg-mobile italic leading-relaxed text-primary md:text-headline-lg"></p>
+        <p id="quoteAuthor" class="mb-6 font-body-lg text-body-lg font-semibold uppercase tracking-widest text-secondary opacity-90"></p>
+        <p id="storyText" class="mt-4 px-4 text-justify font-body-md text-body-md leading-relaxed text-on-surface md:text-center"></p>
         <div class="floral-divider mt-12 w-full max-w-[200px]"></div>
       </section>
 
@@ -194,20 +188,20 @@
         <div class="grid grid-cols-1 gap-12 md:grid-cols-2">
           <div class="flex flex-col items-center rounded bg-surface-container-lowest p-8 text-center soft-shadow">
             <div class="mb-8 h-56 w-56 overflow-hidden rounded-full border-4 border-secondary shadow-lg">
-              <img id="groomPhoto" class="h-full w-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBiDS4z38FHQndzg8oTAh39dscSDrM4zUvFHsJBDrq7PAWDjx09a4U-ggHf7ZC2QYN39TOKp22DI2TQyV6PIMXS0qOwkeSHG8vw5gQqHXwT0EWljriMUHt8hboWHuupgQU2GSe0NU6vgw-s5iazhr_LX8fzC4AVGfM2qQIn7tXq678h7erdN9TVdtpLatkzV0_CR1xKIXIZHknxnSlgLfw9JDX9fwMcU-gvLM9Na9bdcuLIvwyeztrg" alt="Elizabeth" />
+              <img id="groomPhoto" class="h-full w-full object-cover" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==" alt="Groom" />
             </div>
-            <h2 id="groomName" class="mb-2 font-title-md text-headline-lg-mobile text-primary">Elizabeth Anne Smith</h2>
+            <h2 id="groomName" class="mb-2 font-title-md text-headline-lg-mobile text-primary"></h2>
             <p class="mb-1 font-body-md text-body-md text-sm italic text-secondary">Putra dari</p>
-            <p id="groomParents" class="font-body-md text-body-md font-semibold text-on-surface">Margaret &amp; Robert Smith</p>
+            <p id="parentGroom" class="font-body-md text-body-md font-semibold text-on-surface"></p>
           </div>
 
           <div class="mt-0 flex flex-col items-center rounded bg-surface-container-lowest p-8 text-center soft-shadow md:mt-16">
             <div class="mb-8 h-56 w-56 overflow-hidden rounded-full border-4 border-secondary shadow-lg">
-              <img id="bridePhoto" class="h-full w-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBj2tG3LgZnXzh6XA4DAlC98wXMjdxrLVaznaCG4GrvkY3ZImP-wPf-M4p-uAI3WU-e8eorXpKe4Su436ylf0yrprF7cC5CWsIPdLp3vP2su7v-u6euMTzFpKZ-sW3b-4efORB0KNsFCO7a-Mzlnc4mn7KHWrNTh8YP-6wQECoAoYJI_lhhXBtSuN2OV1g2IKWz4R_lZhuypa0FbSmtbOgYvY3_gj9Q0_fwZ61thqeF5FmPizrtvQ--" alt="James" />
+              <img id="bridePhoto" class="h-full w-full object-cover" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==" alt="Bride" />
             </div>
-            <h2 id="brideName" class="mb-2 font-title-md text-headline-lg-mobile text-primary">James William Taylor</h2>
+            <h2 id="brideName" class="mb-2 font-title-md text-headline-lg-mobile text-primary"></h2>
             <p class="mb-1 font-body-md text-body-md text-sm italic text-secondary">Putri dari</p>
-            <p id="brideParents" class="font-body-md text-body-md font-semibold text-on-surface">Eleanor &amp; David Taylor</p>
+            <p id="parentBride" class="font-body-md text-body-md font-semibold text-on-surface"></p>
           </div>
         </div>
       </section>
@@ -219,20 +213,20 @@
           <h2 class="mb-12 font-display-lg text-headline-lg-mobile text-on-primary">Perayaan</h2>
           <div class="relative mb-10 w-full rounded border-2 border-secondary/50 bg-surface-container-lowest p-10 shadow-2xl">
             <div class="absolute -top-3 left-1/2 -translate-x-1/2 bg-surface-container-lowest px-4 text-2xl text-secondary">✦</div>
-            <h3 id="eventDate" class="mb-4 border-b border-secondary/20 pb-4 font-title-md text-headline-lg-mobile text-primary">Sabtu, 24 Agustus 2024</h3>
-            <p id="eventTime" class="mb-8 font-body-md text-body-md text-lg text-on-surface">Upacara dimulai pukul 16.30 <br /> Resepsi dilanjutkan setelahnya</p>
-            <h3 id="eventPlace" class="mb-4 font-title-md text-headline-lg-mobile text-primary">The Glass House</h3>
-            <p id="eventAddress" class="mb-6 font-body-md text-body-md text-lg text-on-surface">145 W 53rd St<br />New York, NY 10019</p>
-            <div class="mb-6 overflow-hidden rounded border border-secondary/20 bg-surface-container-low">
+            <h3 id="eventDate" class="mb-4 border-b border-secondary/20 pb-4 font-title-md text-headline-lg-mobile text-primary"></h3>
+            <p id="eventTime" class="mb-8 font-body-md text-body-md text-lg text-on-surface"></p>
+            <h3 id="eventPlace" class="mb-4 font-title-md text-headline-lg-mobile text-primary"></h3>
+            <p id="eventAddress" class="mb-6 font-body-md text-body-md text-lg text-on-surface"></p>
+            <div class="mb-6 overflow-hidden rounded border border-secondary/20 bg-surface-container-low" id="mapContainer" style="display:none;">
               <iframe id="mapFrame"
                 class="h-56 w-full border-0"
-                src="https://www.google.com/maps?q=145+W+53rd+St+New+York+NY+10019&output=embed&z=16"
+                src=""
                 loading="lazy"
                 allowfullscreen
                 referrerpolicy="no-referrer-when-downgrade"
               ></iframe>
             </div>
-            <a id="locationLink" class="inline-flex w-full items-center justify-center rounded bg-secondary px-8 py-4 font-label-sm text-label-sm uppercase tracking-wider text-on-secondary shadow-md transition-colors hover:bg-secondary-container hover:text-on-secondary-container sm:w-auto" href="https://www.google.com/maps?q=145+W+53rd+St+New+York+NY+10019" target="_blank" rel="noreferrer">
+            <a id="locationLink" class="inline-flex w-full items-center justify-center rounded bg-secondary px-8 py-4 font-label-sm text-label-sm uppercase tracking-wider text-on-secondary shadow-md transition-colors hover:bg-secondary-container hover:text-on-secondary-container sm:w-auto" href="#" target="_blank" rel="noreferrer" style="display:none;">
               Lihat Lokasi
             </a>
           </div>
@@ -257,7 +251,7 @@
       <section class="mx-auto max-w-lg bg-surface px-margin-mobile py-24" id="rsvp">
         <div class="mb-12 text-center">
           <h2 class="mb-4 font-display-lg text-headline-lg-mobile text-primary">RSVP</h2>
-          <p class="font-body-md text-body-md italic text-secondary">Mohon balasan paling lambat 1 Juli 2024</p>
+          <p class="font-body-md text-body-md italic text-secondary" data-rsvp-message></p>
           <div class="floral-divider mx-auto mt-8 w-full max-w-[150px]"></div>
         </div>
 
@@ -316,17 +310,7 @@
           <h2 class="mb-4 font-display-lg text-headline-lg-mobile text-primary">Momen</h2>
           <div class="floral-divider mx-auto w-full max-w-[150px]"></div>
         </div>
-        <div class="mx-auto grid max-w-5xl grid-cols-1 justify-items-center gap-3 sm:grid-cols-2 md:grid-cols-3 md:gap-4">
-          <div class="group w-full max-w-[280px] overflow-hidden rounded border-4 border-secondary/30 soft-shadow">
-            <img class="h-40 w-full object-cover transition-transform duration-700 group-hover:scale-105 md:h-52" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCUTYpRDa-qumt6PxM2__FcpGFDeJSnCYX4ImPdlN8egoCA_N9RC98NJ-wWprAQowDmiwsQZ_HkZx7j217Ot9WseVnuZy5FOaP50pQ6cJXZR3ePSmNcG8jtbfcJrt6KkFewMzfr4twNZ33h-Y2Sm5KH5qHuT6aUYdKrqDJdWNPfclU3zVniBdcYTcP4A-K_fqui5Yk2jGTe810w172Jx2BM16u9EaaJpX23LgjrMxqLnhfItWZxHXX2" alt="Wedding moments" />
-          </div>
-          <div class="group w-full max-w-[280px] overflow-hidden rounded border-2 border-secondary/30 soft-shadow">
-            <img class="h-40 w-full object-cover transition-transform duration-700 group-hover:scale-105 md:h-52" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCg8P8jayQVFpF763ya17DSUp_955QR7w9CkeQcBrgGVjzezhjxhjdbAGzQRik9s2N1_ovo4qHPDTSgdNa4fJ32zTwWKJ8hXqb7FHJhL-ywNFUg5hOQpyLJPsmjaKHo4GoIcmzD_bHYi4mZIDlqrbJSX_U-yLVssCJmD5llxULogj-BEw4NRwlUDO5I6mkOnbxhT-8HOj59cXbHUaLzPIwRz8tzuRAf365SIQpLHwtBYu6V9nVZJO2t" alt="Hands and ring detail" />
-          </div>
-          <div class="group w-full max-w-[280px] overflow-hidden rounded border-2 border-secondary/30 soft-shadow">
-            <img class="h-40 w-full object-cover transition-transform duration-700 group-hover:scale-105 md:h-52" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB3SJfI2c51FUEx8b2Cv_oatjYN3mPFw-WChvJUDziUWm2mvfYYHCdd4NMX6rAAsmh6tQU7RmPGVqq_QZn7uXLMu9E8lUHNcjiTBR9uSLy6jTbi3ZMoJwtuSReNfqwec-ruz8qeirutMubVQEPj_CL4nSIXNueNIcZ56YfG1_mu-CI2kBwdbqdjn3vaSaIEd8O4wwD4vEE9TQBjuvt73sdbIm5EzwKKlk2AaTJJBfP2eBBJrzUImiKF" alt="Walking together" />
-          </div>
-        </div>
+        <div id="galleryGrid" class="mx-auto grid max-w-5xl grid-cols-1 justify-items-center gap-3 sm:grid-cols-2 md:grid-cols-3 md:gap-4"></div>
       </section>
     </main>
 
@@ -346,14 +330,17 @@
       const musicEl = document.getElementById('bgMusic');
       const musicToggleButton = document.getElementById('musicToggleButton');
       const musicIcon = document.getElementById('musicIcon');
+      const musicWrapper = document.getElementById('musicWrapper');
       let isPlaying = false;
 
       const updateMusicButton = () => {
+        if (!musicIcon || !musicToggleButton) return;
         musicIcon.textContent = isPlaying ? 'pause' : 'music_note';
         musicToggleButton.setAttribute('aria-label', isPlaying ? 'Pause music' : 'Play music');
       };
 
       const tryAutoplay = async () => {
+        if (!musicEl) return;
         try {
           musicEl.volume = 0.45;
           await musicEl.play();
@@ -365,28 +352,24 @@
         }
       };
 
-      musicToggleButton.addEventListener('click', async () => {
-        if (!musicEl) return;
-
-        if (isPlaying) {
-          musicEl.pause();
-          isPlaying = false;
-        } else {
-          try {
-            await musicEl.play();
-            isPlaying = true;
-          } catch (error) {
+      if (musicToggleButton) {
+        musicToggleButton.addEventListener('click', async () => {
+          if (!musicEl) return;
+          if (isPlaying) {
+            musicEl.pause();
             isPlaying = false;
+          } else {
+            try {
+              await musicEl.play();
+              isPlaying = true;
+            } catch (error) {
+              isPlaying = false;
+            }
           }
-        }
+          updateMusicButton();
+        });
+      }
 
-        updateMusicButton();
-      });
-
-      tryAutoplay();
-    </script>
-
-    <script>
       const rsvpFormLavender = document.querySelector('[data-rsvp-form]');
       const rsvpListLavender = document.querySelector('[data-rsvp-list]');
       const rsvpMessageLavender = document.querySelector('[data-rsvp-message]');
@@ -411,225 +394,248 @@
             <p class="mt-2 text-sm text-on-surface">${message}</p>
           `;
 
-          if (rsvpListLavender) {
-            rsvpListLavender.prepend(card);
-          }
-
+          if (rsvpListLavender) rsvpListLavender.prepend(card);
           if (rsvpMessageLavender) {
             rsvpMessageLavender.textContent = `${name} berhasil mengirimkan balasan ${attending === 'yes' ? 'hadir' : 'tidak hadir'} ke acara kami.`;
             rsvpMessageLavender.classList.add('text-primary');
           }
-
           rsvpFormLavender.reset();
         });
       }
-    </script>
-    <script>
+
       const lavenderParams = new URLSearchParams(window.location.search);
       const lavenderSlug = lavenderParams.get('slug');
+      const lavenderDb = firebase.firestore(firebase.initializeApp({ apiKey: 'AIzaSyC247K8yyL67aWV95KNQy8CkMZsjgGCudQ', authDomain: 'gamon-tawing.firebaseapp.com', projectId: 'gamon-tawing' }, 'lavenderInvitationApp'));
 
-      const lavenderStatusBox = document.createElement('div');
-      lavenderStatusBox.id = 'lavenderStatusBox';
-      lavenderStatusBox.style.position = 'fixed';
-      lavenderStatusBox.style.left = '50%';
-      lavenderStatusBox.style.bottom = '24px';
-      lavenderStatusBox.style.transform = 'translateX(-50%)';
-      lavenderStatusBox.style.maxWidth = '560px';
-      lavenderStatusBox.style.width = 'calc(100% - 32px)';
-      lavenderStatusBox.style.padding = '12px 16px';
-      lavenderStatusBox.style.borderRadius = '14px';
-      lavenderStatusBox.style.background = 'rgba(27, 28, 28, 0.9)';
-      lavenderStatusBox.style.color = '#fff';
-      lavenderStatusBox.style.fontSize = '0.92rem';
-      lavenderStatusBox.style.fontFamily = 'Inter, Arial, sans-serif';
-      lavenderStatusBox.style.boxShadow = '0 18px 50px rgba(0,0,0,0.18)';
-      lavenderStatusBox.style.zIndex = '999';
-      lavenderStatusBox.style.display = 'none';
-      document.body.appendChild(lavenderStatusBox);
-
-      function setLavenderStatus(message, isError = false) {
-        lavenderStatusBox.textContent = message;
-        lavenderStatusBox.style.display = 'block';
-        lavenderStatusBox.style.background = isError ? 'rgba(120, 16, 16, 0.94)' : 'rgba(27, 28, 28, 0.9)';
-      }
-
-      function formatLavenderDate(dateValue) {
+      const formatLocaleDate = (dateValue) => {
         const value = String(dateValue || '').trim();
-        if (!value) return '-';
-        const parsed = new Date(value + 'T00:00:00');
+        if (!value) return '';
+        const parsed = new Date(value.includes('T') ? value : `${value}T00:00:00`);
         if (Number.isNaN(parsed.getTime())) return value;
         return new Intl.DateTimeFormat('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }).format(parsed);
-      }
+      };
 
-      function buildMapsUrl(value) {
+      const getEffectiveCountdownDate = (invitation) => invitation.countdownDate || invitation.receptionDate || invitation.akadDate || '';
+
+      const buildMapsUrl = (value) => {
         const trimmed = String(value || '').trim();
         if (!trimmed) return '';
         if (/^https?:\/\//i.test(trimmed)) return trimmed;
         if (/^-?\d+(?:\.\d+)?\s*,\s*-?\d+(?:\.\d+)?$/.test(trimmed)) return `https://www.google.com/maps?q=${trimmed}`;
         return `https://www.google.com/maps?q=${encodeURIComponent(trimmed)}`;
-      }
+      };
 
-      function buildMapEmbedUrl(value) {
+      const buildMapEmbedUrl = (value) => {
         const url = buildMapsUrl(value);
         if (!url) return '';
-        if (url.includes('output=embed')) return url;
-        if (/^https?:\/\//i.test(url)) {
-          return `${url}${url.includes('?') ? '&' : '?'}output=embed&z=16`;
-        }
-        return `https://www.google.com/maps?q=${encodeURIComponent(value)}&output=embed&z=16`;
-      }
+        return `${url}${url.includes('?') ? '&' : '?'}output=embed&z=16`;
+      };
 
-      function getCountdownParts(targetDate) {
+      const getCountdownParts = (targetDate) => {
         const value = String(targetDate || '').trim();
-        if (!value) {
-          return { days: 0, hours: 0, minutes: 0, isExpired: true };
-        }
-
-        const target = new Date(value + 'T00:00:00');
-        const now = new Date();
-        const diff = target.getTime() - now.getTime();
-
-        if (Number.isNaN(target.getTime()) || diff <= 0) {
-          return { days: 0, hours: 0, minutes: 0, isExpired: true };
-        }
-
+        if (!value) return { days: 0, hours: 0, minutes: 0, seconds: 0, isExpired: true };
+        const target = new Date(value.includes('T') ? value : `${value}T00:00:00`);
+        const diff = target.getTime() - Date.now();
+        if (Number.isNaN(target.getTime()) || diff <= 0) return { days: 0, hours: 0, minutes: 0, seconds: 0, isExpired: true };
+        const totalSeconds = Math.floor(diff / 1000);
         return {
-          days: Math.floor(diff / (1000 * 60 * 60 * 24)),
-          hours: Math.floor((diff / (1000 * 60 * 60)) % 24),
-          minutes: Math.floor((diff / (1000 * 60)) % 60),
-          isExpired: false,
+          days: Math.floor(totalSeconds / 86400),
+          hours: Math.floor((totalSeconds % 86400) / 3600),
+          minutes: Math.floor((totalSeconds % 3600) / 60),
+          seconds: totalSeconds % 60,
+          isExpired: false
         };
-      }
+      };
 
-      function applyCountdown(invitation) {
-        const targetDate = invitation.countdownDate || invitation.receptionDate || invitation.akadDate || '';
+      const renderCountdown = (invitation) => {
+        const countdownWrap = document.querySelector('#details .mt-8.flex.justify-center.gap-6');
+        const targetDate = getEffectiveCountdownDate(invitation);
+        if (countdownWrap) countdownWrap.style.display = targetDate ? 'flex' : 'none';
+        if (!targetDate) return;
         const parts = getCountdownParts(targetDate);
         const dayNode = document.getElementById('countdownDays');
         const hourNode = document.getElementById('countdownHours');
         const minuteNode = document.getElementById('countdownMinutes');
+        if (parts.isExpired) {
+          if (dayNode) dayNode.textContent = '00';
+          if (hourNode) hourNode.textContent = '00';
+          if (minuteNode) minuteNode.textContent = '00';
+          const existing = document.querySelector('#details [data-countdown-status]');
+          if (existing) existing.remove();
+          const block = document.createElement('p');
+          block.setAttribute('data-countdown-status', 'true');
+          block.textContent = 'Acara telah berlangsung';
+          block.style.marginTop = '12px';
+          block.style.color = '#5d4a7f';
+          block.style.fontWeight = '600';
+          block.style.letterSpacing = '0.08em';
+          block.style.textTransform = 'uppercase';
+          block.style.fontSize = '0.75rem';
+          const target = document.querySelector('#details .relative.z-10.mx-auto');
+          if (target) target.appendChild(block);
+          return;
+        }
+        const existing = document.querySelector('#details [data-countdown-status]');
+        if (existing) existing.remove();
+        if (dayNode) dayNode.textContent = String(parts.days).padStart(2, '0');
+        if (hourNode) hourNode.textContent = String(parts.hours).padStart(2, '0');
+        if (minuteNode) minuteNode.textContent = String(parts.minutes).padStart(2, '0');
+      };
 
-        if (dayNode) dayNode.textContent = String(parts.days);
-        if (hourNode) hourNode.textContent = String(parts.hours);
-        if (minuteNode) minuteNode.textContent = String(parts.minutes);
-      }
+      const formatRsvpMessage = (invitation) => {
+        const base = String(invitation.rsvpMessage || '').trim();
+        const formattedDate = getEffectiveCountdownDate(invitation) ? formatLocaleDate(getEffectiveCountdownDate(invitation)) : '';
+        const fallback = 'Mohon konfirmasi sebelum';
+        if (!base && !formattedDate) return fallback;
+        if (!formattedDate) return base || fallback;
+        if (base.includes(formattedDate)) return base || fallback;
+        return `${(base || fallback).replace(/[.!]$/, '')} ${formattedDate}.`;
+      };
 
-      function applyLavenderInvitation(invitation) {
-        const groomName = invitation.groomName || 'Elizabeth Anne Smith';
-        const brideName = invitation.brideName || 'James William Taylor';
-        const coupleNames = invitation.title || `${groomName} & ${brideName}`;
-        const groomParents = invitation.parentGroom || 'Margaret & Robert Smith';
-        const brideParents = invitation.parentBride || 'Eleanor & David Taylor';
+      const renderGallery = (invitation = {}) => {
+        const galleryImages = Array.isArray(invitation.galleryImages)
+          ? invitation.galleryImages.filter((src) => typeof src === 'string' && src.trim())
+          : [];
 
-        document.title = coupleNames;
+        const gallerySection = document.getElementById('gallery');
+        const galleryGrid = document.getElementById('galleryGrid');
+
+        if (gallerySection) {
+          gallerySection.style.display = galleryImages.length > 0 ? 'block' : 'none';
+        }
+
+        if (!galleryGrid) return;
+
+        if (!galleryImages.length) {
+          galleryGrid.innerHTML = '';
+          return;
+        }
+
+        galleryGrid.innerHTML = galleryImages.slice(0, 3).map((src) => `
+          <div class="group w-full max-w-[280px] overflow-hidden rounded border-4 border-secondary/30 soft-shadow">
+            <img class="h-40 w-full object-cover transition-transform duration-700 group-hover:scale-105 md:h-52" src="${src}" alt="Wedding moment" loading="lazy" />
+          </div>
+        `).join('');
+      };
+
+      const applyLavenderInvitation = (invitation = {}) => {
+        const groomName = String(invitation.groomName || '').trim();
+        const brideName = String(invitation.brideName || '').trim();
+        const title = String(invitation.title || '').trim() || [groomName, brideName].filter(Boolean).join(' & ') || 'Undangan Pernikahan';
+        const groomParents = String(invitation.parentGroom || '').trim();
+        const brideParents = String(invitation.parentBride || '').trim();
+        const quote = String(invitation.quote || '').trim();
+        const story = String(invitation.story || '').trim();
+        const eventDate = formatLocaleDate(invitation.receptionDate || invitation.akadDate || '');
+        const eventTime = invitation.receptionTime || invitation.akadTime || '';
+        const eventPlace = String(invitation.receptionPlace || invitation.akadPlace || '').trim();
+        const eventAddress = String(invitation.address || '').trim();
+        const mapUrl = buildMapsUrl(invitation.mapLink || invitation.address || eventAddress);
+        const mapEmbedUrl = buildMapEmbedUrl(invitation.mapLink || invitation.address || eventAddress);
+
+        document.title = title;
 
         const coupleLabel = document.getElementById('coupleNames');
-        if (coupleLabel) coupleLabel.textContent = coupleNames;
+        if (coupleLabel) coupleLabel.textContent = title;
+
+        const quoteText = document.getElementById('quoteText');
+        if (quoteText) {
+          quoteText.textContent = quote || '';
+          quoteText.style.display = quote ? 'block' : 'none';
+        }
+
+        const quoteAuthor = document.getElementById('quoteAuthor');
+        if (quoteAuthor) {
+          const quoteAuthorText = String(invitation.quoteAuthor || '').trim();
+          quoteAuthor.textContent = quoteAuthorText || '';
+          quoteAuthor.style.display = quoteAuthorText ? 'block' : 'none';
+        }
 
         const groomNode = document.getElementById('groomName');
         const brideNode = document.getElementById('brideName');
         if (groomNode) groomNode.textContent = groomName;
         if (brideNode) brideNode.textContent = brideName;
 
-        const groomParentNode = document.getElementById('groomParents');
-        const brideParentNode = document.getElementById('brideParents');
+        const groomParentNode = document.getElementById('parentGroom');
+        const brideParentNode = document.getElementById('parentBride');
         if (groomParentNode) groomParentNode.textContent = groomParents;
         if (brideParentNode) brideParentNode.textContent = brideParents;
+
+        const introText = document.getElementById('storyText');
+        if (introText) {
+          introText.textContent = story || '';
+          introText.style.display = story ? 'block' : 'none';
+        }
 
         const footerCoupleNames = document.getElementById('footerCoupleNames');
         const footerCredit = document.getElementById('footerCredit');
         if (footerCoupleNames) footerCoupleNames.textContent = `${groomName} & ${brideName}`;
         if (footerCredit) footerCredit.textContent = `Dibuat dengan cinta untuk ${groomName} & ${brideName}. © ${new Date().getFullYear()}`;
 
-        const introText = document.getElementById('storyText');
-        if (introText) introText.textContent = invitation.story || 'Dengan bahagia kami mengundang Bapak/Ibu/Saudara/i untuk merayakan awal babak baru dalam hidup kami. Kasih sayang dan dukungan Anda telah membentuk perjalanan kami, dan kami tidak bisa membayangkan melangkah maju tanpa kehadiran Anda.';
-
-        const eventDate = formatLavenderDate(invitation.receptionDate || invitation.akadDate || '');
-        const eventTime = invitation.receptionTime || invitation.akadTime || '16.30';
-        const eventPlace = invitation.receptionPlace || 'The Glass House';
-        const eventAddress = invitation.address || '145 W 53rd St, New York, NY 10019';
-        const mapUrl = buildMapsUrl(invitation.mapLink || invitation.address || eventAddress);
-        const mapEmbedUrl = buildMapEmbedUrl(invitation.mapLink || invitation.address || eventAddress);
+        const rsvpStatus = document.querySelector('[data-rsvp-message]');
+        if (rsvpStatus) rsvpStatus.textContent = formatRsvpMessage(invitation);
 
         const dateNode = document.getElementById('eventDate');
         const timeNode = document.getElementById('eventTime');
         const placeNode = document.getElementById('eventPlace');
         const addressNode = document.getElementById('eventAddress');
         const mapFrame = document.getElementById('mapFrame');
+        const mapContainer = document.getElementById('mapContainer');
         const locationLink = document.getElementById('locationLink');
 
-        if (dateNode) dateNode.textContent = eventDate;
-        if (timeNode) timeNode.innerHTML = `Upacara dimulai pukul ${eventTime} <br /> Resepsi dilanjutkan setelahnya`;
-        if (placeNode) placeNode.textContent = eventPlace;
-        if (addressNode) addressNode.innerHTML = eventAddress.replace(/\n/g, '<br>');
-        if (mapFrame && mapEmbedUrl) mapFrame.src = mapEmbedUrl;
-        if (locationLink && mapUrl) locationLink.href = mapUrl;
+        if (dateNode) {
+          dateNode.textContent = eventDate || '';
+          dateNode.style.display = eventDate ? 'block' : 'none';
+        }
+        if (timeNode) {
+          timeNode.innerHTML = eventTime ? `Upacara dimulai pukul ${eventTime} <br /> Resepsi dilanjutkan setelahnya` : '';
+          timeNode.style.display = eventTime ? 'block' : 'none';
+        }
+        if (placeNode) {
+          placeNode.textContent = eventPlace || '';
+          placeNode.style.display = eventPlace ? 'block' : 'none';
+        }
+        if (addressNode) {
+          addressNode.innerHTML = eventAddress || '';
+          addressNode.style.display = eventAddress ? 'block' : 'none';
+        }
+        if (mapFrame) mapFrame.src = mapEmbedUrl || '';
+        if (mapContainer) mapContainer.style.display = mapEmbedUrl ? 'block' : 'none';
+        if (locationLink) {
+          locationLink.href = mapUrl || '#';
+          locationLink.style.display = mapUrl ? 'inline-flex' : 'none';
+        }
 
         const coverImage = document.querySelector('#cover .absolute.inset-0 > div:first-child');
-        if (coverImage && invitation.openingPhoto) {
-          coverImage.style.backgroundImage = `url('${invitation.openingPhoto}')`;
+        if (coverImage) coverImage.style.backgroundImage = invitation.openingPhoto ? `url('${invitation.openingPhoto}')` : '';
+
+        const groomPhoto = document.getElementById('groomPhoto');
+        if (groomPhoto) groomPhoto.src = invitation.groomPhoto || groomPhoto.getAttribute('src') || '';
+        const bridePhoto = document.getElementById('bridePhoto');
+        if (bridePhoto) bridePhoto.src = invitation.bridePhoto || bridePhoto.getAttribute('src') || '';
+
+        const musicUrl = String(invitation.musicUrl || '').trim();
+        if (musicWrapper) musicWrapper.style.display = musicUrl ? 'block' : 'none';
+        if (musicUrl && musicEl) {
+          musicEl.src = musicUrl;
+          tryAutoplay();
         }
 
-        if (document.getElementById('groomPhoto') && invitation.groomPhoto) {
-          document.getElementById('groomPhoto').src = invitation.groomPhoto;
-        }
-
-        if (document.getElementById('bridePhoto') && invitation.bridePhoto) {
-          document.getElementById('bridePhoto').src = invitation.bridePhoto;
-        }
-
-        const galleryImages = Array.isArray(invitation.galleryImages) ? invitation.galleryImages.filter(Boolean) : [];
-        ['galleryImage1', 'galleryImage2', 'galleryImage3'].forEach((id, index) => {
-          const target = document.getElementById(id);
-          if (target && galleryImages[index]) target.src = galleryImages[index];
-        });
-
-        if (musicEl && invitation.musicUrl) {
-          musicEl.src = invitation.musicUrl;
-          try {
-            musicEl.play();
-          } catch (error) {
-            // Autoplay blocked by browser; keep user control.
-          }
-        }
-
-        applyCountdown(invitation);
-      }
+        renderGallery(invitation);
+        renderCountdown(invitation);
+      };
 
       async function loadLavenderInvitation() {
-        if (!lavenderSlug || !/^[a-z0-9-]+$/i.test(lavenderSlug.trim())) {
-          setLavenderStatus('Link undangan belum memiliki slug valid.', true);
-          return;
-        }
-
-        const lavenderConfig = {
-          apiKey: 'AIzaSyC247K8yyL67aWV95KNQy8CkMZsjgGCudQ',
-          authDomain: 'gamon-tawing.firebaseapp.com',
-          projectId: 'gamon-tawing'
-        };
-
-        const lavenderApp = firebase.initializeApp(lavenderConfig);
-        const lavenderDb = firebase.firestore(lavenderApp);
-
+        if (!lavenderSlug) return;
         try {
-          const snapshot = await lavenderDb.collection('gamon_wedding_invitations').where('shareSlug', '==', lavenderSlug.trim()).limit(1).get();
-          if (snapshot.empty) {
-            setLavenderStatus('Undangan dengan slug ini tidak ditemukan.', true);
-            return;
-          }
-
-          const invitation = snapshot.docs[0].data();
-          applyLavenderInvitation(invitation);
+          const snapshot = await lavenderDb.collection('gamon_wedding_invitations').where('shareSlug', '==', lavenderSlug).limit(1).get();
+          if (!snapshot.empty) applyLavenderInvitation(snapshot.docs[0].data());
         } catch (error) {
           console.error('Gagal memuat data undangan lavender:', error);
-          setLavenderStatus('Gagal memuat data undangan. Silakan cek slug undangan.', true);
         }
       }
 
-      if (lavenderSlug) {
-        loadLavenderInvitation();
-      } else {
-        setLavenderStatus('Link undangan belum memiliki slug valid.', true);
-      }
+      if (lavenderSlug) loadLavenderInvitation();
     </script>
   </body>
 </html>

@@ -174,8 +174,8 @@
     </style>
   </head>
   <body class="bg-background text-on-surface font-body-md antialiased md:max-w-container-max md:mx-auto">
-    <div class="fixed right-4 top-4 z-50">
-      <audio id="bgMusic" loop preload="auto" src="/music.mp3"></audio>
+    <div class="fixed right-4 top-4 z-50" id="musicWrapper" style="display:none;">
+      <audio id="bgMusic" loop preload="auto"></audio>
       <button id="musicToggleButton" type="button" aria-label="Play music" class="floating-music-toggle">
         <span id="musicIcon" class="material-symbols-outlined text-xl">music_note</span>
       </button>
@@ -191,9 +191,7 @@
         <div class="relative z-10 text-center px-margin-mobile flex flex-col items-center bg-surface/40 p-8 rounded-[40px] backdrop-blur-sm border border-surface/50">
           <span class="material-symbols-outlined text-primary mb-2 opacity-70">local_florist</span>
           <p class="font-label-sm text-label-sm text-on-surface-variant tracking-widest uppercase mb-4 opacity-80">Pernikahan</p>
-          <h1 class="font-display-lg text-headline-lg-mobile md:text-display-lg text-primary mb-8 leading-tight">
-            Abell <span class="italic font-light opacity-80 mx-2 text-secondary">&amp;</span> Purnama
-          </h1>
+          <h1 id="coupleNames" class="font-display-lg text-headline-lg-mobile md:text-display-lg text-primary mb-8 leading-tight"></h1>
           <a class="bg-primary text-on-primary font-label-md text-label-md px-8 py-4 rounded-full uppercase tracking-wider hover:shadow-lg transition-all flex items-center gap-2" href="#intro">
             Buka Undangan <span class="material-symbols-outlined text-sm">expand_more</span>
           </a>
@@ -202,9 +200,9 @@
 
       <section class="py-section-padding px-margin-mobile text-center max-w-2xl mx-auto flex flex-col items-center" id="intro">
         <div class="floral-divider w-full max-w-[200px] mb-12"></div>
-        <p class="font-headline-md text-headline-sm md:text-headline-md text-primary italic leading-relaxed mb-8">"Sesuatu yang membuat jiwa kita sama, jiwa saya dan jiwa Anda pun sama."</p>
-        <p class="font-label-sm text-label-sm text-on-surface-variant tracking-widest uppercase mb-6 opacity-70">— Emily Brontë —</p>
-        <p class="font-body-md text-body-md text-on-surface leading-relaxed mt-4">Dengan bahagia kami mengundang Bapak/Ibu/Saudara/i untuk merayakan awal babak baru dalam hidup kami. Kasih sayang dan dukungan Anda telah membentuk perjalanan kami, dan kami tidak bisa membayangkan melangkah maju tanpa kehadiran Anda.</p>
+        <p id="quoteText" class="font-headline-md text-headline-sm md:text-headline-md text-primary italic leading-relaxed mb-8"></p>
+        <p id="quoteAuthor" class="font-label-sm text-label-sm text-on-surface-variant tracking-widest uppercase mb-6 opacity-70"></p>
+        <p id="storyText" class="font-body-md text-body-md text-on-surface leading-relaxed mt-4"></p>
         <div class="floral-divider w-full max-w-[200px] mt-12"></div>
       </section>
 
@@ -212,19 +210,19 @@
         <div class="grid grid-cols-1 md:grid-cols-2 gap-stack-lg">
           <div class="flex flex-col items-center text-center bg-surface-container-lowest p-8 rounded-[40px] soft-shadow border border-primary/10">
             <div class="w-56 h-56 soft-edge-image overflow-hidden mb-6 border-4 border-surface shadow-sm">
-              <img class="w-full h-full object-cover" src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=800&q=80" alt="Muhamad Abell Deskiawan" />
+              <img id="groomPhoto" class="w-full h-full object-cover" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==" alt="Groom" />
             </div>
-            <h2 class="font-headline-md text-headline-sm text-primary mb-2">Muhamad Abell Deskiawan</h2>
+            <h2 id="groomName" class="font-headline-md text-headline-sm text-primary mb-2"></h2>
             <p class="font-label-sm text-label-sm text-on-surface-variant text-sm italic mb-1">Putra dari</p>
-            <p class="font-body-md text-body-md text-on-surface">Bapak Arif &amp; Ibu Siti</p>
+            <p id="parentGroom" class="font-body-md text-body-md text-on-surface"></p>
           </div>
           <div class="flex flex-col items-center text-center bg-surface-container-lowest p-8 rounded-[40px] soft-shadow border border-primary/10 md:mt-12">
             <div class="w-56 h-56 soft-edge-image overflow-hidden mb-6 border-4 border-surface shadow-sm">
-              <img class="w-full h-full object-cover" src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=800&q=80" alt="Nur Purnamawati" />
+              <img id="bridePhoto" class="w-full h-full object-cover" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==" alt="Bride" />
             </div>
-            <h2 class="font-headline-md text-headline-sm text-primary mb-2">Nur Purnamawati</h2>
+            <h2 id="brideName" class="font-headline-md text-headline-sm text-primary mb-2"></h2>
             <p class="font-label-sm text-label-sm text-on-surface-variant text-sm italic mb-1">Putri dari</p>
-            <p class="font-body-md text-body-md text-on-surface">Bapak Joko &amp; Ibu Wati</p>
+            <p id="parentBride" class="font-body-md text-body-md text-on-surface"></p>
           </div>
         </div>
       </section>
@@ -236,14 +234,14 @@
           <span class="material-symbols-outlined text-primary mb-4 text-4xl" style="font-variation-settings: 'FILL' 1;">location_on</span>
           <h2 class="font-display-lg text-headline-lg-mobile text-primary mb-8">Perayaan</h2>
           <div class="bg-surface-container-lowest/80 backdrop-blur-md w-full rounded-[40px] p-8 mb-8 border border-primary/20">
-            <h3 class="font-headline-md text-headline-sm text-secondary mb-2">20 September 2026</h3>
-            <p class="font-body-md text-body-md text-on-surface-variant mb-6">Akad dimulai pukul 08:00<br />Resepsi dilanjutkan setelahnya</p>
-            <h3 class="font-headline-md text-headline-sm text-secondary mb-2">Aula Bunga Melati</h3>
-            <p class="font-body-md text-body-md text-on-surface-variant mb-6">Jl. Kalimantan No. 14, Banjarmasin</p>
-            <div class="mb-6 overflow-hidden rounded-[24px] border border-primary/20 bg-surface-container-low">
-              <iframe class="h-56 w-full border-0" src="https://www.google.com/maps?q=Jl.+Kalimantan+No.+14+Banjarmasin&output=embed&z=16" loading="lazy" allowfullscreen referrerpolicy="no-referrer-when-downgrade"></iframe>
+            <h3 id="eventDate" class="font-headline-md text-headline-sm text-secondary mb-2"></h3>
+            <p id="eventSummary" class="font-body-md text-body-md text-on-surface-variant mb-6"></p>
+            <h3 id="venueName" class="font-headline-md text-headline-sm text-secondary mb-2"></h3>
+            <p id="venueAddress" class="font-body-md text-body-md text-on-surface-variant mb-6"></p>
+            <div class="mb-6 overflow-hidden rounded-[24px] border border-primary/20 bg-surface-container-low" id="mapContainer" style="display:none;">
+              <iframe id="mapFrame" class="h-56 w-full border-0" src="" loading="lazy" allowfullscreen referrerpolicy="no-referrer-when-downgrade"></iframe>
             </div>
-            <a class="inline-flex items-center justify-center bg-transparent border border-primary text-primary font-label-md text-label-md px-8 py-3 rounded-full uppercase tracking-wider hover:bg-primary/10 transition-colors" href="https://www.google.com/maps?q=Jl.+Kalimantan+No.+14+Banjarmasin" target="_blank" rel="noreferrer">Lihat Lokasi</a>
+            <a id="mapLink" class="inline-flex items-center justify-center bg-transparent border border-primary text-primary font-label-md text-label-md px-8 py-3 rounded-full uppercase tracking-wider hover:bg-primary/10 transition-colors" href="#" target="_blank" rel="noreferrer" style="display:none;">Lihat Lokasi</a>
           </div>
           <div class="flex justify-center gap-4 mt-4">
             <div class="timer-unit"><span id="countdownDays" class="font-headline-md text-headline-sm text-primary">18</span><span class="font-label-sm text-label-sm text-secondary text-[10px] mt-1 tracking-widest">HARI</span></div>
@@ -256,7 +254,7 @@
       <section class="py-section-padding px-margin-mobile max-w-lg mx-auto" id="rsvp">
         <div class="text-center mb-10">
           <h2 class="font-display-lg text-headline-lg-mobile text-primary mb-4">RSVP</h2>
-          <p class="font-body-md text-body-md text-on-surface-variant">Mohon balasan paling lambat 15 September 2026</p>
+          <p id="rsvpDeadline" class="font-body-md text-body-md text-on-surface-variant"></p>
           <div class="floral-divider w-full max-w-[150px] mx-auto mt-6"></div>
         </div>
 
@@ -286,13 +284,13 @@
             <textarea class="min-h-[120px] w-full resize-none bg-transparent border-none focus:ring-0 text-on-surface font-body-md p-0 placeholder-on-surface-variant/40" id="message" name="message" placeholder="Tulis pesan, doa, atau alasan Anda..." required=""></textarea>
           </div>
           <div class="pt-6"><button class="w-full bg-primary text-on-primary font-label-md text-label-md py-4 rounded-full uppercase tracking-wider hover:shadow-lg transition-all" type="submit">Kirim Balasan</button></div>
-          <div class="rsvp-message rounded-xl border border-primary/20 bg-primary/5 p-3 text-sm text-on-surface" data-rsvp-message>Konfirmasi sebelum</div>
+          <div class="rsvp-message rounded-xl border border-primary/20 bg-primary/5 p-3 text-sm text-on-surface" data-rsvp-message></div>
         </form>
 
         <div class="mt-8 rounded-[40px] border border-primary/20 bg-surface-container-lowest p-5 soft-shadow">
           <h3 class="mb-4 font-display-lg text-headline-lg-mobile text-primary">Daftar Balasan</h3>
           <div class="space-y-3" data-rsvp-list>
-            <div class="rounded-xl border border-primary/20 bg-primary/5 p-3 text-sm text-on-surface-variant">Belum ada balasan. Jadilah yang pertama mengirimkan pesan.</div>
+            <div class="rounded-xl border border-primary/20 bg-primary/5 p-3 text-sm text-on-surface-variant" data-rsvp-list-empty>Belum ada balasan. Jadilah yang pertama mengirimkan pesan.</div>
           </div>
         </div>
       </section>
@@ -302,18 +300,18 @@
           <h2 class="font-display-lg text-headline-lg-mobile text-primary mb-4">Momen</h2>
           <div class="floral-divider w-full max-w-[150px] mx-auto"></div>
         </div>
-        <div class="mx-auto grid max-w-5xl grid-cols-1 justify-items-center gap-3 sm:grid-cols-2 md:grid-cols-3 md:gap-4">
-          <div class="group w-full max-w-[280px] overflow-hidden soft-edge-image soft-shadow"><img class="h-40 w-full object-cover transition-transform duration-700 group-hover:scale-105 md:h-52" src="https://images.unsplash.com/photo-1520854221256-17451cc331bf?auto=format&fit=crop&w=800&q=80" alt="Abell & Purnama" /></div>
-          <div class="group w-full max-w-[280px] overflow-hidden soft-edge-image soft-shadow"><img class="h-40 w-full object-cover transition-transform duration-700 group-hover:scale-105 md:h-52" src="https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=800&q=80" alt="Abell & Purnama" /></div>
-          <div class="group w-full max-w-[280px] overflow-hidden soft-edge-image soft-shadow"><img class="h-40 w-full object-cover transition-transform duration-700 group-hover:scale-105 md:h-52" src="https://images.unsplash.com/photo-1522673607200-164d1b6ce486?auto=format&fit=crop&w=800&q=80" alt="Abell & Purnama" /></div>
+        <div id="galleryGrid" class="mx-auto grid max-w-5xl grid-cols-1 justify-items-center gap-3 sm:grid-cols-2 md:grid-cols-3 md:gap-4">
+          <div class="group w-full max-w-[280px] overflow-hidden soft-edge-image soft-shadow"><img class="h-40 w-full object-cover transition-transform duration-700 group-hover:scale-105 md:h-52" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==" alt="Wedding moment" loading="lazy" /></div>
+          <div class="group w-full max-w-[280px] overflow-hidden soft-edge-image soft-shadow"><img class="h-40 w-full object-cover transition-transform duration-700 group-hover:scale-105 md:h-52" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==" alt="Wedding moment" loading="lazy" /></div>
+          <div class="group w-full max-w-[280px] overflow-hidden soft-edge-image soft-shadow"><img class="h-40 w-full object-cover transition-transform duration-700 group-hover:scale-105 md:h-52" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==" alt="Wedding moment" loading="lazy" /></div>
         </div>
       </section>
     </main>
 
     <footer class="bg-surface-container-lowest w-full py-section-padding flex flex-col items-center text-center px-margin-mobile mt-section-padding border-t border-primary/20 pb-24 md:pb-section-padding">
       <span class="material-symbols-outlined text-primary mb-4 text-3xl opacity-80">local_florist</span>
-      <h4 class="font-display-lg text-headline-sm text-primary mb-4">Muhamad Abell Deskiawan &amp; Nur Purnamawati</h4>
-      <p class="font-body-md text-body-md text-on-surface-variant mb-6 max-w-sm mx-auto">Dibuat dengan cinta untuk Muhamad Abell Deskiawan &amp; Nur Purnamawati.</p>
+      <h4 id="footerNames" class="font-display-lg text-headline-sm text-primary mb-4"></h4>
+      <p id="footerNote" class="font-body-md text-body-md text-on-surface-variant mb-6 max-w-sm mx-auto"></p>
       <div class="flex gap-4"><a class="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors text-sm" href="#">Kebijakan Privasi</a><span class="text-on-surface-variant/50">•</span><a class="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors text-sm" href="#">Bantuan</a></div>
     </footer>
 

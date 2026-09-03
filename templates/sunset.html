@@ -6,6 +6,8 @@
     <title>Undangan Pernikahan</title>
     <meta name="description" content="Undangan pernikahan" />
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
@@ -174,8 +176,8 @@
     </style>
   </head>
   <body class="bg-background text-on-surface font-body-md antialiased md:max-w-container-max md:mx-auto">
-    <div class="fixed right-4 top-4 z-50">
-      <audio id="bgMusic" loop preload="auto" src="/music.mp3"></audio>
+    <div class="fixed right-4 top-4 z-50" id="musicWrapper" style="display:none;">
+      <audio id="bgMusic" loop preload="auto"></audio>
       <button id="musicToggleButton" type="button" aria-label="Play music" class="floating-music-toggle">
         <span id="musicIcon" class="material-symbols-outlined text-xl">music_note</span>
       </button>
@@ -191,9 +193,7 @@
         <div class="relative z-10 text-center px-margin-mobile flex flex-col items-center bg-surface/40 p-8 rounded-[40px] backdrop-blur-sm border border-surface/50">
           <span class="material-symbols-outlined text-primary mb-2 opacity-70">local_florist</span>
           <p class="font-label-sm text-label-sm text-on-surface-variant tracking-widest uppercase mb-4 opacity-80">Pernikahan</p>
-          <h1 id="coupleNames" class="font-display-lg text-headline-lg-mobile md:text-display-lg text-primary mb-8 leading-tight">
-            Abell <span class="italic font-light opacity-80 mx-2 text-secondary">&amp;</span> Purnama
-          </h1>
+          <h1 id="coupleNames" class="font-display-lg text-headline-lg-mobile md:text-display-lg text-primary mb-8 leading-tight"></h1>
           <a class="bg-primary text-on-primary font-label-md text-label-md px-8 py-4 rounded-full uppercase tracking-wider hover:shadow-lg transition-all flex items-center gap-2" href="#intro">
             Buka Undangan <span class="material-symbols-outlined text-sm">expand_more</span>
           </a>
@@ -202,9 +202,9 @@
 
       <section class="py-section-padding px-margin-mobile text-center max-w-2xl mx-auto flex flex-col items-center" id="intro">
         <div class="floral-divider w-full max-w-[200px] mb-12"></div>
-        <p id="quoteText" class="font-headline-md text-headline-sm md:text-headline-md text-primary italic leading-relaxed mb-8">"Sesuatu yang membuat jiwa kita sama, jiwa saya dan jiwa Anda pun sama."</p>
-        <p class="font-label-sm text-label-sm text-on-surface-variant tracking-widest uppercase mb-6 opacity-70">— Emily Brontë —</p>
-        <p id="introText" class="font-body-md text-body-md text-on-surface leading-relaxed mt-4">Dengan bahagia kami mengundang Bapak/Ibu/Saudara/i untuk merayakan awal babak baru dalam hidup kami. Kasih sayang dan dukungan Anda telah membentuk perjalanan kami, dan kami tidak bisa membayangkan melangkah maju tanpa kehadiran Anda.</p>
+        <p id="quoteText" class="font-headline-md text-headline-sm md:text-headline-md text-primary italic leading-relaxed mb-8"></p>
+        <p id="quoteAuthor" class="font-label-sm text-label-sm text-on-surface-variant tracking-widest uppercase mb-6 opacity-70"></p>
+        <p id="storyText" class="font-body-md text-body-md text-on-surface leading-relaxed mt-4"></p>
         <div class="floral-divider w-full max-w-[200px] mt-12"></div>
       </section>
 
@@ -212,19 +212,19 @@
         <div class="grid grid-cols-1 md:grid-cols-2 gap-stack-lg">
           <div class="flex flex-col items-center text-center bg-surface-container-lowest p-8 rounded-[40px] soft-shadow border border-primary/10">
             <div class="w-56 h-56 soft-edge-image overflow-hidden mb-6 border-4 border-surface shadow-sm">
-              <img id="groomPhoto" class="w-full h-full object-cover" src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=800&q=80" alt="Muhamad Abell Deskiawan" />
+              <img id="groomPhoto" class="w-full h-full object-cover" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==" alt="Groom" />
             </div>
-            <h2 id="groomName" class="font-headline-md text-headline-sm text-primary mb-2">Muhamad Abell Deskiawan</h2>
+            <h2 id="groomName" class="font-headline-md text-headline-sm text-primary mb-2"></h2>
             <p class="font-label-sm text-label-sm text-on-surface-variant text-sm italic mb-1">Putra dari</p>
-            <p id="parentGroom" class="font-body-md text-body-md text-on-surface">Bapak Arif &amp; Ibu Siti</p>
+            <p id="parentGroom" class="font-body-md text-body-md text-on-surface"></p>
           </div>
           <div class="flex flex-col items-center text-center bg-surface-container-lowest p-8 rounded-[40px] soft-shadow border border-primary/10 md:mt-12">
             <div class="w-56 h-56 soft-edge-image overflow-hidden mb-6 border-4 border-surface shadow-sm">
-              <img id="bridePhoto" class="w-full h-full object-cover" src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=800&q=80" alt="Nur Purnamawati" />
+              <img id="bridePhoto" class="w-full h-full object-cover" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==" alt="Bride" />
             </div>
-            <h2 id="brideName" class="font-headline-md text-headline-sm text-primary mb-2">Nur Purnamawati</h2>
+            <h2 id="brideName" class="font-headline-md text-headline-sm text-primary mb-2"></h2>
             <p class="font-label-sm text-label-sm text-on-surface-variant text-sm italic mb-1">Putri dari</p>
-            <p id="parentBride" class="font-body-md text-body-md text-on-surface">Bapak Joko &amp; Ibu Wati</p>
+            <p id="parentBride" class="font-body-md text-body-md text-on-surface"></p>
           </div>
         </div>
       </section>
@@ -236,14 +236,14 @@
           <span class="material-symbols-outlined text-primary mb-4 text-4xl" style="font-variation-settings: 'FILL' 1;">location_on</span>
           <h2 class="font-display-lg text-headline-lg-mobile text-primary mb-8">Perayaan</h2>
           <div class="bg-surface-container-lowest/80 backdrop-blur-md w-full rounded-[40px] p-8 mb-8 border border-primary/20">
-            <h3 id="weddingDate" class="font-headline-md text-headline-sm text-secondary mb-2">20 September 2026</h3>
-            <p id="eventSummary" class="font-body-md text-body-md text-on-surface-variant mb-6">Akad dimulai pukul 08:00<br />Resepsi dilanjutkan setelahnya</p>
-            <h3 id="venueName" class="font-headline-md text-headline-sm text-secondary mb-2">Aula Bunga Melati</h3>
-            <p id="venueAddress" class="font-body-md text-body-md text-on-surface-variant mb-6">Jl. Kalimantan No. 14, Banjarmasin</p>
-            <div class="mb-6 overflow-hidden rounded-[24px] border border-primary/20 bg-surface-container-low">
-              <iframe id="mapFrame" class="h-56 w-full border-0" src="https://www.google.com/maps?q=Jl.+Kalimantan+No.+14+Banjarmasin&output=embed&z=16" loading="lazy" allowfullscreen referrerpolicy="no-referrer-when-downgrade"></iframe>
+            <h3 id="weddingDate" class="font-headline-md text-headline-sm text-secondary mb-2"></h3>
+            <p id="eventSummary" class="font-body-md text-body-md text-on-surface-variant mb-6"></p>
+            <h3 id="venueName" class="font-headline-md text-headline-sm text-secondary mb-2"></h3>
+            <p id="venueAddress" class="font-body-md text-body-md text-on-surface-variant mb-6"></p>
+            <div class="mb-6 overflow-hidden rounded-[24px] border border-primary/20 bg-surface-container-low" id="mapContainer" style="display:none;">
+              <iframe id="mapFrame" class="h-56 w-full border-0" src="" loading="lazy" allowfullscreen referrerpolicy="no-referrer-when-downgrade"></iframe>
             </div>
-            <a id="mapLink" class="inline-flex items-center justify-center bg-transparent border border-primary text-primary font-label-md text-label-md px-8 py-3 rounded-full uppercase tracking-wider hover:bg-primary/10 transition-colors" href="https://www.google.com/maps?q=Jl.+Kalimantan+No.+14+Banjarmasin" target="_blank" rel="noreferrer">Lihat Lokasi</a>
+            <a id="mapLink" class="inline-flex items-center justify-center bg-transparent border border-primary text-primary font-label-md text-label-md px-8 py-3 rounded-full uppercase tracking-wider hover:bg-primary/10 transition-colors" href="#" target="_blank" rel="noreferrer" style="display:none;">Lihat Lokasi</a>
           </div>
           <div class="flex justify-center gap-4 mt-4">
             <div class="timer-unit"><span id="countdownDays" class="font-headline-md text-headline-sm text-primary">18</span><span class="font-label-sm text-label-sm text-secondary text-[10px] mt-1 tracking-widest">HARI</span></div>
@@ -256,7 +256,7 @@
       <section class="py-section-padding px-margin-mobile max-w-lg mx-auto" id="rsvp">
         <div class="text-center mb-10">
           <h2 class="font-display-lg text-headline-lg-mobile text-primary mb-4">RSVP</h2>
-          <p id="rsvpDeadline" class="font-body-md text-body-md text-on-surface-variant">Mohon balasan paling lambat 15 September 2026</p>
+          <p id="rsvpDeadline" class="font-body-md text-body-md text-on-surface-variant"></p>
           <div class="floral-divider w-full max-w-[150px] mx-auto mt-6"></div>
         </div>
 
@@ -286,13 +286,13 @@
             <textarea class="min-h-[120px] w-full resize-none bg-transparent border-none focus:ring-0 text-on-surface font-body-md p-0 placeholder-on-surface-variant/40" id="message" name="message" placeholder="Tulis pesan, doa, atau alasan Anda..." required=""></textarea>
           </div>
           <div class="pt-6"><button class="w-full bg-primary text-on-primary font-label-md text-label-md py-4 rounded-full uppercase tracking-wider hover:shadow-lg transition-all" type="submit">Kirim Balasan</button></div>
-          <div class="rsvp-message rounded-xl border border-primary/20 bg-primary/5 p-3 text-sm text-on-surface" data-rsvp-message>Konfirmasi sebelum</div>
+          <div class="rsvp-message rounded-xl border border-primary/20 bg-primary/5 p-3 text-sm text-on-surface" data-rsvp-message></div>
         </form>
 
         <div class="mt-8 rounded-[40px] border border-primary/20 bg-surface-container-lowest p-5 soft-shadow">
           <h3 class="mb-4 font-display-lg text-headline-lg-mobile text-primary">Daftar Balasan</h3>
           <div class="space-y-3" data-rsvp-list>
-            <div class="rounded-xl border border-primary/20 bg-primary/5 p-3 text-sm text-on-surface-variant">Belum ada balasan. Jadilah yang pertama mengirimkan pesan.</div>
+            <div class="rounded-xl border border-primary/20 bg-primary/5 p-3 text-sm text-on-surface-variant" data-rsvp-list-empty>Belum ada balasan. Jadilah yang pertama mengirimkan pesan.</div>
           </div>
         </div>
       </section>
@@ -303,225 +303,25 @@
           <div class="floral-divider w-full max-w-[150px] mx-auto"></div>
         </div>
         <div id="galleryGrid" class="mx-auto grid max-w-5xl grid-cols-1 justify-items-center gap-3 sm:grid-cols-2 md:grid-cols-3 md:gap-4">
-          <div class="group w-full max-w-[280px] overflow-hidden soft-edge-image soft-shadow"><img class="h-40 w-full object-cover transition-transform duration-700 group-hover:scale-105 md:h-52" src="https://images.unsplash.com/photo-1520854221256-17451cc331bf?auto=format&fit=crop&w=800&q=80" alt="Abell &amp; Purnama" /></div>
-          <div class="group w-full max-w-[280px] overflow-hidden soft-edge-image soft-shadow"><img class="h-40 w-full object-cover transition-transform duration-700 group-hover:scale-105 md:h-52" src="https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=800&q=80" alt="Abell &amp; Purnama" /></div>
-          <div class="group w-full max-w-[280px] overflow-hidden soft-edge-image soft-shadow"><img class="h-40 w-full object-cover transition-transform duration-700 group-hover:scale-105 md:h-52" src="https://images.unsplash.com/photo-1522673607200-164d1b6ce486?auto=format&fit=crop&w=800&q=80" alt="Abell &amp; Purnama" /></div>
+          <div class="group w-full max-w-[280px] overflow-hidden soft-edge-image soft-shadow"><img class="h-40 w-full object-cover transition-transform duration-700 group-hover:scale-105 md:h-52" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==" alt="Wedding moment" loading="lazy" /></div>
+          <div class="group w-full max-w-[280px] overflow-hidden soft-edge-image soft-shadow"><img class="h-40 w-full object-cover transition-transform duration-700 group-hover:scale-105 md:h-52" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==" alt="Wedding moment" loading="lazy" /></div>
+          <div class="group w-full max-w-[280px] overflow-hidden soft-edge-image soft-shadow"><img class="h-40 w-full object-cover transition-transform duration-700 group-hover:scale-105 md:h-52" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==" alt="Wedding moment" loading="lazy" /></div>
         </div>
       </section>
     </main>
 
     <footer class="bg-surface-container-lowest w-full py-section-padding flex flex-col items-center text-center px-margin-mobile mt-section-padding border-t border-primary/20 pb-24 md:pb-section-padding">
       <span class="material-symbols-outlined text-primary mb-4 text-3xl opacity-80">local_florist</span>
-      <h4 id="footerNames" class="font-display-lg text-headline-sm text-primary mb-4">Muhamad Abell Deskiawan &amp; Nur Purnamawati</h4>
-      <p id="footerNote" class="font-body-md text-body-md text-on-surface-variant mb-6 max-w-sm mx-auto">Dibuat dengan cinta untuk Muhamad Abell Deskiawan &amp; Nur Purnamawati.</p>
+      <h4 id="footerNames" class="font-display-lg text-headline-sm text-primary mb-4"></h4>
+      <p id="footerNote" class="font-body-md text-body-md text-on-surface-variant mb-6 max-w-sm mx-auto"></p>
       <div class="flex gap-4"><a class="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors text-sm" href="#">Kebijakan Privasi</a><span class="text-on-surface-variant/50">•</span><a class="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors text-sm" href="#">Bantuan</a></div>
     </footer>
 
-    <script type="module">
-      import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-      import { getFirestore, collection, query, where, getDocs } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
-
-      const firebaseConfig = {
-        apiKey: 'AIzaSyC247K8yyL67aWV95KNQy8CkMZsjgGCudQ',
-        authDomain: 'gamon-tawing.firebaseapp.com',
-        projectId: 'gamon-tawing',
-        messagingSenderId: '370162915989',
-        appId: '1:370162915989:web:76779062da83aa0c5c999c',
-        measurementId: 'G-DDRQKDZXV7'
-      };
-
-      const app = initializeApp(firebaseConfig);
-      const db = getFirestore(app);
-
-      const defaultInvitation = {
-        shareSlug: 'abell-purnama',
-        title: 'Abell & Purnama',
-        groomName: 'Muhamad Abell Deskiawan',
-        brideName: 'Nur Purnamawati',
-        parentGroom: 'Bapak Arif & Ibu Siti',
-        parentBride: 'Bapak Joko & Ibu Wati',
-        story: 'Dengan bahagia kami mengundang Bapak/Ibu/Saudara/i untuk merayakan awal babak baru dalam hidup kami. Kasih sayang dan dukungan Anda telah membentuk perjalanan kami, dan kami tidak bisa membayangkan melangkah maju tanpa kehadiran Anda.',
-        akadDate: '2026-09-20',
-        akadTime: '08:00',
-        receptionDate: '2026-09-20',
-        receptionTime: '11:00',
-        receptionPlace: 'Aula Bunga Melati',
-        address: 'Jl. Kalimantan No. 14, Banjarmasin',
-        mapLink: 'https://maps.google.com/?q=Jl.+Kalimantan+No.+14+Banjarmasin',
-        openingPhoto: 'https://images.unsplash.com/photo-1520854221256-17451cc331bf?auto=format&fit=crop&w=1200&q=80',
-        galleryImages: [
-          'https://images.unsplash.com/photo-1520854221256-17451cc331bf?auto=format&fit=crop&w=800&q=80',
-          'https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=800&q=80',
-          'https://images.unsplash.com/photo-1522673607200-164d1b6ce486?auto=format&fit=crop&w=800&q=80'
-        ],
-        musicUrl: '/music.mp3',
-        rsvpMessage: 'Mohon balasan paling lambat 15 September 2026'
-      };
-
-      const normalizeShareSlug = (value) => String(value || '').trim().toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-').replace(/^-+|-+$/g, '').slice(0, 80);
-      const formatDate = (dateString) => {
-        if (!dateString) return '-';
-        const clean = String(dateString).trim();
-        const parsed = new Date(clean.includes('-') ? `${clean}T00:00:00` : clean);
-        if (Number.isNaN(parsed.getTime())) return clean;
-        return new Intl.DateTimeFormat('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }).format(parsed);
-      };
-      const normalizeMapsQuery = (value) => {
-        const trimmed = String(value || '').trim();
-        if (!trimmed) return '';
-
-        if (/^https?:\/\//i.test(trimmed)) {
-          try {
-            const url = new URL(trimmed);
-            const query = url.searchParams.get('q') || url.searchParams.get('query');
-            if (query) return query;
-            const pathname = url.pathname.replace(/^\/+/, '');
-            if (pathname && !pathname.includes('/maps')) return pathname;
-          } catch (_error) {
-            return trimmed;
-          }
-        }
-
-        if (/^-?\d+(?:\.\d+)?\s*,\s*-?\d+(?:\.\d+)?$/.test(trimmed)) {
-          return trimmed;
-        }
-
-        return trimmed;
-      };
-
-      const buildMapsUrl = (value) => {
-        const query = normalizeMapsQuery(value);
-        if (!query) return '';
-        return `https://www.google.com/maps?q=${encodeURIComponent(query)}`;
-      };
-
-      const buildMapsEmbedUrl = (target) => {
-        const query = normalizeMapsQuery(target);
-        if (!query) return '';
-        return `https://www.google.com/maps?q=${encodeURIComponent(query)}&output=embed&z=16`;
-      };
-
-      const setText = (selector, value) => {
-        const element = document.querySelector(selector);
-        if (element) element.textContent = value || '';
-      };
-
-      const setHtml = (selector, value) => {
-        const element = document.querySelector(selector);
-        if (element) element.innerHTML = value || '';
-      };
-
-      const setAttr = (selector, attr, value) => {
-        const element = document.querySelector(selector);
-        if (element && value) element.setAttribute(attr, value);
-      };
-
-      const renderGallery = (images) => {
-        const galleryGrid = document.getElementById('galleryGrid');
-        if (!galleryGrid) return;
-        const list = Array.isArray(images) && images.length ? images : defaultInvitation.galleryImages;
-        galleryGrid.innerHTML = list.slice(0, 6).map((src) => `
-          <div class="group w-full max-w-[280px] overflow-hidden soft-edge-image soft-shadow">
-            <img class="h-40 w-full object-cover transition-transform duration-700 group-hover:scale-105 md:h-52" src="${src}" alt="Wedding moment" />
-          </div>
-        `).join('');
-      };
-
-      const getCountdownParts = (countdownDate, akadDate, akadTime) => {
-        const endValue = String(akadDate || countdownDate || '').trim();
-        if (!endValue) {
-          return { days: 0, hours: 0, minutes: 0 };
-        }
-
-        const eventTime = String(akadTime || '00:00').trim();
-        const target = new Date(endValue.includes('T') ? endValue : `${endValue}T${eventTime.includes(':') ? eventTime : '00:00'}:00`);
-        const now = new Date();
-        const diff = Math.max(0, target.getTime() - now.getTime());
-
-        if (Number.isNaN(target.getTime())) {
-          return { days: 0, hours: 0, minutes: 0 };
-        }
-
-        const totalMinutes = Math.floor(diff / (1000 * 60));
-        const days = Math.floor(totalMinutes / (60 * 24));
-        const hours = Math.floor((totalMinutes % (60 * 24)) / 60);
-        const minutes = totalMinutes % 60;
-
-        return { days, hours, minutes };
-      };
-
-      const updateCountdown = (countdownDate, akadDate, akadTime) => {
-        const daysEl = document.getElementById('countdownDays');
-        const hoursEl = document.getElementById('countdownHours');
-        const minutesEl = document.getElementById('countdownMinutes');
-        if (!daysEl || !hoursEl || !minutesEl) return;
-
-        const parts = getCountdownParts(
-          countdownDate || defaultInvitation.countdownDate || defaultInvitation.receptionDate || defaultInvitation.akadDate,
-          akadDate || defaultInvitation.akadDate || defaultInvitation.receptionDate,
-          akadTime || defaultInvitation.akadTime || defaultInvitation.receptionTime
-        );
-        daysEl.textContent = String(parts.days).padStart(2, '0');
-        hoursEl.textContent = String(parts.hours).padStart(2, '0');
-        minutesEl.textContent = String(parts.minutes).padStart(2, '0');
-      };
-
-      const applyInvitation = (invitation) => {
-        const groomName = invitation.groomName || defaultInvitation.groomName;
-        const brideName = invitation.brideName || defaultInvitation.brideName;
-        const parentGroom = invitation.parentGroom || defaultInvitation.parentGroom;
-        const parentBride = invitation.parentBride || defaultInvitation.parentBride;
-        const story = invitation.story || defaultInvitation.story;
-        const venueName = invitation.receptionPlace || invitation.akadPlace || defaultInvitation.receptionPlace;
-        const venueAddress = invitation.address || defaultInvitation.address;
-        const countdownStartDate = invitation.countdownDate || defaultInvitation.countdownDate || invitation.receptionDate || invitation.akadDate || defaultInvitation.akadDate;
-        const akadTargetDate = invitation.akadDate || invitation.receptionDate || defaultInvitation.akadDate;
-        const mapTarget = String(invitation.mapLink || invitation.address || defaultInvitation.mapLink || '').trim();
-        const eventDate = formatDate(invitation.receptionDate || invitation.akadDate || defaultInvitation.akadDate);
-        const eventTime = invitation.receptionTime || invitation.akadTime || defaultInvitation.receptionTime || defaultInvitation.akadTime;
-        const rsvpDeadline = invitation.receptionDate ? `Mohon balasan paling lambat ${formatDate(invitation.receptionDate)}` : defaultInvitation.rsvpMessage;
-        const openingPhoto = invitation.openingPhoto || invitation.galleryImages?.[0] || defaultInvitation.openingPhoto;
-        const mapUrl = buildMapsUrl(mapTarget || venueAddress);
-        const mapEmbedUrl = buildMapsEmbedUrl(mapTarget || venueAddress);
-
-        document.title = `${groomName} & ${brideName} - Wedding Invitation`;
-        setText('#coupleNames', `${groomName} & ${brideName}`);
-        setText('#groomName', groomName);
-        setText('#brideName', brideName);
-        setText('#parentGroom', parentGroom);
-        setText('#parentBride', parentBride);
-        setText('#introText', story);
-        setText('#weddingDate', eventDate);
-        setHtml('#eventSummary', `Akad dimulai pukul ${eventTime}<br />Resepsi dilanjutkan setelahnya`);
-        setText('#venueName', venueName);
-        setText('#venueAddress', venueAddress);
-        setText('#rsvpDeadline', rsvpDeadline);
-        setText('#footerNames', `${groomName} & ${brideName}`);
-        setText('#footerNote', `Dibuat dengan cinta untuk ${groomName} & ${brideName}.`);
-
-        const coverBackground = document.getElementById('coverBackground');
-        if (coverBackground) coverBackground.style.backgroundImage = `url('${openingPhoto}')`;
-
-        const groomPhoto = document.getElementById('groomPhoto');
-        const bridePhoto = document.getElementById('bridePhoto');
-        if (groomPhoto) groomPhoto.src = invitation.groomPhoto || invitation.galleryImages?.[0] || openingPhoto;
-        if (bridePhoto) bridePhoto.src = invitation.bridePhoto || invitation.galleryImages?.[1] || openingPhoto;
-
-        const mapFrame = document.getElementById('mapFrame');
-        const mapLink = document.getElementById('mapLink');
-        if (mapFrame && mapEmbedUrl) mapFrame.src = mapEmbedUrl;
-        if (mapLink && mapUrl) mapLink.href = mapUrl;
-
-        renderGallery(invitation.galleryImages || defaultInvitation.galleryImages);
-        updateCountdown(countdownStartDate, akadTargetDate, invitation.akadTime || defaultInvitation.akadTime || invitation.receptionTime || defaultInvitation.receptionTime);
-        document.getElementById('bgMusic').src = invitation.musicUrl || defaultInvitation.musicUrl;
-        const audio = document.getElementById('bgMusic');
-        if (audio && audio.src) audio.load();
-      };
-
+    <script>
       const musicEl = document.getElementById('bgMusic');
       const musicToggleButton = document.getElementById('musicToggleButton');
       const musicIcon = document.getElementById('musicIcon');
+      const musicWrapper = document.getElementById('musicWrapper');
       let isPlaying = false;
 
       const updateMusicButton = () => {
@@ -561,51 +361,263 @@
         });
       }
 
-      const rsvpFormPreview = document.querySelector('[data-rsvp-form]');
-      const rsvpListPreview = document.querySelector('[data-rsvp-list]');
-      const rsvpMessagePreview = document.querySelector('[data-rsvp-message]');
+      const rsvpFormSunset = document.querySelector('[data-rsvp-form]');
+      const rsvpListSunset = document.querySelector('[data-rsvp-list]');
+      const rsvpMessageSunset = document.querySelector('[data-rsvp-message]');
 
-      if (rsvpFormPreview) {
-        rsvpFormPreview.addEventListener('submit', (event) => {
+      if (rsvpFormSunset) {
+        rsvpFormSunset.addEventListener('submit', (event) => {
           event.preventDefault();
-          const formData = new FormData(rsvpFormPreview);
+          const formData = new FormData(rsvpFormSunset);
           const name = (formData.get('name') || 'Tamu undangan').toString().trim() || 'Tamu undangan';
           const attending = (formData.get('attending') || 'yes').toString();
           const guests = (formData.get('guests') || '2').toString();
           const message = (formData.get('message') || '').toString().trim() || 'Tidak ada pesan tambahan.';
+
           const card = document.createElement('div');
           card.className = 'rounded-xl border border-primary/20 bg-primary/5 p-3';
-          card.innerHTML = `<div class="flex items-center justify-between gap-3"><strong class="text-primary">${name}</strong><span class="rounded-full bg-primary/10 px-2 py-1 text-xs uppercase tracking-wide text-primary">${attending === 'yes' ? 'Hadir' : 'Tidak hadir'}</span></div><p class="mt-2 text-sm text-on-surface-variant">Jumlah tamu: ${guests}</p><p class="mt-2 text-sm text-on-surface">${message}</p>`;
-          if (rsvpListPreview) {
-            rsvpListPreview.innerHTML = '';
-            rsvpListPreview.appendChild(card);
+          card.innerHTML = `
+            <div class="flex items-center justify-between gap-3">
+              <strong class="text-primary">${name}</strong>
+              <span class="rounded-full bg-primary/10 px-2 py-1 text-xs uppercase tracking-wide text-primary">${attending === 'yes' ? 'Hadir' : 'Tidak hadir'}</span>
+            </div>
+            <p class="mt-2 text-sm text-on-surface-variant">Jumlah tamu: ${guests}</p>
+            <p class="mt-2 text-sm text-on-surface">${message}</p>
+          `;
+
+          if (rsvpListSunset) rsvpListSunset.prepend(card);
+          if (rsvpMessageSunset) {
+            rsvpMessageSunset.textContent = `${name} berhasil mengirimkan balasan ${attending === 'yes' ? 'hadir' : 'tidak hadir'} ke acara kami.`;
+            rsvpMessageSunset.classList.add('text-primary');
           }
-          if (rsvpMessagePreview) {
-            rsvpMessagePreview.textContent = `${name} berhasil mengirimkan balasan ${attending === 'yes' ? 'hadir' : 'tidak hadir'} ke acara kami.`;
-            rsvpMessagePreview.classList.add('text-primary');
-          }
-          rsvpFormPreview.reset();
+          rsvpFormSunset.reset();
         });
       }
 
-      const loadInvitation = async () => {
-        const params = new URLSearchParams(window.location.search);
-        const slug = normalizeShareSlug(params.get('slug') || 'abell-purnama');
+      const sunsetDb = firebase.firestore(firebase.initializeApp({ apiKey: 'AIzaSyC247K8yyL67aWV95KNQy8CkMZsjgGCudQ', authDomain: 'gamon-tawing.firebaseapp.com', projectId: 'gamon-tawing' }, 'sunsetInvitationApp'));
+      const sunsetSlug = new URLSearchParams(window.location.search).get('slug');
 
-        try {
-          const q = query(collection(db, 'gamon_wedding_invitations'), where('shareSlug', '==', slug));
-          const snapshot = await getDocs(q);
-          const invitation = snapshot.docs[0]?.data() || defaultInvitation;
-          applyInvitation(invitation);
-        } catch (error) {
-          console.warn('Gagal memuat data undangan dari Firestore:', error);
-          applyInvitation(defaultInvitation);
-        }
-
-        tryAutoplay();
+      const formatLocaleDate = (dateValue) => {
+        const value = String(dateValue || '').trim();
+        if (!value) return '';
+        const parsed = new Date(value.includes('T') ? value : `${value}T00:00:00`);
+        if (Number.isNaN(parsed.getTime())) return value;
+        return new Intl.DateTimeFormat('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }).format(parsed);
       };
 
-      loadInvitation();
+      const getEffectiveCountdownDate = (invitation) => invitation.countdownDate || invitation.receptionDate || invitation.akadDate || '';
+
+      const buildMapsUrl = (value) => {
+        const trimmed = String(value || '').trim();
+        if (!trimmed) return '';
+        if (/^https?:\/\//i.test(trimmed)) return trimmed;
+        if (/^-?\d+(?:\.\d+)?\s*,\s*-?\d+(?:\.\d+)?$/.test(trimmed)) return `https://www.google.com/maps?q=${trimmed}`;
+        return `https://www.google.com/maps?q=${encodeURIComponent(trimmed)}`;
+      };
+
+      const buildMapEmbedUrl = (value) => {
+        const url = buildMapsUrl(value);
+        if (!url) return '';
+        return `${url}${url.includes('?') ? '&' : '?'}output=embed&z=16`;
+      };
+
+      const getCountdownParts = (targetDate) => {
+        const value = String(targetDate || '').trim();
+        if (!value) return { days: 0, hours: 0, minutes: 0, seconds: 0, isExpired: true };
+        const target = new Date(value.includes('T') ? value : `${value}T00:00:00`);
+        const diff = target.getTime() - Date.now();
+        if (Number.isNaN(target.getTime()) || diff <= 0) return { days: 0, hours: 0, minutes: 0, seconds: 0, isExpired: true };
+        const totalSeconds = Math.floor(diff / 1000);
+        return {
+          days: Math.floor(totalSeconds / 86400),
+          hours: Math.floor((totalSeconds % 86400) / 3600),
+          minutes: Math.floor((totalSeconds % 3600) / 60),
+          seconds: totalSeconds % 60,
+          isExpired: false
+        };
+      };
+
+      const renderCountdown = (invitation) => {
+        const countdownWrap = document.querySelector('.flex.justify-center.gap-4.mt-4');
+        const targetDate = getEffectiveCountdownDate(invitation);
+        if (countdownWrap) countdownWrap.style.display = targetDate ? 'flex' : 'none';
+        if (!targetDate) return;
+        const parts = getCountdownParts(targetDate);
+        const daysEl = document.getElementById('countdownDays');
+        const hoursEl = document.getElementById('countdownHours');
+        const minutesEl = document.getElementById('countdownMinutes');
+        if (parts.isExpired) {
+          if (daysEl) daysEl.textContent = '00';
+          if (hoursEl) hoursEl.textContent = '00';
+          if (minutesEl) minutesEl.textContent = '00';
+          const existing = document.querySelector('#details [data-countdown-status]');
+          if (existing) existing.remove();
+          const block = document.createElement('p');
+          block.setAttribute('data-countdown-status', 'true');
+          block.textContent = 'Acara telah berlangsung';
+          block.style.marginTop = '12px';
+          block.style.color = '#7a5642';
+          block.style.fontWeight = '600';
+          block.style.letterSpacing = '0.08em';
+          block.style.textTransform = 'uppercase';
+          block.style.fontSize = '0.75rem';
+          const details = document.getElementById('details');
+          if (details) details.appendChild(block);
+          return;
+        }
+        const existing = document.querySelector('#details [data-countdown-status]');
+        if (existing) existing.remove();
+        if (daysEl) daysEl.textContent = String(parts.days).padStart(2, '0');
+        if (hoursEl) hoursEl.textContent = String(parts.hours).padStart(2, '0');
+        if (minutesEl) minutesEl.textContent = String(parts.minutes).padStart(2, '0');
+      };
+
+      const formatRsvpMessage = (invitation) => {
+        const base = String(invitation.rsvpMessage || '').trim();
+        const formattedDate = getEffectiveCountdownDate(invitation) ? formatLocaleDate(getEffectiveCountdownDate(invitation)) : '';
+        const fallback = 'Mohon konfirmasi sebelum';
+        if (!base && !formattedDate) return fallback;
+        if (!formattedDate) return base || fallback;
+        if (base.includes(formattedDate)) return base || fallback;
+        return `${(base || fallback).replace(/[.!]$/, '')} ${formattedDate}.`;
+      };
+
+      const applyInvitation = (invitation = {}) => {
+        const groomName = String(invitation.groomName || '').trim();
+        const brideName = String(invitation.brideName || '').trim();
+        const title = String(invitation.title || '').trim() || [groomName, brideName].filter(Boolean).join(' & ') || 'Undangan Pernikahan';
+        const parentGroom = String(invitation.parentGroom || '').trim();
+        const parentBride = String(invitation.parentBride || '').trim();
+        const quote = String(invitation.quote || '').trim();
+        const story = String(invitation.story || '').trim();
+        const eventDate = formatLocaleDate(invitation.receptionDate || invitation.akadDate || '');
+        const eventTime = invitation.receptionTime || invitation.akadTime || '';
+        const eventPlace = String(invitation.receptionPlace || invitation.akadPlace || '').trim();
+        const eventAddress = String(invitation.address || '').trim();
+        const mapUrl = buildMapsUrl(invitation.mapLink || invitation.address || eventAddress);
+        const mapEmbedUrl = buildMapEmbedUrl(invitation.mapLink || invitation.address || eventAddress);
+
+        document.title = title;
+        const coupleNames = document.getElementById('coupleNames');
+        if (coupleNames) coupleNames.textContent = title;
+
+        const quoteText = document.getElementById('quoteText');
+        if (quoteText) {
+          quoteText.textContent = quote || '';
+          quoteText.style.display = quote ? 'block' : 'none';
+        }
+
+        const quoteAuthor = document.getElementById('quoteAuthor');
+        if (quoteAuthor) {
+          const quoteAuthorText = String(invitation.quoteAuthor || '').trim();
+          quoteAuthor.textContent = quoteAuthorText || '';
+          quoteAuthor.style.display = quoteAuthorText ? 'block' : 'none';
+        }
+
+        const groomNode = document.getElementById('groomName');
+        const brideNode = document.getElementById('brideName');
+        if (groomNode) groomNode.textContent = groomName;
+        if (brideNode) brideNode.textContent = brideName;
+
+        const parentGroomNode = document.getElementById('parentGroom');
+        const parentBrideNode = document.getElementById('parentBride');
+        if (parentGroomNode) parentGroomNode.textContent = parentGroom;
+        if (parentBrideNode) parentBrideNode.textContent = parentBride;
+
+        const storyNode = document.getElementById('storyText');
+        if (storyNode) {
+          storyNode.textContent = story || '';
+          storyNode.style.display = story ? 'block' : 'none';
+        }
+
+        const footerNames = document.getElementById('footerNames');
+        if (footerNames) footerNames.textContent = `${groomName} & ${brideName}`;
+        const footerNote = document.getElementById('footerNote');
+        if (footerNote) footerNote.textContent = `Dibuat dengan cinta untuk ${groomName} & ${brideName}.`;
+
+        const weddingDate = document.getElementById('weddingDate');
+        if (weddingDate) {
+          weddingDate.textContent = eventDate || '';
+          weddingDate.style.display = eventDate ? 'block' : 'none';
+        }
+        const eventSummary = document.getElementById('eventSummary');
+        if (eventSummary) {
+          eventSummary.innerHTML = eventTime ? `Akad dimulai pukul ${eventTime}<br />Resepsi dilanjutkan setelahnya` : '';
+          eventSummary.style.display = eventTime ? 'block' : 'none';
+        }
+        const venueName = document.getElementById('venueName');
+        if (venueName) {
+          venueName.textContent = eventPlace || '';
+          venueName.style.display = eventPlace ? 'block' : 'none';
+        }
+        const venueAddress = document.getElementById('venueAddress');
+        if (venueAddress) {
+          venueAddress.textContent = eventAddress || '';
+          venueAddress.style.display = eventAddress ? 'block' : 'none';
+        }
+
+        const mapFrame = document.getElementById('mapFrame');
+        const mapLink = document.getElementById('mapLink');
+        if (mapFrame) mapFrame.src = mapEmbedUrl || '';
+        if (mapLink) {
+          mapLink.href = mapUrl || '#';
+          mapLink.style.display = mapUrl ? 'inline-flex' : 'none';
+        }
+
+        const rsvpDeadline = document.getElementById('rsvpDeadline');
+        if (rsvpDeadline) rsvpDeadline.textContent = formatRsvpMessage(invitation);
+
+        const coverBackground = document.getElementById('coverBackground');
+        if (coverBackground) coverBackground.style.backgroundImage = invitation.openingPhoto ? `url('${invitation.openingPhoto}')` : '';
+
+        const groomPhoto = document.getElementById('groomPhoto');
+        if (groomPhoto) groomPhoto.src = invitation.groomPhoto || groomPhoto.getAttribute('src') || '';
+        const bridePhoto = document.getElementById('bridePhoto');
+        if (bridePhoto) bridePhoto.src = invitation.bridePhoto || bridePhoto.getAttribute('src') || '';
+
+        const musicUrl = String(invitation.musicUrl || '').trim();
+        if (musicWrapper) musicWrapper.style.display = musicUrl ? 'block' : 'none';
+        if (musicUrl && musicEl) {
+          musicEl.src = musicUrl;
+          tryAutoplay();
+        }
+
+        const galleryImages = Array.isArray(invitation.galleryImages)
+          ? invitation.galleryImages.filter((src) => typeof src === 'string' && src.trim())
+          : [];
+        const gallerySection = document.getElementById('gallery');
+        const galleryGrid = document.getElementById('galleryGrid');
+
+        if (gallerySection) {
+          gallerySection.style.display = galleryImages.length ? 'block' : 'none';
+        }
+
+        if (galleryGrid) {
+          if (!galleryImages.length) {
+            galleryGrid.innerHTML = '';
+          } else {
+            galleryGrid.innerHTML = galleryImages.slice(0, 6).map((src) => `
+              <div class="group w-full max-w-[280px] overflow-hidden soft-edge-image soft-shadow">
+                <img class="h-40 w-full object-cover transition-transform duration-700 group-hover:scale-105 md:h-52" src="${src}" alt="Wedding moment" loading="lazy" />
+              </div>
+            `).join('');
+          }
+        }
+
+        renderCountdown(invitation);
+      };
+
+      async function loadSunsetInvitation() {
+        if (!sunsetSlug) return;
+        try {
+          const snapshot = await sunsetDb.collection('gamon_wedding_invitations').where('shareSlug', '==', sunsetSlug).limit(1).get();
+          if (!snapshot.empty) applyInvitation(snapshot.docs[0].data());
+        } catch (error) {
+          console.error('Gagal memuat data undangan sunset:', error);
+        }
+      }
+
+      if (sunsetSlug) loadSunsetInvitation();
     </script>
   </body>
 </html>

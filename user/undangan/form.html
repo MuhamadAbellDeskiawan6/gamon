@@ -121,6 +121,8 @@
               <input type="text" name="receptionPlace" placeholder="Contoh: Aula Bunga Melati" required />
             </label>
 
+            <input type="hidden" name="countdownDate" />
+
             <label>
               <span>Alamat lengkap</span>
               <textarea name="address" rows="3" placeholder="Contoh: Jl. Mawar No. 25, Kota Bandung"></textarea>
@@ -137,10 +139,6 @@
               <small class="muted">Kalau mau yang paling gampang, klik tombol pilih lokasi di Maps. Sistem akan menyimpan titik exact otomatis tanpa API key.</small>
             </label>
 
-            <label>
-              <span>Tanggal hitung mundur</span>
-              <input type="date" name="countdownDate" />
-            </label>
           </div>
         </div>
 
@@ -168,64 +166,68 @@
           <input type="hidden" name="musicUrl" />
 
           <div class="field upload-field">
-            <label for="groomPhoto">Upload foto mempelai pria (opsional)</label>
+            <label for="groomPhoto"><span>Foto mempelai pria <strong class="required-mark">*</strong></span></label>
             <div class="image-upload-shell compact">
               <div class="upload-dropzone compact-dropzone" data-upload-dropzone="groomPhoto">
                 <input id="groomPhoto" name="groomPhoto" type="file" accept="image/png,image/jpeg,image/webp" hidden />
                 <div class="upload-inner">
                   <div class="upload-icon">⇪</div>
-                  <button class="btn btn-primary btn-upload" type="button" data-browse-files="groomPhoto">Browse</button>
-                  <div class="upload-hint">drop a file here</div>
-                  <small class="muted">*Foto khusus mempelai pria.</small>
+                  <button class="btn btn-primary btn-upload" type="button" data-browse-files="groomPhoto">Pilih foto</button>
+                  <div class="upload-hint">Foto wajib ditambahkan agar undangan lengkap</div>
+                  <small class="muted">Foto ini akan tampil di halaman undangan utama.</small>
                 </div>
               </div>
+              <div class="field-note" data-upload-status="groomPhoto">Wajib diunggah. Foto ini tampil di halaman undangan.</div>
             </div>
           </div>
 
           <div class="field upload-field">
-            <label for="bridePhoto">Upload foto mempelai wanita (opsional)</label>
+            <label for="bridePhoto"><span>Foto mempelai wanita <strong class="required-mark">*</strong></span></label>
             <div class="image-upload-shell compact">
               <div class="upload-dropzone compact-dropzone" data-upload-dropzone="bridePhoto">
                 <input id="bridePhoto" name="bridePhoto" type="file" accept="image/png,image/jpeg,image/webp" hidden />
                 <div class="upload-inner">
                   <div class="upload-icon">⇪</div>
-                  <button class="btn btn-primary btn-upload" type="button" data-browse-files="bridePhoto">Browse</button>
-                  <div class="upload-hint">drop a file here</div>
-                  <small class="muted">*Foto khusus mempelai wanita.</small>
+                  <button class="btn btn-primary btn-upload" type="button" data-browse-files="bridePhoto">Pilih foto</button>
+                  <div class="upload-hint">Foto wajib ditambahkan agar undangan lengkap</div>
+                  <small class="muted">Foto ini akan tampil di halaman undangan utama.</small>
                 </div>
               </div>
+              <div class="field-note" data-upload-status="bridePhoto">Wajib diunggah. Foto ini tampil di halaman undangan.</div>
             </div>
           </div>
 
           <div class="field upload-field">
-            <label for="openingPhoto">Upload foto opening utama (opsional)</label>
+            <label for="openingPhoto"><span>Foto opening utama <strong class="required-mark">*</strong></span></label>
             <div class="image-upload-shell compact">
               <div class="upload-dropzone compact-dropzone" data-upload-dropzone="openingPhoto">
                 <input id="openingPhoto" name="openingPhoto" type="file" accept="image/png,image/jpeg,image/webp" hidden />
                 <div class="upload-inner">
                   <div class="upload-icon">⇪</div>
-                  <button class="btn btn-primary btn-upload" type="button" data-browse-files="openingPhoto">Browse</button>
-                  <div class="upload-hint">drop a file here</div>
-                  <small class="muted">*JPG, PNG, atau WebP. Ukuran otomatis diperkecil agar aman untuk Firestore.</small>
+                  <button class="btn btn-primary btn-upload" type="button" data-browse-files="openingPhoto">Pilih foto</button>
+                  <div class="upload-hint">Foto wajib ditambahkan agar cover undangan siap dipublish</div>
+                  <small class="muted">Format JPG, PNG, atau WebP. Ukuran otomatis diperkecil agar aman untuk Firestore.</small>
                 </div>
               </div>
+              <div class="field-note" data-upload-status="openingPhoto">Wajib diunggah untuk cover undangan.</div>
             </div>
           </div>
 
           <div class="field upload-field">
-            <label for="galleryPhotos">Upload foto gallery (maksimal 3 foto, opsional)</label>
+            <label for="galleryPhotos"><span>Foto gallery <small>(opsional, maksimal 3)</small></span></label>
             <div class="image-upload-shell compact">
               <div class="upload-dropzone compact-dropzone" data-upload-dropzone="galleryPhotos">
                 <input id="galleryPhotos" name="galleryPhotos" type="file" accept="image/png,image/jpeg,image/webp" multiple hidden />
                 <div class="upload-inner">
                   <div class="upload-icon">⇪</div>
-                  <button class="btn btn-primary btn-upload" type="button" data-browse-files="galleryPhotos">Browse</button>
-                  <div class="upload-hint">drop a file here</div>
-                  <small class="muted">*Maksimal 3 foto, format JPG/PNG/WebP, ukuran otomatis dikompresi.</small>
+                  <button class="btn btn-primary btn-upload" type="button" data-browse-files="galleryPhotos">Pilih foto</button>
+                  <div class="upload-hint">Opsional — maksimal 3 foto</div>
+                  <small class="muted">Format JPG/PNG/WebP. Foto-foto ini akan tampil sebagai galeri momen.</small>
                 </div>
               </div>
+              <div class="field-note" data-upload-status="galleryPhotos">Opsional — maksimal 3 foto.</div>
               <div class="uploaded-files" data-uploaded-files="galleryPhotos">
-                <div class="uploaded-files-title">Uploaded files</div>
+                <div class="uploaded-files-title">Foto yang dipilih</div>
                 <div class="uploaded-file-list" data-uploaded-file-list="galleryPhotos"></div>
               </div>
             </div>
@@ -247,7 +249,8 @@
 
           <label>
             <span>Pesan untuk RSVP</span>
-            <textarea name="rsvpMessage" rows="3" placeholder="Contoh: Mohon konfirmasi kehadiran sebelum tanggal ..."></textarea>
+            <textarea name="rsvpMessage" rows="3" placeholder="Contoh: Mohon konfirmasi kehadiran sebelum tanggal 20 Juni 2026. Terima kasih atas perhatian dan doa restu Anda."></textarea>
+            <small class="muted">Pesan ini akan ditampilkan di halaman RSVP agar tamu tahu cara konfirmasi kehadiran.</small>
           </label>
         </div>
 
