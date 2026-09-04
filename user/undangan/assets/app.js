@@ -1,6 +1,20 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
-import { getFirestore, collection, doc, setDoc, getDoc, addDoc, getDocs, query, where, updateDoc, deleteDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+import {
+  getFirestore,
+  collection,
+  doc,
+  setDoc,
+  getDoc,
+  addDoc,
+  getDocs,
+  query,
+  where,
+  updateDoc,
+  deleteDoc,
+  serverTimestamp,
+  onSnapshot
+} from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
 const STORAGE_KEY = 'gamon_invitation_app';
 
@@ -2350,26 +2364,60 @@ function buildGoogleMapsEmbedUrl(value) {
 }
 
 function getRsvpStorageKey() {
-  const slug = new URLSearchParams(window.location.search).get('slug') || 'default';
-  return `gamon_rsvp_${window.location.pathname}_${slug}`;
+  const params = new URLSearchParams(window.location.search);
+  const slug = normalizeShareSlug(params.get('slug') || 'default');
+  const templateId = (params.get('template') || window.location.pathname.match(/\/templates\/([^/]+)\.html$/i)?.[1] || 'classic').toLowerCase();
+  return `gamon_rsvp_${slug}_${templateId}`;
+}
+
+function readRsvpEntriesFromLocalStorage() {
+  try {
+    const raw = localStorage.getItem(getRsvpStorageKey());
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeRsvpEntriesToLocalStorage(entries) {
+  try {
+    localStorage.setItem(getRsvpStorageKey(), JSON.stringify(Array.isArray(entries) ? entries.slice(0, 25) : []));
+  } catch {
+    // ignore localStorage failures in restricted environments
+  }
+}
+
+function normalizeRsvpEntry(entry) {
+  const guest = String(entry?.guest || entry?.guestName || entry?.name || 'Tamu').trim() || 'Tamu';
+  const status = String(entry?.status || 'Hadir').trim() || 'Hadir';
+  const message = String(entry?.message || 'Tidak ada pesan.').trim() || 'Tidak ada pesan.';
+  const submittedAt = entry?.submittedAt || entry?.createdAt || new Date().toISOString();
+
+  return {
+    guest,
+    status,
+    message,
+    submittedAt: submittedAt && typeof submittedAt?.toDate === 'function'
+      ? submittedAt.toDate().toISOString()
+      : String(submittedAt || new Date().toISOString())
+  };
 }
 
 function renderRsvpList(container) {
   const listEl = container.querySelector('[data-rsvp-list]');
   if (!listEl) return;
 
-  try {
-    const raw = localStorage.getItem(getRsvpStorageKey());
-    const entries = raw ? JSON.parse(raw) : [];
-
+  const renderEntries = (entries) => {
     listEl.classList.add('rsvp-list');
+    const normalizedEntries = Array.isArray(entries) ? entries.map(normalizeRsvpEntry) : [];
 
-    if (!Array.isArray(entries) || entries.length === 0) {
+    if (!normalizedEntries.length) {
       listEl.innerHTML = '<p class="text-sm text-on-surface-variant">Belum ada balasan. Jadilah yang pertama mengirimkan pesan.</p>';
       return;
     }
 
-    listEl.innerHTML = entries.slice(0, 12).map((entry) => `
+    listEl.innerHTML = normalizedEntries.slice(0, 12).map((entry) => `
       <article class="rsvp-list-item">
         <div class="rsvp-list-header">
           <strong>${escapeHtml(entry.guest || 'Tamu')}</strong>
@@ -2378,8 +2426,37 @@ function renderRsvpList(container) {
         <p>${escapeHtml(entry.message || 'Tidak ada pesan.')}</p>
       </article>
     `).join('');
+  };
+
+  const slug = normalizeShareSlug(new URLSearchParams(window.location.search).get('slug') || 'default');
+  if (!slug) {
+    renderEntries([]);
+    return;
+  }
+
+  const firestoreQuery = query(collection(db, 'gamon_wedding_rsvps'), where('shareSlug', '==', slug));
+
+  if (container.__rsvpUnsubscribe) {
+    container.__rsvpUnsubscribe();
+    container.__rsvpUnsubscribe = null;
+  }
+
+  try {
+    container.__rsvpUnsubscribe = onSnapshot(firestoreQuery, (snapshot) => {
+      const entries = snapshot.docs
+        .map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }))
+        .sort((a, b) => {
+          const aTime = new Date(a.createdAt && typeof a.createdAt?.toDate === 'function' ? a.createdAt.toDate() : a.createdAt || a.submittedAt || 0).getTime();
+          const bTime = new Date(b.createdAt && typeof b.createdAt?.toDate === 'function' ? b.createdAt.toDate() : b.createdAt || b.submittedAt || 0).getTime();
+          return bTime - aTime;
+        });
+      renderEntries(entries);
+      writeRsvpEntriesToLocalStorage(entries);
+    }, () => {
+      renderEntries(readRsvpEntriesFromLocalStorage());
+    });
   } catch {
-    listEl.innerHTML = '<p class="text-sm text-on-surface-variant">Belum ada balasan.</p>';
+    renderEntries(readRsvpEntriesFromLocalStorage());
   }
 }
 
@@ -2389,7 +2466,7 @@ function attachRsvpHandler(container) {
 
   renderRsvpList(container);
 
-  form.addEventListener('submit', (event) => {
+  form.addEventListener('submit', async (event) => {
     event.preventDefault();
     const message = container.querySelector('[data-rsvp-message]');
     const formData = new FormData(form);
@@ -2414,15 +2491,25 @@ function attachRsvpHandler(container) {
       return;
     }
 
-    const entry = { guest, status, message: messageText, submittedAt: new Date().toISOString() };
-    const savedKey = getRsvpStorageKey();
+    const slug = normalizeShareSlug(new URLSearchParams(window.location.search).get('slug') || 'default');
+    const templateId = (new URLSearchParams(window.location.search).get('template') || window.location.pathname.match(/\/templates\/([^/]+)\.html$/i)?.[1] || 'classic').toLowerCase();
+    const entry = {
+      guest,
+      status,
+      message: messageText,
+      shareSlug: slug,
+      templateId,
+      submittedAt: new Date().toISOString(),
+      createdAt: serverTimestamp()
+    };
 
     try {
-      const current = JSON.parse(localStorage.getItem(savedKey) || '[]');
-      const nextEntries = Array.isArray(current) ? [entry, ...current] : [entry];
-      localStorage.setItem(savedKey, JSON.stringify(nextEntries.slice(0, 25)));
+      await addDoc(collection(db, 'gamon_wedding_rsvps'), entry);
+      const localEntries = readRsvpEntriesFromLocalStorage();
+      writeRsvpEntriesToLocalStorage([{ ...entry, createdAt: entry.submittedAt }, ...localEntries].slice(0, 25));
     } catch {
-      // ignore localStorage failures in restricted environments
+      const localEntries = readRsvpEntriesFromLocalStorage();
+      writeRsvpEntriesToLocalStorage([{ guest, status, message: messageText, submittedAt: new Date().toISOString() }, ...localEntries].slice(0, 25));
     }
 
     if (message) {

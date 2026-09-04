@@ -378,42 +378,114 @@
         });
       }
 
+      tryAutoplay();
+
       const rsvpFormForest = document.querySelector('[data-rsvp-form]');
       const rsvpListForest = document.querySelector('[data-rsvp-list]');
       const rsvpMessageForest = document.querySelector('[data-rsvp-message]');
+      const forestParams = new URLSearchParams(window.location.search);
+      const forestSlug = forestParams.get('slug') || 'default';
+      const forestGuestNameFromUrl = (forestParams.get('to') || '').trim();
+      const forestNameInput = rsvpFormForest ? rsvpFormForest.querySelector('input[name="name"]') : null;
+      if (forestNameInput && forestGuestNameFromUrl) {
+        forestNameInput.value = forestGuestNameFromUrl;
+      }
+      const forestDb = firebase.firestore(firebase.initializeApp({ apiKey: 'AIzaSyC247K8yyL67aWV95KNQy8CkMZsjgGCudQ', authDomain: 'gamon-tawing.firebaseapp.com', projectId: 'gamon-tawing' }, 'forestInvitationApp'));
+
+      const renderForestRsvp = (entries) => {
+        if (!rsvpListForest) return;
+        const items = Array.isArray(entries) ? entries : [];
+        if (!items.length) {
+          rsvpListForest.innerHTML = '<div class="rounded-xl border border-secondary/20 bg-primary/5 p-3 text-sm text-on-surface-variant">Belum ada balasan. Jadilah yang pertama mengirimkan pesan.</div>';
+          return;
+        }
+
+        rsvpListForest.innerHTML = items.slice(0, 12).map((entry) => `
+          <div class="rounded-xl border border-secondary/20 bg-primary/5 p-3">
+            <div class="flex items-center justify-between gap-3">
+              <strong class="text-primary">${entry.guest || 'Tamu'}</strong>
+              <span class="rounded-full bg-secondary/10 px-2 py-1 text-xs uppercase tracking-wide text-secondary">${entry.status || 'Hadir'}</span>
+            </div>
+            <p class="mt-2 text-sm text-on-surface-variant">Jumlah tamu: ${entry.guests || '2'}</p>
+            <p class="mt-2 text-sm text-on-surface">${entry.message || 'Tidak ada pesan tambahan.'}</p>
+          </div>
+        `).join('');
+      };
+
+      const startForestRsvpListener = () => {
+        if (typeof forestDb?.collection !== 'function') return;
+
+        const q = forestDb.collection('gamon_wedding_rsvps').where('shareSlug', '==', forestSlug);
+        q.onSnapshot((snapshot) => {
+          const entries = snapshot.docs
+            .map((doc) => ({ id: doc.id, ...doc.data() }))
+            .sort((a, b) => {
+              const aTime = a.createdAt && typeof a.createdAt.toDate === 'function' ? a.createdAt.toDate().getTime() : new Date(a.submittedAt || 0).getTime();
+              const bTime = b.createdAt && typeof b.createdAt.toDate === 'function' ? b.createdAt.toDate().getTime() : new Date(b.submittedAt || 0).getTime();
+              return bTime - aTime;
+            });
+          renderForestRsvp(entries);
+          try {
+            localStorage.setItem(`gamon_rsvp_${forestSlug}`, JSON.stringify(entries.slice(0, 25)));
+          } catch {
+            // ignore localStorage failures
+          }
+        }, () => {
+          try {
+            const raw = JSON.parse(localStorage.getItem(`gamon_rsvp_${forestSlug}`) || '[]');
+            renderForestRsvp(Array.isArray(raw) ? raw : []);
+          } catch {
+            renderForestRsvp([]);
+          }
+        });
+      };
 
       if (rsvpFormForest) {
-        rsvpFormForest.addEventListener('submit', (event) => {
+        rsvpFormForest.addEventListener('submit', async (event) => {
           event.preventDefault();
           const formData = new FormData(rsvpFormForest);
           const name = (formData.get('name') || 'Tamu undangan').toString().trim() || 'Tamu undangan';
           const attending = (formData.get('attending') || 'yes').toString();
           const guests = (formData.get('guests') || '2').toString();
           const message = (formData.get('message') || '').toString().trim() || 'Tidak ada pesan tambahan.';
+          const status = attending === 'yes' ? 'Hadir' : 'Tidak hadir';
 
-          const card = document.createElement('div');
-          card.className = 'rounded-xl border border-secondary/20 bg-primary/5 p-3';
-          card.innerHTML = `
-            <div class="flex items-center justify-between gap-3">
-              <strong class="text-primary">${name}</strong>
-              <span class="rounded-full bg-secondary/10 px-2 py-1 text-xs uppercase tracking-wide text-secondary">${attending === 'yes' ? 'Hadir' : 'Tidak hadir'}</span>
-            </div>
-            <p class="mt-2 text-sm text-on-surface-variant">Jumlah tamu: ${guests}</p>
-            <p class="mt-2 text-sm text-on-surface">${message}</p>
-          `;
+          const payload = {
+            guest: name,
+            status,
+            guests,
+            message,
+            shareSlug: forestSlug,
+            submittedAt: new Date().toISOString(),
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+          };
 
-          if (rsvpListForest) rsvpListForest.prepend(card);
-          if (rsvpMessageForest) {
-            rsvpMessageForest.textContent = `${name} berhasil mengirimkan balasan ${attending === 'yes' ? 'hadir' : 'tidak hadir'} ke acara kami.`;
-            rsvpMessageForest.classList.add('text-primary');
+          try {
+            await forestDb.collection('gamon_wedding_rsvps').add(payload);
+            const raw = JSON.parse(localStorage.getItem(`gamon_rsvp_${forestSlug}`) || '[]');
+            const fallbackEntries = Array.isArray(raw) ? raw : [];
+            localStorage.setItem(`gamon_rsvp_${forestSlug}`, JSON.stringify([{ ...payload, createdAt: payload.submittedAt }, ...fallbackEntries].slice(0, 25)));
+          } catch {
+            const raw = JSON.parse(localStorage.getItem(`gamon_rsvp_${forestSlug}`) || '[]');
+            const fallbackEntries = Array.isArray(raw) ? raw : [];
+            localStorage.setItem(`gamon_rsvp_${forestSlug}`, JSON.stringify([{ guest: name, status, guests, message, shareSlug: forestSlug, submittedAt: new Date().toISOString() }, ...fallbackEntries].slice(0, 25)));
           }
+
+          const feedbackTargets = document.querySelectorAll('[data-rsvp-message]');
+          const successText = `${name} berhasil mengirimkan balasan ${attending === 'yes' ? 'hadir' : 'tidak hadir'} ke acara kami.`;
+          feedbackTargets.forEach((messageEl) => {
+            messageEl.textContent = successText;
+            messageEl.classList.remove('error', 'text-red-500', 'text-red-600', 'text-primary');
+            messageEl.classList.add('text-primary');
+          });
           rsvpFormForest.reset();
+          if (forestNameInput && forestGuestNameFromUrl) {
+            forestNameInput.value = forestGuestNameFromUrl;
+          }
         });
       }
 
-      const forestParams = new URLSearchParams(window.location.search);
-      const forestSlug = forestParams.get('slug');
-      const forestDb = firebase.firestore(firebase.initializeApp({ apiKey: 'AIzaSyC247K8yyL67aWV95KNQy8CkMZsjgGCudQ', authDomain: 'gamon-tawing.firebaseapp.com', projectId: 'gamon-tawing' }, 'forestInvitationApp'));
+      startForestRsvpListener();
 
       const formatLocaleDate = (dateValue) => {
         const value = String(dateValue || '').trim();

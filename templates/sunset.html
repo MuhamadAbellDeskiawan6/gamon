@@ -361,41 +361,113 @@
         });
       }
 
+      tryAutoplay();
+
       const rsvpFormSunset = document.querySelector('[data-rsvp-form]');
       const rsvpListSunset = document.querySelector('[data-rsvp-list]');
       const rsvpMessageSunset = document.querySelector('[data-rsvp-message]');
+      const sunsetParams = new URLSearchParams(window.location.search);
+      const sunsetGuestNameFromUrl = (sunsetParams.get('to') || '').trim();
+      const sunsetNameInput = rsvpFormSunset ? rsvpFormSunset.querySelector('input[name="name"]') : null;
+      if (sunsetNameInput && sunsetGuestNameFromUrl) {
+        sunsetNameInput.value = sunsetGuestNameFromUrl;
+      }
+      const sunsetDb = firebase.firestore(firebase.initializeApp({ apiKey: 'AIzaSyC247K8yyL67aWV95KNQy8CkMZsjgGCudQ', authDomain: 'gamon-tawing.firebaseapp.com', projectId: 'gamon-tawing' }, 'sunsetInvitationApp'));
+      const sunsetSlug = sunsetParams.get('slug') || 'default';
+
+      const renderSunsetRsvp = (entries) => {
+        if (!rsvpListSunset) return;
+        const items = Array.isArray(entries) ? entries : [];
+        if (!items.length) {
+          rsvpListSunset.innerHTML = '<div class="rounded-xl border border-primary/20 bg-primary/5 p-3 text-sm text-on-surface-variant">Belum ada balasan. Jadilah yang pertama mengirimkan pesan.</div>';
+          return;
+        }
+
+        rsvpListSunset.innerHTML = items.slice(0, 12).map((entry) => `
+          <div class="rounded-xl border border-primary/20 bg-primary/5 p-3">
+            <div class="flex items-center justify-between gap-3">
+              <strong class="text-primary">${entry.guest || 'Tamu'}</strong>
+              <span class="rounded-full bg-primary/10 px-2 py-1 text-xs uppercase tracking-wide text-primary">${entry.status || 'Hadir'}</span>
+            </div>
+            <p class="mt-2 text-sm text-on-surface-variant">Jumlah tamu: ${entry.guests || '2'}</p>
+            <p class="mt-2 text-sm text-on-surface">${entry.message || 'Tidak ada pesan tambahan.'}</p>
+          </div>
+        `).join('');
+      };
+
+      const startSunsetRsvpListener = () => {
+        if (typeof sunsetDb?.collection !== 'function') return;
+
+        const q = sunsetDb.collection('gamon_wedding_rsvps').where('shareSlug', '==', sunsetSlug);
+        q.onSnapshot((snapshot) => {
+          const entries = snapshot.docs
+            .map((doc) => ({ id: doc.id, ...doc.data() }))
+            .sort((a, b) => {
+              const aTime = a.createdAt && typeof a.createdAt.toDate === 'function' ? a.createdAt.toDate().getTime() : new Date(a.submittedAt || 0).getTime();
+              const bTime = b.createdAt && typeof b.createdAt.toDate === 'function' ? b.createdAt.toDate().getTime() : new Date(b.submittedAt || 0).getTime();
+              return bTime - aTime;
+            });
+          renderSunsetRsvp(entries);
+          try {
+            localStorage.setItem(`gamon_rsvp_${sunsetSlug}`, JSON.stringify(entries.slice(0, 25)));
+          } catch {
+            // ignore localStorage failures
+          }
+        }, () => {
+          try {
+            const raw = JSON.parse(localStorage.getItem(`gamon_rsvp_${sunsetSlug}`) || '[]');
+            renderSunsetRsvp(Array.isArray(raw) ? raw : []);
+          } catch {
+            renderSunsetRsvp([]);
+          }
+        });
+      };
 
       if (rsvpFormSunset) {
-        rsvpFormSunset.addEventListener('submit', (event) => {
+        rsvpFormSunset.addEventListener('submit', async (event) => {
           event.preventDefault();
           const formData = new FormData(rsvpFormSunset);
           const name = (formData.get('name') || 'Tamu undangan').toString().trim() || 'Tamu undangan';
           const attending = (formData.get('attending') || 'yes').toString();
           const guests = (formData.get('guests') || '2').toString();
           const message = (formData.get('message') || '').toString().trim() || 'Tidak ada pesan tambahan.';
+          const status = attending === 'yes' ? 'Hadir' : 'Tidak hadir';
+          const payload = {
+            guest: name,
+            status,
+            guests,
+            message,
+            shareSlug: sunsetSlug,
+            submittedAt: new Date().toISOString(),
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+          };
 
-          const card = document.createElement('div');
-          card.className = 'rounded-xl border border-primary/20 bg-primary/5 p-3';
-          card.innerHTML = `
-            <div class="flex items-center justify-between gap-3">
-              <strong class="text-primary">${name}</strong>
-              <span class="rounded-full bg-primary/10 px-2 py-1 text-xs uppercase tracking-wide text-primary">${attending === 'yes' ? 'Hadir' : 'Tidak hadir'}</span>
-            </div>
-            <p class="mt-2 text-sm text-on-surface-variant">Jumlah tamu: ${guests}</p>
-            <p class="mt-2 text-sm text-on-surface">${message}</p>
-          `;
-
-          if (rsvpListSunset) rsvpListSunset.prepend(card);
-          if (rsvpMessageSunset) {
-            rsvpMessageSunset.textContent = `${name} berhasil mengirimkan balasan ${attending === 'yes' ? 'hadir' : 'tidak hadir'} ke acara kami.`;
-            rsvpMessageSunset.classList.add('text-primary');
+          try {
+            await sunsetDb.collection('gamon_wedding_rsvps').add(payload);
+            const raw = JSON.parse(localStorage.getItem(`gamon_rsvp_${sunsetSlug}`) || '[]');
+            const fallbackEntries = Array.isArray(raw) ? raw : [];
+            localStorage.setItem(`gamon_rsvp_${sunsetSlug}`, JSON.stringify([{ ...payload, createdAt: payload.submittedAt }, ...fallbackEntries].slice(0, 25)));
+          } catch {
+            const raw = JSON.parse(localStorage.getItem(`gamon_rsvp_${sunsetSlug}`) || '[]');
+            const fallbackEntries = Array.isArray(raw) ? raw : [];
+            localStorage.setItem(`gamon_rsvp_${sunsetSlug}`, JSON.stringify([{ guest: name, status, guests, message, shareSlug: sunsetSlug, submittedAt: new Date().toISOString() }, ...fallbackEntries].slice(0, 25)));
           }
+
+          const feedbackTargets = document.querySelectorAll('[data-rsvp-message]');
+          const successText = `${name} berhasil mengirimkan balasan ${attending === 'yes' ? 'hadir' : 'tidak hadir'} ke acara kami.`;
+          feedbackTargets.forEach((messageEl) => {
+            messageEl.textContent = successText;
+            messageEl.classList.remove('error', 'text-red-500', 'text-red-600', 'text-primary');
+            messageEl.classList.add('text-primary');
+          });
           rsvpFormSunset.reset();
+          if (sunsetNameInput && sunsetGuestNameFromUrl) {
+            sunsetNameInput.value = sunsetGuestNameFromUrl;
+          }
         });
       }
 
-      const sunsetDb = firebase.firestore(firebase.initializeApp({ apiKey: 'AIzaSyC247K8yyL67aWV95KNQy8CkMZsjgGCudQ', authDomain: 'gamon-tawing.firebaseapp.com', projectId: 'gamon-tawing' }, 'sunsetInvitationApp'));
-      const sunsetSlug = new URLSearchParams(window.location.search).get('slug');
+      startSunsetRsvpListener();
 
       const formatLocaleDate = (dateValue) => {
         const value = String(dateValue || '').trim();

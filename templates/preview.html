@@ -6,6 +6,8 @@
     <title>Abell &amp; Purnama - Wedding Invitation</title>
     <meta name="description" content="Undangan pernikahan Abell & Purnama." />
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
@@ -362,32 +364,103 @@
     </script>
 
     <script>
+      const previewParams = new URLSearchParams(window.location.search);
+      const previewDb = firebase.firestore(firebase.initializeApp({ apiKey: 'AIzaSyC247K8yyL67aWV95KNQy8CkMZsjgGCudQ', authDomain: 'gamon-tawing.firebaseapp.com', projectId: 'gamon-tawing' }, 'previewInvitationApp'));
+      const previewSlug = previewParams.get('slug') || 'default';
       const rsvpFormPreview = document.querySelector('[data-rsvp-form]');
       const rsvpListPreview = document.querySelector('[data-rsvp-list]');
       const rsvpMessagePreview = document.querySelector('[data-rsvp-message]');
+      const previewGuestNameFromUrl = (previewParams.get('to') || '').trim();
+      const previewNameInput = rsvpFormPreview ? rsvpFormPreview.querySelector('input[name="name"]') : null;
+      if (previewNameInput && previewGuestNameFromUrl) {
+        previewNameInput.value = previewGuestNameFromUrl;
+      }
+
+      const renderPreviewRsvp = (entries) => {
+        if (!rsvpListPreview) return;
+        const items = Array.isArray(entries) ? entries : [];
+        if (!items.length) {
+          rsvpListPreview.innerHTML = '<div class="rounded-xl border border-primary/20 bg-primary/5 p-3 text-sm text-on-surface-variant">Belum ada balasan. Jadilah yang pertama mengirimkan pesan.</div>';
+          return;
+        }
+
+        rsvpListPreview.innerHTML = items.slice(0, 12).map((entry) => `
+          <div class="rounded-xl border border-primary/20 bg-primary/5 p-3">
+            <div class="flex items-center justify-between gap-3">
+              <strong class="text-primary">${entry.guest || 'Tamu'}</strong>
+              <span class="rounded-full bg-primary/10 px-2 py-1 text-xs uppercase tracking-wide text-primary">${entry.status || 'Hadir'}</span>
+            </div>
+            <p class="mt-2 text-sm text-on-surface-variant">Jumlah tamu: ${entry.guests || '2'}</p>
+            <p class="mt-2 text-sm text-on-surface">${entry.message || 'Tidak ada pesan tambahan.'}</p>
+          </div>
+        `).join('');
+      };
+
+      const startPreviewRsvpListener = () => {
+        if (!previewDb || typeof previewDb.collection !== 'function') return;
+
+        previewDb.collection('gamon_wedding_rsvps')
+          .where('shareSlug', '==', previewSlug)
+          .onSnapshot((snapshot) => {
+            const entries = snapshot.docs
+              .map((docSnapshot) => ({ id: docSnapshot.id, ...docSnapshot.data() }))
+              .sort((a, b) => {
+                const aTime = a.createdAt && typeof a.createdAt.toDate === 'function' ? a.createdAt.toDate().getTime() : new Date(a.submittedAt || 0).getTime();
+                const bTime = b.createdAt && typeof b.createdAt.toDate === 'function' ? b.createdAt.toDate().getTime() : new Date(b.submittedAt || 0).getTime();
+                return bTime - aTime;
+              });
+            renderPreviewRsvp(entries);
+          }, () => {
+            renderPreviewRsvp([]);
+          });
+      };
 
       if (rsvpFormPreview) {
-        rsvpFormPreview.addEventListener('submit', (event) => {
+        rsvpFormPreview.addEventListener('submit', async (event) => {
           event.preventDefault();
           const formData = new FormData(rsvpFormPreview);
           const name = (formData.get('name') || 'Tamu undangan').toString().trim() || 'Tamu undangan';
           const attending = (formData.get('attending') || 'yes').toString();
           const guests = (formData.get('guests') || '2').toString();
           const message = (formData.get('message') || '').toString().trim() || 'Tidak ada pesan tambahan.';
-          const card = document.createElement('div');
-          card.className = 'rounded-xl border border-primary/20 bg-primary/5 p-3';
-          card.innerHTML = `<div class="flex items-center justify-between gap-3"><strong class="text-primary">${name}</strong><span class="rounded-full bg-primary/10 px-2 py-1 text-xs uppercase tracking-wide text-primary">${attending === 'yes' ? 'Hadir' : 'Tidak hadir'}</span></div><p class="mt-2 text-sm text-on-surface-variant">Jumlah tamu: ${guests}</p><p class="mt-2 text-sm text-on-surface">${message}</p>`;
-          if (rsvpListPreview) {
-            rsvpListPreview.innerHTML = '';
-            rsvpListPreview.appendChild(card);
+          const status = attending === 'yes' ? 'Hadir' : 'Tidak hadir';
+          const payload = {
+            guest: name,
+            status,
+            guests,
+            message,
+            shareSlug: previewSlug,
+            submittedAt: new Date().toISOString(),
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+          };
+
+          try {
+            await previewDb.collection('gamon_wedding_rsvps').add(payload);
+          } catch {
+            try {
+              const raw = JSON.parse(localStorage.getItem(`gamon_rsvp_${previewSlug}`) || '[]');
+              const fallback = Array.isArray(raw) ? raw : [];
+              localStorage.setItem(`gamon_rsvp_${previewSlug}`, JSON.stringify([{ ...payload, createdAt: payload.submittedAt }, ...fallback].slice(0, 25)));
+            } catch {
+              localStorage.setItem(`gamon_rsvp_${previewSlug}`, JSON.stringify([{ guest: name, status, guests, message, shareSlug: previewSlug, submittedAt: new Date().toISOString() }]))
+            }
           }
-          if (rsvpMessagePreview) {
-            rsvpMessagePreview.textContent = `${name} berhasil mengirimkan balasan ${attending === 'yes' ? 'hadir' : 'tidak hadir'} ke acara kami.`;
-            rsvpMessagePreview.classList.add('text-primary');
-          }
+
+          const feedbackTargets = document.querySelectorAll('[data-rsvp-message]');
+          const successText = `${name} berhasil mengirimkan balasan ${attending === 'yes' ? 'hadir' : 'tidak hadir'} ke acara kami.`;
+          feedbackTargets.forEach((messageEl) => {
+            messageEl.textContent = successText;
+            messageEl.classList.remove('error', 'text-red-500', 'text-red-600', 'text-primary');
+            messageEl.classList.add('text-primary');
+          });
           rsvpFormPreview.reset();
+          if (previewNameInput && previewGuestNameFromUrl) {
+            previewNameInput.value = previewGuestNameFromUrl;
+          }
         });
       }
+
+      startPreviewRsvpListener();
     </script>
   </body>
 </html>

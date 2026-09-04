@@ -370,42 +370,113 @@
         });
       }
 
+      tryAutoplay();
+
       const rsvpFormLavender = document.querySelector('[data-rsvp-form]');
       const rsvpListLavender = document.querySelector('[data-rsvp-list]');
       const rsvpMessageLavender = document.querySelector('[data-rsvp-message]');
+      const lavenderParams = new URLSearchParams(window.location.search);
+      const lavenderSlug = lavenderParams.get('slug') || 'default';
+      const lavenderGuestNameFromUrl = (lavenderParams.get('to') || '').trim();
+      const lavenderNameInput = rsvpFormLavender ? rsvpFormLavender.querySelector('input[name="name"]') : null;
+      if (lavenderNameInput && lavenderGuestNameFromUrl) {
+        lavenderNameInput.value = lavenderGuestNameFromUrl;
+      }
+      const lavenderDb = firebase.firestore(firebase.initializeApp({ apiKey: 'AIzaSyC247K8yyL67aWV95KNQy8CkMZsjgGCudQ', authDomain: 'gamon-tawing.firebaseapp.com', projectId: 'gamon-tawing' }, 'lavenderInvitationApp'));
+
+      const renderLavenderRsvp = (entries) => {
+        if (!rsvpListLavender) return;
+        const items = Array.isArray(entries) ? entries : [];
+        if (!items.length) {
+          rsvpListLavender.innerHTML = '<div class="rounded-xl border border-secondary/20 bg-primary/5 p-3 text-sm text-on-surface-variant">Belum ada balasan. Jadilah yang pertama mengirimkan pesan.</div>';
+          return;
+        }
+
+        rsvpListLavender.innerHTML = items.slice(0, 12).map((entry) => `
+          <div class="rounded-xl border border-secondary/20 bg-primary/5 p-3">
+            <div class="flex items-center justify-between gap-3">
+              <strong class="text-primary">${entry.guest || 'Tamu'}</strong>
+              <span class="rounded-full bg-secondary/10 px-2 py-1 text-xs uppercase tracking-wide text-secondary">${entry.status || 'Hadir'}</span>
+            </div>
+            <p class="mt-2 text-sm text-on-surface-variant">Jumlah tamu: ${entry.guests || '2'}</p>
+            <p class="mt-2 text-sm text-on-surface">${entry.message || 'Tidak ada pesan tambahan.'}</p>
+          </div>
+        `).join('');
+      };
+
+      const startLavenderRsvpListener = () => {
+        if (typeof lavenderDb?.collection !== 'function') return;
+
+        const q = lavenderDb.collection('gamon_wedding_rsvps').where('shareSlug', '==', lavenderSlug);
+        q.onSnapshot((snapshot) => {
+          const entries = snapshot.docs
+            .map((doc) => ({ id: doc.id, ...doc.data() }))
+            .sort((a, b) => {
+              const aTime = a.createdAt && typeof a.createdAt.toDate === 'function' ? a.createdAt.toDate().getTime() : new Date(a.submittedAt || 0).getTime();
+              const bTime = b.createdAt && typeof b.createdAt.toDate === 'function' ? b.createdAt.toDate().getTime() : new Date(b.submittedAt || 0).getTime();
+              return bTime - aTime;
+            });
+          renderLavenderRsvp(entries);
+          try {
+            localStorage.setItem(`gamon_rsvp_${lavenderSlug}`, JSON.stringify(entries.slice(0, 25)));
+          } catch {
+            // ignore localStorage failures
+          }
+        }, () => {
+          try {
+            const raw = JSON.parse(localStorage.getItem(`gamon_rsvp_${lavenderSlug}`) || '[]');
+            renderLavenderRsvp(Array.isArray(raw) ? raw : []);
+          } catch {
+            renderLavenderRsvp([]);
+          }
+        });
+      };
 
       if (rsvpFormLavender) {
-        rsvpFormLavender.addEventListener('submit', (event) => {
+        rsvpFormLavender.addEventListener('submit', async (event) => {
           event.preventDefault();
           const formData = new FormData(rsvpFormLavender);
           const name = (formData.get('name') || 'Tamu undangan').toString().trim() || 'Tamu undangan';
           const attending = (formData.get('attending') || 'yes').toString();
           const guests = (formData.get('guests') || '2').toString();
           const message = (formData.get('message') || '').toString().trim() || 'Tidak ada pesan tambahan.';
+          const status = attending === 'yes' ? 'Hadir' : 'Tidak hadir';
+          const payload = {
+            guest: name,
+            status,
+            guests,
+            message,
+            shareSlug: lavenderSlug,
+            submittedAt: new Date().toISOString(),
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+          };
 
-          const card = document.createElement('div');
-          card.className = 'rounded-xl border border-secondary/20 bg-primary/5 p-3';
-          card.innerHTML = `
-            <div class="flex items-center justify-between gap-3">
-              <strong class="text-primary">${name}</strong>
-              <span class="rounded-full bg-secondary/10 px-2 py-1 text-xs uppercase tracking-wide text-secondary">${attending === 'yes' ? 'Hadir' : 'Tidak hadir'}</span>
-            </div>
-            <p class="mt-2 text-sm text-on-surface-variant">Jumlah tamu: ${guests}</p>
-            <p class="mt-2 text-sm text-on-surface">${message}</p>
-          `;
-
-          if (rsvpListLavender) rsvpListLavender.prepend(card);
-          if (rsvpMessageLavender) {
-            rsvpMessageLavender.textContent = `${name} berhasil mengirimkan balasan ${attending === 'yes' ? 'hadir' : 'tidak hadir'} ke acara kami.`;
-            rsvpMessageLavender.classList.add('text-primary');
+          try {
+            await lavenderDb.collection('gamon_wedding_rsvps').add(payload);
+            const raw = JSON.parse(localStorage.getItem(`gamon_rsvp_${lavenderSlug}`) || '[]');
+            const fallbackEntries = Array.isArray(raw) ? raw : [];
+            localStorage.setItem(`gamon_rsvp_${lavenderSlug}`, JSON.stringify([{ ...payload, createdAt: payload.submittedAt }, ...fallbackEntries].slice(0, 25)));
+          } catch {
+            const raw = JSON.parse(localStorage.getItem(`gamon_rsvp_${lavenderSlug}`) || '[]');
+            const fallbackEntries = Array.isArray(raw) ? raw : [];
+            localStorage.setItem(`gamon_rsvp_${lavenderSlug}`, JSON.stringify([{ guest: name, status, guests, message, shareSlug: lavenderSlug, submittedAt: new Date().toISOString() }, ...fallbackEntries].slice(0, 25)));
           }
+
+          const feedbackTargets = document.querySelectorAll('[data-rsvp-message]');
+          const successText = `${name} berhasil mengirimkan balasan ${attending === 'yes' ? 'hadir' : 'tidak hadir'} ke acara kami.`;
+          feedbackTargets.forEach((messageEl) => {
+            messageEl.textContent = successText;
+            messageEl.classList.remove('error', 'text-red-500', 'text-red-600', 'text-primary');
+            messageEl.classList.add('text-primary');
+          });
           rsvpFormLavender.reset();
+          if (lavenderNameInput && lavenderGuestNameFromUrl) {
+            lavenderNameInput.value = lavenderGuestNameFromUrl;
+          }
         });
       }
 
-      const lavenderParams = new URLSearchParams(window.location.search);
-      const lavenderSlug = lavenderParams.get('slug');
-      const lavenderDb = firebase.firestore(firebase.initializeApp({ apiKey: 'AIzaSyC247K8yyL67aWV95KNQy8CkMZsjgGCudQ', authDomain: 'gamon-tawing.firebaseapp.com', projectId: 'gamon-tawing' }, 'lavenderInvitationApp'));
+      startLavenderRsvpListener();
 
       const formatLocaleDate = (dateValue) => {
         const value = String(dateValue || '').trim();
