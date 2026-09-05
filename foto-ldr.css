@@ -320,7 +320,8 @@ button {
 }
 
 #cameraVideo,
-#partnerVideo {
+#selfPhoto,
+#partnerPhoto {
   width: 100%;
   height: 100%;
   object-fit: cover;
@@ -328,11 +329,22 @@ button {
   background: #d9d9d9;
 }
 
-#partnerVideo {
-  display: none;
+#cameraVideo {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
 }
 
-#partnerVideo.active {
+#selfPhoto,
+#partnerPhoto {
+  position: absolute;
+  inset: 0;
+  display: none;
+  z-index: 3;
+}
+
+#selfPhoto.visible,
+#partnerPhoto.visible {
   display: block;
 }
 
@@ -344,10 +356,19 @@ button {
   font-size: clamp(2rem, 8vw, 4rem);
   color: rgba(26, 27, 29, 0.28);
   background: #f3f3f3;
+  z-index: 2;
+  pointer-events: none;
 }
 
 .panel-video-wrap.hidden-placeholder .camera-placeholder {
-  display: none;
+  display: none !important;
+  opacity: 0 !important;
+}
+
+.panel-video-wrap.hidden-placeholder #cameraVideo,
+.panel-video-wrap.hidden-placeholder #selfPhoto,
+.panel-video-wrap.hidden-placeholder #partnerPhoto {
+  z-index: 5;
 }
 
 .partner-empty {
@@ -357,11 +378,6 @@ button {
 .partner-placeholder {
   color: rgba(80, 60, 160, 0.7);
   background: #efefef;
-}
-
-#partnerVideo.active + .camera-placeholder,
-#partnerVideo.active + .partner-placeholder {
-  display: none;
 }
 
 .camera-label {
@@ -602,28 +618,12 @@ button {
   background: #eef2f7;
 }
 
-/* =========================
-   PARTNER LIVE VIDEO
-========================= */
-
-#partnerVideo{
-  display:none;
-}
-
-#partnerVideo.active{
-  display:block;
-}
-
-#partnerPhoto{
-  display:none;
-}
-
-#partnerPhoto.show{
-  display:block;
-}
-
-.partner-card img {
+#partnerPhoto {
   display: none;
+}
+
+#partnerPhoto.visible {
+  display: block;
 }
 
 .camera-placeholder {

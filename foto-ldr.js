@@ -23,12 +23,6 @@ const state = {
   myPhoto: null,
   partnerPhoto: null,
   resultImage: null,
-  frameImage: null,
-  rtcPeerConnection: null,
-  rtcOfferApplied: false,
-  rtcAnswerApplied: false,
-  rtcCandidateKeys: new Set(),
-  pendingRemoteCandidates: [],
   countdownTimer: null,
   countdownStartedAt: null,
   countdownValue: 0,
@@ -57,9 +51,11 @@ const captureBtn = $("captureBtn");
 const retakeBtn = $("retakeBtn");
 const downloadBtn = $("downloadBtn");
 const cameraVideo = $("cameraVideo");
-const partnerVideo = $("partnerVideo");
+const selfPhotoEl = $("selfPhoto");
+const partnerPhotoEl = $("partnerPhoto");
 const captureCanvas = $("captureCanvas");
 const cameraPlaceholder = $("cameraPlaceholder");
+const partnerPlaceholder = $("partnerPlaceholder");
 const resultCanvas = $("resultCanvas");
 const resultMessage = $("resultMessage");
 const captureStatusText = $("captureStatusText");
@@ -152,15 +148,6 @@ function showScreen(screen) {
   screen.classList.add("active");
 }
 
-function generateCode() {
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  let value = "";
-  for (let i = 0; i < 6; i += 1) {
-    value += chars[Math.floor(Math.random() * chars.length)];
-  }
-  return value;
-}
-
 function sessionRef(id = state.sessionId) {
   return db.collection("fotoLdrSessions").doc(id);
 }
@@ -215,13 +202,84 @@ function setSessionStatusText(value) {
   sessionStatusText.textContent = value;
 }
 
+function updateStaticPhotoPreview(kind, dataUrl) {
+  const photoEl = kind === "self" ? selfPhotoEl : partnerPhotoEl;
+  const placeholder = kind === "self" ? cameraPlaceholder : partnerPlaceholder;
+  const videoEl = kind === "self" ? cameraVideo : null;
+  const wrap = placeholder ? placeholder.parentElement : null;
+
+  if (!photoEl) {
+    return;
+  }
+
+  const hasPhoto = Boolean(dataUrl);
+
+  if (!hasPhoto) {
+    photoEl.removeAttribute("src");
+    photoEl.classList.remove("visible");
+    photoEl.hidden = true;
+    photoEl.style.display = "none";
+    photoEl.style.opacity = "0";
+    photoEl.style.zIndex = "0";
+
+    if (videoEl) {
+      videoEl.hidden = false;
+      videoEl.style.display = "block";
+      videoEl.style.opacity = "1";
+      videoEl.style.zIndex = "1";
+    }
+
+    if (wrap) {
+      wrap.classList.remove("hidden-placeholder");
+    }
+
+    if (placeholder) {
+      placeholder.hidden = false;
+      placeholder.style.display = "grid";
+      placeholder.style.opacity = "1";
+      placeholder.style.zIndex = "2";
+      placeholder.classList.remove("hidden");
+    }
+    return;
+  }
+
+  photoEl.src = dataUrl;
+  photoEl.classList.add("visible");
+  photoEl.hidden = false;
+  photoEl.style.display = "block";
+  photoEl.style.opacity = "1";
+  photoEl.style.zIndex = "3";
+
+  if (videoEl) {
+    videoEl.hidden = true;
+    videoEl.style.display = "none";
+    videoEl.style.opacity = "0";
+    videoEl.style.zIndex = "0";
+  }
+
+  if (wrap) {
+    wrap.classList.add("hidden-placeholder");
+  }
+
+  if (placeholder) {
+    placeholder.hidden = true;
+    placeholder.style.display = "none";
+    placeholder.style.opacity = "0";
+    placeholder.style.zIndex = "0";
+    placeholder.classList.add("hidden");
+  }
+}
+
 function syncCaptureUi(data = state.sessionData) {
   const user1Photo = data?.user1Photo || null;
   const user2Photo = data?.user2Photo || null;
   const myPhoto = state.role === "user1" ? user1Photo : user2Photo;
-  const partnerPhoto = state.role === "user1" ? user2Photo : user1Photo;
+  const partnerPhotoUrl = state.role === "user1" ? user2Photo : user1Photo;
+
   state.myPhoto = myPhoto;
-  state.partnerPhoto = partnerPhoto;
+  state.partnerPhoto = partnerPhotoUrl;
+  updateStaticPhotoPreview("self", myPhoto);
+  updateStaticPhotoPreview("partner", partnerPhotoUrl);
 
   if (data?.status === "waiting") {
     captureStatusText.textContent = "Menunggu pasangan";
@@ -251,196 +309,6 @@ function listenSession() {
     console.error("Listener gagal:", error);
     showToast("Koneksi sesi bermasalah.");
   });
-}
-
-function setPartnerRemoteStream(stream) {
-  if (!stream) {
-    if (partnerVideo) {
-      partnerVideo.srcObject = null;
-      configureVideoElement(partnerVideo);
-    }
-    partnerVideo.classList.remove("active");
-    const partnerPlaceholder = document.querySelector(".partner-placeholder");
-    if (partnerPlaceholder) {
-      partnerPlaceholder.style.display = "grid";
-    }
-    return;
-  }
-
-  attachVideoStream(partnerVideo, stream);
-  partnerVideo.classList.add("active");
-  const partnerPlaceholder = document.querySelector(".partner-placeholder");
-  if (partnerPlaceholder) {
-    partnerPlaceholder.style.display = "none";
-  }
-}
-
-function resetPeerConnection() {
-  if (state.rtcPeerConnection) {
-    state.rtcPeerConnection.close();
-    state.rtcPeerConnection = null;
-  }
-
-  state.rtcOfferApplied = false;
-  state.rtcAnswerApplied = false;
-  state.rtcCandidateKeys.clear();
-  state.pendingRemoteCandidates = [];
-  setPartnerRemoteStream(null);
-}
-
-async function ensurePeerConnection() {
-  if (state.rtcPeerConnection) {
-    return state.rtcPeerConnection;
-  }
-
-  const pc = new RTCPeerConnection({
-    iceServers: [
-      { urls: "stun:stun.l.google.com:19302" },
-      { urls: "stun:stun1.l.google.com:19302" },
-    ],
-  });
-
-  pc.ontrack = (event) => {
-    const stream = event.streams?.[0];
-    if (stream) {
-      setPartnerRemoteStream(stream);
-      showToast("Kamera pasangan terhubung.");
-    }
-  };
-
-  pc.onicecandidate = async (event) => {
-    if (!event.candidate || !state.sessionId) {
-      return;
-    }
-
-    try {
-      const candidate = event.candidate.toJSON();
-      await sessionRef().set({
-        rtcCandidates: firebase.firestore.FieldValue.arrayUnion(candidate),
-      }, { merge: true });
-    } catch (error) {
-      console.error("Gagal mengirim kandidat ICE:", error);
-    }
-  };
-
-  pc.onconnectionstatechange = () => {
-    if (pc.connectionState === "connected") {
-      partnerVideo.classList.add("active");
-    }
-    if (pc.connectionState === "failed" || pc.connectionState === "closed") {
-      setPartnerRemoteStream(null);
-    }
-  };
-
-  if (state.cameraStream) {
-    state.cameraStream.getTracks().forEach((track) => pc.addTrack(track, state.cameraStream));
-  }
-
-  state.rtcPeerConnection = pc;
-  return pc;
-}
-
-async function applyRemoteCandidates(candidates = []) {
-  if (!Array.isArray(candidates)) {
-    return;
-  }
-
-  if (!state.rtcPeerConnection) {
-    state.pendingRemoteCandidates.push(...candidates.filter(Boolean));
-    return;
-  }
-
-  if (!state.rtcPeerConnection.remoteDescription) {
-    state.pendingRemoteCandidates.push(...candidates.filter(Boolean));
-    return;
-  }
-
-  const items = [...state.pendingRemoteCandidates, ...candidates];
-  state.pendingRemoteCandidates = [];
-
-  for (const candidate of items) {
-    if (!candidate || !candidate.candidate) {
-      continue;
-    }
-
-    const key = `${candidate.sdpMid || "default"}:${candidate.sdpMLineIndex ?? 0}:${candidate.candidate}`;
-    if (state.rtcCandidateKeys.has(key)) {
-      continue;
-    }
-
-    state.rtcCandidateKeys.add(key);
-
-    try {
-      await state.rtcPeerConnection.addIceCandidate(new RTCIceCandidate(candidate));
-    } catch (error) {
-      console.error("Gagal menambahkan kandidat remote:", error);
-    }
-  }
-}
-
-async function startRtcOffer() {
-  const pc = await ensurePeerConnection();
-  if (!state.cameraStream) {
-    await startCamera();
-  }
-
-  if (!state.cameraStream) {
-    return;
-  }
-
-  const offer = await pc.createOffer();
-  await pc.setLocalDescription(offer);
-  const offerPayload = { type: offer.type, sdp: offer.sdp };
-  await sessionRef().set({ rtcOffer: offerPayload, rtcAnswer: null }, { merge: true });
-}
-
-async function startRtcAnswer(offer) {
-  const pc = await ensurePeerConnection();
-  if (!offer) {
-    return;
-  }
-
-  await pc.setRemoteDescription(new RTCSessionDescription(offer));
-
-  if (state.pendingRemoteCandidates.length) {
-    await applyRemoteCandidates(state.pendingRemoteCandidates);
-    state.pendingRemoteCandidates = [];
-  }
-
-  const answer = await pc.createAnswer();
-  await pc.setLocalDescription(answer);
-  const answerPayload = { type: answer.type, sdp: answer.sdp };
-  await sessionRef().set({ rtcAnswer: answerPayload, rtcOffer: null }, { merge: true });
-}
-
-async function handleRtcFlow(data) {
-  if (!state.sessionId || !state.cameraStream) {
-    return;
-  }
-
-  if (state.role === "user1" && data.user2 && !state.rtcPeerConnection) {
-    await startRtcOffer();
-  }
-
-  if (state.role === "user2" && data.rtcOffer && !state.rtcOfferApplied) {
-    state.rtcOfferApplied = true;
-    await startRtcAnswer(data.rtcOffer);
-  }
-
-  if (state.role === "user1" && data.rtcAnswer && !state.rtcAnswerApplied) {
-    state.rtcAnswerApplied = true;
-    const pc = await ensurePeerConnection();
-    await pc.setRemoteDescription(new RTCSessionDescription(data.rtcAnswer));
-
-    if (state.pendingRemoteCandidates.length) {
-      await applyRemoteCandidates(state.pendingRemoteCandidates);
-      state.pendingRemoteCandidates = [];
-    }
-  }
-
-  if (Array.isArray(data.rtcCandidates)) {
-    await applyRemoteCandidates(data.rtcCandidates);
-  }
 }
 
 function startSharedCountdownFromSession(data) {
@@ -515,7 +383,7 @@ async function performAutoCapture() {
       action: "capture-complete",
     });
 
-    showToast("Foto berhasil diambil secara bersamaan.");
+    showToast("Foto berhasil diambil.");
 
     if (state.sessionData?.user1Photo && state.sessionData?.user2Photo) {
       await buildCombinedResult();
@@ -586,7 +454,6 @@ async function handleSessionUpdate(data) {
   }
 
   syncCaptureUi(data);
-  await handleRtcFlow(data);
 
   if (data.status === "connected" || data.status === "captured" || data.status === "ready" || data.status === "sent") {
     if (startScreen.classList.contains("active") || waitingScreen.classList.contains("active")) {
@@ -658,22 +525,19 @@ async function startCamera() {
     state.cameraStream = stream;
 
     attachVideoStream(cameraVideo, stream);
-    cameraPlaceholder.parentElement.classList.remove("hidden-placeholder");
-    cameraPlaceholder.style.display = "none";
+    if (cameraPlaceholder) {
+      const selfWrap = cameraPlaceholder.parentElement;
+      if (selfWrap) {
+        selfWrap.classList.add("hidden-placeholder");
+      }
+      cameraPlaceholder.style.display = "none";
+      cameraPlaceholder.classList.add("hidden");
+    }
+    updateStaticPhotoPreview("self", null);
 
     await cameraVideo.play().catch(() => {
       console.warn("Panggilan play() video utama ditolak; preview masih akan terpasang.");
     });
-
-    if (state.rtcPeerConnection) {
-      const tracks = state.cameraStream.getTracks();
-      state.rtcPeerConnection.getSenders().forEach((sender) => {
-        if (sender.track) {
-          sender.replaceTrack(tracks[0] || sender.track);
-        }
-      });
-    }
-    setPartnerRemoteStream(null);
   } catch (error) {
     console.error(error);
     showToast("Kamera tidak dapat diakses. Pastikan izin kamera sudah diberikan dan browser mobile mendukung getUserMedia.");
@@ -960,6 +824,7 @@ function resetSession() {
   if (cameraVideo) {
     cameraVideo.pause();
     cameraVideo.srcObject = null;
+    cameraVideo.style.display = "block";
     configureVideoElement(cameraVideo);
   }
 
@@ -981,19 +846,23 @@ function resetSession() {
     state.countdownTimer = null;
   }
   clearCountdownOverlay();
-  resetPeerConnection();
 
   roomCode.textContent = "------";
   joinCodeInput.value = "";
   captureStatusText.textContent = "Siap mengambil foto";
   resultMessage.textContent = "Foto siap diunduh.";
   cameraVideo.srcObject = null;
-  partnerVideo.srcObject = null;
-  partnerVideo.classList.remove("active");
-  cameraPlaceholder.style.display = "grid";
-  const partnerPlaceholder = document.querySelector(".partner-placeholder");
+  updateStaticPhotoPreview("self", null);
+  updateStaticPhotoPreview("partner", null);
+  if (cameraPlaceholder) {
+    cameraPlaceholder.style.display = "grid";
+    cameraPlaceholder.classList.remove("hidden");
+    cameraPlaceholder.parentElement?.classList.remove("hidden-placeholder");
+  }
   if (partnerPlaceholder) {
     partnerPlaceholder.style.display = "grid";
+    partnerPlaceholder.classList.remove("hidden");
+    partnerPlaceholder.parentElement?.classList.remove("hidden-placeholder");
   }
   showScreen(startScreen);
 }
@@ -1012,12 +881,12 @@ cameraToggleBtn.addEventListener("click", async () => {
       stopCameraStream(state.cameraStream);
       state.cameraStream = null;
     }
-    partnerVideo.srcObject = null;
-    partnerVideo.classList.remove("active");
-    cameraPlaceholder.style.display = "grid";
-    const partnerPlaceholder = document.querySelector(".partner-placeholder");
-    if (partnerPlaceholder) {
-      partnerPlaceholder.style.display = "grid";
+    cameraVideo.style.display = "block";
+    updateStaticPhotoPreview("self", null);
+    if (cameraPlaceholder) {
+      cameraPlaceholder.style.display = "grid";
+      cameraPlaceholder.classList.remove("hidden");
+      cameraPlaceholder.parentElement?.classList.remove("hidden-placeholder");
     }
     showToast("Kamera dimatikan.");
     return;
@@ -1043,6 +912,30 @@ retakeBtn.addEventListener("click", () => {
   }
 
   state.myPhoto = null;
+  state.partnerPhoto = null;
+  updateStaticPhotoPreview("self", null);
+  updateStaticPhotoPreview("partner", null);
+
+  if (cameraPlaceholder) {
+    cameraPlaceholder.style.display = "grid";
+    cameraPlaceholder.style.opacity = "1";
+    cameraPlaceholder.style.zIndex = "2";
+    cameraPlaceholder.classList.remove("hidden");
+    cameraPlaceholder.parentElement?.classList.remove("hidden-placeholder");
+  }
+  if (partnerPlaceholder) {
+    partnerPlaceholder.style.display = "grid";
+    partnerPlaceholder.style.opacity = "1";
+    partnerPlaceholder.style.zIndex = "2";
+    partnerPlaceholder.classList.remove("hidden");
+    partnerPlaceholder.parentElement?.classList.remove("hidden-placeholder");
+  }
+  if (cameraVideo) {
+    cameraVideo.style.display = "block";
+    cameraVideo.style.opacity = "1";
+    cameraVideo.style.zIndex = "1";
+  }
+
   showToast("Siap ambil foto baru.");
 });
 

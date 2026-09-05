@@ -70,6 +70,7 @@
             <div class="camera-card self-card">
               <div class="panel-video-wrap hidden-placeholder">
                 <video id="cameraVideo" autoplay muted playsinline webkit-playsinline></video>
+                <img id="selfPhoto" class="photo-preview" alt="Preview foto kamu" />
                 <canvas id="captureCanvas" hidden></canvas>
                 <div class="camera-placeholder" id="cameraPlaceholder">📷</div>
               </div>
@@ -78,8 +79,8 @@
 
             <div class="camera-card partner-card">
               <div class="panel-video-wrap partner-empty">
-                <video id="partnerVideo" autoplay muted playsinline webkit-playsinline></video>
-                <div class="camera-placeholder partner-placeholder">👤</div>
+                <img id="partnerPhoto" class="photo-preview" alt="Preview foto pasangan" />
+                <div class="camera-placeholder partner-placeholder" id="partnerPlaceholder">👤</div>
               </div>
               <div class="camera-label">Teman</div>
             </div>
