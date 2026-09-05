@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Foto LDR | Gamon Tawing</title>
+    <link rel="stylesheet" href="/foto-ldr.css" />
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+  </head>
+  <body>
+    <div class="ldr-app">
+      <header class="ldr-topbar">
+        <button class="nav-btn" type="button" onclick="location.href='/'">←</button>
+        <div class="brand-wrap">
+          <strong>Gamon Tawing</strong>
+          <span>Foto LDR</span>
+        </div>
+        <button class="nav-btn" type="button" id="helpBtn">?</button>
+      </header>
+
+      <main class="ldr-main">
+        <section id="startScreen" class="screen active">
+          <div class="hero-block">
+            <div class="hero-icon">📸</div>
+            <h1>Foto bareng,<br />meski berjauhan.</h1>
+            <p>
+              Fitur virtual LDR yang simpel: buat sesi, gabung, ambil satu foto masing-masing,
+              lalu hasilnya langsung bisa ditampilkan dan diunduh.
+            </p>
+          </div>
+
+          <div class="action-card">
+            <button id="createBtn" class="primary-btn" type="button">Buat Sesi LDR</button>
+
+            <div class="divider"><span>atau</span></div>
+
+            <div class="join-box">
+              <label for="joinCodeInput">Masukkan kode sesi</label>
+              <input id="joinCodeInput" type="text" maxlength="6" placeholder="ABCDE1" autocomplete="off" />
+              <button id="joinBtn" class="secondary-btn" type="button">Gabung Sesi</button>
+            </div>
+          </div>
+        </section>
+
+        <section id="waitingScreen" class="screen">
+          <div class="status-card">
+            <span class="status-pill" id="sessionStatusText">Menunggu pasangan...</span>
+            <h2>Bagikan kode ini ke pasanganmu</h2>
+            <button id="roomCode" class="room-code" type="button">------</button>
+            <p class="muted-text">Ketuk untuk menyalin kode</p>
+
+            <div class="pair-badges">
+              <span>Orang A</span>
+              <span>Orang B</span>
+            </div>
+
+            <p id="waitingMessage" class="info-text">Menunggu pasangan bergabung...</p>
+            <button id="cancelSessionBtn" class="text-btn" type="button">Batalkan sesi</button>
+          </div>
+        </section>
+
+        <section id="captureScreen" class="screen">
+          <div class="capture-header">
+            <span class="status-pill success" id="captureStatusText">Siap mengambil foto</span>
+            <button id="cameraToggleBtn" class="ghost-btn" type="button">Kamera</button>
+          </div>
+
+          <div class="camera-grid">
+            <div class="camera-card self-card">
+              <div class="panel-video-wrap hidden-placeholder">
+                <video id="cameraVideo" autoplay muted playsinline></video>
+                <canvas id="captureCanvas" hidden></canvas>
+                <div class="camera-placeholder" id="cameraPlaceholder">📷</div>
+              </div>
+              <div class="camera-label">Kamu</div>
+            </div>
+
+            <div class="camera-card partner-card">
+              <div class="panel-video-wrap partner-empty">
+                <video id="partnerVideo" autoplay muted playsinline></video>
+                <div class="camera-placeholder partner-placeholder">👤</div>
+              </div>
+              <div class="camera-label">Teman</div>
+            </div>
+          </div>
+
+          <div class="capture-actions">
+            <button id="captureBtn" class="primary-btn" type="button">Ambil Foto</button>
+            <button id="retakeBtn" class="secondary-btn" type="button">Ambil Ulang</button>
+          </div>
+
+        </section>
+
+        <section id="resultScreen" class="screen">
+          <div class="result-wrapper">
+            <h2>Hasil Foto LDR</h2>
+            <div class="result-frame">
+              <canvas id="resultCanvas" width="900" height="1560"></canvas>
+            </div>
+
+            <p id="resultMessage" class="info-text">Foto siap dikirim.</p>
+
+            <div class="result-actions">
+              <button id="downloadBtn" class="primary-btn" type="button">Unduh PNG</button>
+              <button id="newSessionBtn" class="secondary-btn" type="button">Sesi Baru</button>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <div id="toast" class="toast"></div>
+
+    <script src="/foto-ldr.js"></script>
+  </body>
+</html>
