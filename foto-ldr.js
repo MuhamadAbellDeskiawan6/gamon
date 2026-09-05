@@ -162,10 +162,10 @@ async function updateSession(patch) {
   };
 
   try {
-    await fetch("/api/foto-ldr/update-session.js", {
+    await fetch("/api/foto-ldr", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({ ...payload, action: "update-session" }),
     });
   } catch (error) {
     console.error("updateSession failed:", error);
@@ -604,10 +604,10 @@ async function createSession() {
     createBtn.disabled = true;
     createBtn.textContent = "Membuat sesi...";
 
-    const response = await fetch("/api/foto-ldr/create-session.js", {
+    const response = await fetch("/api/foto-ldr", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({}),
+      body: JSON.stringify({ action: "create-session" }),
     });
 
     const payload = await response.json();
@@ -650,10 +650,10 @@ async function joinSession() {
     joinBtn.disabled = true;
     joinBtn.textContent = "Menghubungkan...";
 
-    const response = await fetch("/api/foto-ldr/join-session.js", {
+    const response = await fetch("/api/foto-ldr", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ code }),
+      body: JSON.stringify({ action: "join-session", code }),
     });
 
     const payload = await response.json();
