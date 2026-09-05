@@ -67,7 +67,7 @@ const toast = $("toast");
 
 let toastTimer = null;
 
-function prepareVideoElement(videoEl) {
+function configureVideoElement(videoEl) {
   if (!videoEl) {
     return;
   }
@@ -76,12 +76,34 @@ function prepareVideoElement(videoEl) {
   videoEl.setAttribute("muted", "true");
   videoEl.setAttribute("playsinline", "true");
   videoEl.setAttribute("webkit-playsinline", "true");
-  videoEl.setAttribute("controls", "false");
-  videoEl.muted = true;
   videoEl.playsInline = true;
-  videoEl.autoplay = true;
+  videoEl.muted = true;
   videoEl.controls = false;
-  videoEl.disablePictureInPicture = true;
+}
+
+function attachVideoStream(videoEl, stream) {
+  if (!videoEl) {
+    return;
+  }
+
+  configureVideoElement(videoEl);
+  videoEl.srcObject = stream;
+
+  if (videoEl.play) {
+    videoEl.play().catch(() => {
+      console.warn("Video autoplay/play gagal untuk elemen kamera.");
+    });
+  }
+}
+
+function stopCameraStream(stream) {
+  if (!stream) {
+    return;
+  }
+
+  stream.getTracks().forEach((track) => {
+    track.stop();
+  });
 }
 
 function logSync(message, payload) {
@@ -233,7 +255,10 @@ function listenSession() {
 
 function setPartnerRemoteStream(stream) {
   if (!stream) {
-    partnerVideo.srcObject = null;
+    if (partnerVideo) {
+      partnerVideo.srcObject = null;
+      configureVideoElement(partnerVideo);
+    }
     partnerVideo.classList.remove("active");
     const partnerPlaceholder = document.querySelector(".partner-placeholder");
     if (partnerPlaceholder) {
@@ -242,7 +267,7 @@ function setPartnerRemoteStream(stream) {
     return;
   }
 
-  partnerVideo.srcObject = stream;
+  attachVideoStream(partnerVideo, stream);
   partnerVideo.classList.add("active");
   const partnerPlaceholder = document.querySelector(".partner-placeholder");
   if (partnerPlaceholder) {
@@ -586,86 +611,59 @@ async function handleSessionUpdate(data) {
   }
 }
 
-async function startCamera() {
-  if (state.cameraStream) {
-    prepareVideoElement(cameraVideo);
-    if (cameraVideo.srcObject !== state.cameraStream) {
-      cameraVideo.srcObject = state.cameraStream;
-    }
-    try {
-      await cameraVideo.play().catch(() => undefined);
-    } catch (error) {
-      console.warn("Video play fallback failed:", error);
-    }
-    return;
+async function requestCameraAccess() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    throw new Error("Browser ini tidak mendukung akses kamera.");
   }
 
-  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-    showToast("Browser ini tidak mendukung akses kamera.");
+  const attempts = [
+    {
+      video: {
+        facingMode: { ideal: "user" },
+        width: { ideal: 1280, min: 640 },
+        height: { ideal: 1280, min: 720 },
+        frameRate: { ideal: 30, max: 30 },
+      },
+      audio: false,
+    },
+    {
+      video: { facingMode: "user" },
+      audio: false,
+    },
+    {
+      video: true,
+      audio: false,
+    },
+  ];
+
+  let lastError = null;
+  for (const constraint of attempts) {
+    try {
+      return await navigator.mediaDevices.getUserMedia(constraint);
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw lastError || new Error("Gagal meminta izin kamera.");
+}
+
+async function startCamera() {
+  if (state.cameraStream) {
     return;
   }
 
   try {
-    const cameraConstraintsList = [
-      {
-        video: {
-          facingMode: { ideal: "user" },
-          width: { ideal: 1280 },
-          height: { ideal: 1280 },
-          frameRate: { ideal: 30 },
-        },
-        audio: false,
-      },
-      {
-        video: { facingMode: "user" },
-        audio: false,
-      },
-      {
-        video: { facingMode: { ideal: "environment" } },
-        audio: false,
-      },
-      {
-        video: { width: { ideal: 1280 }, height: { ideal: 1280 } },
-        audio: false,
-      },
-      {
-        video: true,
-        audio: false,
-      },
-    ];
-
-    let stream = null;
-    let lastError = null;
-
-    for (const options of cameraConstraintsList) {
-      try {
-        stream = await navigator.mediaDevices.getUserMedia(options);
-        break;
-      } catch (error) {
-        lastError = error;
-      }
-    }
-
-    if (!stream) {
-      throw lastError || new Error("Tidak dapat mengakses kamera.");
-    }
-
+    const stream = await requestCameraAccess();
     state.cameraStream = stream;
-    prepareVideoElement(cameraVideo);
-    cameraVideo.srcObject = stream;
-    cameraVideo.load();
 
-    const videoWrap = cameraVideo.closest(".panel-video-wrap");
-    if (videoWrap) {
-      videoWrap.classList.remove("hidden-placeholder");
-    }
+    attachVideoStream(cameraVideo, stream);
+    cameraPlaceholder.parentElement.classList.remove("hidden-placeholder");
     cameraPlaceholder.style.display = "none";
 
-    try {
-      await cameraVideo.play();
-    } catch (error) {
-      console.warn("Autoplay video diblokir, menunggu interaksi user:", error);
-    }
+    await cameraVideo.play().catch(() => {
+      console.warn("Panggilan play() video utama ditolak; preview masih akan terpasang.");
+    });
 
     if (state.rtcPeerConnection) {
       const tracks = state.cameraStream.getTracks();
@@ -678,7 +676,7 @@ async function startCamera() {
     setPartnerRemoteStream(null);
   } catch (error) {
     console.error(error);
-    showToast("Kamera tidak dapat diakses. Pastikan izin kamera sudah diberikan dan browser mendukung akses kamera mobile.");
+    showToast("Kamera tidak dapat diakses. Pastikan izin kamera sudah diberikan dan browser mobile mendukung getUserMedia.");
   }
 }
 
@@ -955,8 +953,14 @@ function resetSession() {
   }
 
   if (state.cameraStream) {
-    state.cameraStream.getTracks().forEach((track) => track.stop());
+    stopCameraStream(state.cameraStream);
     state.cameraStream = null;
+  }
+
+  if (cameraVideo) {
+    cameraVideo.pause();
+    cameraVideo.srcObject = null;
+    configureVideoElement(cameraVideo);
   }
 
   state.sessionId = null;
@@ -1002,11 +1006,14 @@ joinCodeInput.addEventListener("input", () => {
 
 cameraToggleBtn.addEventListener("click", async () => {
   if (cameraVideo.srcObject) {
-    cameraVideo.srcObject.getTracks().forEach((track) => track.stop());
+    stopCameraStream(cameraVideo.srcObject);
     cameraVideo.srcObject = null;
+    if (state.cameraStream) {
+      stopCameraStream(state.cameraStream);
+      state.cameraStream = null;
+    }
     partnerVideo.srcObject = null;
     partnerVideo.classList.remove("active");
-    state.cameraStream = null;
     cameraPlaceholder.style.display = "grid";
     const partnerPlaceholder = document.querySelector(".partner-placeholder");
     if (partnerPlaceholder) {
