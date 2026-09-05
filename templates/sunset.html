@@ -629,8 +629,10 @@
         }
 
         const mapFrame = document.getElementById('mapFrame');
+        const mapContainer = document.getElementById('mapContainer');
         const mapLink = document.getElementById('mapLink');
         if (mapFrame) mapFrame.src = mapEmbedUrl || '';
+        if (mapContainer) mapContainer.style.display = mapEmbedUrl ? 'block' : 'none';
         if (mapLink) {
           mapLink.href = mapUrl || '#';
           mapLink.style.display = mapUrl ? 'inline-flex' : 'none';
