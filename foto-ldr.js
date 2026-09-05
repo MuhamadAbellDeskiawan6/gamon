@@ -67,6 +67,23 @@ const toast = $("toast");
 
 let toastTimer = null;
 
+function prepareVideoElement(videoEl) {
+  if (!videoEl) {
+    return;
+  }
+
+  videoEl.setAttribute("autoplay", "true");
+  videoEl.setAttribute("muted", "true");
+  videoEl.setAttribute("playsinline", "true");
+  videoEl.setAttribute("webkit-playsinline", "true");
+  videoEl.setAttribute("controls", "false");
+  videoEl.muted = true;
+  videoEl.playsInline = true;
+  videoEl.autoplay = true;
+  videoEl.controls = false;
+  videoEl.disablePictureInPicture = true;
+}
+
 function logSync(message, payload) {
   console.log("[LDR sync]", message, payload || "");
 }
@@ -85,75 +102,6 @@ function showToast(message) {
   toast.classList.add("show");
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => toast.classList.remove("show"), 3000);
-}
-
-function prepareVideoElement(videoEl, { muted = true, autoplay = true } = {}) {
-  if (!videoEl) {
-    return;
-  }
-
-  videoEl.autoplay = autoplay;
-  videoEl.muted = muted;
-  videoEl.playsInline = true;
-  videoEl.setAttribute("playsinline", "true");
-  videoEl.setAttribute("webkit-playsinline", "true");
-  videoEl.setAttribute("muted", "true");
-  videoEl.setAttribute("autoplay", "true");
-  videoEl.setAttribute("controls", "false");
-}
-
-async function safePlayVideo(videoEl) {
-  if (!videoEl || typeof videoEl.play !== "function") {
-    return false;
-  }
-
-  prepareVideoElement(videoEl);
-
-  try {
-    await videoEl.play();
-    return true;
-  } catch (error) {
-    console.warn("Video autoplay/play failed:", error);
-    return false;
-  }
-}
-
-async function ensureMediaPlayback(videoEl, label = "video") {
-  if (!videoEl) {
-    return false;
-  }
-
-  prepareVideoElement(videoEl);
-
-  try {
-    if (videoEl.readyState >= 2) {
-      return await safePlayVideo(videoEl);
-    }
-
-    await new Promise((resolve) => {
-      const done = () => {
-        cleanup();
-        resolve();
-      };
-
-      const cleanup = () => {
-        videoEl.removeEventListener("loadedmetadata", done);
-        videoEl.removeEventListener("canplay", done);
-      };
-
-      videoEl.addEventListener("loadedmetadata", done, { once: true });
-      videoEl.addEventListener("canplay", done, { once: true });
-      setTimeout(() => {
-        cleanup();
-        resolve();
-      }, 1200);
-    });
-
-    return await safePlayVideo(videoEl);
-  } catch (error) {
-    console.warn(`Playback for ${label} could not start:`, error);
-    return false;
-  }
 }
 
 function showCountdownOverlay(value) {
@@ -295,15 +243,11 @@ function setPartnerRemoteStream(stream) {
   }
 
   partnerVideo.srcObject = stream;
-  prepareVideoElement(partnerVideo);
   partnerVideo.classList.add("active");
-
   const partnerPlaceholder = document.querySelector(".partner-placeholder");
   if (partnerPlaceholder) {
     partnerPlaceholder.style.display = "none";
   }
-
-  void ensureMediaPlayback(partnerVideo, "partner video");
 }
 
 function resetPeerConnection() {
@@ -643,44 +587,85 @@ async function handleSessionUpdate(data) {
 }
 
 async function startCamera() {
-  if (state.cameraStream && cameraVideo.srcObject === state.cameraStream) {
-    await safePlayVideo(cameraVideo);
+  if (state.cameraStream) {
+    prepareVideoElement(cameraVideo);
+    if (cameraVideo.srcObject !== state.cameraStream) {
+      cameraVideo.srcObject = state.cameraStream;
+    }
+    try {
+      await cameraVideo.play().catch(() => undefined);
+    } catch (error) {
+      console.warn("Video play fallback failed:", error);
+    }
+    return;
+  }
+
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    showToast("Browser ini tidak mendukung akses kamera.");
     return;
   }
 
   try {
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      throw new Error("Browser ini tidak mendukung akses kamera.");
+    const cameraConstraintsList = [
+      {
+        video: {
+          facingMode: { ideal: "user" },
+          width: { ideal: 1280 },
+          height: { ideal: 1280 },
+          frameRate: { ideal: 30 },
+        },
+        audio: false,
+      },
+      {
+        video: { facingMode: "user" },
+        audio: false,
+      },
+      {
+        video: { facingMode: { ideal: "environment" } },
+        audio: false,
+      },
+      {
+        video: { width: { ideal: 1280 }, height: { ideal: 1280 } },
+        audio: false,
+      },
+      {
+        video: true,
+        audio: false,
+      },
+    ];
+
+    let stream = null;
+    let lastError = null;
+
+    for (const options of cameraConstraintsList) {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia(options);
+        break;
+      } catch (error) {
+        lastError = error;
+      }
     }
 
-    const constraints = {
-      audio: false,
-      video: {
-        facingMode: { ideal: "user" },
-        width: { ideal: 1280 },
-        height: { ideal: 1280 },
-        frameRate: { ideal: 30, max: 30 },
-      },
-    };
-
-    let stream;
-    try {
-      stream = await navigator.mediaDevices.getUserMedia(constraints);
-    } catch (firstError) {
-      console.warn("getUserMedia with strict mobile constraints failed, retrying with fallback:", firstError);
-      stream = await navigator.mediaDevices.getUserMedia({
-        audio: false,
-        video: { facingMode: "user" },
-      });
+    if (!stream) {
+      throw lastError || new Error("Tidak dapat mengakses kamera.");
     }
 
     state.cameraStream = stream;
     prepareVideoElement(cameraVideo);
     cameraVideo.srcObject = stream;
-    cameraPlaceholder.parentElement.classList.remove("hidden-placeholder");
+    cameraVideo.load();
+
+    const videoWrap = cameraVideo.closest(".panel-video-wrap");
+    if (videoWrap) {
+      videoWrap.classList.remove("hidden-placeholder");
+    }
     cameraPlaceholder.style.display = "none";
 
-    await ensureMediaPlayback(cameraVideo, "self video");
+    try {
+      await cameraVideo.play();
+    } catch (error) {
+      console.warn("Autoplay video diblokir, menunggu interaksi user:", error);
+    }
 
     if (state.rtcPeerConnection) {
       const tracks = state.cameraStream.getTracks();
@@ -692,8 +677,8 @@ async function startCamera() {
     }
     setPartnerRemoteStream(null);
   } catch (error) {
-    console.error("Camera access failed:", error);
-    showToast("Akses kamera gagal. Izinkan kamera di browser HP lalu coba lagi.");
+    console.error(error);
+    showToast("Kamera tidak dapat diakses. Pastikan izin kamera sudah diberikan dan browser mendukung akses kamera mobile.");
   }
 }
 
