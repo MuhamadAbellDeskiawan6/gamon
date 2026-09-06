@@ -65,9 +65,31 @@ async function getIceServersHandler(req, res) {
   }
 
   try {
-    const url = `https://${encodeURIComponent(appName)}.metered.live/api/v1/turn/credential?apiKey=${encodeURIComponent(apiKey)}`;
+    const url = `https://${encodeURIComponent(appName)}.metered.live/api/v1/turn/credentials?apiKey=${encodeURIComponent(apiKey)}`;
     const response = await fetch(url);
-    const payload = await response.json();
+    const rawBody = await response.text();
+    console.log("[LDR TURN] Respons Metered:", {
+      status: response.status,
+      ok: response.ok,
+      bodyLogged: !response.ok,
+      body: response.ok ? "[disembunyikan untuk mencegah kebocoran kredensial TURN]" : rawBody.slice(0, 2000),
+    });
+
+    let payload;
+    try {
+      payload = JSON.parse(rawBody);
+    } catch (parseError) {
+      console.error("[LDR TURN] Respons Metered bukan JSON valid.", {
+        status: response.status,
+        body: rawBody.slice(0, 2000),
+      });
+      return res.status(502).json({
+        success: false,
+        turnConfigured: false,
+        message: "Respons provider TURN tidak valid.",
+      });
+    }
+
     const iceServers = Array.isArray(payload) ? payload : payload.iceServers;
     const hasTurn = Array.isArray(iceServers) && iceServers.some((server) => {
       const urls = Array.isArray(server?.urls) ? server.urls : [server?.urls];
@@ -75,8 +97,15 @@ async function getIceServersHandler(req, res) {
     });
 
     if (!response.ok || !hasTurn) {
-      console.error("[LDR TURN] TIDAK AKTIF: respons Metered tidak berisi TURN.", { status: response.status });
-      return res.status(502).json({ success: false, turnConfigured: false, message: "Provider TURN tidak mengembalikan server TURN." });
+      console.error("[LDR TURN] TIDAK AKTIF: respons Metered tidak berisi TURN.", {
+        status: response.status,
+        hasTurn,
+      });
+      return res.status(502).json({
+        success: false,
+        turnConfigured: false,
+        message: response.ok ? "Provider TURN tidak mengembalikan server TURN." : "Provider TURN menolak permintaan.",
+      });
     }
 
     console.log("[LDR TURN] AKTIF: kredensial TURN berhasil diambil dari Metered.");
