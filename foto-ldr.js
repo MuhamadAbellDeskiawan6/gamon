@@ -47,6 +47,9 @@ const state = {
   isCountingDown: false,
   lastTriggeredCountdownAt: null,
   reconnectTimer: null,
+  rtcIceServers: null,
+  rtcIceServersPromise: null,
+  rtcTurnActive: false,
 };
 
 const $ = (id) => document.getElementById(id);
@@ -76,6 +79,7 @@ const resultCanvas = $("resultCanvas");
 const resultMessage = $("resultMessage");
 const captureStatusText = $("captureStatusText");
 const rtcDebugText = $("rtcDebugText");
+const rtcTurnStatus = $("rtcTurnStatus");
 const selfMicStatus = $("selfMicStatus");
 const toast = $("toast");
 
@@ -346,31 +350,88 @@ function updateMicUi() {
 }
 
 function getIceServers() {
-  if (window.__GAMON_ICE_SERVERS__ && Array.isArray(window.__GAMON_ICE_SERVERS__)) {
-    return window.__GAMON_ICE_SERVERS__;
-  }
-
   const fallbacks = [
     { urls: "stun:stun.l.google.com:19302" },
     { urls: "stun:stun1.l.google.com:19302" },
     { urls: "stun:stun2.l.google.com:19302" },
   ];
 
-  if (window.__GAMON_TURN_URL__ && window.__GAMON_TURN_USERNAME__ && window.__GAMON_TURN_CREDENTIAL__) {
-    return [
-      ...fallbacks,
-      {
-        urls: window.__GAMON_TURN_URL__,
-        username: window.__GAMON_TURN_USERNAME__,
-        credential: window.__GAMON_TURN_CREDENTIAL__,
-      },
-    ];
+  return Array.isArray(state.rtcIceServers) && state.rtcIceServers.length ? state.rtcIceServers : fallbacks;
+}
+
+function setTurnStatus(message, active = false) {
+  state.rtcTurnActive = active;
+  if (rtcTurnStatus) {
+    rtcTurnStatus.textContent = `TURN: ${message}`;
+  }
+}
+
+async function loadIceServers() {
+  if (state.rtcIceServers) {
+    return state.rtcIceServers;
   }
 
-  if (window.__GAMON_DEBUG_WEBRTC__) {
-    console.warn("TURN server untuk WebRTC belum dikonfigurasi; fallback ke STUN saja. Untuk device seluler, siapkan server TURN yang valid.");
+  if (state.rtcIceServersPromise) {
+    return state.rtcIceServersPromise;
   }
-  return fallbacks;
+
+  state.rtcIceServersPromise = (async () => {
+    try {
+      const response = await fetch("/api/foto-ldr?action=ice-servers", { cache: "no-store" });
+      const payload = await response.json();
+      if (!response.ok || !payload.success || !payload.turnConfigured || !Array.isArray(payload.iceServers)) {
+        throw new Error(payload.message || "TURN tidak tersedia.");
+      }
+
+      state.rtcIceServers = payload.iceServers;
+      setTurnStatus("AKTIF, kredensial diterima", true);
+      console.log("[LDR TURN] AKTIF: browser menerima konfigurasi TURN dari backend.");
+      return state.rtcIceServers;
+    } catch (error) {
+      state.rtcIceServers = null;
+      setTurnStatus("TIDAK AKTIF, cek konfigurasi", false);
+      console.error("[LDR TURN] TIDAK AKTIF, cek konfigurasi:", error.message);
+      throw error;
+    } finally {
+      state.rtcIceServersPromise = null;
+    }
+  })();
+
+  return state.rtcIceServersPromise;
+}
+
+async function logSelectedIceCandidate(pc) {
+  if (!pc || typeof pc.getStats !== "function") {
+    return;
+  }
+
+  const stats = await pc.getStats();
+  let selectedPair = null;
+  let localCandidate = null;
+
+  stats.forEach((report) => {
+    if (report.type === "candidate-pair" && (report.selected || report.nominated) && report.state === "succeeded") {
+      selectedPair = report;
+    }
+  });
+
+  if (selectedPair?.localCandidateId) {
+    localCandidate = stats.get(selectedPair.localCandidateId);
+  }
+
+  if (localCandidate?.candidateType === "relay") {
+    setTurnStatus("AKTIF, relay sedang dipakai", true);
+    console.log("[LDR TURN] AKTIF: koneksi WebRTC memakai relay TURN.", {
+      candidateType: localCandidate.candidateType,
+      protocol: localCandidate.protocol,
+      address: localCandidate.address,
+    });
+    return;
+  }
+
+  console.warn("[LDR TURN] BELUM DIPAKAI: koneksi aktif tetapi candidate bukan relay TURN.", {
+    candidateType: localCandidate?.candidateType || "unknown",
+  });
 }
 
 function isInAppBrowser() {
@@ -569,6 +630,7 @@ async function ensurePeerConnection() {
   }
 
   state.rtcPeerConnectionPromise = (async () => {
+    await loadIceServers();
     const pc = new RTCPeerConnection({
       iceServers: getIceServers(),
       iceTransportPolicy: "all",
@@ -758,6 +820,7 @@ async function ensurePeerConnection() {
       if (pc.connectionState === "connected") {
         partnerVideo.classList.add("active");
         setSessionStatusText("Pasangan terhubung");
+        void logSelectedIceCandidate(pc);
       }
 
       if (pc.connectionState === "failed" || pc.connectionState === "closed") {

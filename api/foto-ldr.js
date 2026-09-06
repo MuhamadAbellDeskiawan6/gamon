@@ -51,6 +51,42 @@ function normalizeAction(value) {
   return value.trim().toLowerCase().replace(/_/g, "-");
 }
 
+async function getIceServersHandler(req, res) {
+  if (req.method !== "GET" && req.method !== "POST") {
+    return res.status(405).json({ success: false, message: "Method not allowed" });
+  }
+
+  const appName = String(process.env.METERED_APP_NAME || "").trim();
+  const apiKey = String(process.env.METERED_API_KEY || "").trim();
+
+  if (!appName || !apiKey) {
+    console.error("[LDR TURN] TIDAK AKTIF: METERED_APP_NAME atau METERED_API_KEY belum diatur.");
+    return res.status(503).json({ success: false, turnConfigured: false, message: "TURN belum dikonfigurasi di server." });
+  }
+
+  try {
+    const url = `https://${encodeURIComponent(appName)}.metered.live/api/v1/turn/credential?apiKey=${encodeURIComponent(apiKey)}`;
+    const response = await fetch(url);
+    const payload = await response.json();
+    const iceServers = Array.isArray(payload) ? payload : payload.iceServers;
+    const hasTurn = Array.isArray(iceServers) && iceServers.some((server) => {
+      const urls = Array.isArray(server?.urls) ? server.urls : [server?.urls];
+      return urls.some((value) => String(value || "").toLowerCase().startsWith("turn:"));
+    });
+
+    if (!response.ok || !hasTurn) {
+      console.error("[LDR TURN] TIDAK AKTIF: respons Metered tidak berisi TURN.", { status: response.status });
+      return res.status(502).json({ success: false, turnConfigured: false, message: "Provider TURN tidak mengembalikan server TURN." });
+    }
+
+    console.log("[LDR TURN] AKTIF: kredensial TURN berhasil diambil dari Metered.");
+    return res.status(200).json({ success: true, turnConfigured: true, iceServers });
+  } catch (error) {
+    console.error("[LDR TURN] TIDAK AKTIF: gagal mengambil kredensial Metered.", error.message);
+    return res.status(502).json({ success: false, turnConfigured: false, message: "Gagal mengambil kredensial TURN." });
+  }
+}
+
 function resolveAction(req, body = {}) {
   const candidates = [
     req?.query?.action,
@@ -304,6 +340,10 @@ module.exports = async function handler(req, res) {
 
   if (action === "create-session" || action === "create") {
     return createSessionHandler(req, res, body);
+  }
+
+  if (action === "ice-servers" || action === "turn-credentials") {
+    return getIceServersHandler(req, res);
   }
 
   if (action === "join-session" || action === "join") {
