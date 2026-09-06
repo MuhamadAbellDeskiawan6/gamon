@@ -64,7 +64,10 @@
         <section id="captureScreen" class="screen">
           <div class="capture-header">
             <span class="status-pill success" id="captureStatusText">Siap mengambil foto</span>
-            <button id="cameraToggleBtn" class="ghost-btn" type="button">Kamera</button>
+            <div class="capture-header-actions">
+              <button id="cameraToggleBtn" class="ghost-btn" type="button">Kamera</button>
+              <button id="micToggleBtn" class="ghost-btn mic-toggle" type="button" aria-pressed="true">Mic</button>
+            </div>
           </div>
 
           <div id="rtcDebugText" class="rtc-debug-text">pc: none • ice: none • sent: 0 • recv: 0</div>
@@ -75,6 +78,7 @@
                 <video id="cameraVideo" autoplay muted playsinline webkit-playsinline></video>
                 <canvas id="captureCanvas" hidden></canvas>
                 <div class="camera-placeholder" id="cameraPlaceholder">📷</div>
+                <div id="selfMicStatus" class="microphone-badge mic-on" aria-live="polite">Mic on</div>
               </div>
               <div class="camera-label">Kamu</div>
             </div>

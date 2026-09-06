@@ -20,6 +20,7 @@ const state = {
   sessionData: null,
   unsubscribe: null,
   cameraStream: null,
+  micEnabled: true,
   myPhoto: null,
   partnerPhoto: null,
   resultImage: null,
@@ -63,6 +64,7 @@ const sessionStatusText = $("sessionStatusText");
 const waitingMessage = $("waitingMessage");
 const helpBtn = $("helpBtn");
 const cameraToggleBtn = $("cameraToggleBtn");
+const micToggleBtn = $("micToggleBtn");
 const captureBtn = $("captureBtn");
 const retakeBtn = $("retakeBtn");
 const downloadBtn = $("downloadBtn");
@@ -74,35 +76,45 @@ const resultCanvas = $("resultCanvas");
 const resultMessage = $("resultMessage");
 const captureStatusText = $("captureStatusText");
 const rtcDebugText = $("rtcDebugText");
+const selfMicStatus = $("selfMicStatus");
 const toast = $("toast");
 
 let toastTimer = null;
 
-function configureVideoElement(videoEl) {
+function configureVideoElement(videoEl, { muted = true } = {}) {
   if (!videoEl) {
     return;
   }
 
   videoEl.setAttribute("autoplay", "true");
-  videoEl.setAttribute("muted", "true");
   videoEl.setAttribute("playsinline", "true");
   videoEl.setAttribute("webkit-playsinline", "true");
   videoEl.playsInline = true;
-  videoEl.muted = true;
   videoEl.controls = false;
+
+  if (muted) {
+    videoEl.setAttribute("muted", "true");
+    videoEl.muted = true;
+  } else {
+    videoEl.removeAttribute("muted");
+    videoEl.muted = false;
+  }
 }
 
-function attachVideoStream(videoEl, stream) {
+function attachVideoStream(videoEl, stream, { muted = true } = {}) {
   if (!videoEl) {
     return;
   }
 
-  configureVideoElement(videoEl);
+  configureVideoElement(videoEl, { muted });
   videoEl.srcObject = stream;
 
   if (videoEl.play) {
     videoEl.play().catch(() => {
-      console.warn("Video autoplay/play gagal untuk elemen kamera.");
+      console.warn("Video autoplay/play gagal untuk elemen kamera.", { element: videoEl.id, muted });
+      if (videoEl === partnerVideo) {
+        showToast("Audio partner tidak bisa diputar otomatis. Ketuk layar untuk mengaktifkan suara.");
+      }
     });
   }
 }
@@ -296,7 +308,7 @@ function setPartnerRemoteStream(stream) {
   if (!stream) {
     if (partnerVideo) {
       partnerVideo.srcObject = null;
-      configureVideoElement(partnerVideo);
+      configureVideoElement(partnerVideo, { muted: false });
     }
     partnerVideo.classList.remove("active");
     const partnerPlaceholder = document.querySelector(".partner-placeholder");
@@ -306,11 +318,30 @@ function setPartnerRemoteStream(stream) {
     return;
   }
 
-  attachVideoStream(partnerVideo, stream);
+  attachVideoStream(partnerVideo, stream, { muted: false });
   partnerVideo.classList.add("active");
   const partnerPlaceholder = document.querySelector(".partner-placeholder");
   if (partnerPlaceholder) {
     partnerPlaceholder.style.display = "none";
+  }
+}
+
+function updateMicUi() {
+  if (!micToggleBtn || !selfMicStatus) {
+    return;
+  }
+
+  const enabled = state.micEnabled !== false;
+  micToggleBtn.textContent = enabled ? "Mic" : "Mic off";
+  micToggleBtn.classList.toggle("is-muted", !enabled);
+  micToggleBtn.setAttribute("aria-pressed", String(enabled));
+  selfMicStatus.textContent = enabled ? "Mic on" : "Mic off";
+  selfMicStatus.classList.toggle("muted", !enabled);
+
+  if (state.cameraStream) {
+    state.cameraStream.getAudioTracks().forEach((track) => {
+      track.enabled = enabled;
+    });
   }
 }
 
@@ -451,11 +482,40 @@ function syncLocalTracksToPeerConnection() {
   }
 
   const existingSenderTracks = new Set(pc.getSenders().map((sender) => sender.track).filter(Boolean));
+  let addedVideo = 0;
+  let addedAudio = 0;
+
   stream.getTracks().forEach((track) => {
     if (!existingSenderTracks.has(track)) {
       pc.addTrack(track, stream);
+      if (track.kind === "video") {
+        addedVideo += 1;
+      }
+      if (track.kind === "audio") {
+        addedAudio += 1;
+      }
+
+      console.log("[LDR signaling] local track attached to peer connection", {
+        sessionId: state.sessionId,
+        role: state.role,
+        kind: track.kind,
+        id: track.id,
+        readyState: track.readyState,
+        muted: track.muted,
+        enabled: track.enabled,
+      });
     }
   });
+
+  if (addedVideo || addedAudio) {
+    console.log("[LDR signaling] local track attach summary", {
+      sessionId: state.sessionId,
+      role: state.role,
+      addedVideo,
+      addedAudio,
+      totalSenders: pc.getSenders().length,
+    });
+  }
 }
 
 function resetPeerConnection() {
@@ -1170,6 +1230,12 @@ async function requestCameraAccess() {
     throw new Error("Browser ini tidak mendukung akses kamera.");
   }
 
+  const audioConstraints = {
+    echoCancellation: true,
+    noiseSuppression: true,
+    autoGainControl: true,
+  };
+
   const attempts = [
     {
       video: {
@@ -1178,15 +1244,15 @@ async function requestCameraAccess() {
         height: { ideal: 1280, min: 720 },
         frameRate: { ideal: 30, max: 30 },
       },
-      audio: false,
+      audio: audioConstraints,
     },
     {
       video: { facingMode: "user" },
-      audio: false,
+      audio: audioConstraints,
     },
     {
       video: true,
-      audio: false,
+      audio: audioConstraints,
     },
   ];
 
@@ -1205,6 +1271,7 @@ async function requestCameraAccess() {
 async function startCamera() {
   if (state.cameraStream) {
     syncLocalTracksToPeerConnection();
+    updateMicUi();
     return;
   }
 
@@ -1216,18 +1283,25 @@ async function startCamera() {
     const stream = await requestCameraAccess();
     state.cameraStream = stream;
 
+    const localAudioTrack = stream.getAudioTracks()[0] || null;
+    if (localAudioTrack) {
+      localAudioTrack.enabled = state.micEnabled !== false;
+    }
+
     const localVideoTrack = stream.getVideoTracks()[0] || null;
     console.log("[LDR camera] local camera stream ready", {
       hasVideoTrack: !!localVideoTrack,
       readyState: localVideoTrack?.readyState,
       muted: localVideoTrack?.muted,
       enabled: localVideoTrack?.enabled,
+      hasAudioTrack: !!localAudioTrack,
+      audioEnabled: localAudioTrack?.enabled,
       trackCount: stream.getVideoTracks().length,
       sessionId: state.sessionId,
       role: state.role,
     });
 
-    attachVideoStream(cameraVideo, stream);
+    attachVideoStream(cameraVideo, stream, { muted: true });
     cameraPlaceholder.parentElement.classList.remove("hidden-placeholder");
     cameraPlaceholder.style.display = "none";
 
@@ -1247,6 +1321,7 @@ async function startCamera() {
 
     syncLocalTracksToPeerConnection();
     setPartnerRemoteStream(null);
+    updateMicUi();
   } catch (error) {
     console.error(error);
     const detail = describeMediaError(error);
@@ -1592,31 +1667,6 @@ joinCodeInput.addEventListener("input", () => {
   joinCodeInput.value = joinCodeInput.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6);
 });
 
-cameraToggleBtn.addEventListener("click", async () => {
-  if (cameraVideo.srcObject) {
-    stopCameraStream(cameraVideo.srcObject);
-    cameraVideo.srcObject = null;
-    if (state.cameraStream) {
-      stopCameraStream(state.cameraStream);
-      state.cameraStream = null;
-    }
-    partnerVideo.srcObject = null;
-    partnerVideo.classList.remove("active");
-    cameraPlaceholder.style.display = "grid";
-    const partnerPlaceholder = document.querySelector(".partner-placeholder");
-    if (partnerPlaceholder) {
-      partnerPlaceholder.style.display = "grid";
-    }
-    showToast("Kamera dimatikan.");
-    return;
-  }
-
-  await startCamera();
-  if (state.cameraStream) {
-    showToast("Kamera aktif.");
-  }
-});
-
 captureBtn.addEventListener("click", capturePhoto);
 retakeBtn.addEventListener("click", () => {
   if (!state.sessionId) {
@@ -1635,7 +1685,52 @@ retakeBtn.addEventListener("click", () => {
 });
 
 helpBtn.addEventListener("click", () => {
-  showToast("Buat sesi lalu bagikan kode ke pasangan. Setelah foto selesai, hasil dapat diunduh langsung.");
+  showToast("Buat sesi lalu bagikan kode ke pasangan. Mic dan kamera dibuka dalam satu izin browser, lalu hasil dapat diunduh langsung.");
+});
+
+cameraToggleBtn.addEventListener("click", async () => {
+  if (!state.cameraStream) {
+    await startCamera();
+  }
+
+  const videoTrack = state.cameraStream?.getVideoTracks()[0];
+  if (!videoTrack) {
+    showToast("Kamera belum tersedia. Coba buka izin kamera ulang.");
+    return;
+  }
+
+  videoTrack.enabled = !videoTrack.enabled;
+  cameraToggleBtn.textContent = videoTrack.enabled ? "Kamera" : "Kamera off";
+  showToast(videoTrack.enabled ? "Kamera aktif." : "Kamera dimatikan.");
+});
+
+micToggleBtn.addEventListener("click", async () => {
+  if (!state.cameraStream) {
+    await startCamera();
+  }
+
+  const audioTrack = state.cameraStream?.getAudioTracks()[0];
+  if (!audioTrack) {
+    showToast("Browser tidak mendeteksi mikrofon. Cek izin suara lalu coba lagi.");
+    return;
+  }
+
+  state.micEnabled = !state.micEnabled;
+  audioTrack.enabled = state.micEnabled;
+  updateMicUi();
+
+  if (state.micEnabled) {
+    showToast("Mic aktif.");
+  } else {
+    showToast("Mic dimatikan.");
+  }
+
+  if (partnerVideo && partnerVideo.srcObject) {
+    partnerVideo.muted = false;
+    partnerVideo.play().catch(() => {
+      showToast("Audio partner belum bisa diputar otomatis. Ketuk layar untuk mengaktifkan suara.");
+    });
+  }
 });
 
 downloadBtn.addEventListener("click", () => {
