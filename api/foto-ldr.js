@@ -96,6 +96,11 @@ async function createSessionHandler(req, res, body = {}) {
       user1Photo: null,
       user2Photo: null,
       resultImage: null,
+      rtcOffer: null,
+      rtcAnswer: null,
+      rtcCandidates: [],
+      rtcCandidatesUser1: [],
+      rtcCandidatesUser2: [],
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       expiresAt: Date.now() + (30 * 60 * 1000),
@@ -178,6 +183,11 @@ async function updateSessionHandler(req, res, body = {}) {
       countdownStartedAt,
       countdownFrom,
       captureTriggerId,
+      rtcOffer,
+      rtcAnswer,
+      rtcCandidates,
+      rtcCandidatesUser1,
+      rtcCandidatesUser2,
     } = payload;
 
     if (!code) {
@@ -187,6 +197,8 @@ async function updateSessionHandler(req, res, body = {}) {
     const firebaseAdmin = getFirebaseAdmin();
     const db = firebaseAdmin.firestore();
     const ref = db.collection("fotoLdrSessions").doc(code);
+    const snapshot = await ref.get();
+    const existing = snapshot.exists ? snapshot.data() || {} : {};
     const updates = { updatedAt: admin.firestore.FieldValue.serverTimestamp() };
 
     if (field && (field === "user1Photo" || field === "user2Photo")) {
@@ -207,6 +219,50 @@ async function updateSessionHandler(req, res, body = {}) {
 
     if (typeof action === "string") {
       updates.action = action;
+    }
+
+    if (rtcOffer && typeof rtcOffer === "object") {
+      updates.rtcOffer = rtcOffer;
+    }
+
+    if (rtcAnswer && typeof rtcAnswer === "object") {
+      updates.rtcAnswer = rtcAnswer;
+    }
+
+    const appendUniqueArray = (fieldName, incoming) => {
+      if (!Array.isArray(incoming)) {
+        return;
+      }
+
+      const base = Array.isArray(existing[fieldName]) ? existing[fieldName] : [];
+      const seen = new Set(base.map((item) => JSON.stringify(item)));
+      const merged = [...base];
+
+      for (const item of incoming) {
+        if (!item) {
+          continue;
+        }
+
+        const key = JSON.stringify(item);
+        if (!seen.has(key)) {
+          seen.add(key);
+          merged.push(item);
+        }
+      }
+
+      updates[fieldName] = merged;
+    };
+
+    if (Array.isArray(rtcCandidates)) {
+      appendUniqueArray("rtcCandidates", rtcCandidates);
+    }
+
+    if (Array.isArray(rtcCandidatesUser1)) {
+      appendUniqueArray("rtcCandidatesUser1", rtcCandidatesUser1);
+    }
+
+    if (Array.isArray(rtcCandidatesUser2)) {
+      appendUniqueArray("rtcCandidatesUser2", rtcCandidatesUser2);
     }
 
     if (countdownStartedAt !== undefined && countdownStartedAt !== null) {
