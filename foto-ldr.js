@@ -657,8 +657,20 @@ function updateMicUi() {
   setMicButtonUi(enabled);
   micToggleBtn.classList.toggle("is-muted", !enabled);
   micToggleBtn.setAttribute("aria-pressed", String(enabled));
-  selfMicStatus.textContent = enabled ? "Mic on" : "Mic off";
   selfMicStatus.classList.toggle("muted", !enabled);
+
+  const micLabel = selfMicStatus.querySelector(".mic-label");
+  const micOnIcon = selfMicStatus.querySelector(".mic-icon-on");
+  const micMutedIcon = selfMicStatus.querySelector(".mic-icon-muted");
+  if (micLabel) {
+    micLabel.textContent = enabled ? "Mic on" : "Mic off";
+  }
+  if (micOnIcon) {
+    micOnIcon.hidden = !enabled;
+  }
+  if (micMutedIcon) {
+    micMutedIcon.hidden = enabled;
+  }
 
   if (state.cameraStream) {
     state.cameraStream.getAudioTracks().forEach((track) => {
