@@ -1,6 +1,7 @@
 const admin = require("firebase-admin");
 const fs = require("fs");
 const path = require("path");
+const SESSION_TIME_LIMIT_SECONDS = 90;
 
 function getFirebaseAdmin() {
   if (!admin.apps.length) {
@@ -214,6 +215,8 @@ async function createSessionHandler(req, res, body = {}) {
       rtcCandidates: [],
       rtcCandidatesUser1: [],
       rtcCandidatesUser2: [],
+      sessionTimeLimitStartedAt: null,
+      sessionTimeLimitSeconds: SESSION_TIME_LIMIT_SECONDS,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       expiresAt: Date.now() + (30 * 60 * 1000),
@@ -295,6 +298,8 @@ async function updateSessionHandler(req, res, body = {}) {
       action,
       countdownStartedAt,
       countdownFrom,
+      sessionTimeLimitStartedAt,
+      sessionTimeLimitSeconds,
       captureTriggerId,
       rtcOffer,
       rtcAnswer,
@@ -396,6 +401,14 @@ async function updateSessionHandler(req, res, body = {}) {
       updates.countdownFrom = Number(countdownFrom);
     }
 
+    if (sessionTimeLimitStartedAt !== undefined && sessionTimeLimitStartedAt !== null) {
+      updates.sessionTimeLimitStartedAt = Number(sessionTimeLimitStartedAt);
+    }
+
+    if (sessionTimeLimitSeconds !== undefined && sessionTimeLimitSeconds !== null) {
+      updates.sessionTimeLimitSeconds = Number(sessionTimeLimitSeconds);
+    }
+
     if (captureTriggerId !== undefined && captureTriggerId !== null) {
       updates.captureTriggerId = String(captureTriggerId);
     }
@@ -445,7 +458,7 @@ module.exports = async function handler(req, res) {
     return updateSessionHandler(req, res, body);
   }
 
-  const keyFields = ["code", "field", "photo", "imageDataUrl", "status", "action", "countdownStartedAt", "countdownFrom", "captureTriggerId", "selectedFrameId", "selectedFrameImage"];
+  const keyFields = ["code", "field", "photo", "imageDataUrl", "status", "action", "countdownStartedAt", "countdownFrom", "sessionTimeLimitStartedAt", "sessionTimeLimitSeconds", "captureTriggerId", "selectedFrameId", "selectedFrameImage"];
   if (keyFields.some((field) => Object.prototype.hasOwnProperty.call(body, field))) {
     return updateSessionHandler(req, res, body);
   }

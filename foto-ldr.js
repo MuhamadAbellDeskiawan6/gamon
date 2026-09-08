@@ -13,6 +13,7 @@ if (!firebase.apps.length) {
 }
 
 const db = firebase.firestore();
+const SESSION_TIME_LIMIT_SECONDS = 90;
 
 const state = {
   sessionId: null,
@@ -40,6 +41,10 @@ const state = {
   rtcCandidateReceivedCount: 0,
   pendingRemoteCandidates: [],
   countdownTimer: null,
+  sessionTimeLimitTimer: null,
+  sessionTimeLimitStartedAt: null,
+  sessionTimeLimitExpired: false,
+  sessionTimeLimitWarningShown: false,
   countdownStartedAt: null,
   countdownValue: 0,
   captureInProgress: false,
@@ -51,6 +56,8 @@ const state = {
   rtcIceServersPromise: null,
   rtcTurnActive: false,
   availableFrames: [],
+  frameSelectionInProgress: null,
+  resultFramePickerOpen: false,
   resultBuildInProgress: false,
   resultBuildCompleted: false,
 };
@@ -81,6 +88,7 @@ const cameraPlaceholder = $("cameraPlaceholder");
 const resultCanvas = $("resultCanvas");
 const resultMessage = $("resultMessage");
 const captureStatusText = $("captureStatusText");
+const sessionTimeLimitText = $("sessionTimeLimitText");
 const rtcDebugText = $("rtcDebugText");
 const rtcTurnStatus = $("rtcTurnStatus");
 const selfMicStatus = $("selfMicStatus");
@@ -90,6 +98,10 @@ const processingMessage = $("processingMessage");
 const framePickerRole = $("framePickerRole");
 const framePickerMessage = $("framePickerMessage");
 const frameGrid = $("frameGrid");
+const framePicker = $("framePicker");
+const waitingFramePickerHost = $("waitingFramePickerHost");
+const resultFramePickerHost = $("resultFramePickerHost");
+const changeFrameBtn = $("changeFrameBtn");
 
 const cameraIcon = '<svg class="control-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M23 7l-7 5 7 5V7Z"></path><rect x="1" y="5" width="15" height="14" rx="2"></rect></svg>';
 const cameraOffIcon = '<svg class="control-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M23 7l-7 5 7 5V7Z"></path><rect x="1" y="5" width="15" height="14" rx="2"></rect><path d="M3 3l18 18"></path></svg>';
@@ -237,6 +249,45 @@ function hideProcessingOverlay() {
 function showScreen(screen) {
   [startScreen, waitingScreen, captureScreen, resultScreen].forEach((el) => el.classList.remove("active"));
   screen.classList.add("active");
+  syncChangeFrameButton();
+}
+
+function syncChangeFrameButton() {
+  if (!changeFrameBtn) {
+    return;
+  }
+
+  changeFrameBtn.hidden = state.role !== "user1" || !resultScreen.classList.contains("active");
+  changeFrameBtn.textContent = state.resultFramePickerOpen ? "Tutup Pilihan Frame" : "Ganti Frame";
+}
+
+async function toggleResultFramePicker() {
+  if (state.role !== "user1" || !resultFramePickerHost || !framePicker) {
+    return;
+  }
+
+  if (state.resultFramePickerOpen) {
+    if (waitingFramePickerHost) {
+      waitingFramePickerHost.appendChild(framePicker);
+    }
+    state.resultFramePickerOpen = false;
+    syncChangeFrameButton();
+    return;
+  }
+
+  changeFrameBtn.disabled = true;
+  try {
+    if (!state.availableFrames.length) {
+      await loadAvailableFrames();
+    }
+
+    resultFramePickerHost.appendChild(framePicker);
+    state.resultFramePickerOpen = true;
+    renderFramePicker();
+    syncChangeFrameButton();
+  } finally {
+    changeFrameBtn.disabled = false;
+  }
 }
 
 function generateCode() {
@@ -330,8 +381,9 @@ function renderFramePicker(data = state.sessionData) {
   frameGrid.innerHTML = state.availableFrames.map((frame) => {
     const isSelected = frame.id === selectedFrameId;
     const buttonType = canSelect ? "button" : "button";
+    const isProcessing = state.frameSelectionInProgress === frame.id;
     return `
-      <button class="frame-option ${isSelected ? "selected" : ""} ${canSelect ? "selectable" : ""}" type="${buttonType}" data-frame-id="${frame.id}" ${canSelect ? "" : "disabled"}>
+      <button class="frame-option ${isSelected ? "selected" : ""} ${canSelect ? "selectable" : ""}" type="${buttonType}" data-frame-id="${frame.id}" ${canSelect && !isProcessing ? "" : "disabled"} aria-busy="${isProcessing}">
         <img src="${frame.previewImage || frame.frameImage || ""}" alt="${frame.name || "Frame"}" loading="lazy" />
         <span class="frame-option-name">${frame.name || "Frame"}</span>
         ${isSelected ? '<span class="frame-selected-badge">Terpilih</span>' : ""}
@@ -346,12 +398,21 @@ function renderFramePicker(data = state.sessionData) {
   }
 }
 
+function renderFrameSkeletons() {
+  if (!frameGrid) {
+    return;
+  }
+
+  frameGrid.innerHTML = Array.from({ length: 6 }, () => '<div class="frame-skeleton" aria-hidden="true"></div>').join("");
+}
+
 async function loadAvailableFrames() {
   if (!framePickerMessage) {
     return;
   }
 
   framePickerMessage.textContent = "Memuat frame...";
+  renderFrameSkeletons();
 
   try {
     const response = await fetch("/api/foto-ldr?action=list-frames", { cache: "no-store" });
@@ -383,7 +444,7 @@ async function loadAvailableFrames() {
 }
 
 async function selectFrame(frameId) {
-  if (state.role !== "user1") {
+  if (state.role !== "user1" || state.frameSelectionInProgress) {
     return;
   }
 
@@ -392,20 +453,46 @@ async function selectFrame(frameId) {
     return;
   }
 
+  const previousSessionData = state.sessionData;
+  const optimisticSessionData = {
+    ...(state.sessionData || {}),
+    selectedFrameId: frame.id,
+    selectedFrameImage: frame.frameImage,
+  };
+  state.frameSelectionInProgress = frame.id;
+  state.sessionData = optimisticSessionData;
+  renderFramePicker(optimisticSessionData);
+
+  let persisted = false;
   try {
     await persistSignalingPatch({
       selectedFrameId: frame.id,
       selectedFrameImage: frame.frameImage,
     }, "menyimpan pilihan frame");
-    renderFramePicker({
-      ...state.sessionData,
-      selectedFrameId: frame.id,
-      selectedFrameImage: frame.frameImage,
-    });
+
+    persisted = true;
+    if (state.resultFramePickerOpen) {
+      await rebuildResultWithFrame(frame.frameImage);
+    }
     showToast(`Frame "${frame.name || "Frame"}" dipilih.`);
   } catch (error) {
+    state.sessionData = previousSessionData;
+    renderFramePicker(previousSessionData);
+    if (persisted && state.resultFramePickerOpen && previousSessionData) {
+      try {
+        await persistSignalingPatch({
+          selectedFrameId: previousSessionData.selectedFrameId || null,
+          selectedFrameImage: previousSessionData.selectedFrameImage || null,
+        }, "mengembalikan pilihan frame");
+      } catch (rollbackError) {
+        console.error("Rollback pilihan frame gagal:", rollbackError);
+      }
+    }
     console.error("Gagal menyimpan pilihan frame:", error);
     showToast("Pilihan frame gagal disimpan.");
+  } finally {
+    state.frameSelectionInProgress = null;
+    renderFramePicker(state.sessionData);
   }
 }
 
@@ -424,6 +511,84 @@ function syncCaptureUi(data = state.sessionData) {
   } else if (data?.status === "ready") {
     captureStatusText.textContent = "Foto siap diunduh";
   }
+}
+
+function formatSessionTimeLimit(seconds) {
+  const safeSeconds = Math.max(0, Math.ceil(Number(seconds) || 0));
+  const minutes = Math.floor(safeSeconds / 60);
+  const remainingSeconds = safeSeconds % 60;
+  return `${String(minutes).padStart(2, "0")}:${String(remainingSeconds).padStart(2, "0")}`;
+}
+
+async function ensureSessionTimeLimitStarted(data) {
+  if (state.role !== "user1" || !data?.user2 || data.sessionTimeLimitStartedAt || state.sessionTimeLimitStartedAt) {
+    return;
+  }
+
+  const startedAt = Date.now();
+  state.sessionTimeLimitStartedAt = startedAt;
+
+  try {
+    await persistSignalingPatch({
+      sessionTimeLimitStartedAt: startedAt,
+      sessionTimeLimitSeconds: SESSION_TIME_LIMIT_SECONDS,
+    }, "memulai batas waktu sesi");
+  } catch (error) {
+    state.sessionTimeLimitStartedAt = null;
+    console.error("Gagal memulai batas waktu sesi:", error);
+  }
+}
+
+function startSessionTimeLimitFromSession(data) {
+  const startedAt = resolveCountdownMs(data?.sessionTimeLimitStartedAt);
+  const totalSeconds = SESSION_TIME_LIMIT_SECONDS;
+
+  if (!startedAt || totalSeconds <= 0 || (state.sessionTimeLimitStartedAt === startedAt && (state.sessionTimeLimitTimer || state.sessionTimeLimitExpired))) {
+    return;
+  }
+
+  state.sessionTimeLimitStartedAt = startedAt;
+  state.sessionTimeLimitExpired = false;
+  state.sessionTimeLimitWarningShown = false;
+  clearInterval(state.sessionTimeLimitTimer);
+
+  const tick = () => {
+    const remainingSeconds = Math.max(0, Math.ceil((startedAt + totalSeconds * 1000 - Date.now()) / 1000));
+    if (sessionTimeLimitText) {
+      sessionTimeLimitText.hidden = false;
+      sessionTimeLimitText.textContent = formatSessionTimeLimit(remainingSeconds);
+      sessionTimeLimitText.classList.toggle("warning", remainingSeconds <= 20);
+    }
+
+    if (remainingSeconds > 0) {
+      if (remainingSeconds <= 20 && !state.sessionTimeLimitWarningShown) {
+        state.sessionTimeLimitWarningShown = true;
+        showToast("Waktu sesi tersisa 20 detik.");
+      }
+      return;
+    }
+
+    clearInterval(state.sessionTimeLimitTimer);
+    state.sessionTimeLimitTimer = null;
+    state.sessionTimeLimitExpired = true;
+
+    if (state.myPhoto) {
+      captureStatusText.textContent = "Menunggu pasangan mengambil foto...";
+      return;
+    }
+
+    if (state.role === "user1") {
+      captureStatusText.textContent = "Waktu habis, mengambil foto...";
+      void capturePhoto({ fromSessionTimeLimit: true }).catch((error) => {
+        console.error("Auto-capture batas waktu gagal:", error);
+      });
+    } else {
+      captureStatusText.textContent = "Menunggu pasangan mengambil foto...";
+    }
+  };
+
+  tick();
+  state.sessionTimeLimitTimer = setInterval(tick, 1000);
 }
 
 function listenSession() {
@@ -1454,6 +1619,8 @@ async function handleSessionUpdate(data) {
   }
 
   syncCaptureUi(data);
+  await ensureSessionTimeLimitStarted(data);
+  startSessionTimeLimitFromSession(data);
   await handleRtcFlow(data);
 
   if (data.status === "connected" || data.status === "captured" || data.status === "ready" || data.status === "sent") {
@@ -1477,6 +1644,7 @@ async function handleSessionUpdate(data) {
   }
 
   if (data.user1Photo && data.user2Photo && !data.resultImage) {
+    stopRealtimeMediaAfterCapture();
     if (state.role === "user1") {
       updateProcessingOverlay("Menyusun hasil...");
       await buildCombinedResult();
@@ -1677,7 +1845,7 @@ async function joinSession() {
   }
 }
 
-async function capturePhoto() {
+async function capturePhoto({ fromSessionTimeLimit = false } = {}) {
   if (!state.sessionId || !state.cameraStream) {
     await startCamera();
   }
@@ -1687,6 +1855,10 @@ async function capturePhoto() {
   }
 
   if (state.isCountingDown || state.captureInProgress) {
+    return;
+  }
+
+  if (fromSessionTimeLimit && state.role !== "user1") {
     return;
   }
 
@@ -1802,28 +1974,7 @@ async function buildCombinedResult() {
   state.resultBuildInProgress = true;
 
   try {
-    const layout = getLdrSlotLayout();
-    const composite = resultCanvas;
-    composite.width = layout.canvasWidth;
-    composite.height = layout.canvasHeight;
-
-    const ctx = composite.getContext("2d");
-    ctx.clearRect(0, 0, composite.width, composite.height);
-
-    await drawPhotoSlot(ctx, layout.topSlot.x, layout.topSlot.y, layout.topSlot.w, layout.topSlot.h, user1Photo);
-    await drawPhotoSlot(ctx, layout.bottomSlot.x, layout.bottomSlot.y, layout.bottomSlot.w, layout.bottomSlot.h, user2Photo);
-
-    const frame = await loadImage(state.sessionData?.selectedFrameImage || "/image/assets/frame-ldr.png");
-    ctx.drawImage(frame, 0, 0, composite.width, composite.height);
-
-    const imageDataUrl = composite.toDataURL("image/jpeg", 0.88);
-    await updateSession({
-      imageDataUrl,
-      status: "ready",
-      action: "ready",
-    });
-
-    state.resultImage = imageDataUrl;
+    await composeResultWithFrame(state.sessionData?.selectedFrameImage || "/image/assets/frame-ldr.png");
     state.resultBuildCompleted = true;
     resultMessage.textContent = "Foto LDR siap diunduh.";
     hideProcessingOverlay();
@@ -1836,7 +1987,74 @@ async function buildCombinedResult() {
   }
 }
 
+async function composeResultWithFrame(frameImage) {
+  const user1Photo = state.sessionData?.user1Photo || null;
+  const user2Photo = state.sessionData?.user2Photo || null;
+  if (!user1Photo || !user2Photo) {
+    throw new Error("Foto pasangan belum lengkap.");
+  }
+
+  const layout = getLdrSlotLayout();
+  const composite = resultCanvas;
+  composite.width = layout.canvasWidth;
+  composite.height = layout.canvasHeight;
+
+  const ctx = composite.getContext("2d");
+  ctx.clearRect(0, 0, composite.width, composite.height);
+
+  await drawPhotoSlot(ctx, layout.topSlot.x, layout.topSlot.y, layout.topSlot.w, layout.topSlot.h, user1Photo);
+  await drawPhotoSlot(ctx, layout.bottomSlot.x, layout.bottomSlot.y, layout.bottomSlot.w, layout.bottomSlot.h, user2Photo);
+
+  const frame = await loadImage(frameImage || "/image/assets/frame-ldr.png");
+  ctx.drawImage(frame, 0, 0, composite.width, composite.height);
+
+  const imageDataUrl = composite.toDataURL("image/jpeg", 0.88);
+  await updateSession({
+    imageDataUrl,
+    status: "ready",
+    action: "ready",
+  });
+
+  state.resultImage = imageDataUrl;
+  state.sessionData = {
+    ...(state.sessionData || {}),
+    resultImage: imageDataUrl,
+    status: "ready",
+  };
+  return imageDataUrl;
+}
+
+async function rebuildResultWithFrame(frameImage) {
+  showProcessingOverlay("Mengganti frame...");
+  try {
+    await composeResultWithFrame(frameImage);
+    resultMessage.textContent = "Foto LDR siap diunduh.";
+    showScreen(resultScreen);
+    showToast("Frame berhasil diganti.");
+  } finally {
+    hideProcessingOverlay();
+  }
+}
+
+function stopRealtimeMediaAfterCapture() {
+  if (state.cameraStream) {
+    stopCameraStream(state.cameraStream);
+    state.cameraStream = null;
+  }
+
+  if (cameraVideo) {
+    cameraVideo.pause();
+    cameraVideo.srcObject = null;
+  }
+
+  resetPeerConnection();
+}
+
 function resetSession() {
+  if (waitingFramePickerHost && framePicker && framePicker.parentElement !== waitingFramePickerHost) {
+    waitingFramePickerHost.appendChild(framePicker);
+  }
+
   if (state.unsubscribe) {
     state.unsubscribe();
     state.unsubscribe = null;
@@ -1868,18 +2086,27 @@ function resetSession() {
   state.partnerPhoto = null;
   state.resultImage = null;
   state.availableFrames = [];
+  state.frameSelectionInProgress = null;
+  state.resultFramePickerOpen = false;
   state.resultBuildInProgress = false;
   state.resultBuildCompleted = false;
   state.captureInProgress = false;
   state.captureNonce = null;
   state.countdownStartedAt = null;
   state.countdownValue = 0;
+  state.sessionTimeLimitStartedAt = null;
+  state.sessionTimeLimitExpired = false;
+  state.sessionTimeLimitWarningShown = false;
   state.isCountingDown = false;
   state.lastTriggeredCountdownAt = null;
   setCaptureBusy(false);
   if (state.countdownTimer) {
     clearInterval(state.countdownTimer);
     state.countdownTimer = null;
+  }
+  if (state.sessionTimeLimitTimer) {
+    clearInterval(state.sessionTimeLimitTimer);
+    state.sessionTimeLimitTimer = null;
   }
   clearCountdownOverlay();
   hideProcessingOverlay();
@@ -1888,6 +2115,11 @@ function resetSession() {
   roomCode.textContent = "------";
   joinCodeInput.value = "";
   captureStatusText.textContent = "Siap mengambil foto";
+  if (sessionTimeLimitText) {
+    sessionTimeLimitText.hidden = true;
+    sessionTimeLimitText.textContent = formatSessionTimeLimit(SESSION_TIME_LIMIT_SECONDS);
+    sessionTimeLimitText.classList.remove("warning");
+  }
   resultMessage.textContent = "Foto siap diunduh.";
   cameraVideo.srcObject = null;
   partnerVideo.srcObject = null;
@@ -1913,6 +2145,9 @@ joinCodeInput.addEventListener("input", () => {
 });
 
 captureBtn.addEventListener("click", capturePhoto);
+changeFrameBtn.addEventListener("click", () => {
+  void toggleResultFramePicker();
+});
 retakeBtn.addEventListener("click", () => {
   if (!state.sessionId) {
     showToast("Buat atau gabung sesi terlebih dahulu.");
