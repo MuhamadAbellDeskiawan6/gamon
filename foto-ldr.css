@@ -18,6 +18,7 @@
 html, body {
   margin: 0;
   min-height: 100%;
+  overflow-x: hidden;
   font-family: Inter, "Segoe UI", sans-serif;
   background: var(--bg);
   color: var(--ink);
@@ -287,15 +288,164 @@ button {
   margin-top: 18px;
 }
 
+.frame-picker {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--line);
+  text-align: left;
+}
+
+.frame-picker-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.frame-picker-heading strong {
+  font-size: 16px;
+}
+
+.frame-picker-heading span,
+.frame-picker-message {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.frame-picker-message {
+  margin: 7px 0 12px;
+  line-height: 1.45;
+}
+
+.frame-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.frame-option {
+  position: relative;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #f5f1eb;
+  color: var(--ink);
+  text-align: left;
+}
+
+.frame-option:disabled {
+  cursor: default;
+  opacity: 0.9;
+}
+
+.frame-option.selectable:hover,
+.frame-option.selected {
+  border-color: var(--success);
+}
+
+.frame-option img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 180 / 312;
+  object-fit: cover;
+  background: #eeeae5;
+}
+
+.frame-option-name {
+  display: block;
+  padding: 7px 8px 8px;
+  overflow: hidden;
+  font-size: 11px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.frame-selected-badge {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  padding: 4px 6px;
+  border-radius: 999px;
+  background: var(--success);
+  color: white;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+@media (max-width: 360px) {
+  .frame-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 .capture-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
+  min-width: 0;
   margin-bottom: 12px;
 }
 
+.capture-header-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.capture-header-actions .ghost-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: auto;
+  min-width: 72px;
+  min-height: 42px;
+  padding: 0 12px;
+  white-space: nowrap;
+  border: 1px solid #d5cec5;
+  box-shadow: 0 2px 6px rgba(16, 24, 40, 0.06);
+  transition: transform 0.18s ease, background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.capture-header-actions .control-icon {
+  width: 17px;
+  height: 17px;
+  flex: 0 0 17px;
+}
+
+.capture-header-actions .ghost-btn:hover {
+  background: #ebe5de;
+  border-color: #bdb3a8;
+  box-shadow: 0 4px 10px rgba(16, 24, 40, 0.1);
+  transform: translateY(-1px);
+}
+
+.capture-header-actions .ghost-btn:active {
+  background: #ded6cd;
+  box-shadow: 0 1px 3px rgba(16, 24, 40, 0.08);
+  transform: scale(0.97);
+}
+
+.capture-header-actions .ghost-btn.is-muted {
+  background: #fff1ee;
+  border-color: #e2a59d;
+  color: #9b2c23;
+  box-shadow: 0 2px 6px rgba(155, 44, 35, 0.1);
+}
+
+.capture-header .status-pill {
+  min-width: 0;
+  flex: 1 1 auto;
+  text-align: center;
+}
+
 .rtc-debug-text {
+  display: none;
   margin: 0 0 12px;
   padding: 8px 10px;
   border-radius: 12px;
@@ -307,26 +457,33 @@ button {
   overflow-wrap: anywhere;
 }
 
+.rtc-debug-text.is-debug-visible {
+  display: block;
+}
+
 .camera-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr);
   gap: 14px;
   align-items: stretch;
+  min-width: 0;
 }
 
 .camera-card {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  min-width: 0;
 }
 
 .panel-video-wrap {
   position: relative;
   width: 100%;
-  min-height: 240px;
-  height: min(46vh, 420px);
+  min-width: 0;
+  min-height: 0;
+  height: auto;
   max-height: 420px;
-  aspect-ratio: 9 / 13;
+  aspect-ratio: 700 / 449;
   border-radius: 26px;
   overflow: hidden;
   background: #eeeae5;
@@ -338,7 +495,7 @@ button {
 #partnerVideo {
   width: 100%;
   height: 100%;
-  min-height: 240px;
+  min-height: 0;
   object-fit: cover;
   display: block;
   background: #d9d9d9;
@@ -422,11 +579,6 @@ button {
   content: "🔇";
 }
 
-.ghost-btn.mic-toggle.is-muted {
-  opacity: 0.74;
-  border-color: rgba(100, 72, 66, 0.7);
-}
-
 .capture-actions {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -446,11 +598,7 @@ button {
 .result-frame {
   width: min(100%, 300px);
   margin: 0 auto;
-  border: 1px solid var(--line);
-  border-radius: 18px;
   overflow: hidden;
-  background: #f6f2ee;
-  box-shadow: 0 10px 28px var(--shadow);
 }
 
 #resultCanvas {
@@ -483,7 +631,7 @@ button {
 }
 
 #syncCountdownOverlay {
-  position: fixed;
+  position: absolute;
   inset: 0;
   display: flex;
   align-items: center;
@@ -491,7 +639,7 @@ button {
   background: rgba(6, 10, 18, 0.62);
   backdrop-filter: blur(2.5px);
   color: #fff9d6;
-  font-size: clamp(7rem, 25vw, 16rem);
+  font-size: clamp(3rem, 18vw, 6rem);
   font-weight: 900;
   letter-spacing: -0.08em;
   line-height: 1;
@@ -499,13 +647,102 @@ button {
   pointer-events: none;
   transform: scale(0.72);
   transition: opacity 0.18s ease, transform 0.18s ease;
-  z-index: 9999;
+  z-index: 10;
+  border-radius: 26px;
   text-shadow: 0 0 18px rgba(255, 211, 85, 0.9);
 }
 
 #syncCountdownOverlay.show {
   opacity: 1;
   transform: scale(1);
+}
+
+.processing-overlay {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(6, 10, 18, 0.62);
+  backdrop-filter: blur(3px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+  z-index: 9998;
+}
+
+.processing-overlay.show {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.processing-card {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  min-width: min(100%, 260px);
+  padding: 24px 28px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.2);
+  text-align: center;
+}
+
+.processing-spinner {
+  width: 38px;
+  height: 38px;
+  border: 4px solid #d8e9e2;
+  border-top-color: var(--success);
+  border-radius: 50%;
+  animation: processing-spin 0.8s linear infinite;
+}
+
+.processing-card p {
+  margin: 0;
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.processing-dots {
+  display: inline-flex;
+  gap: 5px;
+  height: 8px;
+}
+
+.processing-dots i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--success);
+  animation: processing-pulse 1s ease-in-out infinite;
+}
+
+.processing-dots i:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.processing-dots i:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes processing-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes processing-pulse {
+  0%, 100% {
+    transform: scale(0.65);
+    opacity: 0.45;
+  }
+
+  50% {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 
 .toast.show {
@@ -524,6 +761,69 @@ button {
   .capture-actions,
   .photo-status {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 380px) {
+  .capture-header {
+    gap: 6px;
+  }
+
+  .capture-header-actions {
+    gap: 6px;
+  }
+
+  .capture-header-actions .ghost-btn {
+    min-width: 0;
+    min-height: 40px;
+    padding: 0 8px;
+    font-size: 12px;
+  }
+
+  .capture-header-actions .control-icon {
+    width: 16px;
+    height: 16px;
+    flex-basis: 16px;
+  }
+
+  .capture-header .status-pill {
+    padding: 7px 8px;
+    font-size: 12px;
+  }
+
+  .camera-grid {
+    gap: 8px;
+  }
+}
+
+@media (max-width: 340px) {
+  .capture-header {
+    align-items: flex-start;
+  }
+
+  .capture-header-actions {
+    gap: 4px;
+  }
+
+  .capture-header-actions .ghost-btn {
+    min-height: 38px;
+    padding: 0 6px;
+    font-size: 11px;
+  }
+
+  .capture-header-actions .control-icon {
+    width: 15px;
+    height: 15px;
+    flex-basis: 15px;
+  }
+
+  .capture-header .status-pill {
+    padding: 6px;
+    font-size: 11px;
+  }
+
+  .camera-grid {
+    gap: 6px;
   }
 }
 
@@ -630,18 +930,19 @@ button {
 
 .camera-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr);
   gap: 14px;
+  min-width: 0;
 }
 
 .camera-card {
-  aspect-ratio: 3 / 4;
   border-radius: 24px;
   background: linear-gradient(180deg, #f3f4f6 0%, #e5e7eb 100%);
   position: relative;
   overflow: hidden;
   box-shadow: 0 18px 30px rgba(16,24,40,.08);
   border: 1px solid rgba(16,24,40,.04);
+  min-width: 0;
 }
 
 .camera-card video,
@@ -707,10 +1008,13 @@ button {
   left: 13px;
   bottom: 13px;
   padding: 8px 13px;
-  background: white;
+  background: rgba(20, 21, 24, 0.94);
+  color: #fff;
   border-radius: 999px;
   font-size: 13px;
   font-weight: 700;
+  line-height: 1;
+  z-index: 3;
 }
 
 .photo-number {

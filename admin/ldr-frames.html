@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kelola Frame Foto LDR - Gamon Admin</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+</head>
+<body class="min-h-screen bg-slate-100 text-slate-800">
+    <div class="min-h-screen lg:grid lg:grid-cols-[260px_minmax(0,1fr)]">
+        <aside class="border-r border-slate-200 bg-white p-4 lg:p-6">
+            <div class="mb-6">
+                <h1 class="text-lg font-bold text-pink-600">Gamon Admin</h1>
+                <p class="mt-1 text-xs text-slate-500">Panel pengelolaan frame</p>
+            </div>
+            <nav class="space-y-2">
+                <a href="/admin/dashboard.html" class="block rounded-xl px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100">Dashboard Pesanan</a>
+                <a href="/admin/frames.html" class="block rounded-xl px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100">Frame Photobox</a>
+                <a href="/admin/ldr-frames.html" class="block rounded-xl bg-pink-600 px-3 py-2 text-sm font-semibold text-white">Frame Foto LDR</a>
+                <a href="/admin/redeem-codes.html" class="block rounded-xl px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100">Kelola Redeem</a>
+            </nav>
+            <div class="mt-6 border-t border-slate-200 pt-4">
+                <p id="adminEmail" class="mb-2 text-xs text-slate-500">Memeriksa sesi...</p>
+                <button id="logoutButton" type="button" class="w-full rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-600 hover:bg-rose-100">Keluar Sesi</button>
+            </div>
+        </aside>
+
+        <main class="grid gap-6 px-4 py-8 lg:grid-cols-[420px_minmax(0,1fr)] lg:px-8">
+            <section class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                <div class="mb-5">
+                    <h2 id="formTitle" class="text-xl font-bold text-slate-900">Upload Frame Foto LDR</h2>
+                    <p id="formDescription" class="mt-1 text-sm leading-relaxed text-slate-500">Frame ini hanya untuk Foto LDR dengan dua slot foto. Frame photobox satu-slot tidak boleh diupload di sini.</p>
+                </div>
+                <div class="mb-5 rounded-2xl border border-pink-200 bg-pink-50 p-4 text-xs leading-relaxed text-pink-950">
+                    <p class="font-semibold uppercase tracking-wide">Format wajib Foto LDR</p>
+                    <p class="mt-2">Frame utama: kanvas 900 x 1560 px dengan dua area foto di dalamnya.</p>
+                    <p>Preview: rasio yang sama, diproses ke 450 x 780 px.</p>
+                    <p>Gunakan PNG atau WebP transparan. Area foto harus transparan agar foto pengguna terlihat.</p>
+                </div>
+
+                <form id="frameForm" class="space-y-4">
+                    <input id="editingFrameId" type="hidden">
+                    <div>
+                        <label for="frameName" class="mb-1 block text-sm font-medium text-slate-700">Nama Frame</label>
+                        <input id="frameName" type="text" required placeholder="Contoh: LDR Remnics" class="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm focus:border-pink-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label for="previewFile" class="mb-1 block text-sm font-medium text-slate-700">Preview Frame</label>
+                        <input id="previewFile" type="file" accept="image/png,image/webp" required class="block w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
+                        <p id="previewHint" class="mt-1 text-xs text-slate-400">Wajib saat membuat frame baru.</p>
+                    </div>
+                    <div>
+                        <label for="frameFile" class="mb-1 block text-sm font-medium text-slate-700">Frame Utama 900 x 1560</label>
+                        <input id="frameFile" type="file" accept="image/png,image/webp" required class="block w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
+                        <p id="frameHint" class="mt-1 text-xs text-slate-400">Harus berisi dua slot foto yang sudah didesain.</p>
+                    </div>
+                    <label class="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+                        <span><strong>Aktifkan frame</strong><br><small class="text-xs text-slate-500">Frame aktif muncul di Foto LDR.</small></span>
+                        <input id="isActive" type="checkbox" checked class="h-5 w-5 accent-pink-600">
+                    </label>
+                    <div class="grid gap-3 sm:grid-cols-2">
+                        <div class="rounded-2xl border border-dashed border-slate-200 p-3">
+                            <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Preview</p>
+                            <div class="flex aspect-[450/780] items-center justify-center overflow-hidden rounded-xl bg-slate-100">
+                                <img id="previewPreview" alt="Preview frame LDR" class="hidden h-full w-full object-cover">
+                                <span id="previewPlaceholder" class="px-4 text-center text-xs text-slate-400">Belum ada file</span>
+                            </div>
+                        </div>
+                        <div class="rounded-2xl border border-dashed border-slate-200 p-3">
+                            <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Frame utama</p>
+                            <div class="flex aspect-[900/1560] items-center justify-center overflow-hidden rounded-xl bg-slate-100">
+                                <img id="framePreview" alt="Frame utama LDR" class="hidden h-full w-full object-cover">
+                                <span id="framePlaceholder" class="px-4 text-center text-xs text-slate-400">Belum ada file</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="grid gap-2 sm:grid-cols-2">
+                        <button id="saveButton" type="submit" class="rounded-xl bg-pink-600 px-4 py-3 text-sm font-semibold text-white hover:bg-pink-700">Simpan Frame LDR</button>
+                        <button id="cancelEditButton" type="button" class="hidden rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-100">Batal Edit</button>
+                    </div>
+                </form>
+            </section>
+
+            <section class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                <div class="mb-5 flex items-center justify-between gap-3">
+                    <div>
+                        <h2 class="text-xl font-bold text-slate-900">Frame Foto LDR</h2>
+                        <p class="mt-1 text-sm text-slate-500">Collection <span class="font-mono">ldr_frames</span>. Hanya frame aktif yang tampil di sesi Foto LDR.</p>
+                    </div>
+                    <button id="refreshButton" type="button" class="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium hover:bg-slate-100">Refresh</button>
+                </div>
+                <div id="frameGrid" class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                    <div class="rounded-2xl border border-dashed border-slate-200 p-6 text-center text-sm text-slate-400">Sedang memuat frame...</div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        const PREVIEW_SIZE = { width: 450, height: 780 };
+        const FRAME_SIZE = { width: 900, height: 1560 };
+        const MAX_PREVIEW_BYTES = 120 * 1024;
+        const MAX_FRAME_BYTES = 520 * 1024;
+        const MAX_TOTAL_BYTES = 760 * 1024;
+        const frameForm = document.getElementById('frameForm');
+        const previewFileInput = document.getElementById('previewFile');
+        const frameFileInput = document.getElementById('frameFile');
+        const previewPreview = document.getElementById('previewPreview');
+        const framePreview = document.getElementById('framePreview');
+        const previewPlaceholder = document.getElementById('previewPlaceholder');
+        const framePlaceholder = document.getElementById('framePlaceholder');
+        const frameGrid = document.getElementById('frameGrid');
+        const saveButton = document.getElementById('saveButton');
+        const cancelEditButton = document.getElementById('cancelEditButton');
+        const editingFrameIdInput = document.getElementById('editingFrameId');
+        let cachedFrames = [];
+        let editingFrame = null;
+
+        bootPage();
+        document.getElementById('refreshButton').addEventListener('click', loadFrames);
+        document.getElementById('logoutButton').addEventListener('click', handleLogout);
+        cancelEditButton.addEventListener('click', resetFormState);
+        previewFileInput.addEventListener('change', () => previewFileInput.files[0] && preparePreview(previewFileInput, PREVIEW_SIZE, previewPreview, previewPlaceholder, MAX_PREVIEW_BYTES));
+        frameFileInput.addEventListener('change', () => frameFileInput.files[0] && preparePreview(frameFileInput, FRAME_SIZE, framePreview, framePlaceholder, MAX_FRAME_BYTES));
+        frameForm.addEventListener('submit', saveFrame);
+
+        async function bootPage() {
+            try {
+                const response = await fetch('/api/admin/session');
+                const result = await response.json();
+                if (!response.ok || !result.success) {
+                    window.location.href = '/admin/login.html';
+                    return;
+                }
+                document.getElementById('adminEmail').textContent = result.email ? `Login sebagai ${result.email}` : 'Admin terverifikasi';
+                await loadFrames();
+            } catch (error) {
+                window.location.href = '/admin/login.html';
+            }
+        }
+
+        async function apiRequest(action, options = {}) {
+            const response = await fetch(`/api/admin/${action}`, {
+                ...options,
+                headers: { 'Content-Type': 'application/json', ...(options.headers || {}) }
+            });
+            const result = await response.json().catch(() => ({}));
+            if (!response.ok || !result.success) throw new Error(result.message || 'Permintaan gagal.');
+            return result;
+        }
+
+        async function loadFrames() {
+            frameGrid.innerHTML = '<div class="rounded-2xl border border-dashed border-slate-200 p-6 text-center text-sm text-slate-400 sm:col-span-2 xl:col-span-3">Sedang memuat frame...</div>';
+            try {
+                const result = await apiRequest('get-ldr-frames');
+                cachedFrames = result.data || [];
+                if (!cachedFrames.length) {
+                    frameGrid.innerHTML = '<div class="rounded-2xl border border-dashed border-slate-200 p-6 text-center text-sm text-slate-400 sm:col-span-2 xl:col-span-3">Belum ada frame LDR.</div>';
+                    return;
+                }
+                frameGrid.innerHTML = cachedFrames.map(renderFrameCard).join('');
+            } catch (error) {
+                frameGrid.innerHTML = `<div class="rounded-2xl border border-rose-200 bg-rose-50 p-6 text-center text-sm text-rose-600 sm:col-span-2 xl:col-span-3">${escapeHtml(error.message)}</div>`;
+            }
+        }
+
+        function renderFrameCard(frame) {
+            const statusClass = frame.isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600';
+            const statusText = frame.isActive ? 'Aktif' : 'Nonaktif';
+            const dateText = frame.createdAt ? new Date(frame.createdAt).toLocaleString('id-ID') : '-';
+            return `<article class="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+                <div class="grid grid-cols-2 gap-2 bg-slate-50 p-3">
+                    <img src="${frame.previewImage}" alt="${escapeHtml(frame.name || 'Preview')}" class="aspect-[450/780] w-full rounded-xl border border-slate-200 bg-white object-cover">
+                    <img src="${frame.frameImage}" alt="${escapeHtml(frame.name || 'Frame utama')}" class="aspect-[900/1560] w-full rounded-xl border border-slate-200 bg-white object-cover">
+                </div>
+                <div class="space-y-3 p-4">
+                    <div class="flex items-start justify-between gap-3"><div><h3 class="text-sm font-bold text-slate-900">${escapeHtml(frame.name || 'Frame LDR')}</h3><p class="mt-1 text-[11px] text-slate-400">${dateText}</p></div><span class="rounded-full px-3 py-1 text-[11px] font-semibold ${statusClass}">${statusText}</span></div>
+                    <div class="grid gap-2">
+                        <button type="button" data-edit="${frame.id}" class="rounded-xl bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700">Edit Frame</button>
+                        <button type="button" data-toggle="${frame.id}" data-active="${frame.isActive ? 'false' : 'true'}" class="rounded-xl bg-slate-800 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-700">${frame.isActive ? 'Nonaktifkan' : 'Aktifkan'}</button>
+                        <button type="button" data-delete="${frame.id}" class="rounded-xl bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-100">Hapus Frame</button>
+                    </div>
+                </div>
+            </article>`;
+        }
+
+        frameGrid.addEventListener('click', (event) => {
+            const editId = event.target.dataset.edit;
+            const toggleId = event.target.dataset.toggle;
+            const deleteId = event.target.dataset.delete;
+            if (editId) startEditFrame(editId);
+            if (toggleId) toggleFrame(toggleId, event.target.dataset.active === 'true');
+            if (deleteId) deleteFrame(deleteId);
+        });
+
+        function readFileAsDataUrl(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+
+        function loadImage(src) {
+            return new Promise((resolve, reject) => {
+                const image = new Image();
+                image.onload = () => resolve(image);
+                image.onerror = reject;
+                image.src = src;
+            });
+        }
+
+        function estimateDataUrlBytes(dataUrl) {
+            return Math.ceil(((String(dataUrl).split(',')[1] || '').length * 3) / 4);
+        }
+
+        async function resizeImageToDataUrl(file, size, maxBytes) {
+            const image = await loadImage(await readFileAsDataUrl(file));
+            const canvas = document.createElement('canvas');
+            canvas.width = size.width;
+            canvas.height = size.height;
+            canvas.getContext('2d').drawImage(image, 0, 0, size.width, size.height);
+            let quality = 0.82;
+            let dataUrl = canvas.toDataURL('image/webp', quality);
+            while (estimateDataUrlBytes(dataUrl) > maxBytes && quality > 0.28) {
+                quality -= 0.08;
+                dataUrl = canvas.toDataURL('image/webp', quality);
+            }
+            if (estimateDataUrlBytes(dataUrl) > maxBytes) throw new Error('Gambar masih terlalu besar setelah dikompres.');
+            return dataUrl;
+        }
+
+        async function preparePreview(input, size, imageEl, placeholderEl, maxBytes) {
+            try {
+                const dataUrl = await resizeImageToDataUrl(input.files[0], size, maxBytes);
+                imageEl.src = dataUrl;
+                imageEl.classList.remove('hidden');
+                placeholderEl.classList.add('hidden');
+            } catch (error) {
+                input.value = '';
+                alert(error.message || 'Gambar tidak dapat diproses.');
+            }
+        }
+
+        async function saveFrame(event) {
+            event.preventDefault();
+            const isEditing = Boolean(editingFrameIdInput.value && editingFrame);
+            if (!isEditing && (!previewFileInput.files[0] || !frameFileInput.files[0])) {
+                alert('Preview dan frame utama wajib dipilih.');
+                return;
+            }
+            saveButton.disabled = true;
+            saveButton.textContent = 'Menyimpan...';
+            try {
+                const previewImage = previewFileInput.files[0] ? await resizeImageToDataUrl(previewFileInput.files[0], PREVIEW_SIZE, MAX_PREVIEW_BYTES) : editingFrame.previewImage;
+                const frameImage = frameFileInput.files[0] ? await resizeImageToDataUrl(frameFileInput.files[0], FRAME_SIZE, MAX_FRAME_BYTES) : editingFrame.frameImage;
+                if (estimateDataUrlBytes(previewImage) + estimateDataUrlBytes(frameImage) > MAX_TOTAL_BYTES) throw new Error('Ukuran gabungan gambar terlalu besar.');
+                await apiRequest('save-ldr-frame', { method: 'POST', body: JSON.stringify({
+                    frameId: editingFrameIdInput.value || undefined,
+                    name: document.getElementById('frameName').value.trim(),
+                    previewImage,
+                    frameImage,
+                    isActive: document.getElementById('isActive').checked
+                }) });
+                resetFormState();
+                await loadFrames();
+                alert(isEditing ? 'Frame LDR berhasil diperbarui.' : 'Frame LDR berhasil disimpan.');
+            } catch (error) {
+                alert(error.message || 'Gagal menyimpan frame.');
+            } finally {
+                saveButton.disabled = false;
+                saveButton.textContent = editingFrame ? 'Simpan Perubahan' : 'Simpan Frame LDR';
+            }
+        }
+
+        function startEditFrame(frameId) {
+            const frame = cachedFrames.find((item) => item.id === frameId);
+            if (!frame) return;
+            editingFrame = frame;
+            editingFrameIdInput.value = frame.id;
+            document.getElementById('frameName').value = frame.name || '';
+            document.getElementById('isActive').checked = frame.isActive !== false;
+            previewFileInput.value = '';
+            frameFileInput.value = '';
+            previewFileInput.required = false;
+            frameFileInput.required = false;
+            document.getElementById('formTitle').textContent = 'Edit Frame Foto LDR';
+            document.getElementById('formDescription').textContent = 'Kosongkan file jika gambar lama tetap digunakan.';
+            document.getElementById('previewHint').textContent = 'Kosongkan untuk memakai preview lama.';
+            document.getElementById('frameHint').textContent = 'Kosongkan untuk memakai frame utama lama.';
+            setPreview(previewPreview, previewPlaceholder, frame.previewImage);
+            setPreview(framePreview, framePlaceholder, frame.frameImage);
+            cancelEditButton.classList.remove('hidden');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        async function toggleFrame(frameId, isActive) {
+            try {
+                await apiRequest('toggle-ldr-frame', { method: 'POST', body: JSON.stringify({ frameId, isActive }) });
+                await loadFrames();
+            } catch (error) { alert(error.message || 'Gagal memperbarui status frame.'); }
+        }
+
+        async function deleteFrame(frameId) {
+            if (!confirm('Hapus frame LDR ini?')) return;
+            try {
+                await apiRequest('delete-ldr-frame', { method: 'POST', body: JSON.stringify({ frameId }) });
+                if (editingFrameIdInput.value === frameId) resetFormState();
+                await loadFrames();
+            } catch (error) { alert(error.message || 'Gagal menghapus frame.'); }
+        }
+
+        function setPreview(imageEl, placeholderEl, src) {
+            imageEl.src = src || '';
+            imageEl.classList.toggle('hidden', !src);
+            placeholderEl.classList.toggle('hidden', Boolean(src));
+        }
+
+        function resetFormState() {
+            editingFrame = null;
+            editingFrameIdInput.value = '';
+            frameForm.reset();
+            previewFileInput.required = true;
+            frameFileInput.required = true;
+            document.getElementById('formTitle').textContent = 'Upload Frame Foto LDR';
+            document.getElementById('formDescription').textContent = 'Frame ini hanya untuk Foto LDR dengan dua slot foto.';
+            document.getElementById('previewHint').textContent = 'Wajib saat membuat frame baru.';
+            document.getElementById('frameHint').textContent = 'Harus berisi dua slot foto yang sudah didesain.';
+            setPreview(previewPreview, previewPlaceholder, '');
+            setPreview(framePreview, framePlaceholder, '');
+            cancelEditButton.classList.add('hidden');
+        }
+
+        async function handleLogout() {
+            try { await fetch('/api/admin/logout', { method: 'POST' }); } finally { window.location.href = '/admin/login.html'; }
+        }
+
+        function escapeHtml(value) {
+            return String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+        }
+    </script>
+</body>
+</html>

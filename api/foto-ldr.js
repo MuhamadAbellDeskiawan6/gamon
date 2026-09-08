@@ -116,6 +116,52 @@ async function getIceServersHandler(req, res) {
   }
 }
 
+async function listFramesHandler(req, res) {
+  if (req.method !== "GET") {
+    return res.status(405).json({ success: false, message: "Method not allowed" });
+  }
+
+  try {
+    const firebaseAdmin = getFirebaseAdmin();
+    console.log("[LDR frames] Mengambil collection ldr_frames dengan orderBy createdAt desc.");
+    const snapshot = await firebaseAdmin.firestore()
+      .collection("ldr_frames")
+      .orderBy("createdAt", "desc")
+      .get();
+    const rawFrames = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    console.log("[LDR frames] Jumlah dokumen mentah:", rawFrames.length);
+    console.log("[LDR frames] Contoh dokumen mentah:", rawFrames.slice(0, 2).map((frame) => ({
+      id: frame.id,
+      fields: Object.keys(frame),
+      values: Object.fromEntries(Object.entries(frame).map(([key, value]) => {
+        if (typeof value === "string" && value.length > 200) {
+          return [key, `${value.slice(0, 200)}... [${value.length} karakter]`];
+        }
+        return [key, value];
+      })),
+      fieldTypes: Object.fromEntries(Object.entries(frame).map(([key, value]) => [key, typeof value])),
+    })));
+
+    const frames = rawFrames
+      .filter((frame) => frame.isActive)
+      .map((frame) => ({
+        id: frame.id,
+        name: frame.name || "Frame",
+        previewImage: frame.previewImage,
+        frameImage: frame.frameImage,
+      }));
+
+    return res.status(200).json({ success: true, frames });
+  } catch (error) {
+    console.error("[LDR frames] Query photobox_frames gagal. Kemungkinan penyebab termasuk dokumen tanpa createdAt yang membuat orderBy gagal, atau kredensial/permission Firebase Admin.", error);
+    return res.status(500).json({
+      success: false,
+      frames: [],
+      message: error.message || "Gagal mengambil daftar frame.",
+    });
+  }
+}
+
 function resolveAction(req, body = {}) {
   const candidates = [
     req?.query?.action,
@@ -160,6 +206,8 @@ async function createSessionHandler(req, res, body = {}) {
       user2: false,
       user1Photo: null,
       user2Photo: null,
+      selectedFrameId: null,
+      selectedFrameImage: null,
       resultImage: null,
       rtcOffer: null,
       rtcAnswer: null,
@@ -253,6 +301,8 @@ async function updateSessionHandler(req, res, body = {}) {
       rtcCandidates,
       rtcCandidatesUser1,
       rtcCandidatesUser2,
+      selectedFrameId,
+      selectedFrameImage,
     } = payload;
 
     if (!code) {
@@ -280,6 +330,14 @@ async function updateSessionHandler(req, res, body = {}) {
 
     if (typeof status === "string") {
       updates.status = status;
+    }
+
+    if (selectedFrameId === null || typeof selectedFrameId === "string") {
+      updates.selectedFrameId = selectedFrameId || null;
+    }
+
+    if (selectedFrameImage === null || typeof selectedFrameImage === "string") {
+      updates.selectedFrameImage = selectedFrameImage || null;
     }
 
     if (typeof action === "string") {
@@ -375,6 +433,10 @@ module.exports = async function handler(req, res) {
     return getIceServersHandler(req, res);
   }
 
+  if (action === "list-frames") {
+    return listFramesHandler(req, res);
+  }
+
   if (action === "join-session" || action === "join") {
     return joinSessionHandler(req, res, body);
   }
@@ -383,7 +445,7 @@ module.exports = async function handler(req, res) {
     return updateSessionHandler(req, res, body);
   }
 
-  const keyFields = ["code", "field", "photo", "imageDataUrl", "status", "action", "countdownStartedAt", "countdownFrom", "captureTriggerId"];
+  const keyFields = ["code", "field", "photo", "imageDataUrl", "status", "action", "countdownStartedAt", "countdownFrom", "captureTriggerId", "selectedFrameId", "selectedFrameImage"];
   if (keyFields.some((field) => Object.prototype.hasOwnProperty.call(body, field))) {
     return updateSessionHandler(req, res, body);
   }

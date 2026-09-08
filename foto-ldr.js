@@ -50,6 +50,9 @@ const state = {
   rtcIceServers: null,
   rtcIceServersPromise: null,
   rtcTurnActive: false,
+  availableFrames: [],
+  resultBuildInProgress: false,
+  resultBuildCompleted: false,
 };
 
 const $ = (id) => document.getElementById(id);
@@ -82,6 +85,24 @@ const rtcDebugText = $("rtcDebugText");
 const rtcTurnStatus = $("rtcTurnStatus");
 const selfMicStatus = $("selfMicStatus");
 const toast = $("toast");
+const processingOverlay = $("processingOverlay");
+const processingMessage = $("processingMessage");
+const framePickerRole = $("framePickerRole");
+const framePickerMessage = $("framePickerMessage");
+const frameGrid = $("frameGrid");
+
+const cameraIcon = '<svg class="control-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M23 7l-7 5 7 5V7Z"></path><rect x="1" y="5" width="15" height="14" rx="2"></rect></svg>';
+const cameraOffIcon = '<svg class="control-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M23 7l-7 5 7 5V7Z"></path><rect x="1" y="5" width="15" height="14" rx="2"></rect><path d="M3 3l18 18"></path></svg>';
+const micIcon = '<svg class="control-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="2" width="6" height="12" rx="3"></rect><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><path d="M12 19v3M8 22h8"></path></svg>';
+const micOffIcon = '<svg class="control-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="2" width="6" height="12" rx="3"></rect><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><path d="M12 19v3M8 22h8M3 3l18 18"></path></svg>';
+
+const debugQuery = new URLSearchParams(window.location.search);
+const debugWebRtcEnabled = debugQuery.get("debug") === "1" || debugQuery.get("debug") === "webrtc";
+if (debugWebRtcEnabled) {
+  [rtcDebugText, rtcTurnStatus].forEach((element) => {
+    element?.classList.add("is-debug-visible");
+  });
+}
 
 let toastTimer = null;
 
@@ -168,11 +189,19 @@ function updateRtcDebugInfo() {
 }
 
 function showCountdownOverlay(value) {
+  const videoContainer = document.querySelector(".self-card .panel-video-wrap");
+  if (!videoContainer) {
+    return;
+  }
+
   let overlay = document.getElementById("syncCountdownOverlay");
   if (!overlay) {
     overlay = document.createElement("div");
     overlay.id = "syncCountdownOverlay";
-    document.body.appendChild(overlay);
+  }
+
+  if (overlay.parentElement !== videoContainer) {
+    videoContainer.appendChild(overlay);
   }
 
   overlay.textContent = String(value);
@@ -186,6 +215,23 @@ function clearCountdownOverlay() {
     overlay.classList.remove("show");
     overlay.remove();
   }
+}
+
+function showProcessingOverlay(message) {
+  updateProcessingOverlay(message);
+  processingOverlay.classList.add("show");
+  processingOverlay.setAttribute("aria-busy", "true");
+}
+
+function updateProcessingOverlay(message) {
+  if (processingMessage && message) {
+    processingMessage.textContent = message;
+  }
+}
+
+function hideProcessingOverlay() {
+  processingOverlay.classList.remove("show");
+  processingOverlay.setAttribute("aria-busy", "false");
 }
 
 function showScreen(screen) {
@@ -242,18 +288,125 @@ async function updateSession(patch) {
   };
 
   try {
-    await fetch("/api/foto-ldr", {
+    const response = await fetch("/api/foto-ldr", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ...payload, action: "update-session" }),
     });
+
+    if (!response.ok) {
+      throw new Error(`Gagal memperbarui sesi (${response.status}).`);
+    }
   } catch (error) {
     console.error("updateSession failed:", error);
+    throw error;
   }
 }
 
 function setSessionStatusText(value) {
   sessionStatusText.textContent = value;
+}
+
+function renderFramePicker(data = state.sessionData) {
+  if (!frameGrid || !framePickerMessage) {
+    return;
+  }
+
+  const selectedFrameId = data?.selectedFrameId || null;
+  const selectedFrameImage = data?.selectedFrameImage || null;
+  const canSelect = state.role === "user1";
+  framePickerRole.textContent = canSelect ? "Bisa diganti kapan saja" : "Pilihan Orang A";
+
+  if (!state.availableFrames.length) {
+    frameGrid.innerHTML = "";
+    framePickerMessage.textContent = "Belum ada frame tersedia, foto akan pakai frame default.";
+    return;
+  }
+
+  framePickerMessage.textContent = selectedFrameId
+    ? (canSelect ? "Pilih frame lain kapan saja sebelum foto diambil." : "Frame ini dipilih oleh pembuat sesi.")
+    : (canSelect ? "Pilih frame atau lanjut dengan frame default." : "Pembuat sesi belum memilih frame. Frame default akan digunakan.");
+
+  frameGrid.innerHTML = state.availableFrames.map((frame) => {
+    const isSelected = frame.id === selectedFrameId;
+    const buttonType = canSelect ? "button" : "button";
+    return `
+      <button class="frame-option ${isSelected ? "selected" : ""} ${canSelect ? "selectable" : ""}" type="${buttonType}" data-frame-id="${frame.id}" ${canSelect ? "" : "disabled"}>
+        <img src="${frame.previewImage || frame.frameImage || ""}" alt="${frame.name || "Frame"}" loading="lazy" />
+        <span class="frame-option-name">${frame.name || "Frame"}</span>
+        ${isSelected ? '<span class="frame-selected-badge">Terpilih</span>' : ""}
+      </button>
+    `;
+  }).join("");
+
+  if (selectedFrameImage && !selectedFrameId) {
+    framePickerMessage.textContent = canSelect
+      ? "Frame terpilih tersimpan untuk sesi ini."
+      : "Frame terpilih dari pembuat sesi.";
+  }
+}
+
+async function loadAvailableFrames() {
+  if (!framePickerMessage) {
+    return;
+  }
+
+  framePickerMessage.textContent = "Memuat frame...";
+
+  try {
+    const response = await fetch("/api/foto-ldr?action=list-frames", { cache: "no-store" });
+    console.log("[LDR frames] HTTP response list-frames:", {
+      status: response.status,
+      statusText: response.statusText,
+      ok: response.ok,
+    });
+    let payload;
+    try {
+      payload = await response.json();
+    } catch (parseError) {
+      console.error("[LDR frames] Response list-frames bukan JSON valid:", parseError);
+      throw parseError;
+    }
+    console.log("[LDR frames] Payload lengkap list-frames:", payload);
+    if (!response.ok || !payload.success || !Array.isArray(payload.frames)) {
+      throw new Error(payload.message || "Daftar frame tidak tersedia.");
+    }
+
+    state.availableFrames = payload.frames;
+    renderFramePicker();
+  } catch (error) {
+    state.availableFrames = [];
+    frameGrid.innerHTML = "";
+    framePickerMessage.textContent = "Belum ada frame tersedia, foto akan pakai frame default.";
+    console.warn("[LDR frames] Daftar frame Foto LDR tidak tersedia:", error);
+  }
+}
+
+async function selectFrame(frameId) {
+  if (state.role !== "user1") {
+    return;
+  }
+
+  const frame = state.availableFrames.find((item) => item.id === frameId);
+  if (!frame || !frame.frameImage) {
+    return;
+  }
+
+  try {
+    await persistSignalingPatch({
+      selectedFrameId: frame.id,
+      selectedFrameImage: frame.frameImage,
+    }, "menyimpan pilihan frame");
+    renderFramePicker({
+      ...state.sessionData,
+      selectedFrameId: frame.id,
+      selectedFrameImage: frame.frameImage,
+    });
+    showToast(`Frame "${frame.name || "Frame"}" dipilih.`);
+  } catch (error) {
+    console.error("Gagal menyimpan pilihan frame:", error);
+    showToast("Pilihan frame gagal disimpan.");
+  }
 }
 
 function syncCaptureUi(data = state.sessionData) {
@@ -336,7 +489,7 @@ function updateMicUi() {
   }
 
   const enabled = state.micEnabled !== false;
-  micToggleBtn.textContent = enabled ? "Mic" : "Mic off";
+  setMicButtonUi(enabled);
   micToggleBtn.classList.toggle("is-muted", !enabled);
   micToggleBtn.setAttribute("aria-pressed", String(enabled));
   selfMicStatus.textContent = enabled ? "Mic on" : "Mic off";
@@ -347,6 +500,16 @@ function updateMicUi() {
       track.enabled = enabled;
     });
   }
+}
+
+function setMicButtonUi(enabled) {
+  micToggleBtn.innerHTML = `${enabled ? micIcon : micOffIcon}<span>${enabled ? "Mic" : "Mic off"}</span>`;
+}
+
+function setCameraButtonUi(enabled) {
+  cameraToggleBtn.innerHTML = `${enabled ? cameraIcon : cameraOffIcon}<span>${enabled ? "Kamera" : "Kamera off"}</span>`;
+  cameraToggleBtn.classList.toggle("is-muted", !enabled);
+  cameraToggleBtn.setAttribute("aria-pressed", String(enabled));
 }
 
 function getIceServers() {
@@ -1138,6 +1301,7 @@ function startSharedCountdownFromSession(data) {
   state.countdownStartedAt = startedAt;
   state.isCountingDown = true;
   state.countdownValue = totalSeconds;
+  hideProcessingOverlay();
   clearInterval(state.countdownTimer);
 
   const endAt = startedAt + totalSeconds * 1000;
@@ -1147,6 +1311,15 @@ function startSharedCountdownFromSession(data) {
     const remainingMs = endAt - Date.now();
     const nextValue = Math.max(0, Math.ceil(remainingMs / 1000));
     state.countdownValue = nextValue;
+    console.log("[LDR countdown] tick", {
+      startedAt,
+      endAt,
+      now: Date.now(),
+      remainingMs,
+      nextValue,
+      role: state.role,
+      sessionId: state.sessionId,
+    });
 
     if (nextValue > 0) {
       showCountdownOverlay(nextValue);
@@ -1159,6 +1332,7 @@ function startSharedCountdownFromSession(data) {
     state.isCountingDown = false;
     setCaptureBusy(false);
     clearCountdownOverlay();
+    showProcessingOverlay("Menyimpan foto...");
     captureStatusText.textContent = "Mengambil foto...";
     logSync("countdown finished, triggering auto-capture", { sessionId: state.sessionId, role: state.role });
     performAutoCapture();
@@ -1192,15 +1366,12 @@ async function performAutoCapture() {
       action: "capture-complete",
     });
 
+    updateProcessingOverlay("Menunggu foto pasangan...");
     showToast("Foto berhasil diambil secara bersamaan.");
-
-    if (state.sessionData?.user1Photo && state.sessionData?.user2Photo) {
-      await buildCombinedResult();
-      showScreen(resultScreen);
-    }
   } catch (error) {
     console.error("performAutoCapture failed:", error);
     showToast("Gagal mengambil foto otomatis.");
+    hideProcessingOverlay();
   } finally {
     state.captureInProgress = false;
     setCaptureBusy(false);
@@ -1208,44 +1379,64 @@ async function performAutoCapture() {
 }
 
 function captureLocalVideoToDataUrl() {
-  const videoWidth = cameraVideo.videoWidth || 1280;
-  const videoHeight = cameraVideo.videoHeight || 1280;
+  const videoWidth = cameraVideo.videoWidth;
+  const videoHeight = cameraVideo.videoHeight;
+  const videoContainer = cameraVideo.parentElement;
+  const containerWidth = videoContainer?.clientWidth || 0;
+  const containerHeight = videoContainer?.clientHeight || 0;
 
-  const coverWidth = Math.max(videoWidth, videoHeight * (900 / 1560));
-  const coverHeight = Math.max(videoHeight, videoWidth * (1560 / 900));
-  const cropX = (videoWidth - coverWidth) / 2;
-  const cropY = (videoHeight - coverHeight) / 2;
+  if (!videoWidth || !videoHeight || !containerWidth || !containerHeight) {
+    throw new Error("Video belum siap untuk diambil.");
+  }
 
-  captureCanvas.width = 900;
-  captureCanvas.height = 1560;
+  const objectFitScale = Math.max(containerWidth / videoWidth, containerHeight / videoHeight);
+  const renderedWidth = videoWidth * objectFitScale;
+  const renderedHeight = videoHeight * objectFitScale;
+  const renderedOffsetX = (containerWidth - renderedWidth) / 2;
+  const renderedOffsetY = (containerHeight - renderedHeight) / 2;
+  const sourceX = Math.max(0, -renderedOffsetX / objectFitScale);
+  const sourceY = Math.max(0, -renderedOffsetY / objectFitScale);
+  const sourceWidth = Math.min(videoWidth - sourceX, containerWidth / objectFitScale);
+  const sourceHeight = Math.min(videoHeight - sourceY, containerHeight / objectFitScale);
+
+  if (sourceWidth <= 0 || sourceHeight <= 0 || !Number.isFinite(sourceWidth) || !Number.isFinite(sourceHeight)) {
+    throw new Error("Area crop video belum valid.");
+  }
+
+  const outputWidth = 1400;
+  const outputHeight = 898;
+  captureCanvas.width = outputWidth;
+  captureCanvas.height = outputHeight;
 
   const ctx = captureCanvas.getContext("2d");
   ctx.save();
-  ctx.translate(900, 0);
+  ctx.translate(outputWidth, 0);
   ctx.scale(-1, 1);
-  ctx.clearRect(0, 0, 900, 1560);
+  ctx.clearRect(0, 0, outputWidth, outputHeight);
   ctx.fillStyle = "#f3efe9";
-  ctx.fillRect(0, 0, 900, 1560);
+  ctx.fillRect(0, 0, outputWidth, outputHeight);
   ctx.drawImage(
     cameraVideo,
-    cropX,
-    cropY,
-    Math.max(1, coverWidth),
-    Math.max(1, coverHeight),
+    sourceX,
+    sourceY,
+    sourceWidth,
+    sourceHeight,
     0,
     0,
-    900,
-    1560,
+    outputWidth,
+    outputHeight,
   );
   ctx.restore();
 
-  return captureCanvas.toDataURL("image/jpeg", 0.82);
+  return captureCanvas.toDataURL("image/jpeg", 0.78);
 }
 
 async function handleSessionUpdate(data) {
   if (!data) {
     return;
   }
+
+  renderFramePicker(data);
 
   if (data.status === "waiting") {
     if (state.role === "user1") {
@@ -1278,13 +1469,20 @@ async function handleSessionUpdate(data) {
   }
 
   if (data.resultImage) {
-    renderResult(data.resultImage);
+    await renderResult(data.resultImage);
+    hideProcessingOverlay();
     showScreen(resultScreen);
     resultMessage.textContent = "Foto LDR siap diunduh.";
+    return;
   }
 
   if (data.user1Photo && data.user2Photo && !data.resultImage) {
-    await buildCombinedResult();
+    if (state.role === "user1") {
+      updateProcessingOverlay("Menyusun hasil...");
+      await buildCombinedResult();
+    } else {
+      showProcessingOverlay("Menunggu hasil dari pembuat sesi...");
+    }
   }
 }
 
@@ -1419,6 +1617,7 @@ async function createSession() {
     state.role = "user1";
     roomCode.textContent = payload.code;
     showScreen(waitingScreen);
+    void loadAvailableFrames();
     listenSession();
     await startCamera();
     await updateSession({
@@ -1465,6 +1664,7 @@ async function joinSession() {
     state.role = "user2";
     roomCode.textContent = code;
     showScreen(waitingScreen);
+    void loadAvailableFrames();
     listenSession();
     await startCamera();
     await updateSession({ status: "connected", user2: true });
@@ -1498,6 +1698,11 @@ async function capturePhoto() {
   state.captureNonce = triggerId;
   setCaptureBusy(true);
 
+  startSharedCountdownFromSession({
+    countdownStartedAt,
+    countdownFrom: 5,
+  });
+
   await updateSession({
     status: "countdown",
     action: "countdown",
@@ -1506,36 +1711,19 @@ async function capturePhoto() {
     captureTriggerId: triggerId,
   });
 
-  startSharedCountdownFromSession({
-    countdownStartedAt,
-    countdownFrom: 5,
-  });
   showToast("Hitung mundur foto dimulai.");
 }
 
 function loadImage(src) {
   return new Promise((resolve, reject) => {
     const image = new Image();
+    if (/^https?:\/\//i.test(src)) {
+      image.crossOrigin = "anonymous";
+    }
     image.onload = () => resolve(image);
     image.onerror = () => reject(new Error("Image failed to load"));
     image.src = src;
   });
-}
-
-function drawRoundedCard(ctx, x, y, width, height, radius, fillStyle) {
-  ctx.beginPath();
-  ctx.moveTo(x + radius, y);
-  ctx.lineTo(x + width - radius, y);
-  ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
-  ctx.lineTo(x + width, y + height - radius);
-  ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
-  ctx.lineTo(x + radius, y + height);
-  ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
-  ctx.lineTo(x, y + radius);
-  ctx.quadraticCurveTo(x, y, x + radius, y);
-  ctx.closePath();
-  ctx.fillStyle = fillStyle;
-  ctx.fill();
 }
 
 function getCoverDrawMetrics(sourceWidth, sourceHeight, targetWidth, targetHeight) {
@@ -1554,8 +1742,6 @@ function getCoverDrawMetrics(sourceWidth, sourceHeight, targetWidth, targetHeigh
 }
 
 async function drawPhotoSlot(ctx, slotX, slotY, slotWidth, slotHeight, photoDataUrl) {
-  drawRoundedCard(ctx, slotX, slotY, slotWidth, slotHeight, 24, "#f3efe9");
-
   if (!photoDataUrl) {
     return;
   }
@@ -1568,21 +1754,7 @@ async function drawPhotoSlot(ctx, slotX, slotY, slotWidth, slotHeight, photoData
     slotHeight,
   );
 
-  ctx.save();
-  ctx.beginPath();
-  ctx.moveTo(slotX + 24, slotY);
-  ctx.lineTo(slotX + slotWidth - 24, slotY);
-  ctx.quadraticCurveTo(slotX + slotWidth, slotY, slotX + slotWidth, slotY + 24);
-  ctx.lineTo(slotX + slotWidth, slotY + slotHeight - 24);
-  ctx.quadraticCurveTo(slotX + slotWidth, slotY + slotHeight, slotX + slotWidth - 24, slotY + slotHeight);
-  ctx.lineTo(slotX + 24, slotY + slotHeight);
-  ctx.quadraticCurveTo(slotX, slotY + slotHeight, slotX, slotY + slotHeight - 24);
-  ctx.lineTo(slotX, slotY + 24);
-  ctx.quadraticCurveTo(slotX, slotY, slotX + 24, slotY);
-  ctx.closePath();
-  ctx.clip();
   ctx.drawImage(img, slotX + offsetX, slotY + offsetY, drawWidth, drawHeight);
-  ctx.restore();
 }
 
 function getLdrSlotLayout() {
@@ -1605,63 +1777,63 @@ async function renderResult(resultDataUrl) {
   const bottomPhoto = state.sessionData?.user2Photo || state.partnerPhoto || null;
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.fillStyle = "#f8f3ed";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   await drawPhotoSlot(ctx, layout.topSlot.x, layout.topSlot.y, layout.topSlot.w, layout.topSlot.h, topPhoto);
   await drawPhotoSlot(ctx, layout.bottomSlot.x, layout.bottomSlot.y, layout.bottomSlot.w, layout.bottomSlot.h, bottomPhoto);
 
-  const frame = await loadImage("/image/assets/frame-ldr.png");
+  const frame = await loadImage(state.sessionData?.selectedFrameImage || "/image/assets/frame-ldr.png");
   ctx.drawImage(frame, 0, 0, canvas.width, canvas.height);
 
-  const title = "Foto LDR";
-  ctx.fillStyle = "rgba(19, 21, 25, 0.85)";
-  ctx.font = "700 26px Arial";
-  ctx.textAlign = "center";
-  ctx.fillText(title, canvas.width / 2, 1440);
-
-  state.resultImage = resultDataUrl || canvas.toDataURL("image/png");
+  state.resultImage = resultDataUrl || canvas.toDataURL("image/jpeg", 0.88);
   resultMessage.textContent = "Foto LDR siap dikirim.";
 }
 
 async function buildCombinedResult() {
+  if (state.role !== "user1" || state.resultBuildInProgress || state.resultBuildCompleted) {
+    return;
+  }
+
   const user1Photo = state.sessionData?.user1Photo || null;
   const user2Photo = state.sessionData?.user2Photo || null;
   if (!user1Photo || !user2Photo) {
     return;
   }
 
-  const layout = getLdrSlotLayout();
-  const composite = resultCanvas;
-  composite.width = layout.canvasWidth;
-  composite.height = layout.canvasHeight;
+  state.resultBuildInProgress = true;
 
-  const ctx = composite.getContext("2d");
-  ctx.clearRect(0, 0, composite.width, composite.height);
-  ctx.fillStyle = "#f8f3ed";
-  ctx.fillRect(0, 0, composite.width, composite.height);
+  try {
+    const layout = getLdrSlotLayout();
+    const composite = resultCanvas;
+    composite.width = layout.canvasWidth;
+    composite.height = layout.canvasHeight;
 
-  await drawPhotoSlot(ctx, layout.topSlot.x, layout.topSlot.y, layout.topSlot.w, layout.topSlot.h, user1Photo);
-  await drawPhotoSlot(ctx, layout.bottomSlot.x, layout.bottomSlot.y, layout.bottomSlot.w, layout.bottomSlot.h, user2Photo);
+    const ctx = composite.getContext("2d");
+    ctx.clearRect(0, 0, composite.width, composite.height);
 
-  const frame = await loadImage("/image/assets/frame-ldr.png");
-  ctx.drawImage(frame, 0, 0, composite.width, composite.height);
+    await drawPhotoSlot(ctx, layout.topSlot.x, layout.topSlot.y, layout.topSlot.w, layout.topSlot.h, user1Photo);
+    await drawPhotoSlot(ctx, layout.bottomSlot.x, layout.bottomSlot.y, layout.bottomSlot.w, layout.bottomSlot.h, user2Photo);
 
-  ctx.fillStyle = "rgba(19, 21, 25, 0.85)";
-  ctx.font = "700 26px Arial";
-  ctx.textAlign = "center";
-  ctx.fillText("Foto LDR", composite.width / 2, 1440);
+    const frame = await loadImage(state.sessionData?.selectedFrameImage || "/image/assets/frame-ldr.png");
+    ctx.drawImage(frame, 0, 0, composite.width, composite.height);
 
-  const imageDataUrl = composite.toDataURL("image/png");
-  await updateSession({
-    imageDataUrl,
-    status: "ready",
-    action: "ready",
-  });
+    const imageDataUrl = composite.toDataURL("image/jpeg", 0.88);
+    await updateSession({
+      imageDataUrl,
+      status: "ready",
+      action: "ready",
+    });
 
-  state.resultImage = imageDataUrl;
-  resultMessage.textContent = "Foto LDR siap diunduh.";
-  showScreen(resultScreen);
+    state.resultImage = imageDataUrl;
+    state.resultBuildCompleted = true;
+    resultMessage.textContent = "Foto LDR siap diunduh.";
+    hideProcessingOverlay();
+    showScreen(resultScreen);
+  } catch (error) {
+    hideProcessingOverlay();
+    throw error;
+  } finally {
+    state.resultBuildInProgress = false;
+  }
 }
 
 function resetSession() {
@@ -1695,6 +1867,9 @@ function resetSession() {
   state.myPhoto = null;
   state.partnerPhoto = null;
   state.resultImage = null;
+  state.availableFrames = [];
+  state.resultBuildInProgress = false;
+  state.resultBuildCompleted = false;
   state.captureInProgress = false;
   state.captureNonce = null;
   state.countdownStartedAt = null;
@@ -1707,6 +1882,7 @@ function resetSession() {
     state.countdownTimer = null;
   }
   clearCountdownOverlay();
+  hideProcessingOverlay();
   resetPeerConnection();
 
   roomCode.textContent = "------";
@@ -1726,6 +1902,12 @@ function resetSession() {
 
 createBtn.addEventListener("click", createSession);
 joinBtn.addEventListener("click", joinSession);
+frameGrid.addEventListener("click", (event) => {
+  const frameButton = event.target.closest("[data-frame-id]");
+  if (frameButton) {
+    void selectFrame(frameButton.dataset.frameId);
+  }
+});
 joinCodeInput.addEventListener("input", () => {
   joinCodeInput.value = joinCodeInput.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6);
 });
@@ -1763,7 +1945,7 @@ cameraToggleBtn.addEventListener("click", async () => {
   }
 
   videoTrack.enabled = !videoTrack.enabled;
-  cameraToggleBtn.textContent = videoTrack.enabled ? "Kamera" : "Kamera off";
+  setCameraButtonUi(videoTrack.enabled);
   showToast(videoTrack.enabled ? "Kamera aktif." : "Kamera dimatikan.");
 });
 

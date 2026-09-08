@@ -57,6 +57,16 @@
             </div>
 
             <p id="waitingMessage" class="info-text">Menunggu pasangan bergabung...</p>
+
+            <div class="frame-picker" aria-live="polite">
+              <div class="frame-picker-heading">
+                <strong>Pilih frame</strong>
+                <span id="framePickerRole">Opsional</span>
+              </div>
+              <p id="framePickerMessage" class="frame-picker-message">Memuat frame...</p>
+              <div id="frameGrid" class="frame-grid"></div>
+            </div>
+
             <button id="cancelSessionBtn" class="text-btn" type="button">Batalkan sesi</button>
           </div>
         </section>
@@ -65,8 +75,21 @@
           <div class="capture-header">
             <span class="status-pill success" id="captureStatusText">Siap mengambil foto</span>
             <div class="capture-header-actions">
-              <button id="cameraToggleBtn" class="ghost-btn" type="button">Kamera</button>
-              <button id="micToggleBtn" class="ghost-btn mic-toggle" type="button" aria-pressed="true">Mic</button>
+              <button id="cameraToggleBtn" class="ghost-btn" type="button" aria-pressed="true">
+                <svg class="control-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M23 7l-7 5 7 5V7Z"></path>
+                  <rect x="1" y="5" width="15" height="14" rx="2"></rect>
+                </svg>
+                <span>Kamera</span>
+              </button>
+              <button id="micToggleBtn" class="ghost-btn mic-toggle" type="button" aria-pressed="true">
+                <svg class="control-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <rect x="9" y="2" width="6" height="12" rx="3"></rect>
+                  <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                  <path d="M12 19v3M8 22h8"></path>
+                </svg>
+                <span>Mic</span>
+              </button>
             </div>
           </div>
 
@@ -110,12 +133,20 @@
             <p id="resultMessage" class="info-text">Foto siap dikirim.</p>
 
             <div class="result-actions">
-              <button id="downloadBtn" class="primary-btn" type="button">Unduh PNG</button>
+              <button id="downloadBtn" class="primary-btn" type="button">Unduh Foto</button>
               <button id="newSessionBtn" class="secondary-btn" type="button">Sesi Baru</button>
             </div>
           </div>
         </section>
       </main>
+    </div>
+
+    <div id="processingOverlay" class="processing-overlay" role="status" aria-live="polite" aria-busy="true">
+      <div class="processing-card">
+        <div class="processing-spinner" aria-hidden="true"></div>
+        <p id="processingMessage">Memproses foto...</p>
+        <span class="processing-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+      </div>
     </div>
 
     <div id="toast" class="toast"></div>

@@ -372,6 +372,123 @@ async function handleDeleteFrame(req, res) {
     }
 }
 
+async function handleGetLdrFrames(req, res) {
+    if (req.method !== 'GET') {
+        return res.status(405).json({ success: false, message: 'Method Not Allowed' });
+    }
+
+    const authResult = await requireAdmin(req, res);
+    if (!authResult) return;
+
+    try {
+        const snapshot = await getAdminDb().collection('ldr_frames').orderBy('createdAt', 'desc').get();
+        const frames = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+        return res.status(200).json({ success: true, data: frames });
+    } catch (error) {
+        return res.status(500).json({ success: false, message: error.message });
+    }
+}
+
+async function handleSaveLdrFrame(req, res) {
+    if (req.method !== 'POST') {
+        return res.status(405).json({ success: false, message: 'Method Not Allowed' });
+    }
+
+    const authResult = await requireAdmin(req, res);
+    if (!authResult) return;
+
+    const { frameId, name, previewImage, frameImage, isActive } = req.body || {};
+    const isImageDataUrl = (value) => typeof value === 'string' && /^data:image\/(png|webp);base64,/.test(value);
+    if (!name || !isImageDataUrl(previewImage) || !isImageDataUrl(frameImage)) {
+        return res.status(400).json({
+            success: false,
+            message: 'Nama frame, gambar preview, dan gambar frame utama wajib diisi dalam format gambar valid.'
+        });
+    }
+
+    const MAX_SINGLE_DATA_URL_LENGTH = 700000;
+    const MAX_TOTAL_DATA_URL_LENGTH = 950000;
+    if (
+        previewImage.length > MAX_SINGLE_DATA_URL_LENGTH ||
+        frameImage.length > MAX_SINGLE_DATA_URL_LENGTH ||
+        previewImage.length + frameImage.length > MAX_TOTAL_DATA_URL_LENGTH
+    ) {
+        return res.status(400).json({
+            success: false,
+            message: 'Ukuran gabungan frame terlalu besar untuk Firestore. Coba gambar yang lebih ringan atau area transparan yang lebih bersih.'
+        });
+    }
+
+    try {
+        const db = getAdminDb();
+        const timestamp = Date.now();
+        const payload = {
+            name: String(name).trim(),
+            previewImage,
+            frameImage,
+            isActive: isActive !== false,
+            updatedAt: timestamp
+        };
+
+        if (frameId) {
+            await db.collection('ldr_frames').doc(frameId).set(payload, { merge: true });
+            return res.status(200).json({ success: true, message: 'Frame LDR berhasil diperbarui.', id: frameId });
+        }
+
+        const docRef = await db.collection('ldr_frames').add({
+            ...payload,
+            createdAt: timestamp,
+            createdBy: authResult.claims?.email || OWNER_EMAIL
+        });
+
+        return res.status(200).json({ success: true, message: 'Frame LDR berhasil ditambahkan.', id: docRef.id });
+    } catch (error) {
+        return res.status(500).json({ success: false, message: error.message });
+    }
+}
+
+async function handleToggleLdrFrame(req, res) {
+    if (req.method !== 'POST') {
+        return res.status(405).json({ success: false, message: 'Method Not Allowed' });
+    }
+
+    const authResult = await requireAdmin(req, res);
+    if (!authResult) return;
+
+    const { frameId, isActive } = req.body || {};
+    if (!frameId || typeof isActive !== 'boolean') {
+        return res.status(400).json({ success: false, message: 'frameId dan isActive wajib diisi.' });
+    }
+
+    try {
+        await getAdminDb().collection('ldr_frames').doc(frameId).update({ isActive, updatedAt: Date.now() });
+        return res.status(200).json({ success: true, message: 'Status frame LDR berhasil diperbarui.' });
+    } catch (error) {
+        return res.status(500).json({ success: false, message: error.message });
+    }
+}
+
+async function handleDeleteLdrFrame(req, res) {
+    if (req.method !== 'POST') {
+        return res.status(405).json({ success: false, message: 'Method Not Allowed' });
+    }
+
+    const authResult = await requireAdmin(req, res);
+    if (!authResult) return;
+
+    const { frameId } = req.body || {};
+    if (!frameId) {
+        return res.status(400).json({ success: false, message: 'frameId wajib diisi.' });
+    }
+
+    try {
+        await getAdminDb().collection('ldr_frames').doc(frameId).delete();
+        return res.status(200).json({ success: true, message: 'Frame LDR berhasil dihapus.' });
+    } catch (error) {
+        return res.status(500).json({ success: false, message: error.message });
+    }
+}
+
 async function handleGetRedeemCodes(req, res) {
     if (req.method !== 'GET') {
         return res.status(405).json({ success: false, message: 'Method Not Allowed' });
@@ -823,6 +940,14 @@ export default async function handler(req, res) {
             return handleToggleFrame(req, res);
         case 'delete-frame':
             return handleDeleteFrame(req, res);
+        case 'get-ldr-frames':
+            return handleGetLdrFrames(req, res);
+        case 'save-ldr-frame':
+            return handleSaveLdrFrame(req, res);
+        case 'toggle-ldr-frame':
+            return handleToggleLdrFrame(req, res);
+        case 'delete-ldr-frame':
+            return handleDeleteLdrFrame(req, res);
         case 'get-redeem-codes':
             return handleGetRedeemCodes(req, res);
         case 'get-wedding-requests':
