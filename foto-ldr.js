@@ -1826,10 +1826,18 @@ async function handleSessionUpdate(data) {
   });
 
   if (data.resultImage) {
-    await renderResult(data.resultImage);
     hideProcessingOverlay();
     showScreen(resultScreen);
-    resultMessage.textContent = isPaymentPaid() ? "Foto LDR siap diunduh." : "Selesaikan pembayaran untuk mengunduh foto.";
+    try {
+      await renderResult(data.resultImage);
+      resultMessage.textContent = isPaymentPaid() ? "Foto LDR siap diunduh." : "Selesaikan pembayaran untuk mengunduh foto.";
+    } catch (error) {
+      console.error("[LDR result] Gagal merender ulang hasil dari sesi:", error);
+      resultMessage.textContent = isPaymentPaid()
+        ? "Pembayaran terkonfirmasi. Gunakan tombol unduh untuk mengambil foto."
+        : "Hasil foto tersedia, tetapi preview gagal dimuat.";
+      showToast("Preview foto gagal dimuat, tetapi hasil tetap bisa diproses.");
+    }
     syncPaymentUi();
     return;
   }
