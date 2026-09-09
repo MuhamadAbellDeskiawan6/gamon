@@ -1,7 +1,7 @@
 const admin = require("firebase-admin");
 const fs = require("fs");
 const path = require("path");
-const SESSION_TIME_LIMIT_SECONDS = 90;
+const SESSION_TIME_LIMIT_SECONDS = 60;
 
 function getFirebaseAdmin() {
   if (!admin.apps.length) {

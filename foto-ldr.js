@@ -13,7 +13,7 @@ if (!firebase.apps.length) {
 }
 
 const db = firebase.firestore();
-const SESSION_TIME_LIMIT_SECONDS = 90;
+const SESSION_TIME_LIMIT_SECONDS = 60;
 
 const state = {
   sessionId: null,
@@ -520,6 +520,10 @@ function formatSessionTimeLimit(seconds) {
   return `${String(minutes).padStart(2, "0")}:${String(remainingSeconds).padStart(2, "0")}`;
 }
 
+if (sessionTimeLimitText) {
+  sessionTimeLimitText.textContent = formatSessionTimeLimit(SESSION_TIME_LIMIT_SECONDS);
+}
+
 async function ensureSessionTimeLimitStarted(data) {
   if (state.role !== "user1" || !data?.user2 || data.sessionTimeLimitStartedAt || state.sessionTimeLimitStartedAt) {
     return;
@@ -557,13 +561,13 @@ function startSessionTimeLimitFromSession(data) {
     if (sessionTimeLimitText) {
       sessionTimeLimitText.hidden = false;
       sessionTimeLimitText.textContent = formatSessionTimeLimit(remainingSeconds);
-      sessionTimeLimitText.classList.toggle("warning", remainingSeconds <= 20);
+      sessionTimeLimitText.classList.toggle("warning", remainingSeconds <= 15);
     }
 
     if (remainingSeconds > 0) {
-      if (remainingSeconds <= 20 && !state.sessionTimeLimitWarningShown) {
+      if (remainingSeconds <= 15 && !state.sessionTimeLimitWarningShown) {
         state.sessionTimeLimitWarningShown = true;
-        showToast("Waktu sesi tersisa 20 detik.");
+        showToast("Waktu sesi tersisa 15 detik.");
       }
       return;
     }
@@ -1631,9 +1635,10 @@ async function handleSessionUpdate(data) {
   }
 
   syncCaptureUi(data);
-  await ensureSessionTimeLimitStarted(data);
+  void ensureSessionTimeLimitStarted(data).catch((error) => {
+    console.error("Gagal memulai batas waktu sesi (non-blocking):", error);
+  });
   startSessionTimeLimitFromSession(data);
-  await handleRtcFlow(data);
 
   if (data.status === "connected" || data.status === "captured" || data.status === "ready" || data.status === "sent") {
     if (startScreen.classList.contains("active") || waitingScreen.classList.contains("active")) {
@@ -1646,6 +1651,11 @@ async function handleSessionUpdate(data) {
       setSessionStatusText("Sesi aktif");
     }
   }
+
+  void handleRtcFlow(data).catch((error) => {
+    console.error("[LDR signaling] handleRtcFlow gagal (non-blocking):", error);
+    showToast("Sesi gagal diproses. Periksa permission Firestore dan signaling WebRTC.");
+  });
 
   if (data.resultImage) {
     await renderResult(data.resultImage);
