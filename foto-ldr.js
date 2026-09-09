@@ -435,7 +435,17 @@ async function downloadPaidResult() {
   try {
     downloadBtn.disabled = true;
     downloadBtn.textContent = "Memeriksa pembayaran...";
-    const response = await fetch(`/api/foto-ldr?action=download-result&orderId=${encodeURIComponent(state.paymentOrderId)}`, { cache: "no-store" });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
+    let response;
+    try {
+      response = await fetch(`/api/foto-ldr?action=download-result&orderId=${encodeURIComponent(state.paymentOrderId)}`, {
+        cache: "no-store",
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timeoutId);
+    }
     const payload = await response.json().catch(() => ({}));
     if (!response.ok || !payload.success || !payload.resultImage) {
       throw new Error(payload.message || "Pembayaran belum terkonfirmasi.");
@@ -1626,6 +1636,15 @@ async function handleRtcFlow(data) {
 }
 
 function startSharedCountdownFromSession(data) {
+  if (data?.resultImage || data?.status === "ready" || data?.status === "sent") {
+    clearInterval(state.countdownTimer);
+    state.countdownTimer = null;
+    state.isCountingDown = false;
+    clearCountdownOverlay();
+    hideProcessingOverlay();
+    return;
+  }
+
   const startedAt = resolveCountdownMs(data?.countdownStartedAt);
   const totalSeconds = Number(data?.countdownFrom || 5);
 
@@ -1826,6 +1845,10 @@ async function handleSessionUpdate(data) {
   });
 
   if (data.resultImage) {
+    clearInterval(state.countdownTimer);
+    state.countdownTimer = null;
+    state.isCountingDown = false;
+    clearCountdownOverlay();
     hideProcessingOverlay();
     showScreen(resultScreen);
     try {
@@ -1838,6 +1861,7 @@ async function handleSessionUpdate(data) {
         : "Hasil foto tersedia, tetapi preview gagal dimuat.";
       showToast("Preview foto gagal dimuat, tetapi hasil tetap bisa diproses.");
     }
+    hideProcessingOverlay();
     syncPaymentUi();
     return;
   }
