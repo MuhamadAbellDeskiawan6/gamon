@@ -56,5 +56,10 @@ service cloud.firestore {
       allow read: if true;
       allow create, update, delete: if false;
     }
+
+    match /ldr_order/{orderId} {
+      allow read: if true;
+      allow create, update, delete: if false;
+    }
   }
 }

@@ -1,7 +1,15 @@
 const admin = require("firebase-admin");
+const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path");
 const SESSION_TIME_LIMIT_SECONDS = 60;
+const LDR_PAYMENT_AMOUNT = 2000;
+const DOKU_CLIENT_ID = process.env.DOKU_CLIENT_ID || process.env.DOKU_PRODUCTION_CLIENT_ID || "BRN-0226-1781255193170";
+const DOKU_SECRET_KEY = process.env.DOKU_SECRET_KEY || process.env.DOKU_PRODUCTION_SECRET_KEY || "SK-NgMsKzkHcLlY95v7wsju";
+const DOKU_NOTIFICATION_URL = process.env.DOKU_WEBHOOK_BASE_URL
+  ? `${String(process.env.DOKU_WEBHOOK_BASE_URL).replace(/\/$/, "")}/api/doku-notify`
+  : "https://gamon-fawn.vercel.app/api/doku-notify";
+const DOKU_RETURN_ORIGIN = String(process.env.PUBLIC_APP_URL || "https://gamon-fawn.vercel.app").replace(/\/$/, "");
 
 function getFirebaseAdmin() {
   if (!admin.apps.length) {
@@ -160,6 +168,191 @@ async function listFramesHandler(req, res) {
       frames: [],
       message: error.message || "Gagal mengambil daftar frame.",
     });
+  }
+}
+
+function generateLdrOrderId(sessionId) {
+  return `LDR-${sessionId}-${Date.now()}-${crypto.randomBytes(3).toString("hex")}`;
+}
+
+function getDokuTimestamp() {
+  return new Date().toISOString().split(".")[0] + "Z";
+}
+
+function createDokuSignature({ orderId, timestamp, digest }) {
+  const component = [
+    `Client-Id:${DOKU_CLIENT_ID}`,
+    `Request-Id:${orderId}`,
+    `Request-Timestamp:${timestamp}`,
+    "Request-Target:/checkout/v1/payment",
+    `Digest:${digest}`,
+  ].join("\n");
+
+  return crypto.createHmac("sha256", DOKU_SECRET_KEY).update(component).digest("base64");
+}
+
+async function createPaymentHandler(req, res, body = {}) {
+  if (req.method !== "POST") {
+    return res.status(405).json({ success: false, message: "Method not allowed" });
+  }
+
+  try {
+    const sessionId = String(body.sessionId || body.code || "").trim().toUpperCase();
+    if (!/^[A-Z0-9]{6}$/.test(sessionId)) {
+      return res.status(400).json({ success: false, message: "Sesi Foto LDR tidak valid." });
+    }
+
+    const firebaseAdmin = getFirebaseAdmin();
+    const db = firebaseAdmin.firestore();
+    const sessionRef = db.collection("fotoLdrSessions").doc(sessionId);
+    const sessionSnapshot = await sessionRef.get();
+    if (!sessionSnapshot.exists) {
+      return res.status(404).json({ success: false, message: "Sesi Foto LDR tidak ditemukan." });
+    }
+
+    const sessionData = sessionSnapshot.data() || {};
+    if (!sessionData.resultImage) {
+      return res.status(409).json({ success: false, message: "Hasil foto belum siap dibayar." });
+    }
+    if (sessionData.paymentStatus === "PAID") {
+      return res.status(409).json({ success: false, message: "Sesi ini sudah dibayar." });
+    }
+
+    if (sessionData.paymentStatus === "PENDING" && sessionData.paymentOrderId) {
+      const pendingOrderSnapshot = await db.collection("ldr_order").doc(sessionData.paymentOrderId).get();
+      const pendingOrder = pendingOrderSnapshot.exists ? pendingOrderSnapshot.data() || {} : {};
+      if (pendingOrder.checkoutUrl) {
+        console.log("[LDR payment] Memakai ulang checkout PENDING:", { orderId: sessionData.paymentOrderId, sessionId });
+        return res.status(200).json({
+          success: true,
+          orderId: sessionData.paymentOrderId,
+          response: { payment: { url: pendingOrder.checkoutUrl } },
+        });
+      }
+      return res.status(409).json({ success: false, message: "Pembayaran sedang diproses. Coba lagi sebentar." });
+    }
+
+    const orderId = generateLdrOrderId(sessionId);
+    const now = Date.now();
+      await db.runTransaction(async (transaction) => {
+        const currentSessionSnapshot = await transaction.get(sessionRef);
+        const currentSessionData = currentSessionSnapshot.data() || {};
+        if (currentSessionData.paymentStatus === "PAID") {
+          throw new Error("Sesi ini sudah dibayar.");
+        }
+        if (currentSessionData.paymentStatus === "PENDING" && currentSessionData.paymentOrderId) {
+          throw new Error("Pembayaran sedang diproses di tab lain.");
+        }
+
+        transaction.set(db.collection("ldr_order").doc(orderId), {
+          orderId,
+          product: "foto-ldr",
+          sessionId,
+          amount: LDR_PAYMENT_AMOUNT,
+          status: "PENDING",
+          paymentStatus: "PENDING",
+          paymentEnvironment: "production",
+          resultImage: currentSessionData.resultImage || sessionData.resultImage,
+          frameId: currentSessionData.selectedFrameId || sessionData.selectedFrameId || null,
+          createdAt: now,
+          updatedAt: now,
+        });
+        transaction.update(sessionRef, {
+          paymentOrderId: orderId,
+          paymentStatus: "PENDING",
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+      });
+
+    const timestamp = getDokuTimestamp();
+    const requestBody = {
+      order: {
+        amount: LDR_PAYMENT_AMOUNT,
+        invoice_number: orderId,
+        callback_url: DOKU_NOTIFICATION_URL,
+      },
+      payment: {
+        payment_due_date: 60,
+        return_url: `${DOKU_RETURN_ORIGIN}/foto-ldr.html?sessionId=${encodeURIComponent(sessionId)}&orderId=${encodeURIComponent(orderId)}`,
+        payment_method_types: ["QRIS"],
+      },
+      additional_info: {
+        override_notification_url: DOKU_NOTIFICATION_URL,
+      },
+    };
+    const jsonBody = JSON.stringify(requestBody);
+    const digest = crypto.createHash("sha256").update(jsonBody).digest("base64");
+    const signature = createDokuSignature({ orderId, timestamp, digest });
+
+    console.log("[LDR payment] Membuat checkout DOKU:", { orderId, sessionId, amount: LDR_PAYMENT_AMOUNT });
+    const response = await fetch("https://api.doku.com/checkout/v1/payment", {
+      method: "POST",
+      headers: {
+        "Client-Id": DOKU_CLIENT_ID,
+        "Request-Id": orderId,
+        "Request-Timestamp": timestamp,
+        "Request-Target": "/checkout/v1/payment",
+        Digest: digest,
+        Signature: `HMACSHA256=${signature}`,
+        "Content-Type": "application/json",
+      },
+      body: jsonBody,
+    });
+    const rawText = await response.text();
+    let payload;
+    try {
+      payload = JSON.parse(rawText);
+    } catch (error) {
+      payload = { raw: rawText };
+    }
+
+    if (!response.ok || !payload.response?.payment?.url) {
+      await db.collection("ldr_order").doc(orderId).set({
+        status: "FAILED",
+        paymentStatus: "FAILED",
+        paymentError: payload.message || payload.error || "DOKU tidak mengembalikan URL checkout.",
+        updatedAt: Date.now(),
+      }, { merge: true });
+      await sessionRef.set({ paymentStatus: "FAILED", updatedAt: Date.now() }, { merge: true });
+      return res.status(response.status || 502).json(payload);
+    }
+
+    await db.collection("ldr_order").doc(orderId).set({
+      checkoutUrl: payload.response.payment.url,
+      updatedAt: Date.now(),
+    }, { merge: true });
+    return res.status(200).json({ success: true, orderId, response: payload.response });
+  } catch (error) {
+    console.error("[LDR payment] Gagal membuat pembayaran:", error);
+    return res.status(500).json({ success: false, message: error.message || "Gagal membuat pembayaran Foto LDR." });
+  }
+}
+
+async function downloadResultHandler(req, res, body = {}) {
+  if (req.method !== "GET" && req.method !== "POST") {
+    return res.status(405).json({ success: false, message: "Method not allowed" });
+  }
+
+  try {
+    const orderId = String(req.query?.orderId || body.orderId || "").trim();
+    if (!/^LDR-[A-Z0-9]{6}-\d+-[a-f0-9]+$/i.test(orderId)) {
+      return res.status(400).json({ success: false, message: "Order Foto LDR tidak valid." });
+    }
+
+    const firebaseAdmin = getFirebaseAdmin();
+    const snapshot = await firebaseAdmin.firestore().collection("ldr_order").doc(orderId).get();
+    const order = snapshot.exists ? snapshot.data() || {} : null;
+    if (!order || order.paymentStatus !== "PAID" || order.status !== "PAID") {
+      return res.status(403).json({ success: false, message: "Pembayaran belum terkonfirmasi." });
+    }
+    if (!order.resultImage) {
+      return res.status(404).json({ success: false, message: "Hasil foto tidak tersedia." });
+    }
+
+    return res.status(200).json({ success: true, resultImage: order.resultImage });
+  } catch (error) {
+    console.error("[LDR payment] Validasi download gagal:", error);
+    return res.status(500).json({ success: false, message: "Gagal memvalidasi akses download." });
   }
 }
 
@@ -448,6 +641,14 @@ module.exports = async function handler(req, res) {
 
   if (action === "list-frames") {
     return listFramesHandler(req, res);
+  }
+
+  if (action === "create-payment" || action === "payment") {
+    return createPaymentHandler(req, res, body);
+  }
+
+  if (action === "download-result" || action === "download") {
+    return downloadResultHandler(req, res, body);
   }
 
   if (action === "join-session" || action === "join") {

@@ -646,6 +646,49 @@ button {
   overflow: hidden;
 }
 
+.payment-panel {
+  margin-top: 18px;
+  padding: 14px;
+  border: 1px solid #ead9bd;
+  border-radius: 16px;
+  background: #fff8ea;
+  text-align: left;
+}
+
+.payment-panel-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--ink);
+}
+
+.payment-panel-heading span {
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.payment-status-text {
+  margin: 8px 0 12px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.payment-panel .secondary-btn {
+  min-height: 48px;
+}
+
+.payment-panel.is-paid {
+  border-color: #b9e4d2;
+  background: var(--success-soft);
+}
+
+.payment-panel.is-paid .payment-status-text {
+  color: var(--success);
+  font-weight: 700;
+}
+
 #resultCanvas {
   display: block;
   width: 100%;

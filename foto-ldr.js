@@ -60,6 +60,10 @@ const state = {
   resultFramePickerOpen: false,
   resultBuildInProgress: false,
   resultBuildCompleted: false,
+  paymentOrderId: null,
+  paymentStatus: null,
+  paymentUnsubscribe: null,
+  downloadCompleted: false,
 };
 
 const $ = (id) => document.getElementById(id);
@@ -102,6 +106,11 @@ const framePicker = $("framePicker");
 const waitingFramePickerHost = $("waitingFramePickerHost");
 const resultFramePickerHost = $("resultFramePickerHost");
 const changeFrameBtn = $("changeFrameBtn");
+const cancelSessionBtn = $("cancelSessionBtn");
+const newSessionBtn = $("newSessionBtn");
+const paymentPanel = $("paymentPanel");
+const paymentStatusText = $("paymentStatusText");
+const payBtn = $("payBtn");
 
 const cameraIcon = '<svg class="control-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M23 7l-7 5 7 5V7Z"></path><rect x="1" y="5" width="15" height="14" rx="2"></rect></svg>';
 const cameraOffIcon = '<svg class="control-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M23 7l-7 5 7 5V7Z"></path><rect x="1" y="5" width="15" height="14" rx="2"></rect><path d="M3 3l18 18"></path></svg>';
@@ -117,6 +126,7 @@ if (debugWebRtcEnabled) {
 }
 
 let toastTimer = null;
+const paymentStorageKey = "fotoLdrPaymentSession";
 
 function configureVideoElement(videoEl, { muted = true } = {}) {
   if (!videoEl) {
@@ -257,7 +267,8 @@ function syncChangeFrameButton() {
     return;
   }
 
-  changeFrameBtn.hidden = state.role !== "user1" || !resultScreen.classList.contains("active");
+  const paymentInProgress = state.paymentOrderId && !["EXPIRED", "FAILED"].includes(state.paymentStatus);
+  changeFrameBtn.hidden = state.role !== "user1" || !resultScreen.classList.contains("active") || paymentInProgress;
   changeFrameBtn.textContent = state.resultFramePickerOpen ? "Tutup Pilihan Frame" : "Ganti Frame";
 }
 
@@ -301,6 +312,151 @@ function generateCode() {
 
 function sessionRef(id = state.sessionId) {
   return db.collection("fotoLdrSessions").doc(id);
+}
+
+function savePaymentSession() {
+  if (!state.sessionId) {
+    return;
+  }
+
+  localStorage.setItem(paymentStorageKey, JSON.stringify({
+    sessionId: state.sessionId,
+    role: state.role,
+    paymentOrderId: state.paymentOrderId,
+  }));
+}
+
+function clearPaymentSession() {
+  localStorage.removeItem(paymentStorageKey);
+}
+
+function isPaymentPaid() {
+  return state.paymentStatus === "PAID";
+}
+
+function syncPaymentUi() {
+  const paid = isPaymentPaid();
+  const hasResult = !!state.resultImage || !!state.sessionData?.resultImage;
+
+  if (paymentPanel) {
+    paymentPanel.classList.toggle("is-paid", paid);
+  }
+  if (paymentStatusText) {
+    paymentStatusText.textContent = paid
+      ? "Pembayaran terkonfirmasi. Foto siap diunduh."
+      : state.paymentStatus === "EXPIRED"
+        ? "Pembayaran sebelumnya kedaluwarsa. Silakan buat pembayaran QRIS baru."
+        : "Pembayaran diperlukan sebelum foto dapat diunduh.";
+  }
+  if (payBtn) {
+    payBtn.hidden = paid;
+    payBtn.disabled = !hasResult || state.paymentStatus === "PENDING";
+    payBtn.textContent = state.paymentStatus === "PENDING" ? "Menunggu pembayaran..." : "Bayar dengan QRIS";
+  }
+  if (downloadBtn) {
+    downloadBtn.disabled = !paid;
+  }
+  if (cancelSessionBtn) {
+    cancelSessionBtn.disabled = paid && !state.downloadCompleted;
+  }
+  if (newSessionBtn) {
+    newSessionBtn.disabled = paid && !state.downloadCompleted;
+  }
+  syncChangeFrameButton();
+}
+
+function setPaymentState(orderId, status) {
+  state.paymentOrderId = orderId || state.paymentOrderId || null;
+  state.paymentStatus = status || null;
+  savePaymentSession();
+  syncPaymentUi();
+}
+
+function listenPayment(orderId) {
+  if (!orderId) {
+    syncPaymentUi();
+    return;
+  }
+
+  if (state.paymentOrderId === orderId && state.paymentUnsubscribe) {
+    return;
+  }
+
+  if (state.paymentUnsubscribe) {
+    state.paymentUnsubscribe();
+  }
+
+  state.paymentOrderId = orderId;
+  state.paymentUnsubscribe = db.collection("ldr_order").doc(orderId).onSnapshot((snapshot) => {
+    const data = snapshot.exists ? snapshot.data() || {} : {};
+    console.log("[LDR payment] Status order berubah:", { orderId, status: data.paymentStatus || data.status });
+    setPaymentState(orderId, data.paymentStatus || data.status || "PENDING");
+  }, (error) => {
+    console.error("[LDR payment] Listener order gagal:", error);
+    showToast("Status pembayaran belum bisa diperiksa.");
+    syncPaymentUi();
+  });
+}
+
+async function createPayment() {
+  if (!state.sessionId || !state.resultImage || isPaymentPaid()) {
+    return;
+  }
+
+  try {
+    payBtn.disabled = true;
+    payBtn.textContent = "Menyiapkan QRIS...";
+    const response = await fetch("/api/foto-ldr", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "create-payment", sessionId: state.sessionId }),
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || !payload.success || !payload.response?.payment?.url) {
+      throw new Error(payload.message || payload.error || "Gagal mendapatkan halaman pembayaran QRIS.");
+    }
+
+    setPaymentState(payload.orderId, "PENDING");
+    console.log("[LDR payment] Redirect ke checkout DOKU:", { orderId: payload.orderId, sessionId: state.sessionId });
+    window.location.replace(payload.response.payment.url);
+  } catch (error) {
+    console.error("[LDR payment] Checkout gagal dibuat:", error);
+    showToast(error.message || "Pembayaran gagal disiapkan.");
+    syncPaymentUi();
+  }
+}
+
+async function downloadPaidResult() {
+  if (!state.paymentOrderId) {
+    showToast("Order pembayaran belum tersedia.");
+    return;
+  }
+
+  try {
+    downloadBtn.disabled = true;
+    downloadBtn.textContent = "Memeriksa pembayaran...";
+    const response = await fetch(`/api/foto-ldr?action=download-result&orderId=${encodeURIComponent(state.paymentOrderId)}`, { cache: "no-store" });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || !payload.success || !payload.resultImage) {
+      throw new Error(payload.message || "Pembayaran belum terkonfirmasi.");
+    }
+
+    const link = document.createElement("a");
+    link.href = payload.resultImage;
+    link.download = "foto-ldr-gamon.png";
+    link.click();
+    state.downloadCompleted = true;
+    localStorage.removeItem(paymentStorageKey);
+    syncPaymentUi();
+    showToast("File PNG sedang diunduh.");
+  } catch (error) {
+    console.error("[LDR payment] Download ditolak:", error);
+    showToast(error.message || "Foto belum bisa diunduh.");
+    syncPaymentUi();
+  } finally {
+    downloadBtn.textContent = "Unduh Foto";
+    syncPaymentUi();
+  }
 }
 
 function resolveCountdownMs(value) {
@@ -609,6 +765,11 @@ function listenSession() {
 
     const data = snapshot.data();
     state.sessionData = data;
+    if (data.paymentOrderId) {
+      listenPayment(data.paymentOrderId);
+    } else if (data.paymentStatus) {
+      setPaymentState(null, data.paymentStatus);
+    }
     console.log("[LDR signaling] onSnapshot fired", {
       sessionId: state.sessionId,
       role: state.role,
@@ -1617,6 +1778,13 @@ async function handleSessionUpdate(data) {
     return;
   }
 
+  if (data.paymentOrderId) {
+    listenPayment(data.paymentOrderId);
+  }
+  if (data.paymentStatus) {
+    state.paymentStatus = data.paymentStatus;
+  }
+  syncPaymentUi();
   renderFramePicker(data);
 
   if (data.status === "waiting") {
@@ -1661,7 +1829,8 @@ async function handleSessionUpdate(data) {
     await renderResult(data.resultImage);
     hideProcessingOverlay();
     showScreen(resultScreen);
-    resultMessage.textContent = "Foto LDR siap diunduh.";
+    resultMessage.textContent = isPaymentPaid() ? "Foto LDR siap diunduh." : "Selesaikan pembayaran untuk mengunduh foto.";
+    syncPaymentUi();
     return;
   }
 
@@ -1805,6 +1974,10 @@ async function createSession() {
 
     state.sessionId = payload.code;
     state.role = "user1";
+    state.paymentOrderId = null;
+    state.paymentStatus = null;
+    state.downloadCompleted = false;
+    savePaymentSession();
     roomCode.textContent = payload.code;
     showScreen(waitingScreen);
     void loadAvailableFrames();
@@ -1852,6 +2025,10 @@ async function joinSession() {
 
     state.sessionId = code;
     state.role = "user2";
+    state.paymentOrderId = null;
+    state.paymentStatus = null;
+    state.downloadCompleted = false;
+    savePaymentSession();
     roomCode.textContent = code;
     showScreen(waitingScreen);
     void loadAvailableFrames();
@@ -1980,6 +2157,7 @@ async function renderResult(resultDataUrl) {
 
   state.resultImage = resultDataUrl || canvas.toDataURL("image/jpeg", 0.88);
   resultMessage.textContent = "Foto LDR siap dikirim.";
+  syncPaymentUi();
 }
 
 async function buildCombinedResult() {
@@ -2043,6 +2221,7 @@ async function composeResultWithFrame(frameImage) {
     resultImage: imageDataUrl,
     status: "ready",
   };
+  syncPaymentUi();
   return imageDataUrl;
 }
 
@@ -2112,6 +2291,14 @@ function resetSession() {
   state.resultFramePickerOpen = false;
   state.resultBuildInProgress = false;
   state.resultBuildCompleted = false;
+  state.paymentOrderId = null;
+  state.paymentStatus = null;
+  state.downloadCompleted = false;
+  clearPaymentSession();
+  if (state.paymentUnsubscribe) {
+    state.paymentUnsubscribe();
+    state.paymentUnsubscribe = null;
+  }
   state.captureInProgress = false;
   state.captureNonce = null;
   state.countdownStartedAt = null;
@@ -2235,19 +2422,9 @@ micToggleBtn.addEventListener("click", async () => {
   }
 });
 
-downloadBtn.addEventListener("click", () => {
-  const link = document.createElement("a");
-  const source = state.resultImage || resultCanvas.toDataURL("image/png");
-  if (!source) {
-    showToast("Belum ada hasil foto yang bisa diunduh.");
-    return;
-  }
+downloadBtn.addEventListener("click", downloadPaidResult);
 
-  link.href = source;
-  link.download = "foto-ldr-gamon.png";
-  link.click();
-  showToast("File PNG sedang diunduh.");
-});
+payBtn.addEventListener("click", createPayment);
 
 roomCode.addEventListener("click", async () => {
   try {
@@ -2259,6 +2436,11 @@ roomCode.addEventListener("click", async () => {
 });
 
 $("cancelSessionBtn").addEventListener("click", async () => {
+  if (isPaymentPaid() && !state.downloadCompleted) {
+    showToast("Unduh hasil foto terlebih dahulu sebelum menutup sesi berbayar.");
+    return;
+  }
+
   if (state.sessionId) {
     try {
       await sessionRef().delete();
@@ -2271,6 +2453,11 @@ $("cancelSessionBtn").addEventListener("click", async () => {
 });
 
 $("newSessionBtn").addEventListener("click", () => {
+  if (isPaymentPaid() && !state.downloadCompleted) {
+    showToast("Unduh hasil foto terlebih dahulu sebelum memulai sesi baru.");
+    return;
+  }
+
   if (state.sessionId) {
     sessionRef().delete().catch(() => undefined);
   }
@@ -2283,4 +2470,34 @@ window.addEventListener("beforeunload", () => {
   }
 });
 
+function restoreSessionFromStorageOrUrl() {
+  const params = new URLSearchParams(window.location.search);
+  let stored = null;
+  try {
+    stored = JSON.parse(localStorage.getItem(paymentStorageKey) || "null");
+  } catch (error) {
+    stored = null;
+  }
+
+  const sessionId = String(params.get("sessionId") || stored?.sessionId || "").trim().toUpperCase();
+  if (!/^[A-Z0-9]{6}$/.test(sessionId)) {
+    syncPaymentUi();
+    return;
+  }
+
+  state.sessionId = sessionId;
+  state.role = stored?.role || "user1";
+  state.paymentOrderId = params.get("orderId") || stored?.paymentOrderId || null;
+  roomCode.textContent = sessionId;
+  savePaymentSession();
+  showScreen(waitingScreen);
+  listenSession();
+  if (state.paymentOrderId) {
+    listenPayment(state.paymentOrderId);
+  }
+  console.log("[LDR payment] Sesi dipulihkan dari URL/localStorage:", { sessionId, orderId: state.paymentOrderId });
+  window.history.replaceState({}, "", window.location.pathname);
+}
+
 showScreen(startScreen);
+restoreSessionFromStorageOrUrl();
