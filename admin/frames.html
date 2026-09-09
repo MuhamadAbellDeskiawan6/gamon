@@ -12,30 +12,8 @@
 </head>
 <body class="min-h-screen bg-slate-100 text-slate-800">
     <div class="min-h-screen lg:grid lg:grid-cols-[260px_minmax(0,1fr)]">
-        <aside class="border-r border-slate-200 bg-white p-4 lg:p-6">
-            <div class="mb-6">
-                <h1 class="flex items-center gap-2 text-lg font-bold text-pink-600">
-                    <span class="material-symbols-outlined text-lg">photo_camera</span>
-                    <span>Gamon Admin</span>
-                </h1>
-                <p class="mt-1 text-xs text-slate-500">Panel pengelolaan photobox</p>
-            </div>
-
-            <nav class="space-y-2">
-                <a href="/admin/dashboard.html" class="block rounded-xl px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100">Dashboard Pesanan</a>
-                <a href="/admin/match-confirm.html" class="block rounded-xl px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100">Kelola Match Confirm</a>
-                <a href="/admin/wedding-requests.html" class="block rounded-xl px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100">Pengajuan Wedding</a>
-                <a href="/admin/frames.html" class="block rounded-xl bg-pink-600 px-3 py-2 text-sm font-semibold text-white">Kelola Frame</a>
-                <a href="/admin/redeem-codes.html" class="block rounded-xl px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100">Kelola Redeem</a>
-            </nav>
-
-            <div class="mt-6 border-t border-slate-200 pt-4">
-                <p id="adminEmail" class="mb-2 text-xs text-slate-500">Memeriksa sesi...</p>
-                <button onclick="handleLogout()" class="w-full rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-600 transition hover:bg-rose-100">
-                    Keluar Sesi
-                </button>
-            </div>
-        </aside>
+        <div data-admin-sidebar></div>
+        <script src="/admin/partials/sidebar.js"></script>
 
         <main class="grid gap-6 px-4 py-8 lg:grid-cols-[420px_minmax(0,1fr)] lg:px-8">
         <section class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
