@@ -24,34 +24,37 @@ function getHeader(req, name) {
 
 async function readRawBody(req) {
     if (Buffer.isBuffer(req.rawBody)) {
-        return req.rawBody.toString('utf8');
+        return req.rawBody;
+    }
+
+    if (req && typeof req.on === 'function' && req.readable !== false) {
+        const chunks = [];
+        for await (const chunk of req) {
+            chunks.push(Buffer.from(chunk));
+        }
+        if (chunks.length) {
+            return Buffer.concat(chunks);
+        }
     }
 
     if (Buffer.isBuffer(req.body)) {
-        return req.body.toString('utf8');
-    }
-
-    if (typeof req.body === 'string') {
         return req.body;
     }
 
-    if (req.body && typeof req.body === 'object') {
-        return JSON.stringify(req.body);
+    if (typeof req.body === 'string') {
+        return Buffer.from(req.body, 'utf8');
     }
 
-    const chunks = [];
-    for await (const chunk of req) {
-        chunks.push(Buffer.from(chunk));
-    }
-    return Buffer.concat(chunks).toString('utf8');
+    // Object body sudah kehilangan byte asli; jangan gunakan JSON.stringify untuk HMAC.
+    return null;
 }
 
 function getRequestTarget(req) {
     const rawUrl = String(req.url || '/api/doku-notify');
-    return new URL(rawUrl, 'https://gamon-fawn.vercel.app').pathname;
+    return new URL(rawUrl, 'https://gamon-tawing.vercel.app').pathname;
 }
 
-function verifyDokuSignature(req, rawBody) {
+function verifyDokuSignature(req, rawBody, fallbackBody = null) {
     const clientId = getHeader(req, 'Client-Id');
     const requestId = getHeader(req, 'Request-Id');
     const requestTimestamp = getHeader(req, 'Request-Timestamp');
@@ -66,20 +69,30 @@ function verifyDokuSignature(req, rawBody) {
         return { valid: false, reason: 'Timestamp notifikasi DOKU kedaluwarsa atau tidak valid.' };
     }
 
-    const digest = crypto.createHash('sha256').update(rawBody).digest('base64');
-    const component = [
-        `Client-Id:${clientId}`,
-        `Request-Id:${requestId}`,
-        `Request-Timestamp:${requestTimestamp}`,
-        `Request-Target:${getRequestTarget(req)}`,
-        `Digest:${digest}`,
-    ].join('\n');
-    const expectedSignature = `HMACSHA256=${crypto.createHmac('sha256', DOKU_SECRET_KEY).update(component).digest('base64')}`;
-    const expectedBuffer = Buffer.from(expectedSignature);
     const receivedBuffer = Buffer.from(receivedSignature);
-    const valid = expectedBuffer.length === receivedBuffer.length && crypto.timingSafeEqual(expectedBuffer, receivedBuffer);
+    const bodies = [{ body: rawBody, mode: 'raw' }];
+    if (fallbackBody) {
+        bodies.push({ body: Buffer.from(JSON.stringify(fallbackBody), 'utf8'), mode: 'reserialized-json' });
+    }
 
-    return { valid, reason: valid ? '' : 'Signature notifikasi DOKU tidak cocok.', requestId };
+    for (const candidate of bodies) {
+        const digest = crypto.createHash('sha256').update(candidate.body).digest('base64');
+        const component = [
+            `Client-Id:${clientId}`,
+            `Request-Id:${requestId}`,
+            `Request-Timestamp:${requestTimestamp}`,
+            `Request-Target:${getRequestTarget(req)}`,
+            `Digest:${digest}`,
+        ].join('\n');
+        const expectedSignature = `HMACSHA256=${crypto.createHmac('sha256', DOKU_SECRET_KEY).update(component).digest('base64')}`;
+        const expectedBuffer = Buffer.from(expectedSignature);
+        const valid = expectedBuffer.length === receivedBuffer.length && crypto.timingSafeEqual(expectedBuffer, receivedBuffer);
+        if (valid) {
+            return { valid: true, reason: '', requestId, matchMode: candidate.mode, digestPrefix: digest.slice(0, 20) };
+        }
+    }
+
+    return { valid: false, reason: 'Signature notifikasi DOKU tidak cocok.', requestId, matchMode: null };
 }
 
 function getReturnOrderId(req) {
@@ -119,32 +132,64 @@ export default async function handler(req, res) {
                     params.set('sessionId', sessionId);
                 }
 
+                const targetUrl = `/foto-ldr.html?${params.toString()}`;
+                console.log('[DOKU return] Redirect target:', { targetUrl, orderId, sessionId });
                 console.log('[DOKU return] Mengarahkan order LDR ke Foto LDR:', { orderId, sessionId });
-                return res.redirect(302, `/foto-ldr.html?${params.toString()}`);
+                return res.redirect(302, targetUrl);
             } catch (error) {
                 console.error('[DOKU return] Gagal mengambil sessionId order LDR:', { orderId, error: error.message });
-                return res.redirect(302, `/foto-ldr.html?orderId=${encodeURIComponent(orderId)}`);
+                const targetUrl = `/foto-ldr.html?orderId=${encodeURIComponent(orderId)}`;
+                console.log('[DOKU return] Redirect target:', { targetUrl, orderId, sessionId: null });
+                return res.redirect(302, targetUrl);
             }
         }
 
+        const targetUrl = '/photobox.html';
+        console.log('[DOKU return] Redirect target:', { targetUrl, orderId: orderId || null });
         console.log('[DOKU return] Order bukan LDR atau identifier tidak tersedia, memakai halaman Photobox:', { orderId: orderId || null });
-        return res.redirect(302, '/photobox.html');
+        return res.redirect(302, targetUrl);
     }
 
     // Jika DOKU mengirimkan status pembayaran riil (Server-to-Server via POST)
     if (req.method === 'POST') {
         console.log("=== HIT WEBHOOK DOKU VIA POST ===");
         const rawBody = await readRawBody(req);
-        const signatureCheck = verifyDokuSignature(req, rawBody);
+        const bodyDigest = rawBody === null
+            ? null
+            : crypto.createHash('sha256').update(rawBody).digest('base64');
+        let parsedBody = null;
+        if (rawBody !== null) {
+            try {
+                parsedBody = JSON.parse(rawBody.toString('utf8'));
+            } catch (error) {
+                parsedBody = null;
+            }
+        }
+        console.log('[DOKU webhook] Raw body diagnostics:', {
+            bodyType: typeof req.body,
+            rawBodyType: typeof req.rawBody,
+            rawBodyLength: rawBody === null ? null : rawBody.length,
+            digestPrefix: bodyDigest ? bodyDigest.slice(0, 20) : null,
+        });
+        if (rawBody === null) {
+            console.error('[DOKU webhook] Body mentah tidak tersedia; signature tidak diverifikasi dari JSON hasil serialize ulang.');
+            return res.status(400).send('Raw Body Required');
+        }
+        const signatureCheck = verifyDokuSignature(req, rawBody, parsedBody);
+        console.log('[DOKU webhook] Signature verification:', {
+            valid: signatureCheck.valid,
+            reason: signatureCheck.reason || null,
+            requestId: signatureCheck.requestId || null,
+            matchMode: signatureCheck.matchMode || null,
+            digestPrefix: signatureCheck.digestPrefix || bodyDigest?.slice(0, 20) || null,
+        });
         if (!signatureCheck.valid) {
             console.error('[DOKU webhook] Notifikasi ditolak:', signatureCheck.reason);
             return res.status(401).send('Invalid Signature');
         }
 
-        let data;
-        try {
-            data = JSON.parse(rawBody);
-        } catch (error) {
+        const data = parsedBody;
+        if (!data) {
             console.error('[DOKU webhook] Body bukan JSON valid.');
             return res.status(400).send('Invalid JSON');
         }

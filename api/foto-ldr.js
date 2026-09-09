@@ -8,8 +8,8 @@ const DOKU_CLIENT_ID = process.env.DOKU_CLIENT_ID || process.env.DOKU_PRODUCTION
 const DOKU_SECRET_KEY = process.env.DOKU_SECRET_KEY || process.env.DOKU_PRODUCTION_SECRET_KEY || "SK-NgMsKzkHcLlY95v7wsju";
 const DOKU_NOTIFICATION_URL = process.env.DOKU_WEBHOOK_BASE_URL
   ? `${String(process.env.DOKU_WEBHOOK_BASE_URL).replace(/\/$/, "")}/api/doku-notify`
-  : "https://gamon-fawn.vercel.app/api/doku-notify";
-const DOKU_RETURN_ORIGIN = String(process.env.PUBLIC_APP_URL || "https://gamon-fawn.vercel.app").replace(/\/$/, "");
+  : "https://gamon-tawing.vercel.app/api/doku-notify";
+const DOKU_RETURN_ORIGIN = String(process.env.PUBLIC_APP_URL || "https://gamon-tawing.vercel.app").replace(/\/$/, "");
 
 function getFirebaseAdmin() {
   if (!admin.apps.length) {
@@ -265,15 +265,16 @@ async function createPaymentHandler(req, res, body = {}) {
       });
 
     const timestamp = getDokuTimestamp();
+    const returnUrl = `${DOKU_RETURN_ORIGIN}/foto-ldr.html?sessionId=${encodeURIComponent(sessionId)}&orderId=${encodeURIComponent(orderId)}`;
     const requestBody = {
       order: {
         amount: LDR_PAYMENT_AMOUNT,
         invoice_number: orderId,
-        callback_url: DOKU_NOTIFICATION_URL,
+        callback_url: returnUrl,
       },
       payment: {
         payment_due_date: 60,
-        return_url: `${DOKU_RETURN_ORIGIN}/foto-ldr.html?sessionId=${encodeURIComponent(sessionId)}&orderId=${encodeURIComponent(orderId)}`,
+        return_url: returnUrl,
         payment_method_types: ["QRIS"],
       },
       additional_info: {
