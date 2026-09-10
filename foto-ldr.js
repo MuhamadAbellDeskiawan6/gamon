@@ -65,6 +65,7 @@ const state = {
   paymentUnsubscribe: null,
   downloadCompleted: false,
   restoringPayment: false,
+  restoringSessionSnapshot: false,
 };
 
 const $ = (id) => document.getElementById(id);
@@ -1710,7 +1711,7 @@ async function handleRtcFlow(data) {
   }
 }
 
-function startSharedCountdownFromSession(data) {
+function startSharedCountdownFromSession(data, { isRestoredSnapshot = false } = {}) {
   if (data?.resultImage || data?.status === "ready" || data?.status === "sent") {
     clearInterval(state.countdownTimer);
     state.countdownTimer = null;
@@ -1733,6 +1734,19 @@ function startSharedCountdownFromSession(data) {
     return;
   }
 
+  const endAt = startedAt + totalSeconds * 1000;
+  if (isRestoredSnapshot && endAt <= Date.now()) {
+    logSync("countdown lama diabaikan saat restore", {
+      startedAt,
+      endAt,
+      now: Date.now(),
+      totalSeconds,
+      sessionId: state.sessionId,
+      role: state.role,
+    });
+    return;
+  }
+
   state.lastTriggeredCountdownAt = startedAt;
   state.countdownStartedAt = startedAt;
   state.isCountingDown = true;
@@ -1740,7 +1754,6 @@ function startSharedCountdownFromSession(data) {
   hideProcessingOverlay();
   clearInterval(state.countdownTimer);
 
-  const endAt = startedAt + totalSeconds * 1000;
   logSync("countdown started", { startedAt, endAt, totalSeconds, sessionId: state.sessionId, role: state.role });
 
   const tick = () => {
@@ -1872,6 +1885,9 @@ async function handleSessionUpdate(data) {
     return;
   }
 
+  const isRestoredSnapshot = state.restoringSessionSnapshot;
+  state.restoringSessionSnapshot = false;
+
   if (data.paymentOrderId) {
     listenPayment(data.paymentOrderId);
   }
@@ -1893,7 +1909,7 @@ async function handleSessionUpdate(data) {
   }
 
   if (typeof data.countdownStartedAt !== "undefined" && data.countdownStartedAt !== null) {
-    startSharedCountdownFromSession(data);
+    startSharedCountdownFromSession(data, { isRestoredSnapshot });
   }
 
   syncCaptureUi(data);
@@ -2622,8 +2638,9 @@ function restoreSessionFromStorageOrUrl() {
     });
   }
   showScreen(waitingScreen);
-  listenSession();
+  state.restoringSessionSnapshot = true;
   void loadAvailableFrames();
+  listenSession();
   if (state.paymentOrderId) {
     listenPayment(state.paymentOrderId);
   }
