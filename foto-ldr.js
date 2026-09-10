@@ -64,6 +64,7 @@ const state = {
   paymentStatus: null,
   paymentUnsubscribe: null,
   downloadCompleted: false,
+  restoringPayment: false,
 };
 
 const $ = (id) => document.getElementById(id);
@@ -350,7 +351,7 @@ function syncPaymentUi() {
   }
   if (payBtn) {
     payBtn.hidden = paid;
-    payBtn.disabled = !hasResult || state.paymentStatus === "PENDING";
+    payBtn.disabled = !hasResult || paid;
     payBtn.textContent = state.paymentStatus === "PENDING" ? "Menunggu pembayaran..." : "Bayar dengan QRIS";
   }
   if (downloadBtn) {
@@ -391,6 +392,11 @@ function listenPayment(orderId) {
     const data = snapshot.exists ? snapshot.data() || {} : {};
     console.log("[LDR payment] Status order berubah:", { orderId, status: data.paymentStatus || data.status });
     setPaymentState(orderId, data.paymentStatus || data.status || "PENDING");
+    if (state.restoringPayment && state.sessionData?.resultImage) {
+      void handleSessionUpdate(state.sessionData).catch((error) => {
+        console.error("[LDR payment] Gagal menyelesaikan restore sesi:", error);
+      });
+    }
   }, (error) => {
     console.error("[LDR payment] Listener order gagal:", error);
     showToast("Status pembayaran belum bisa diperiksa.");
@@ -399,11 +405,20 @@ function listenPayment(orderId) {
 }
 
 async function createPayment() {
-  if (!state.sessionId || !state.resultImage || isPaymentPaid()) {
+  const resultImage = state.resultImage || state.sessionData?.resultImage;
+  if (!state.sessionId || !resultImage || isPaymentPaid()) {
     return;
   }
+  state.resultImage = resultImage;
 
   try {
+    if (state.paymentStatus === "PENDING") {
+      console.log("[LDR payment] Tombol pembayaran PENDING diklik ulang:", {
+        sessionId: state.sessionId,
+        orderId: state.paymentOrderId,
+      });
+      showToast("Membuka kembali halaman pembayaran...");
+    }
     payBtn.disabled = true;
     payBtn.textContent = "Menyiapkan QRIS...";
     const response = await fetch("/api/foto-ldr", {
@@ -435,6 +450,50 @@ async function downloadPaidResult() {
   try {
     downloadBtn.disabled = true;
     downloadBtn.textContent = "Memeriksa pembayaran...";
+    const completeDownload = (message) => {
+      state.downloadCompleted = true;
+      localStorage.removeItem(paymentStorageKey);
+      syncPaymentUi();
+      if (message) {
+        showToast(message);
+      }
+    };
+    const shareIosResult = async (resultImage) => {
+      const dataUrlMatch = resultImage.match(/^data:([^;,]+)?;base64,(.+)$/);
+      const mimeType = dataUrlMatch?.[1] || "image/png";
+      if (navigator.share && navigator.canShare && dataUrlMatch) {
+        const binary = atob(dataUrlMatch[2]);
+        const bytes = new Uint8Array(binary.length);
+        for (let index = 0; index < binary.length; index += 1) {
+          bytes[index] = binary.charCodeAt(index);
+        }
+        const file = new File([new Blob([bytes], { type: mimeType })], "foto-ldr-gamon.png", { type: mimeType });
+        if (navigator.canShare({ files: [file] })) {
+          console.log("[LDR payment] Download iOS memakai native share sheet.");
+          try {
+            await navigator.share({ files: [file] });
+            completeDownload("Foto siap disimpan ke galeri.");
+          } catch (error) {
+            if (error?.name !== "AbortError") {
+              throw error;
+            }
+            console.log("[LDR payment] Native share iOS dibatalkan pengguna.");
+          }
+          return;
+        }
+      }
+
+      console.log("[LDR payment] Download iOS memakai fallback buka gambar.");
+      window.open(resultImage, "_blank");
+      completeDownload("Tekan lama gambar untuk menyimpan ke galeri.");
+    };
+    const isIos = isIPhoneSafari();
+    const storedResultImage = state.resultImage || state.sessionData?.resultImage;
+    if (isIos && storedResultImage) {
+      await shareIosResult(storedResultImage);
+      return;
+    }
+
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 15000);
     let response;
@@ -451,14 +510,17 @@ async function downloadPaidResult() {
       throw new Error(payload.message || "Pembayaran belum terkonfirmasi.");
     }
 
+    if (isIos) {
+      await shareIosResult(payload.resultImage);
+      return;
+    }
+
+    console.log("[LDR payment] Download memakai tautan browser.");
     const link = document.createElement("a");
     link.href = payload.resultImage;
     link.download = "foto-ldr-gamon.png";
     link.click();
-    state.downloadCompleted = true;
-    localStorage.removeItem(paymentStorageKey);
-    syncPaymentUi();
-    showToast("File PNG sedang diunduh.");
+    completeDownload("File PNG sedang diunduh.");
   } catch (error) {
     console.error("[LDR payment] Download ditolak:", error);
     showToast(error.message || "Foto belum bisa diunduh.");
@@ -956,7 +1018,7 @@ function isInAppBrowser() {
 
 function isIPhoneSafari() {
   const userAgent = navigator.userAgent || "";
-  return /iphone|ipad|ipod/i.test(userAgent) && /safari/i.test(userAgent) && !/crios|fxios|opios|android/i.test(userAgent);
+  return /iphone|ipad|ipod/i.test(userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 }
 
 function isSecureContextAvailable() {
@@ -1845,11 +1907,26 @@ async function handleSessionUpdate(data) {
   });
 
   if (data.resultImage) {
+    if (state.restoringPayment && !state.paymentStatus) {
+      showProcessingOverlay("Memverifikasi status pembayaran...");
+      console.log("[LDR payment] Restore menunggu status pembayaran dan hasil sesi.", {
+        sessionId: state.sessionId,
+        orderId: state.paymentOrderId,
+      });
+      return;
+    }
+
     clearInterval(state.countdownTimer);
     state.countdownTimer = null;
     state.isCountingDown = false;
     clearCountdownOverlay();
     hideProcessingOverlay();
+    state.restoringPayment = false;
+    console.log("[LDR payment] Restore selesai, menampilkan hasil sesi.", {
+      sessionId: state.sessionId,
+      orderId: state.paymentOrderId,
+      paymentStatus: state.paymentStatus,
+    });
     showScreen(resultScreen);
     try {
       await renderResult(data.resultImage);
@@ -2326,6 +2403,7 @@ function resetSession() {
   state.paymentOrderId = null;
   state.paymentStatus = null;
   state.downloadCompleted = false;
+  state.restoringPayment = false;
   clearPaymentSession();
   if (state.paymentUnsubscribe) {
     state.paymentUnsubscribe();
@@ -2520,8 +2598,16 @@ function restoreSessionFromStorageOrUrl() {
   state.sessionId = sessionId;
   state.role = stored?.role || "user1";
   state.paymentOrderId = params.get("orderId") || stored?.paymentOrderId || null;
+  state.restoringPayment = !!state.paymentOrderId;
   roomCode.textContent = sessionId;
   savePaymentSession();
+  if (state.restoringPayment) {
+    showProcessingOverlay("Memverifikasi status pembayaran...");
+    console.log("[LDR payment] Loading restore ditampilkan.", {
+      sessionId,
+      orderId: state.paymentOrderId,
+    });
+  }
   showScreen(waitingScreen);
   listenSession();
   if (state.paymentOrderId) {
