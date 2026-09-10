@@ -461,7 +461,8 @@ async function downloadPaidResult() {
     const shareIosResult = async (resultImage) => {
       const dataUrlMatch = resultImage.match(/^data:([^;,]+)?;base64,(.+)$/);
       const mimeType = dataUrlMatch?.[1] || "image/png";
-      if (navigator.share && navigator.canShare && dataUrlMatch) {
+      const hasShareAPI = typeof navigator.share === "function" && typeof navigator.canShare === "function";
+      if (hasShareAPI && dataUrlMatch) {
         const binary = atob(dataUrlMatch[2]);
         const bytes = new Uint8Array(binary.length);
         for (let index = 0; index < binary.length; index += 1) {
@@ -469,7 +470,7 @@ async function downloadPaidResult() {
         }
         const file = new File([new Blob([bytes], { type: mimeType })], "foto-ldr-gamon.png", { type: mimeType });
         if (navigator.canShare({ files: [file] })) {
-          console.log("[LDR payment] Download iOS memakai native share sheet.");
+          console.log("[LDR download]", { isIOS: true, hasShareAPI: true, route: "ios-share" });
           try {
             await navigator.share({ files: [file] });
             completeDownload("Foto siap disimpan ke galeri.");
@@ -483,11 +484,13 @@ async function downloadPaidResult() {
         }
       }
 
-      console.log("[LDR payment] Download iOS memakai fallback buka gambar.");
+      console.log("[LDR download]", { isIOS: true, hasShareAPI, route: "ios-fallback-newtab" });
       window.open(resultImage, "_blank");
       completeDownload("Tekan lama gambar untuk menyimpan ke galeri.");
     };
     const isIos = isIPhoneSafari();
+    const hasShareAPI = typeof navigator.share === "function" && typeof navigator.canShare === "function";
+    console.log("[LDR download] Deteksi platform:", { isIOS: isIos, hasShareAPI });
     const storedResultImage = state.resultImage || state.sessionData?.resultImage;
     if (isIos && storedResultImage) {
       await shareIosResult(storedResultImage);
@@ -515,7 +518,7 @@ async function downloadPaidResult() {
       return;
     }
 
-    console.log("[LDR payment] Download memakai tautan browser.");
+    console.log("[LDR download]", { isIOS: false, hasShareAPI, route: "desktop-direct-download" });
     const link = document.createElement("a");
     link.href = payload.resultImage;
     link.download = "foto-ldr-gamon.png";
@@ -1018,7 +1021,9 @@ function isInAppBrowser() {
 
 function isIPhoneSafari() {
   const userAgent = navigator.userAgent || "";
-  return /iphone|ipad|ipod/i.test(userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  const isAppleMobileUserAgent = /iphone|ipad|ipod/i.test(userAgent);
+  const isIPadOS = navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1;
+  return isAppleMobileUserAgent || isIPadOS;
 }
 
 function isSecureContextAvailable() {
