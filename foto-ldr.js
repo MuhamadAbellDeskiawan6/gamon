@@ -490,7 +490,7 @@ async function downloadPaidResult() {
       window.open(resultImage, "_blank");
       completeDownload("Tekan lama gambar untuk menyimpan ke galeri.");
     };
-    const isIos = isIPhoneSafari();
+    const isIos = isIOSDevice();
     const hasShareAPI = typeof navigator.share === "function" && typeof navigator.canShare === "function";
     console.log("[LDR download] Deteksi platform:", { isIOS: isIos, hasShareAPI });
     const storedResultImage = state.resultImage || state.sessionData?.resultImage;
@@ -1033,6 +1033,35 @@ function isIPhoneSafari() {
   const isAppleMobileUserAgent = /iphone|ipad|ipod/i.test(userAgent);
   const isIPadOS = navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1;
   return isAppleMobileUserAgent || isIPadOS;
+}
+
+function isIOSDevice() {
+  const userAgent = navigator.userAgent || "";
+  const platform = navigator.platform || "";
+
+  // Deteksi utama: iPhone/iPad/iPod eksplisit di userAgent
+  const isAppleMobileUserAgent = /iPhone|iPad|iPod/i.test(userAgent);
+
+  // Deteksi iPad modern yang menyamar sebagai macOS harus menolak userAgent Windows.
+  const isWindowsUserAgent = /Windows/i.test(userAgent);
+  const isModernIPad = platform === "MacIntel"
+    && navigator.maxTouchPoints > 1
+    && !isWindowsUserAgent
+    && /Macintosh/i.test(userAgent);
+
+  const result = isAppleMobileUserAgent || isModernIPad;
+
+  console.log("[LDR download] Deteksi iOS device:", {
+    userAgent,
+    platform,
+    maxTouchPoints: navigator.maxTouchPoints,
+    isAppleMobileUserAgent,
+    isWindowsUserAgent,
+    isModernIPad,
+    result,
+  });
+
+  return result;
 }
 
 function isSecureContextAvailable() {
