@@ -102,6 +102,7 @@ const processingOverlay = $("processingOverlay");
 const processingMessage = $("processingMessage");
 const framePickerRole = $("framePickerRole");
 const framePickerMessage = $("framePickerMessage");
+const frameLoadingSpinner = $("frameLoadingSpinner");
 const frameGrid = $("frameGrid");
 const framePicker = $("framePicker");
 const waitingFramePickerHost = $("waitingFramePickerHost");
@@ -643,6 +644,9 @@ async function loadAvailableFrames() {
   }
 
   framePickerMessage.textContent = "Memuat frame...";
+  if (frameLoadingSpinner) {
+    frameLoadingSpinner.hidden = false;
+  }
   renderFrameSkeletons();
 
   try {
@@ -671,6 +675,10 @@ async function loadAvailableFrames() {
     frameGrid.innerHTML = "";
     framePickerMessage.textContent = "Belum ada frame tersedia, foto akan pakai frame default.";
     console.warn("[LDR frames] Daftar frame Foto LDR tidak tersedia:", error);
+  } finally {
+    if (frameLoadingSpinner) {
+      frameLoadingSpinner.hidden = true;
+    }
   }
 }
 
@@ -2615,6 +2623,7 @@ function restoreSessionFromStorageOrUrl() {
   }
   showScreen(waitingScreen);
   listenSession();
+  void loadAvailableFrames();
   if (state.paymentOrderId) {
     listenPayment(state.paymentOrderId);
   }

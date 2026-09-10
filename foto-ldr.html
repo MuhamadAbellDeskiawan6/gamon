@@ -44,7 +44,7 @@
             <div class="join-box">
               <label for="joinCodeInput">Masukkan kode sesi</label>
               <input id="joinCodeInput" type="text" maxlength="6" placeholder="ABCDE1" autocomplete="off" />
-              <button id="joinBtn" class="secondary-btn" type="button">Gabung Sesi</button>
+              <button id="joinBtn" class="join-btn-accent" type="button">Gabung Sesi</button>
             </div>
           </div>
         </section>
@@ -56,10 +56,7 @@
             <button id="roomCode" class="room-code" type="button">------</button>
             <p class="muted-text">Ketuk untuk menyalin kode</p>
 
-            <div class="pair-badges">
-              <span>Orang A</span>
-              <span>Orang B</span>
-            </div>
+            <p class="info-text">Setelah pasangan bergabung, kalian akan mengambil satu foto secara bersamaan lewat hitung mundur otomatis.</p>
 
             <p id="waitingMessage" class="info-text">Menunggu pasangan bergabung...</p>
 
@@ -69,12 +66,15 @@
                   <strong>Pilih frame</strong>
                   <span id="framePickerRole">Opsional</span>
                 </div>
-                <p id="framePickerMessage" class="frame-picker-message">Memuat frame...</p>
+                <div class="frame-picker-message-row">
+                  <span id="frameLoadingSpinner" class="frame-loading-spinner" aria-hidden="true" hidden></span>
+                  <p id="framePickerMessage" class="frame-picker-message">Memuat frame...</p>
+                </div>
                 <div id="frameGrid" class="frame-grid"></div>
               </div>
             </div>
 
-            <button id="cancelSessionBtn" class="text-btn" type="button">Batalkan sesi</button>
+            <button id="cancelSessionBtn" class="cancel-btn-danger" type="button">Batalkan sesi</button>
           </div>
         </section>
 
@@ -185,7 +185,7 @@
             <div class="result-actions">
               <button id="downloadBtn" class="primary-btn" type="button">Unduh Foto</button>
               <button id="changeFrameBtn" class="secondary-btn" type="button" hidden>Ganti Frame</button>
-              <button id="newSessionBtn" class="secondary-btn" type="button">Sesi Baru</button>
+              <button id="newSessionBtn" class="new-session-btn-accent" type="button">Sesi Baru</button>
             </div>
             <div id="resultFramePickerHost"></div>
           </div>
