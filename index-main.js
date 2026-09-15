@@ -144,7 +144,7 @@ function openModal(data, id) {
 
     document.getElementById('modalBadgeEl').innerHTML = isPhotobox
         ? '<span class="modal-badge badge-photobox"><span class="material-symbols-outlined" style="font-size:13px;vertical-align:middle;">photo_camera</span> Photobox</span>'
-        : '<span class="modal-badge badge-curhat"><span class="material-symbols-outlined" style="font-size:13px;vertical-align:middle;">mail</span> Curhat</span>';
+        : '<span class="modal-badge badge-curhat"><span class="material-symbols-outlined" style="font-size:13px;vertical-align:middle;">mail</span> Ekspresi</span>';
 
     const nama = esc(data.nama || 'Anonim');
     const tujuan = esc(data.tujuan || 'Seseorang');
