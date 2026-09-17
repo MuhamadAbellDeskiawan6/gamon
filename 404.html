@@ -93,64 +93,6 @@
         color: var(--accent);
         border: 1px solid var(--line);
       }
-      .suggestions {
-        margin-top: 32px;
-        padding-top: 24px;
-        border-top: 1px solid var(--line);
-        text-align: left;
-      }
-      .suggestions-title {
-        font-size: 13px;
-        font-weight: 700;
-        color: var(--muted);
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
-        margin-bottom: 12px;
-        text-align: center;
-      }
-      .suggestion-list {
-        display: grid;
-        gap: 8px;
-      }
-      .suggestion-item {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        padding: 12px 14px;
-        border-radius: 14px;
-        background: rgba(255, 255, 255, 0.6);
-        border: 1px solid var(--line);
-        text-decoration: none;
-        color: var(--text);
-        font-size: 14px;
-        font-weight: 500;
-      }
-      .suggestion-item .icon {
-        width: 32px;
-        height: 32px;
-        border-radius: 10px;
-        background: var(--accent-soft);
-        display: grid;
-        place-items: center;
-        flex-shrink: 0;
-        font-size: 16px;
-      }
-      .suggestion-item .sub {
-        display: block;
-        font-size: 12px;
-        color: var(--muted);
-        font-weight: 400;
-      }
-      .footer-note {
-        margin-top: 24px;
-        font-size: 12px;
-        color: var(--muted);
-      }
-      .footer-note a {
-        color: var(--accent);
-        text-decoration: none;
-        font-weight: 600;
-      }
     </style>
   </head>
   <body>
@@ -169,37 +111,6 @@
         <a class="button secondary" href="javascript:history.back()">Halaman Sebelumnya</a>
       </div>
 
-      <div class="suggestions">
-        <div class="suggestions-title">Mungkin Anda mencari</div>
-        <div class="suggestion-list" id="suggestionList">
-          <!-- diisi otomatis lewat JS, fallback statis di bawah jika JS mati -->
-          <a class="suggestion-item" href="/undangan">
-            <span class="icon">💌</span>
-            <span>
-              Undangan Digital
-              <span class="sub">Buat &amp; kelola undangan online</span>
-            </span>
-          </a>
-          <a class="suggestion-item" href="/">
-            <span class="icon">🏠</span>
-            <span>
-              Beranda Gamon
-              <span class="sub">Lihat semua layanan yang tersedia</span>
-            </span>
-          </a>
-          <a class="suggestion-item" href="/bantuan">
-            <span class="icon">💬</span>
-            <span>
-              Pusat Bantuan
-              <span class="sub">Hubungi tim support kami</span>
-            </span>
-          </a>
-        </div>
-      </div>
-
-      <p class="footer-note">
-        Merasa ini kesalahan sistem? <a href="/bantuan">Laporkan ke tim Gamon</a>
-      </p>
     </main>
 
     <script>
@@ -219,42 +130,22 @@
           match: ["/undangan", "/invitation", "/inv/"],
           title: "Undangan Tidak Ditemukan",
           desc: "Link undangan digital yang Anda buka tidak valid atau slug-nya sudah tidak tersedia. Pastikan Anda menyalin tautan undangan dengan lengkap dan benar.",
-          suggestions: [
-            { icon: "💌", label: "Undangan Digital", sub: "Buat & kelola undangan online", href: "/undangan" },
-            { icon: "🏠", label: "Beranda Gamon", sub: "Lihat semua layanan yang tersedia", href: "/" },
-            { icon: "💬", label: "Pusat Bantuan", sub: "Hubungi tim support kami", href: "/bantuan" },
-          ],
         },
         toko: {
           match: ["/toko", "/store", "/shop"],
           title: "Produk Tidak Ditemukan",
           desc: "Produk atau halaman toko yang Anda cari tidak tersedia. Bisa jadi sudah tidak dijual atau tautannya salah ketik.",
-          suggestions: [
-            { icon: "🛍️", label: "Toko Gamon", sub: "Jelajahi semua produk", href: "/toko" },
-            { icon: "🏠", label: "Beranda Gamon", sub: "Lihat semua layanan yang tersedia", href: "/" },
-            { icon: "💬", label: "Pusat Bantuan", sub: "Hubungi tim support kami", href: "/bantuan" },
-          ],
         },
         invoice: {
           match: ["/invoice", "/tagihan", "/payment"],
           title: "Invoice Tidak Ditemukan",
           desc: "Tautan invoice atau pembayaran ini tidak valid atau sudah kedaluwarsa. Silakan cek kembali link yang dikirimkan kepada Anda.",
-          suggestions: [
-            { icon: "🧾", label: "Cek Transaksi", sub: "Lihat riwayat invoice Anda", href: "/akun/transaksi" },
-            { icon: "🏠", label: "Beranda Gamon", sub: "Lihat semua layanan yang tersedia", href: "/" },
-            { icon: "💬", label: "Pusat Bantuan", sub: "Hubungi tim support kami", href: "/bantuan" },
-          ],
         },
       };
 
       const DEFAULT_CONTEXT = {
         title: "Halaman Tidak Ditemukan",
-        desc: "Tautan yang Anda buka tidak valid, sudah kedaluwarsa, atau kontennya sudah tidak tersedia. Silakan periksa kembali link yang diberikan, atau jelajahi layanan Gamon lainnya di bawah ini.",
-        suggestions: [
-          { icon: "💌", label: "Undangan Digital", sub: "Buat & kelola undangan online", href: "/undangan" },
-          { icon: "🏠", label: "Beranda Gamon", sub: "Lihat semua layanan yang tersedia", href: "/" },
-          { icon: "💬", label: "Pusat Bantuan", sub: "Hubungi tim support kami", href: "/bantuan" },
-        ],
+        desc: "Tautan yang Anda buka tidak valid, sudah kedaluwarsa, atau kontennya sudah tidak tersedia. Silakan periksa kembali link yang diberikan.",
       };
 
       function detectContext(pathname) {
@@ -267,21 +158,6 @@
         return DEFAULT_CONTEXT;
       }
 
-      function renderSuggestions(list) {
-        const container = document.getElementById("suggestionList");
-        container.innerHTML = "";
-        list.forEach((item) => {
-          const a = document.createElement("a");
-          a.className = "suggestion-item";
-          a.href = item.href;
-          a.innerHTML = `
-            <span class="icon">${item.icon}</span>
-            <span>${item.label}<span class="sub">${item.sub}</span></span>
-          `;
-          container.appendChild(a);
-        });
-      }
-
       (function init() {
         try {
           const pathname = window.location.pathname || "";
@@ -289,7 +165,6 @@
 
           document.getElementById("title").textContent = ctx.title;
           document.getElementById("desc").textContent = ctx.desc;
-          renderSuggestions(ctx.suggestions);
 
           if (pathname && pathname !== "/") {
             const pathBox = document.getElementById("pathBox");
