@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getFirestore, collection, getDocs, query, orderBy, limit, startAfter, where, doc, updateDoc, increment } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getFirestore, collection, getDocs, query, orderBy, limit, startAfter, doc, updateDoc, increment } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 const firebaseConfig = {
     apiKey: "AIzaSyC247K8yyL67aWV95KNQy8CkMZsjgGCudQ",
@@ -41,7 +41,6 @@ let startY = 0;
 let initialLeft = 0;
 let initialTop = 0;
 let isMoving = false;
-let resizeTimer;
 let currentPost = null;
 let likedPosts = [];
 
@@ -75,21 +74,109 @@ function renderLoadMore() {
     loadMoreBtn.disabled = !hasMore;
 }
 
-function updateMusicUI(playing) {
-    if (!musicBtn) return;
-    isPlaying = playing;
-    const iconEl = musicBtn.querySelector('.material-symbols-outlined');
-    if (!iconEl) return;
+/* ══════════════════════════════════════════════════════════
+   DEKORASI BACKGROUND — bintang & elemen luar angkasa
+   (dulu ada di inline <script> index.html, sekarang di sini
+   supaya cuma dijalankan SEKALI, bukan dua kali)
+   ══════════════════════════════════════════════════════════ */
+function initBackgroundDecor() {
+    const spaceBg = document.getElementById('spaceBackground');
+    const starsEl = document.getElementById('stars');
+    if (!spaceBg || !starsEl) return;
 
-    if (playing) {
-        iconEl.textContent = 'pause';
-        musicBtn.classList.add('bg-primary', 'text-white');
-        musicBtn.classList.remove('bg-primary/10', 'text-primary');
-    } else {
-        iconEl.textContent = 'play_arrow';
-        musicBtn.classList.remove('bg-primary', 'text-white');
-        musicBtn.classList.add('bg-primary/10', 'text-primary');
+    const fragStars = document.createDocumentFragment();
+    for (let i = 0; i < 60; i++) {
+        const s = document.createElement('div');
+        s.className = 'star-particle';
+        const sz = 2 + Math.random() * 4;
+        s.style.cssText = `width:${sz}px;height:${sz}px;left:${Math.random() * 100}%;top:${Math.random() * 100}%;animation:pulse-soft ${3 + Math.random() * 6}s infinite ease-in-out;animation-delay:${Math.random() * 5}s`;
+        fragStars.appendChild(s);
     }
+    starsEl.appendChild(fragStars);
+
+    const spaceEmojis = ['☁️', '🪐', '✨', '☁️', '🌙'];
+    const fragDecor = document.createDocumentFragment();
+    for (let i = 0; i < 6; i++) {
+        const decor = document.createElement('div');
+        decor.className = 'space-decor';
+        decor.textContent = spaceEmojis[i % spaceEmojis.length];
+        decor.style.fontSize = (40 + Math.random() * 60) + 'px';
+        decor.style.left = (Math.random() * 90) + '%';
+        decor.style.top = (Math.random() * 80) + '%';
+        decor.style.animationDelay = (Math.random() * -10) + 's';
+        decor.style.animationDuration = (15 + Math.random() * 15) + 's';
+        fragDecor.appendChild(decor);
+    }
+    spaceBg.appendChild(fragDecor);
+}
+
+/* ── Parallax lembut untuk lapisan awan dekoratif ── */
+function initCloudParallax() {
+    const cloudL = document.getElementById('gtCloudLeft');
+    const cloudR = document.getElementById('gtCloudRight');
+    if (!cloudL || !cloudR) return;
+
+    let targetY = 0, currentY = 0;
+    window.addEventListener('scroll', () => {
+        targetY = window.scrollY || window.pageYOffset || 0;
+    }, { passive: true });
+
+    function tick() {
+        currentY += (targetY - currentY) * 0.06;
+        cloudL.style.transform = `translate3d(${-currentY * 0.03}px, ${-currentY * 0.05}px, 0)`;
+        cloudR.style.transform = `translate3d(${currentY * 0.03}px, ${-currentY * 0.05}px, 0) scaleX(-1)`;
+        requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+}
+
+/* ── Progress bar scroll, "jelajahi cerita" cue, tombol kembali ke atas ── */
+function initScrollUI() {
+    const scrollProgress = document.getElementById('scrollProgress');
+    const scrollCue = document.getElementById('scrollCue');
+    const backToTop = document.getElementById('backToTop');
+
+    function onPageScroll() {
+        const docEl = document.documentElement;
+        const scrollTop = window.scrollY || docEl.scrollTop || 0;
+        const maxScroll = (docEl.scrollHeight - docEl.clientHeight) || 1;
+        const progress = Math.min(100, Math.max(0, (scrollTop / maxScroll) * 100));
+
+        if (scrollProgress) scrollProgress.style.width = progress + '%';
+        if (scrollCue) scrollCue.classList.toggle('is-hidden', scrollTop > 140);
+        if (backToTop) backToTop.classList.toggle('show', scrollTop > 420);
+    }
+
+    window.addEventListener('scroll', onPageScroll, { passive: true });
+    window.addEventListener('resize', onPageScroll);
+    onPageScroll();
+
+    scrollCue?.addEventListener('click', () => {
+        (bubbleCanvas || document.body).scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+
+    backToTop?.addEventListener('click', () => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+}
+
+/* ── Modal "Tentang Kami & Layanan Bantuan" ── */
+function initAboutModal() {
+    const aboutFab = document.getElementById('aboutFab');
+    const aboutOverlay = document.getElementById('aboutModalOverlay');
+    const aboutClose = document.getElementById('aboutModalClose');
+
+    function openAboutModal() { aboutOverlay?.classList.add('show'); }
+    function closeAboutModal() { aboutOverlay?.classList.remove('show'); }
+
+    aboutFab?.addEventListener('click', openAboutModal);
+    aboutClose?.addEventListener('click', closeAboutModal);
+    aboutOverlay?.addEventListener('click', (e) => {
+        if (e.target === e.currentTarget) closeAboutModal();
+    });
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeAboutModal();
+    });
 }
 
 function tryAutoplay() {
@@ -109,15 +196,28 @@ function tryAutoplay() {
     });
 }
 
+function updateMusicUI(playing) {
+    if (!musicBtn) return;
+    isPlaying = playing;
+    const iconEl = musicBtn.querySelector('.material-symbols-outlined');
+    if (!iconEl) return;
+
+    if (playing) {
+        iconEl.textContent = 'pause';
+        musicBtn.classList.add('bg-primary', 'text-white');
+        musicBtn.classList.remove('bg-primary/10', 'text-primary');
+    } else {
+        iconEl.textContent = 'play_arrow';
+        musicBtn.classList.remove('bg-primary', 'text-white');
+        musicBtn.classList.add('bg-primary/10', 'text-primary');
+    }
+}
+
 function closeModal() {
     const overlayEl = document.getElementById('modalOverlay');
-    if (overlayEl) {
-        overlayEl.classList.remove('show');
-    }
+    if (overlayEl) overlayEl.classList.remove('show');
     const modalAudio = document.getElementById('modalAudio');
-    if (modalAudio) {
-        modalAudio.pause();
-    }
+    if (modalAudio) modalAudio.pause();
     const photoToggle = document.getElementById('modalPhotoToggle');
     const photoShell = document.getElementById('modalPhotoShell');
     if (photoToggle) {
@@ -155,9 +255,7 @@ function openModal(data, id) {
         : (isPhotobox ? 'Foto tanpa pesan.' : '');
     document.getElementById('modalMsg').textContent = modalMessage;
 
-    if (photo) {
-        photo.src = data.photoUrl || '';
-    }
+    if (photo) photo.src = data.photoUrl || '';
 
     if (photoToggle) {
         if (isPhotobox && data.photoUrl) {
@@ -167,6 +265,12 @@ function openModal(data, id) {
             photoToggle.hidden = true;
             photoShell?.classList.remove('open');
         }
+    }
+
+    const audioEl = document.getElementById('modalAudio');
+    if (audioEl) {
+        if (data.audioUrl) { audioEl.src = data.audioUrl; audioEl.classList.add('has-audio'); }
+        else { audioEl.src = ''; audioEl.classList.remove('has-audio'); }
     }
 
     const waktu = data.waktu ? new Date(Number(data.waktu)).toLocaleDateString('id-ID') : '-';
@@ -203,9 +307,7 @@ function setupDragAndDrop(containerEl) {
         if (!activeContainer) return;
         const dx = e.clientX - startX;
         const dy = e.clientY - startY;
-        if (Math.abs(dx) > 4 || Math.abs(dy) > 4) {
-            isMoving = true;
-        }
+        if (Math.abs(dx) > 4 || Math.abs(dy) > 4) isMoving = true;
         activeContainer.style.left = `${initialLeft + dx}px`;
         activeContainer.style.top = `${initialTop + dy}px`;
         e.preventDefault();
@@ -223,11 +325,6 @@ function setupDragAndDrop(containerEl) {
     };
 
     containerEl.addEventListener('pointerdown', onStart);
-}
-
-function openImage(base64) {
-    const win = window.open();
-    win.document.write(`<iframe src="${base64}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
 }
 
 function placeBubbles(postsList) {
@@ -321,9 +418,7 @@ function placeBubbles(postsList) {
         `;
 
         bubble.addEventListener('click', () => {
-            if (!isMoving) {
-                openModal(item, item.id);
-            }
+            if (!isMoving) openModal(item, item.id);
         });
 
         setupDragAndDrop(wrapper);
@@ -345,8 +440,8 @@ async function loadPosts(isLoadMore = false) {
     }
 
     try {
-        // Use a simple ordered query on the home feed collection.
-        // `showOnHome` is always true for items added to `gamon`, so this avoids requiring a Firestore composite index.
+        // Query terurut langsung pada collection 'gamon', tanpa `where`,
+        // supaya tidak butuh composite index dan tetap cepat.
         const q = lastVisible
             ? query(collection(db, 'gamon'), orderBy('waktu', 'desc'), startAfter(lastVisible), limit(PAGE_SIZE))
             : query(collection(db, 'gamon'), orderBy('waktu', 'desc'), limit(PAGE_SIZE));
@@ -363,11 +458,7 @@ async function loadPosts(isLoadMore = false) {
             lastVisible = snap.docs[snap.docs.length - 1];
         }
 
-        if (isLoadMore) {
-            posts = posts.concat(loaded);
-        } else {
-            posts = loaded;
-        }
+        posts = isLoadMore ? posts.concat(loaded) : loaded;
 
         hasMore = loaded.length === PAGE_SIZE;
         renderLoadMore();
@@ -394,9 +485,7 @@ async function loadPosts(isLoadMore = false) {
 }
 
 function goPage(direction) {
-    if (direction === 'more') {
-        loadPosts(true);
-    }
+    if (direction === 'more') loadPosts(true);
 }
 
 function initMenu() {
@@ -423,9 +512,7 @@ function initMenu() {
 }
 
 function initMusic() {
-    if (music) {
-        window.addEventListener('DOMContentLoaded', tryAutoplay);
-    }
+    if (music) window.addEventListener('DOMContentLoaded', tryAutoplay);
 
     if (musicBtn) {
         musicBtn.addEventListener('click', (e) => {
@@ -454,11 +541,7 @@ function initMusic() {
                 resizeIcon.textContent = 'chevron_right';
             } else {
                 textInfo?.classList.remove('hidden');
-                if (window.innerWidth < 640) {
-                    playerBar.style.width = 'calc(100% - 32px)';
-                } else {
-                    playerBar.style.width = '280px';
-                }
+                playerBar.style.width = window.innerWidth < 640 ? 'calc(100% - 32px)' : '280px';
                 setTimeout(() => textInfo?.classList.remove('opacity-0'), 100);
                 resizeIcon.textContent = 'chevron_left';
             }
@@ -466,12 +549,8 @@ function initMusic() {
     }
 
     window.addEventListener('resize', () => {
-        if (!isMinimized) {
-            if (window.innerWidth < 640) {
-                playerBar.style.width = 'calc(100% - 32px)';
-            } else {
-                playerBar.style.width = '280px';
-            }
+        if (!isMinimized && playerBar) {
+            playerBar.style.width = window.innerWidth < 640 ? 'calc(100% - 32px)' : '280px';
         }
     });
 }
@@ -479,6 +558,7 @@ function initMusic() {
 function initModal() {
     const modalCloseButton = document.getElementById('modalClose');
     const modalPhotoToggle = document.getElementById('modalPhotoToggle');
+
     modalCloseButton?.addEventListener('click', closeModal);
     modalPhotoToggle?.addEventListener('click', () => {
         if (!currentPost || !currentPost.data || currentPost.data.type !== 'photobox') return;
@@ -492,7 +572,11 @@ function initModal() {
         if (!currentPost || likedPosts.includes(currentPost.id)) return;
         if (window._incrementLike) await window._incrementLike(currentPost.id);
         likedPosts.push(currentPost.id);
-        localStorage.setItem('likedPosts', JSON.stringify(likedPosts));
+        try {
+            localStorage.setItem('likedPosts', JSON.stringify(likedPosts));
+        } catch (err) {
+            console.warn('Gagal menyimpan likedPosts ke localStorage', err);
+        }
         const loveBtn = document.getElementById('modalLoveBtn');
         loveBtn.disabled = true;
         const likeCountEl = document.getElementById('modalLikeCount');
@@ -500,6 +584,7 @@ function initModal() {
         const bEl = document.querySelector(`.bubble[data-id="${currentPost.id}"] .bubble-likes`);
         if (bEl) bEl.textContent = '♥ ' + likeCountEl.textContent;
     });
+
     try {
         const storedLikes = localStorage.getItem('likedPosts');
         likedPosts = storedLikes ? JSON.parse(storedLikes) : [];
@@ -509,7 +594,22 @@ function initModal() {
     }
 }
 
+// ── Resize: hanya SATU listener yang rebuild bubble (debounced) ──
+let resizeTimer;
+window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+        if (window._cachedPosts && window._cachedPosts.length) {
+            placeBubbles(window._cachedPosts);
+        }
+    }, 300);
+});
+
 window.addEventListener('DOMContentLoaded', () => {
+    initBackgroundDecor();
+    initCloudParallax();
+    initScrollUI();
+    initAboutModal();
     initMenu();
     initMusic();
     initModal();
