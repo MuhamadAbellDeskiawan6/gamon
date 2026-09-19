@@ -4,12 +4,9 @@
 
     const currentPath = window.location.pathname.replace(/\/$/, '') || '/';
     const menuItems = [
-        { href: '/admin/dashboard.html', label: 'Dashboard Pesanan' },
+        { href: '/admin/dashboard.html', label: 'Dashboard' },
         { href: '/admin/match-confirm.html', label: 'Kelola Match Confirm' },
-        { href: '/admin/wedding-requests.html', label: 'Pengajuan Wedding' },
-        { href: '/admin/frames.html', label: 'Kelola Frame' },
-        { href: '/admin/ldr-frames.html', label: 'Frame Foto LDR' },
-        { href: '/admin/redeem-codes.html', label: 'Kelola Redeem' }
+        { href: '/admin/ldr-frames.html', label: 'Frame Foto LDR' }
     ];
 
     const menuMarkup = menuItems.map((item) => {

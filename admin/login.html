@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login Admin - Gamon Booth</title>
+    <title>Login Admin - Gamon Tawing</title>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
     <style>
@@ -15,8 +15,8 @@
     <div class="bg-slate-800 p-8 rounded-2xl shadow-xl w-full max-w-md border border-slate-700">
         <div class="text-center mb-6">
             <h1 class="flex items-center justify-center gap-2 text-2xl font-bold text-pink-500">
-                <span class="material-symbols-outlined text-2xl">photo_camera</span>
-                <span>Gamon Booth</span>
+                <span class="material-symbols-outlined text-2xl">admin_panel_settings</span>
+                <span>Gamon Admin</span>
             </h1>
             <p class="text-sm text-slate-400 mt-1">Gamon Tawing Administrator Panel</p>
         </div>
@@ -43,15 +43,14 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
         import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
-        // ⚠️ GANTI DENGAN KONFIGURASI FIREBASE WEB APP KAMU
         const firebaseConfig = {
            apiKey: "AIzaSyC247K8yyL67aWV95KNQy8CkMZsjgGCudQ",
-  authDomain: "gamon-tawing.firebaseapp.com",
-  projectId: "gamon-tawing",
-  storageBucket: "gamon-tawing.firebasestorage.app",
-  messagingSenderId: "370162915989",
-  appId: "1:370162915989:web:76779062da83aa0c5c999c",
-  measurementId: "G-DDRQKDZXV7"
+           authDomain: "gamon-tawing.firebaseapp.com",
+           projectId: "gamon-tawing",
+           storageBucket: "gamon-tawing.firebasestorage.app",
+           messagingSenderId: "370162915989",
+           appId: "1:370162915989:web:76779062da83aa0c5c999c",
+           measurementId: "G-DDRQKDZXV7"
         };
 
         const app = initializeApp(firebaseConfig);
@@ -67,11 +66,9 @@
             btn.innerText = "Memverifikasi...";
 
             try {
-                // 1. Login menggunakan Firebase Client SDK
                 const userCredential = await signInWithEmailAndPassword(auth, email, password);
                 const idToken = await userCredential.user.getIdToken();
 
-                // 2. Lempar token ke API kita untuk ditukar menjadi HttpOnly Cookie
                 const response = await fetch('/api/admin/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -81,7 +78,6 @@
                 const result = await response.json();
 
                 if (response.ok) {
-                    // 3. Jika API sukses mengeblok cookie, redirect ke dashboard
                     window.location.href = '/admin/dashboard.html';
                 } else {
                     alert(result.message || "Akses ditolak oleh backend.");
