@@ -218,33 +218,13 @@ function closeModal() {
     if (overlayEl) overlayEl.classList.remove('show');
     const modalAudio = document.getElementById('modalAudio');
     if (modalAudio) modalAudio.pause();
-    const photoToggle = document.getElementById('modalPhotoToggle');
-    const photoShell = document.getElementById('modalPhotoShell');
-    if (photoToggle) {
-        photoToggle.hidden = true;
-        photoToggle.setAttribute('aria-expanded', 'false');
-    }
-    photoShell?.classList.remove('open');
-}
-
-function setPhotoboxPreviewState(isOpen) {
-    const photoToggle = document.getElementById('modalPhotoToggle');
-    const photoShell = document.getElementById('modalPhotoShell');
-    if (!photoToggle || !photoShell) return;
-    photoToggle.setAttribute('aria-expanded', String(isOpen));
-    photoShell.classList.toggle('open', isOpen);
 }
 
 function openModal(data, id) {
     currentPost = { data, id };
-    const isPhotobox = data.type === 'photobox';
-    const photoToggle = document.getElementById('modalPhotoToggle');
-    const photoShell = document.getElementById('modalPhotoShell');
-    const photo = document.getElementById('modalPhoto');
 
-    document.getElementById('modalBadgeEl').innerHTML = isPhotobox
-        ? '<span class="modal-badge badge-photobox"><span class="material-symbols-outlined" style="font-size:13px;vertical-align:middle;">photo_camera</span> Photobox</span>'
-        : '<span class="modal-badge badge-curhat"><span class="material-symbols-outlined" style="font-size:13px;vertical-align:middle;">mail</span> Ekspresi</span>';
+    document.getElementById('modalBadgeEl').innerHTML =
+        '<span class="modal-badge badge-curhat"><span class="material-symbols-outlined" style="font-size:13px;vertical-align:middle;">mail</span> Ekspresi</span>';
 
     const nama = esc(data.nama || 'Anonim');
     const tujuan = esc(data.tujuan || 'Seseorang');
@@ -252,20 +232,8 @@ function openModal(data, id) {
 
     const modalMessage = data.pesan && String(data.pesan).trim()
         ? `"${data.pesan}"`
-        : (isPhotobox ? 'Foto tanpa pesan.' : '');
+        : '';
     document.getElementById('modalMsg').textContent = modalMessage;
-
-    if (photo) photo.src = data.photoUrl || '';
-
-    if (photoToggle) {
-        if (isPhotobox && data.photoUrl) {
-            photoToggle.hidden = false;
-            setPhotoboxPreviewState(false);
-        } else {
-            photoToggle.hidden = true;
-            photoShell?.classList.remove('open');
-        }
-    }
 
     const audioEl = document.getElementById('modalAudio');
     if (audioEl) {
@@ -355,13 +323,13 @@ function placeBubbles(postsList) {
             wrapper.style.cssText = `position:absolute;left:${left}px;top:${top}px;width:${size}px;height:${size}px;`;
 
             const bubble = document.createElement('div');
-            bubble.className = `bubble shape-circle type-${item.type || 'curhat'} bubble-enter`;
+            bubble.className = 'bubble shape-circle type-curhat bubble-enter';
             bubble.dataset.id = item.id;
             bubble.style.cssText = `width:${size}px;height:${size}px;padding:8px;`;
 
             const short = (s, n) => s && s.length > n ? s.slice(0, n - 1) + '…' : (s || '');
             bubble.innerHTML = `
-                <span class="bubble-emoji material-symbols-outlined">${item.type === 'photobox' ? 'photo_camera' : 'mail'}</span>
+                <span class="bubble-emoji material-symbols-outlined">mail</span>
                 <span class="bubble-from">${short(item.nama || 'Anonim', 7)}</span>
                 <span class="bubble-to">${short(item.tujuan || 'Seseorang', 7)}</span>
                 <span class="bubble-likes">♥ ${item.likes || 0}</span>
@@ -405,13 +373,13 @@ function placeBubbles(postsList) {
         wrapper.style.cssText = `left:${cx - sz / 2}px;top:${cy - sz / 2}px;--fd:${dur}s;--fdel:${delay}s;`;
 
         const bubble = document.createElement('div');
-        bubble.className = `bubble ${shape} type-${item.type || 'curhat'} bubble-enter`;
+        bubble.className = `bubble ${shape} type-curhat bubble-enter`;
         bubble.dataset.id = item.id;
         bubble.style.cssText = `width:${sz}px;height:${sz}px;animation-delay: ${delay}s;`;
 
         const short = (s, n) => s && s.length > n ? s.slice(0, n - 1) + '…' : (s || '');
         bubble.innerHTML = `
-            <span class="bubble-emoji">${item.type === 'photobox' ? '📸' : '💌'}</span>
+            <span class="bubble-emoji">💌</span>
             <span class="bubble-from">${short(item.nama || 'Anonim', 8)}</span>
             <span class="bubble-to">→ ${short(item.tujuan || 'Seseorang', 8)}</span>
             <span class="bubble-likes">♥ ${item.likes || 0}</span>
@@ -557,14 +525,8 @@ function initMusic() {
 
 function initModal() {
     const modalCloseButton = document.getElementById('modalClose');
-    const modalPhotoToggle = document.getElementById('modalPhotoToggle');
 
     modalCloseButton?.addEventListener('click', closeModal);
-    modalPhotoToggle?.addEventListener('click', () => {
-        if (!currentPost || !currentPost.data || currentPost.data.type !== 'photobox') return;
-        const nextState = !document.getElementById('modalPhotoShell')?.classList.contains('open');
-        setPhotoboxPreviewState(nextState);
-    });
     document.getElementById('modalOverlay')?.addEventListener('click', (e) => {
         if (e.target === e.currentTarget) closeModal();
     });

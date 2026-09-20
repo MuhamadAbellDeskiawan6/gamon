@@ -53,11 +53,8 @@
 </script>
 <style>
     /* ══════════════════════════════════════════════════════════
-       BACKGROUND — diganti menjadi langit senja/luar-angkasa
-       dengan gradasi biru-tosca + lapisan pelangi & awan
-       (diadaptasi dari palet "Serene": #010A17 → #0A4267 →
-       #20658E → #6BADC4), menggantikan gradasi pastel lama.
-       Elemen & fungsi Gamon Tawing yang sudah ada TIDAK diubah.
+       BACKGROUND — langit senja/luar-angkasa dengan gradasi
+       biru-tosca + lapisan pelangi & awan.
        ══════════════════════════════════════════════════════════ */
     body {
         background: linear-gradient(180deg, #010A17 0%, #0A4267 30%, #20658E 60%, #6BADC4 100%) fixed;
@@ -139,8 +136,7 @@
     .bubble.shape-blob { border-radius: 38% 62% 46% 54% / 54% 38% 62% 46%; }
 
     /* Varian Tipe */
-    .bubble.type-curhat  { background: rgba(255, 235, 244, 0.18); border-color: rgba(255,255,255,0.26); }
-    .bubble.type-photobox{ background: rgba(220, 232, 255, 0.14); border-color: rgba(255,255,255,0.24); }
+    .bubble.type-curhat { background: rgba(255, 235, 244, 0.18); border-color: rgba(255,255,255,0.26); }
 
     /* Animasi Melayang Lambat (CSS Floating) */
     .float-container {
@@ -208,30 +204,10 @@
         display: inline-flex; align-items: center; gap: 4px;
         font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 99px; margin-bottom: 12px;
     }
-    .badge-curhat   { background: #fce4ec; color: #ad1457; }
-    .badge-photobox { background: #ede0ff; color: #6d28d9; }
+    .badge-curhat { background: #fce4ec; color: #ad1457; }
 
     #modalHeader { font-size: 15px; font-weight: 700; color: rgba(255, 255, 255, 0.96); margin-bottom: 12px; line-height: 1.4; }
     #modalHeader .to-label { color: rgba(255, 255, 255, 0.8); font-weight: 400; font-size: 13px; }
-
-    #modalPhoto { width: 100%; border-radius: 12px; display: block; }
-    .modal-photo-toggle {
-        width: 100%; border: 1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.08);
-        color: rgba(255,255,255,0.95); border-radius: 12px; padding: 10px 12px; display: flex;
-        align-items: center; justify-content: space-between; gap: 8px; cursor: pointer; margin-bottom: 12px;
-        font-size: 12px; font-weight: 700; letter-spacing: 0.02em; transition: background .15s ease;
-    }
-    .modal-photo-toggle:hover { background: rgba(255,255,255,0.12); }
-    .modal-photo-toggle .material-symbols-outlined {
-        font-size: 18px; transition: transform .2s ease;
-    }
-    .modal-photo-toggle[aria-expanded="true"] .material-symbols-outlined { transform: rotate(180deg); }
-    .modal-photo-shell {
-        max-height: 0; opacity: 0; overflow: hidden; margin-top: 0; transition: max-height .28s ease, opacity .2s ease, margin-top .2s ease;
-    }
-    .modal-photo-shell.open {
-        max-height: 460px; opacity: 1; margin-top: 0;
-    }
 
     #modalMsg {
         font-size: 14px; color: rgba(255, 255, 255, 0.92); line-height: 1.7; font-style: italic;
@@ -556,13 +532,6 @@
         <button id="modalClose">✕</button>
         <div id="modalBadgeEl"></div>
         <div id="modalHeader"></div>
-        <button id="modalPhotoToggle" class="modal-photo-toggle" type="button" aria-expanded="false" hidden>
-            <span>Hasil photobox</span>
-            <span class="material-symbols-outlined">keyboard_arrow_down</span>
-        </button>
-        <div id="modalPhotoShell" class="modal-photo-shell">
-            <img id="modalPhoto" alt="foto" />
-        </div>
         <div id="modalMsg"></div>
         <audio id="modalAudio" controls></audio>
         <div class="modal-footer">
@@ -596,10 +565,6 @@
             <span class="material-symbols-outlined text-primary text-2xl">celebration</span>
             <span class="absolute right-14 bg-inverse-surface text-inverse-on-surface text-xs font-label-md px-2 py-1 rounded shadow-md whitespace-nowrap opacity-0 group-hover/tooltip:opacity-100 transition-opacity duration-200 pointer-events-none">Undangan Digital</span>
         </a>
-        <!-- <a href="photobox.html" class="w-12 h-12 rounded-full bg-surface-container border border-outline-variant flex items-center justify-center shadow-md hover:bg-primary-container hover:scale-110 active:scale-95 transition-all relative group/tooltip">
-            <span class="material-symbols-outlined text-primary text-2xl">photo_camera_back</span>
-            <span class="absolute right-14 bg-inverse-surface text-inverse-on-surface text-xs font-label-md px-2 py-1 rounded shadow-md whitespace-nowrap opacity-0 group-hover/tooltip:opacity-100 transition-opacity duration-200 pointer-events-none">Gamon Booth</span>
-        </a> -->
         <a href="map.html" class="w-12 h-12 rounded-full bg-surface-container border border-outline-variant flex items-center justify-center shadow-md hover:bg-primary-container hover:scale-110 active:scale-95 transition-all relative group/tooltip">
             <span class="material-symbols-outlined text-primary text-2xl">map</span>
             <span class="absolute right-14 bg-inverse-surface text-inverse-on-surface text-xs font-label-md px-2 py-1 rounded shadow-md whitespace-nowrap opacity-0 group-hover/tooltip:opacity-100 transition-opacity duration-200 pointer-events-none">Lihat Peta</span>
