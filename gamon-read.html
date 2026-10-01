@@ -1,0 +1,1238 @@
+<!DOCTYPE html>
+<html class="light" lang="id">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>GamonRead — Bulan yang Tidak Pernah Benderang Lagi</title>
+
+    <meta
+        name="description"
+        content="GamonRead — Bulan yang Tidak Pernah Benderang Lagi, sebuah novel tentang cinta pertama, kehilangan, kenangan, dan perjalanan untuk berdamai dengan masa lalu."
+    />
+
+    <link rel="icon" type="image/svg+xml" href="image/logo/Gamon%20Tawing.svg" />
+    <link rel="icon" type="image/png" href="image/logo/Gamon%20Tawing.png" />
+
+    <!-- Tailwind -->
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+
+    <!-- Fonts -->
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap"
+        rel="stylesheet"
+    />
+
+    <link
+        href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400..900&display=swap"
+        rel="stylesheet"
+    />
+
+    <!-- Material Symbols -->
+    <link
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+        rel="stylesheet"
+    />
+
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#6b5a60",
+                        background: "#fef8fa",
+                        surface: "#fef8fa",
+                        outline: "#7f7478",
+                    },
+
+                    borderRadius: {
+                        DEFAULT: "0.25rem",
+                        lg: "0.5rem",
+                        xl: "0.75rem",
+                        full: "9999px",
+                    },
+
+                    fontFamily: {
+                        body: ["Inter"],
+                        display: ["Playfair Display"],
+                    },
+                },
+            },
+        };
+    </script>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            overflow-x: hidden;
+
+            background:
+                linear-gradient(
+                    180deg,
+                    #010a17 0%,
+                    #0a4267 30%,
+                    #20658e 60%,
+                    #6badc4 100%
+                ) fixed;
+
+            color: rgba(255, 255, 255, 0.92);
+
+            font-family: "Inter", sans-serif;
+        }
+
+        /* =========================
+           STAR BACKGROUND
+        ========================= */
+
+        #spaceBackground {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            pointer-events: none;
+            overflow: hidden;
+        }
+
+        .star-particle {
+            position: absolute;
+
+            width: 3px;
+            height: 3px;
+
+            background: #e7d8ff;
+
+            border-radius: 50%;
+
+            opacity: 0.55;
+
+            box-shadow:
+                0 0 6px rgba(231, 216, 255, 0.6);
+
+            animation:
+                pulse-soft
+                5s
+                infinite
+                ease-in-out;
+        }
+
+        @keyframes pulse-soft {
+            0%,
+            100% {
+                transform: scale(1);
+                opacity: 0.3;
+            }
+
+            50% {
+                transform: scale(1.6);
+                opacity: 0.8;
+            }
+        }
+
+        /* =========================
+           DECORATION
+        ========================= */
+
+        .space-decor {
+            position: absolute;
+
+            pointer-events: none;
+
+            opacity: 0.16;
+
+            filter: blur(3px);
+
+            animation:
+                spaceFloat
+                18s
+                infinite
+                ease-in-out
+                alternate;
+        }
+
+        @keyframes spaceFloat {
+            0% {
+                transform:
+                    translateY(0)
+                    rotate(0deg)
+                    scale(1);
+            }
+
+            100% {
+                transform:
+                    translateY(-30px)
+                    rotate(15deg)
+                    scale(1.15);
+            }
+        }
+
+        /* =========================
+           CLOUD
+        ========================= */
+
+        #gtSkyLayer {
+            position: fixed;
+            inset: 0;
+
+            z-index: 2;
+
+            pointer-events: none;
+
+            overflow: hidden;
+        }
+
+        .gt-cloud {
+            position: absolute;
+
+            bottom: -6%;
+
+            width: 620px;
+            max-width: 62vw;
+
+            opacity: 0.5;
+
+            will-change: transform;
+
+            transform:
+                translate3d(0, 0, 0);
+        }
+
+        .gt-cloud img {
+            width: 100%;
+            display: block;
+        }
+
+        .gt-cloud-left {
+            left: -12%;
+        }
+
+        .gt-cloud-right {
+            right: -14%;
+
+            transform:
+                scaleX(-1);
+        }
+
+        /* =========================
+           MAIN
+        ========================= */
+
+        .content-shell {
+            position: relative;
+
+            z-index: 10;
+
+            width:
+                min(
+                    1120px,
+                    calc(100% - 32px)
+                );
+
+            margin: 0 auto;
+
+            padding-top: 6.5rem;
+            padding-bottom: 5rem;
+        }
+
+        /* =========================
+           GLASS
+        ========================= */
+
+        .glass-card {
+            background:
+                rgba(255, 255, 255, 0.09);
+
+            backdrop-filter:
+                blur(18px);
+
+            -webkit-backdrop-filter:
+                blur(18px);
+
+            border:
+                1px solid
+                rgba(255, 255, 255, 0.2);
+
+            box-shadow:
+                0 18px 42px -18px
+                rgba(1, 10, 23, 0.45);
+        }
+
+        /* =========================
+           BUTTON
+        ========================= */
+
+        .gradient-btn {
+            background:
+                linear-gradient(
+                    135deg,
+                    #f9d8c5 0%,
+                    #f7d9e8 35%,
+                    #dfe7ff 100%
+                );
+
+            color: #2f1f26;
+
+            box-shadow:
+                0 8px 24px
+                rgba(1, 10, 23, 0.25);
+        }
+
+        /* =========================
+           BOOK
+        ========================= */
+
+        .book-cover-wrapper {
+            position: relative;
+
+            display: inline-block;
+
+            perspective: 1000px;
+        }
+
+        .book-cover {
+            width: min(360px, 78vw);
+
+            aspect-ratio: 2 / 3;
+
+            object-fit: cover;
+
+            display: block;
+
+            border-radius: 8px;
+
+            box-shadow:
+                0 30px 70px
+                rgba(0, 0, 0, 0.42),
+
+                0 10px 25px
+                rgba(0, 0, 0, 0.28);
+
+            transition:
+                transform 0.45s ease,
+                box-shadow 0.45s ease;
+        }
+
+        .book-cover-wrapper:hover .book-cover {
+            transform:
+                translateY(-8px)
+                rotateY(-2deg);
+
+            box-shadow:
+                0 42px 90px
+                rgba(0, 0, 0, 0.48),
+
+                0 15px 35px
+                rgba(0, 0, 0, 0.28);
+        }
+
+        .book-glow {
+            position: absolute;
+
+            inset: 12% -15%;
+
+            z-index: -1;
+
+            background:
+                radial-gradient(
+                    ellipse,
+                    rgba(255, 220, 235, 0.28),
+                    transparent 65%
+                );
+
+            filter: blur(30px);
+
+            opacity: 0.7;
+        }
+
+        /* =========================
+           TITLE
+        ========================= */
+
+        .book-title {
+            font-family:
+                "Playfair Display",
+                serif;
+
+            font-weight: 600;
+
+            letter-spacing: -0.025em;
+
+            line-height: 1.08;
+
+            text-shadow:
+                0 5px 25px
+                rgba(0, 0, 0, 0.22);
+        }
+
+        .book-description {
+            color:
+                rgba(255, 255, 255, 0.76);
+
+            line-height: 1.8;
+        }
+
+        /* =========================
+           TAG
+        ========================= */
+
+        .book-tag {
+            display: inline-flex;
+
+            align-items: center;
+
+            padding:
+                7px 13px;
+
+            border-radius: 999px;
+
+            background:
+                rgba(255, 255, 255, 0.09);
+
+            border:
+                1px solid
+                rgba(255, 255, 255, 0.17);
+
+            color:
+                rgba(255, 255, 255, 0.85);
+
+            font-size: 12px;
+
+            font-weight: 500;
+
+            backdrop-filter:
+                blur(8px);
+
+            -webkit-backdrop-filter:
+                blur(8px);
+
+            transition:
+                background 0.2s ease,
+                transform 0.2s ease;
+        }
+
+        .book-tag:hover {
+            background:
+                rgba(255, 255, 255, 0.15);
+
+            transform:
+                translateY(-1px);
+        }
+
+        /* =========================
+           META
+        ========================= */
+
+        .book-meta {
+            display: flex;
+
+            justify-content: center;
+
+            align-items: center;
+
+            flex-wrap: wrap;
+
+            gap: 10px;
+
+            color:
+                rgba(255, 255, 255, 0.62);
+
+            font-size: 13px;
+        }
+
+        .meta-dot {
+            width: 4px;
+            height: 4px;
+
+            border-radius: 50%;
+
+            background:
+                rgba(255, 255, 255, 0.4);
+        }
+
+        /* =========================
+           MOBILE
+        ========================= */
+
+        @media (max-width: 768px) {
+
+            .gt-cloud {
+                display: none;
+            }
+
+            .content-shell {
+                width:
+                    min(
+                        100% - 24px,
+                        1120px
+                    );
+
+                padding-top: 5.5rem;
+
+                padding-bottom: 3rem;
+            }
+
+            .book-cover {
+                width:
+                    min(
+                        290px,
+                        75vw
+                    );
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- =========================
+         BACKGROUND
+    ========================= -->
+
+    <div
+        id="spaceBackground"
+        aria-hidden="true"
+    >
+        <div id="stars"></div>
+    </div>
+
+    <!-- =========================
+         CLOUDS
+    ========================= -->
+
+    <div
+        id="gtSkyLayer"
+        aria-hidden="true"
+    >
+
+        <div
+            class="gt-cloud gt-cloud-left"
+            id="gtCloudLeft"
+        >
+            <img
+                src="https://soft-zoom-63098134.figma.site/_assets/v11/0d6dfd3f90b930f21726f2ed56a3320d79b7a797.png"
+                alt=""
+            />
+        </div>
+
+        <div
+            class="gt-cloud gt-cloud-right"
+            id="gtCloudRight"
+        >
+            <img
+                src="https://soft-zoom-63098134.figma.site/_assets/v11/0d6dfd3f90b930f21726f2ed56a3320d79b7a797.png"
+                alt=""
+            />
+        </div>
+
+    </div>
+
+
+    <!-- =========================
+         CONTENT
+    ========================= -->
+
+    <main class="content-shell">
+
+        <!-- Back -->
+
+        <div class="mb-10">
+
+            <a
+                href="index.html"
+                class="
+                    inline-flex
+                    items-center
+                    justify-center
+                    gap-2
+
+                    px-5
+                    py-2.5
+
+                    rounded-full
+
+                    gradient-btn
+
+                    font-semibold
+
+                    text-sm
+
+                    border
+                    border-white/50
+
+                    transition-all
+
+                    hover:shadow-lg
+                    hover:scale-[1.02]
+
+                    active:scale-95
+                "
+            >
+
+                <span
+                    class="material-symbols-outlined text-sm"
+                >
+                    arrow_back
+                </span>
+
+                Kembali
+
+            </a>
+
+        </div>
+
+
+        <!-- =========================
+             BOOK SHOWCASE
+        ========================= -->
+
+        <section
+            class="
+                flex
+                flex-col
+                items-center
+                text-center
+            "
+        >
+
+            <!-- Small label -->
+
+            <div
+                class="
+                    flex
+                    items-center
+                    justify-center
+                    gap-2
+
+                    mb-7
+
+                    text-white/65
+
+                    text-xs
+                    sm:text-sm
+
+                    uppercase
+
+                    tracking-[0.22em]
+                "
+            >
+
+                <span
+                    class="
+                        h-px
+                        w-8
+                        bg-white/25
+                    "
+                ></span>
+
+                GamonRead
+
+                <span
+                    class="
+                        h-px
+                        w-8
+                        bg-white/25
+                    "
+                ></span>
+
+            </div>
+
+
+            <!-- COVER -->
+
+            <a
+                href="https://www.wattpad.com/story/416778116?utm_source=ios&utm_medium=link&utm_content=share_writing&wp_page=create&wp_uname=MuhamadAbellDeskiawa"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="book-cover-wrapper"
+                aria-label="Baca Bulan yang Tidak Pernah Benderang Lagi di Wattpad"
+            >
+
+                <div
+                    class="book-glow"
+                    aria-hidden="true"
+                ></div>
+
+                <img
+                    src="assets/cover-buku.jpg"
+                    alt="Cover novel Bulan yang Tidak Pernah Benderang Lagi"
+                    class="book-cover"
+                />
+
+            </a>
+
+
+            <!-- BOOK INFORMATION -->
+
+            <div
+                class="
+                    w-full
+                    max-w-3xl
+
+                    mt-10
+                "
+            >
+
+                <!-- Title -->
+
+                <a
+                    href="https://www.wattpad.com/story/416778116?utm_source=ios&utm_medium=link&utm_content=share_writing&wp_page=create&wp_uname=MuhamadAbellDeskiawa"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="
+                        inline-block
+                        group
+                    "
+                >
+
+                    <h1
+                        class="
+                            book-title
+
+                            text-4xl
+                            sm:text-5xl
+                            md:text-6xl
+
+                            text-white
+
+                            transition-opacity
+
+                            group-hover:opacity-80
+                        "
+                    >
+                        Bulan yang Tidak Pernah
+                        <br class="hidden sm:block" />
+                        Benderang Lagi
+                    </h1>
+
+                </a>
+
+
+                <!-- Meta -->
+
+                <div
+                    class="
+                        book-meta
+
+                        mt-6
+                    "
+                >
+
+                    <span>
+                        Novel
+                    </span>
+
+                    <span
+                        class="meta-dot"
+                    ></span>
+
+                    <span>
+                        Karya Muhamad Abell Deskiawan
+                    </span>
+
+                    <span
+                        class="meta-dot"
+                    ></span>
+
+                    <span>
+                        2026
+                    </span>
+
+                </div>
+
+
+                <!-- Synopsis -->
+
+                <div
+                    class="
+                        mt-9
+
+                        glass-card
+
+                        rounded-[24px]
+
+                        px-6
+                        py-7
+
+                        sm:px-10
+                        sm:py-9
+                    "
+                >
+
+                    <p
+                        class="
+                            text-[11px]
+
+                            uppercase
+
+                            tracking-[0.2em]
+
+                            text-white/50
+
+                            mb-4
+                        "
+                    >
+                        Sinopsis
+                    </p>
+
+                    <p
+                        class="
+                            book-description
+
+                            text-sm
+                            sm:text-base
+                        "
+                    >
+                        Ada cinta yang selesai ketika hubungan berakhir.
+                        Ada pula yang justru tetap tinggal, diam-diam,
+                        bertahun-tahun setelahnya.
+
+                        <br /><br />
+
+                        <em>
+                            Bulan yang Tidak Pernah Benderang Lagi
+                        </em>
+                        adalah kisah tentang cinta pertama, kenangan masa
+                        putih abu-abu, hubungan yang tumbuh melalui layar,
+                        perpisahan, dan perjalanan panjang seseorang yang
+                        belum benar-benar selesai dengan masa lalunya.
+
+                        <br /><br />
+
+                        Tentang dua orang yang pernah saling menemukan,
+                        kemudian berjalan ke arah yang berbeda. Tentang
+                        kenangan yang tidak selalu ingin kembali, tetapi
+                        juga tidak mudah dilupakan.
+
+                        <br /><br />
+
+                        Sebuah cerita tentang bagaimana patah hati pada
+                        masa muda dapat meninggalkan jejak yang lebih
+                        panjang daripada yang pernah dibayangkan.
+                    </p>
+
+                </div>
+
+
+                <!-- GENRE -->
+
+                <div
+                    class="mt-8"
+                >
+
+                    <p
+                        class="
+                            text-[11px]
+
+                            uppercase
+
+                            tracking-[0.2em]
+
+                            text-white/50
+
+                            mb-4
+                        "
+                    >
+                        Genre
+                    </p>
+
+                    <div
+                        class="
+                            flex
+                            flex-wrap
+                            justify-center
+                            gap-2
+                        "
+                    >
+
+                        <span class="book-tag">
+                            Romance
+                        </span>
+
+                        <span class="book-tag">
+                            Teen Fiction
+                        </span>
+
+                        <span class="book-tag">
+                            Drama
+                        </span>
+
+                        <span class="book-tag">
+                            Coming of Age
+                        </span>
+
+                    </div>
+
+                </div>
+
+
+                <!-- TAG -->
+
+                <div
+                    class="mt-7"
+                >
+
+                    <p
+                        class="
+                            text-[11px]
+
+                            uppercase
+
+                            tracking-[0.2em]
+
+                            text-white/50
+
+                            mb-4
+                        "
+                    >
+                        Tag
+                    </p>
+
+                    <div
+                        class="
+                            flex
+                            flex-wrap
+                            justify-center
+                            gap-2
+                        "
+                    >
+
+                        <span class="book-tag">
+                            #CintaPertama
+                        </span>
+
+                        <span class="book-tag">
+                            #PatahHati
+                        </span>
+
+                        <span class="book-tag">
+                            #Gamon
+                        </span>
+
+                        <span class="book-tag">
+                            #MasaSekolah
+                        </span>
+
+                        <span class="book-tag">
+                            #Kenangan
+                        </span>
+
+                        <span class="book-tag">
+                            #Healing
+                        </span>
+
+                        <span class="book-tag">
+                            #MasaLalu
+                        </span>
+
+                    </div>
+
+                </div>
+
+
+                <!-- READ BUTTON -->
+
+                <div
+                    class="mt-10"
+                >
+
+                    <a
+                        href="https://www.wattpad.com/story/416778116?utm_source=ios&utm_medium=link&utm_content=share_writing&wp_page=create&wp_uname=MuhamadAbellDeskiawa"
+                        target="_blank"
+                        rel="noopener noreferrer"
+
+                        class="
+                            inline-flex
+
+                            items-center
+                            justify-center
+                            gap-2
+
+                            px-7
+                            py-3.5
+
+                            rounded-full
+
+                            gradient-btn
+
+                            font-semibold
+
+                            text-sm
+                            sm:text-base
+
+                            border
+                            border-white/50
+
+                            transition-all
+
+                            hover:shadow-xl
+                            hover:scale-[1.03]
+
+                            active:scale-95
+                        "
+                    >
+
+                        <span
+                            class="material-symbols-outlined text-lg"
+                        >
+                            menu_book
+                        </span>
+
+                        Baca di Wattpad
+
+                        <span
+                            class="material-symbols-outlined text-base"
+                        >
+                            open_in_new
+                        </span>
+
+                    </a>
+
+                </div>
+
+            </div>
+
+
+            <!-- FOOTER -->
+
+            <div
+                class="
+                    mt-16
+
+                    pt-6
+
+                    border-t
+                    border-white/10
+
+                    w-full
+                    max-w-3xl
+                "
+            >
+
+                <p
+                    class="
+                        text-xs
+                        text-white/45
+                    "
+                >
+                    GamonRead · Sebuah ruang untuk cerita yang belum selesai.
+                </p>
+
+            </div>
+
+        </section>
+
+    </main>
+
+
+    <!-- =========================
+         JAVASCRIPT
+    ========================= -->
+
+    <script>
+
+        /* =========================
+           STAR PARTICLES
+        ========================= */
+
+        const starsContainer =
+            document.getElementById("stars");
+
+        const starCount = 60;
+
+        for (
+            let i = 0;
+            i < starCount;
+            i++
+        ) {
+
+            const star =
+                document.createElement("div");
+
+            star.className =
+                "star-particle";
+
+            const size =
+                2 +
+                Math.random() * 4;
+
+            star.style.width =
+                `${size}px`;
+
+            star.style.height =
+                `${size}px`;
+
+            star.style.left =
+                `${Math.random() * 100}%`;
+
+            star.style.top =
+                `${Math.random() * 100}%`;
+
+            star.style.animationDuration =
+                `${3 + Math.random() * 6}s`;
+
+            star.style.animationDelay =
+                `${Math.random() * 5}s`;
+
+            starsContainer.appendChild(star);
+        }
+
+
+        /* =========================
+           DECORATIONS
+        ========================= */
+
+        const spaceBg =
+            document.getElementById(
+                "spaceBackground"
+            );
+
+        const spaceEmojis = [
+            "☁️",
+            "🪐",
+            "✨",
+            "☁️",
+            "🌙"
+        ];
+
+        for (
+            let i = 0;
+            i < 6;
+            i++
+        ) {
+
+            const decor =
+                document.createElement("div");
+
+            decor.className =
+                "space-decor";
+
+            decor.textContent =
+                spaceEmojis[
+                    i % spaceEmojis.length
+                ];
+
+            decor.style.fontSize =
+                (
+                    40 +
+                    Math.random() * 60
+                ) +
+                "px";
+
+            decor.style.left =
+                (
+                    Math.random() * 90
+                ) +
+                "%";
+
+            decor.style.top =
+                (
+                    Math.random() * 80
+                ) +
+                "%";
+
+            decor.style.animationDelay =
+                (
+                    Math.random() * -10
+                ) +
+                "s";
+
+            decor.style.animationDuration =
+                (
+                    15 +
+                    Math.random() * 15
+                ) +
+                "s";
+
+            spaceBg.appendChild(decor);
+        }
+
+
+        /* =========================
+           CLOUD PARALLAX
+        ========================= */
+
+        (function () {
+
+            const cloudL =
+                document.getElementById(
+                    "gtCloudLeft"
+                );
+
+            const cloudR =
+                document.getElementById(
+                    "gtCloudRight"
+                );
+
+            if (
+                !cloudL ||
+                !cloudR
+            ) {
+                return;
+            }
+
+            let targetY = 0;
+
+            let currentY = 0;
+
+
+            function onScroll() {
+
+                targetY =
+                    window.scrollY ||
+                    window.pageYOffset ||
+                    0;
+            }
+
+
+            window.addEventListener(
+                "scroll",
+                onScroll,
+                {
+                    passive: true
+                }
+            );
+
+
+            function tick() {
+
+                currentY +=
+                    (
+                        targetY -
+                        currentY
+                    ) *
+                    0.06;
+
+
+                cloudL.style.transform =
+                    `translate3d(${-currentY * 0.03}px, ${-currentY * 0.05}px, 0)`;
+
+
+                cloudR.style.transform =
+                    `translate3d(${currentY * 0.03}px, ${-currentY * 0.05}px, 0) scaleX(-1)`;
+
+
+                requestAnimationFrame(
+                    tick
+                );
+            }
+
+
+            requestAnimationFrame(
+                tick
+            );
+
+        })();
+
+    </script>
+
+</body>
+</html>
