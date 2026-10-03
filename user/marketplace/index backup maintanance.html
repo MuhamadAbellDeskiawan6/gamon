@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Marketplace Mantan</title>
+    <meta
+      name="description"
+      content="Marketplace Mantan, jual barang pemberian mantan dengan cara yang aman, tenang, dan lebih berharga."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
+      rel="stylesheet"
+    />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="assets/style.css" />
+    <link rel="stylesheet" href="assets/commerce.css" />
+  </head>
+  <body data-page="home">
+    <header class="topbar">
+      <div class="container nav">
+        <a href="#top" class="brand" aria-label="Kembali ke bagian atas halaman Marketplace Mantan">
+          <span class="brand-mark">G</span>
+          <span>Marketplace Mantan</span>
+        </a>
+
+        <nav class="nav-links" aria-label="Navigasi utama">
+          <a href="../../index.html">Gamon</a>
+          <a href="#explore">Jelajahi</a>
+          <a href="keranjang.html" data-cart-link>Keranjang <span data-cart-count hidden>0</span></a>
+          <a href="#why">Kenapa Kami</a>
+          <a href="#how">Cara Kerja</a>
+          <a href="#reviews">Ulasan</a>
+        </nav>
+
+        <div class="header-actions-wrap">
+          <div class="nav-actions" data-header-actions>
+            <a class="btn btn-secondary" href="login.html">Masuk</a>
+            <a class="btn btn-primary" href="register.html">Daftar</a>
+          </div>
+
+          <div class="mobile-menu-panel" data-mobile-menu-panel>
+            <nav class="mobile-nav-links" aria-label="Navigasi utama mobile">
+              <a href="../../index.html">Gamon</a>
+              <a href="#explore">Jelajahi</a>
+              <a href="#why">Kenapa Kami</a>
+              <a href="#how">Cara Kerja</a>
+              <a href="#reviews">Ulasan</a>
+            </nav>
+            <div class="mobile-menu-actions">
+              <a class="btn btn-secondary" href="keranjang.html" data-cart-link>Keranjang <span data-cart-count hidden>0</span></a>
+              <a class="btn btn-secondary" href="login.html">Masuk</a>
+              <a class="btn btn-primary" href="register.html">Daftar</a>
+            </div>
+          </div>
+
+          <button class="mobile-menu-toggle header-menu-toggle" type="button" aria-label="Buka menu utama" aria-expanded="false">
+            <span></span>
+            <span></span>
+            <span></span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero container">
+        <div class="kinetic-hero-shell" data-kinetic-grid>
+          <canvas class="kinetic-grid-canvas" aria-hidden="true"></canvas>
+
+          <div class="kinetic-hero-content">
+            <span class="eyebrow dark">Toko resmi</span>
+            <h1>
+             Marketplace<br />
+              <span class="highlight">Mantan</span>
+            </h1>
+            <p class="lead">
+             Marketplace Mantan adalah toko online resmi yang menghadirkan barang pilihan dengan proses belanja yang sederhana, aman, dan terstruktur. Semua produk dikelola langsung oleh admin toko.
+            </p>
+
+            <div class="hero-actions">
+              <a class="btn btn-primary" href="register.html">Mulai belanja</a>
+              <a class="btn btn-secondary" href="#explore">Lihat katalog</a>
+            </div>
+
+            <div class="meta-row">
+              <span class="meta-pill"><span class="material-symbols-outlined" style="font-size:14px;vertical-align:middle;">bolt</span> <span data-metric-items>0 produk aktif</span></span>
+              <span class="meta-pill"><span class="material-symbols-outlined" style="font-size:14px;vertical-align:middle;">sell</span> <span data-metric-buyers>0 terjual</span></span>
+              <span class="meta-pill"><span class="material-symbols-outlined" style="font-size:14px;vertical-align:middle;">lock</span> COD aman</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="explore" class="section container">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">Belanja ringan</span>
+            <h2>Barang yang tersedia</h2>
+          </div>
+          <p>Produk terbaru dari toko resmi Marketplace Mantan.</p>
+        </div>
+
+        <div class="filter-row" aria-label="Filter produk">
+          <button class="filter-pill active" data-filter="all">Semua</button>
+          <button class="filter-pill" data-filter="pakaian">Pakaian</button>
+          <button class="filter-pill" data-filter="aksesori">Aksesori</button>
+          <button class="filter-pill" data-filter="barang">Barang Lain</button>
+        </div>
+
+        <div class="grid-products" data-product-list></div>
+      </section>
+
+      <section id="why" class="section container">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">Kenapa memilih</span>
+            <h2>Desain yang lebih manusiawi</h2>
+          </div>
+        </div>
+
+        <div class="value-grid">
+          <div class="value-box">
+            <div class="big">01</div>
+            <h3>Proses belanja yang santai</h3>
+            <p>Belanja terasa lebih tenang karena semua produk dikelola secara rapi oleh admin toko.</p>
+          </div>
+          <div class="value-box">
+            <div class="big">02</div>
+            <h3>Transaksi aman</h3>
+            <p>Setiap akun harus login agar interaksi buyer-seller lebih aman dan mudah dipantau.</p>
+          </div>
+          <div class="value-box">
+            <div class="big">03</div>
+            <h3>Chat dan negosiasi</h3>
+            <p>Buyer dan seller bisa berkomunikasi langsung tanpa meninggalkan platform.</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="how" class="section container">
+        <div class="cta-strip">
+          <div class="inner step-layout">
+            <div class="how-header">
+              <span class="eyebrow">Cara kerja</span>
+              <h2>4 langkah sederhana</h2>
+            </div>
+
+            <div class="how-steps">
+              <div class="how-step">
+                <span class="step-no">1</span>
+                <div>
+                  <h3>Daftar & login</h3>
+                  <p>Buat akun lalu masuk agar bisa melihat katalog dan mulai chat dengan admin toko.</p>
+                </div>
+              </div>
+
+              <div class="how-step">
+                <span class="step-no">2</span>
+                <div>
+                  <h3>Pilih barang</h3>
+                  <p>Jelajahi katalog, pilih produk yang cocok, dan cek detail serta lokasi COD.</p>
+                </div>
+              </div>
+
+              <div class="how-step">
+                <span class="step-no">3</span>
+                <div>
+                  <h3>Chat admin</h3>
+                  <p>Tanyakan detail barang, nego harga, atau jadwal ketemuan lewat chat langsung ke admin toko.</p>
+                </div>
+              </div>
+
+              <div class="how-step">
+                <span class="step-no">4</span>
+                <div>
+                  <h3>COD</h3>
+                  <p>Transaksi dilakukan via COD: bayar saat barang sudah diterima dan dicek.</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="how-warning">
+              <strong>Catatan penting:</strong>
+              Marketplace ini tidak memakai sistem pembayaran digital. Semua transaksi dilakukan lewat chat dan COD sesuai kesepakatan admin toko. Jangan transfer uang di luar chat platform, jangan percaya tawaran yang meminta kode OTP, dan pastikan lokasi serta profil pembeli sesuai kesepakatan.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="reviews" class="section container">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">Testimoni</span>
+            <h2>Yang orang bilang</h2>
+          </div>
+        </div>
+
+        <div class="review-empty-state" data-review-empty>
+          <div class="review-empty-content">
+            <span class="material-symbols-outlined">rate_review</span>
+            <p>Belum ada testimoni saat ini. Setelah ada transaksi dan ulasan dari pembeli, review ini akan muncul di sini.</p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <div class="container footer-line">
+        <div>© 2026 Marketplace Mantan</div>
+        <div>Jual kenangan, dapatkan uang, buka lembaran baru.</div>
+      </div>
+    </footer>
+
+    <script type="module" src="assets/app.js"></script>
+  </body>
+</html>

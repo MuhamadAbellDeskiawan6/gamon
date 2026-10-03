@@ -9,6 +9,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="assets/style.css" />
+    <link rel="stylesheet" href="assets/commerce.css" />
   </head>
   <body data-page="dashboard.html">
     <header class="topbar">
@@ -19,6 +20,7 @@
         </a>
 
         <div class="nav-actions">
+          <a class="btn btn-secondary" href="keranjang.html" data-cart-link aria-label="Keranjang"><span class="material-symbols-outlined" aria-hidden="true">shopping_cart</span> <span data-cart-count hidden>0</span></a>
           <a class="btn btn-secondary" href="profil.html">Profil</a>
           <a class="btn btn-primary" href="../../index.html" data-logout-button>Keluar</a>
         </div>
@@ -29,20 +31,20 @@
       <div class="user-shell">
         <aside class="sidebar">
           <div class="profile-box">
-            <div class="avatar-lg">P</div>
+            <div class="avatar-lg" data-user-avatar></div>
             <div>
               <strong style="display:block; color: var(--primary-strong);" data-user-name>Pengguna</strong>
-              <small class="muted">Seller & Buyer</small>
+              <small class="muted">Pembeli</small>
             </div>
           </div>
 
           <nav aria-label="Sidebar navigasi">
             <a class="active" href="dashboard.html"><span class="material-symbols-outlined" style="font-size:17px;vertical-align:middle;">dashboard</span> Dashboard</a>
-            <a href="jual.html"><span class="material-symbols-outlined" style="font-size:17px;vertical-align:middle;">sell</span> Jual</a>
-            <a href="beli.html"><span class="material-symbols-outlined" style="font-size:17px;vertical-align:middle;">shopping_cart</span> Beli</a>
-            <a href="my-products.html"><span class="material-symbols-outlined" style="font-size:17px;vertical-align:middle;">inventory_2</span> Barang Saya</a>
+            <a href="beli.html"><span class="material-symbols-outlined" style="font-size:17px;vertical-align:middle;">shopping_cart</span> Katalog</a>
+            <a href="keranjang.html"><span class="material-symbols-outlined" style="font-size:17px;vertical-align:middle;">shopping_bag</span> Keranjang <span data-cart-count hidden>0</span></a>
+            <a href="pesanan.html"><span class="material-symbols-outlined" style="font-size:17px;vertical-align:middle;">receipt_long</span> Pesanan Saya</a>
+            <a href="chat.html"><span class="material-symbols-outlined" style="font-size:17px;vertical-align:middle;">chat</span> Chat Admin</a>
             <a href="profil.html"><span class="material-symbols-outlined" style="font-size:17px;vertical-align:middle;">person</span> Profil</a>
-            <a href="chat.html"><span class="material-symbols-outlined" style="font-size:17px;vertical-align:middle;">chat</span> Chat</a>
           </nav>
           <a class="logout-link" href="../../index.html" data-logout-button>↩ Keluar</a>
         </aside>
@@ -57,26 +59,30 @@
               <div class="search-box">
                 <input type="text" placeholder="Cari barang, nama seller, atau kategori" />
               </div>
-              <button class="btn btn-secondary" type="button" data-repair-seller-photos>Perbaiki avatar produk</button>
-              <a class="btn btn-primary" href="my-products.html">Barang saya</a>
+              <a class="btn btn-primary" href="beli.html">Lihat katalog</a>
             </div>
           </section>
 
-          <section class="cards-3">
+          <section class="cards-3" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr));">
             <div class="stat-card">
-              <div class="label">Barang terjual</div>
-              <div class="value" data-stat-sold>0</div>
-              <div class="delta">Belum ada penjualan</div>
+              <div class="label">Menunggu pembayaran</div>
+              <div class="value" data-stat-awaiting>0</div>
+              <div class="delta">Menunggu penyelesaian melalui DOKU</div>
             </div>
             <div class="stat-card">
               <div class="label">Pesanan aktif</div>
               <div class="value" data-stat-orders>0</div>
-              <div class="delta">Belum ada pesanan</div>
+              <div class="delta">Dibayar, diproses, atau dikirim</div>
             </div>
             <div class="stat-card">
-              <div class="label">Saldo</div>
-              <div class="value" data-stat-balance>Rp 0</div>
-              <div class="delta">Belum ada saldo</div>
+              <div class="label">Pesanan selesai</div>
+              <div class="value" data-stat-finished>0</div>
+              <div class="delta">Belum ada pesanan selesai</div>
+            </div>
+            <div class="stat-card">
+              <div class="label">Chat belum dibaca</div>
+              <div class="value" data-stat-chat>0</div>
+              <div class="delta">Belum ada pesan baru</div>
             </div>
           </section>
 

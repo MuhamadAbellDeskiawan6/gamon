@@ -1,12 +1,47 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Catatan keamanan penting:
-    // Karena semua logic ini berjalan di browser tanpa Firebase Auth yang valid,
-    // rules di bawah ini hanya best-effort untuk membatasi write/update ke field konfirmasi
-    // dan membatasi pembacaan kontak pribadi setelah match berstatus 'confirmed'.
-    // Ini bukan proteksi production-grade untuk data sensitif; ini hanya mencegah akses iseng
-    // di demo / prototipe dan tidak menggantikan backend auth + secret key yang benar-benar aman.
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && request.auth.token.email == 'muhamadabelldeskiawan@gmail.com';
+    }
+
+    function isBuyer() {
+      return isSignedIn() && (
+        !exists(/databases/$(database)/documents/marketplace_users/$(request.auth.uid)) ||
+        get(/databases/$(database)/documents/marketplace_users/$(request.auth.uid)).data.role == 'buyer' ||
+        get(/databases/$(database)/documents/marketplace_users/$(request.auth.uid)).data.role == 'both'
+      );
+    }
+
+    function validCartItem(items, index) {
+      return items.size() <= index || (
+        items[index] is map &&
+        items[index].keys().hasOnly(['productId', 'qty']) &&
+        items[index].productId is string &&
+        items[index].productId.size() > 0 &&
+        items[index].qty is int &&
+        items[index].qty >= 1 &&
+        items[index].qty <= 99
+      );
+    }
+
+    function validCartItems(items) {
+      return items is list && items.size() <= 30 &&
+        validCartItem(items, 0) && validCartItem(items, 1) && validCartItem(items, 2) &&
+        validCartItem(items, 3) && validCartItem(items, 4) && validCartItem(items, 5) &&
+        validCartItem(items, 6) && validCartItem(items, 7) && validCartItem(items, 8) &&
+        validCartItem(items, 9) && validCartItem(items, 10) && validCartItem(items, 11) &&
+        validCartItem(items, 12) && validCartItem(items, 13) && validCartItem(items, 14) &&
+        validCartItem(items, 15) && validCartItem(items, 16) && validCartItem(items, 17) &&
+        validCartItem(items, 18) && validCartItem(items, 19) && validCartItem(items, 20) &&
+        validCartItem(items, 21) && validCartItem(items, 22) && validCartItem(items, 23) &&
+        validCartItem(items, 24) && validCartItem(items, 25) && validCartItem(items, 26) &&
+        validCartItem(items, 27) && validCartItem(items, 28) && validCartItem(items, 29);
+    }
 
     match /gamon/{docId} {
       allow read: if true;
@@ -60,6 +95,66 @@ service cloud.firestore {
     match /ldr_order/{orderId} {
       allow read: if true;
       allow create, update, delete: if false;
+    }
+
+    match /users/{userId} {
+      allow read: if isSignedIn() && (userId == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() && userId == request.auth.uid && request.resource.data.role in ['buyer', 'both'];
+      allow update: if isSignedIn() && userId == request.auth.uid && request.resource.data.role in ['buyer', 'both'];
+      allow delete: if false;
+    }
+
+    match /marketplace_users/{userId} {
+      allow read: if isSignedIn() && (userId == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() && userId == request.auth.uid && request.resource.data.role in ['buyer', 'both'];
+      allow update: if isSignedIn() && userId == request.auth.uid && request.resource.data.role in ['buyer', 'both'];
+      allow delete: if false;
+    }
+
+    match /products/{productId} {
+      allow read: if true;
+      allow create: if isAdmin();
+      allow update, delete: if isAdmin();
+    }
+
+    match /marketplace_products/{productId} {
+      allow read: if true;
+      allow create: if isAdmin();
+      allow update, delete: if isAdmin();
+    }
+
+    match /marketplace_orders/{orderId} {
+      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create, update, delete: if false;
+    }
+
+    match /marketplace_carts/{userId} {
+      allow read: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      allow create, update: if isSignedIn() && request.auth.uid == userId &&
+        request.resource.data.keys().hasOnly(['items', 'updatedAt']) &&
+        request.resource.data.updatedAt is int &&
+        validCartItems(request.resource.data.items);
+      allow delete: if isSignedIn() && request.auth.uid == userId;
+    }
+
+    match /marketplace_chats/{buyerUid} {
+      allow read: if isSignedIn() && (request.auth.uid == buyerUid || isAdmin());
+      allow create, update: if isSignedIn() && (
+        isAdmin() ||
+        (request.auth.uid == buyerUid && request.resource.data.buyerId == request.auth.uid)
+      );
+      allow delete: if isAdmin();
+
+      match /messages/{msgId} {
+        allow read: if isSignedIn() && (request.auth.uid == buyerUid || isAdmin());
+        allow create: if isSignedIn() && (
+          (isAdmin() && request.resource.data.senderRole == 'admin') ||
+          (request.auth.uid == buyerUid &&
+            request.resource.data.senderRole == 'user' &&
+            request.resource.data.senderId == request.auth.uid)
+        );
+        allow update, delete: if isAdmin();
+      }
     }
   }
 }

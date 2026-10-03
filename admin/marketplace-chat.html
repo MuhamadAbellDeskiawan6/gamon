@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Chat Pembeli - Admin</title>
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+  <style>
+    .material-symbols-outlined { font-family: 'Material Symbols Outlined'; font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24; }
+    .chat-admin-layout { display:grid; grid-template-columns: minmax(260px, 340px) minmax(0, 1fr); gap:16px; min-height:calc(100vh - 150px); }
+    .chat-admin-panel { min-width:0; border:1px solid #e2e8f0; border-radius:12px; background:#fff; }
+    .chat-admin-thread { width:100%; border:0; border-bottom:1px solid #f1f5f9; background:#fff; text-align:left; }
+    .chat-admin-thread:hover,.chat-admin-thread[aria-current="true"] { background:#fff1f2; }
+    .chat-admin-conversation { display:flex; min-height:0; height:calc(100vh - 150px); flex-direction:column; }
+    .chat-admin-messages { min-height:0; flex:1; overflow-y:auto; padding:18px; }
+    .chat-admin-context img { width:52px; height:52px; border-radius:8px; object-fit:cover; }
+    .chat-admin-bubble { max-width:min(78%,560px); padding:10px 12px; border-radius:14px; overflow-wrap:anywhere; }
+    .chat-admin-bubble.user { background:#f1f5f9; color:#334155; border-bottom-left-radius:4px; }
+    .chat-admin-bubble.admin { margin-left:auto; background:#db2777; color:white; border-bottom-right-radius:4px; }
+    .chat-admin-date { display:flex; align-items:center; gap:12px; margin:12px 0; color:#64748b; font-size:12px; }
+    .chat-admin-date::before,.chat-admin-date::after { content:''; height:1px; flex:1; background:#e2e8f0; }
+    #chatPage[data-view="conversation"] #adminThreadPanel { display:none; }
+    #chatPage[data-view="conversation"] #adminConversationPanel { display:flex; }
+    @media (min-width: 900px) {
+      #adminThreadPanel { display:block !important; }
+      #adminConversationPanel { display:flex !important; }
+    }
+    @media (max-width: 899px) {
+      .chat-admin-layout { display:block; min-height:0; }
+      #adminConversationPanel { display:none; height:calc(100dvh - 105px); }
+      #chatPage[data-view="threads"] #adminConversationPanel { display:none; }
+      #chatPage[data-view="conversation"] #adminConversationPanel { display:flex; }
+    }
+  </style>
+</head>
+<body id="chatPage" data-view="threads" class="bg-slate-100 min-h-screen text-slate-800">
+  <div class="min-h-screen lg:grid lg:grid-cols-[260px_minmax(0,1fr)]">
+    <div data-admin-sidebar></div>
+    <script src="/admin/partials/sidebar.js"></script>
+    <main class="px-4 py-6 lg:px-8">
+      <header class="mb-5">
+        <h1 class="text-2xl font-bold text-slate-900">Chat Pembeli</h1>
+        <p class="mt-1 text-sm text-slate-500">Satu percakapan untuk setiap pembeli.</p>
+      </header>
+      <div class="chat-admin-layout">
+        <section id="adminThreadPanel" class="chat-admin-panel overflow-hidden" aria-label="Daftar pembeli">
+          <div class="border-b border-slate-200 p-3">
+            <label class="sr-only" for="buyerSearch">Cari pembeli</label>
+            <input id="buyerSearch" type="search" placeholder="Cari nama pembeli..." class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-pink-200" />
+          </div>
+          <div id="chatList" aria-live="polite">
+            <p class="p-5 text-sm text-slate-500">Memuat percakapan...</p>
+          </div>
+        </section>
+
+        <section id="adminConversationPanel" class="chat-admin-panel chat-admin-conversation" aria-label="Percakapan aktif">
+          <header id="chatHeader" class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 p-4">
+            <div class="flex items-center gap-3">
+              <button id="backToThreads" type="button" class="rounded-lg border border-slate-200 px-3 py-2 text-sm lg:hidden">Daftar</button>
+              <div>
+                <h2 id="buyerName" class="font-semibold text-slate-900">Pilih percakapan di kiri</h2>
+                <p id="buyerEmail" class="text-xs text-slate-500"></p>
+              </div>
+            </div>
+            <a id="buyerOrdersLink" class="pointer-events-none rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-400" aria-disabled="true">Lihat pesanan pembeli</a>
+          </header>
+          <div id="productContext" class="chat-admin-context hidden border-b border-slate-200 bg-slate-50 px-4 py-3"></div>
+          <div id="chatMessages" class="chat-admin-messages" aria-live="polite">
+            <p class="text-sm text-slate-500">Pilih percakapan di kiri.</p>
+          </div>
+          <p id="chatError" class="px-4 text-sm text-rose-700" role="alert" aria-live="polite"></p>
+          <form id="chatForm" class="flex items-end gap-2 border-t border-slate-200 p-3">
+            <label class="sr-only" for="chatInput">Pesan balasan</label>
+            <textarea id="chatInput" rows="2" placeholder="Pilih pembeli untuk membalas..." disabled class="min-w-0 flex-1 resize-y rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-pink-200"></textarea>
+            <button id="sendButton" type="submit" disabled class="rounded-lg bg-pink-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-pink-500 disabled:cursor-not-allowed disabled:opacity-50">Kirim</button>
+          </form>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <script type="module">
+    import { auth, db, escapeHtml, requireAdmin } from '/admin/admin-firebase.js';
+    import { collection, doc, increment, onSnapshot, orderBy, query, updateDoc, writeBatch } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+    const page = document.getElementById('chatPage');
+    const chatList = document.getElementById('chatList');
+    const searchInput = document.getElementById('buyerSearch');
+    const messagesEl = document.getElementById('chatMessages');
+    const form = document.getElementById('chatForm');
+    const input = document.getElementById('chatInput');
+    const sendButton = document.getElementById('sendButton');
+    const errorEl = document.getElementById('chatError');
+    const headerName = document.getElementById('buyerName');
+    const headerEmail = document.getElementById('buyerEmail');
+    const ordersLink = document.getElementById('buyerOrdersLink');
+    const productContext = document.getElementById('productContext');
+    let threads = [];
+    let activeThread = null;
+    let stopThreadListener = () => {};
+    let stopMessagesListener = () => {};
+    let didOpenUrlThread = false;
+
+    function timestampMs(value) {
+      if (typeof value === 'number') return value;
+      if (value && typeof value.toMillis === 'function') return value.toMillis();
+      if (value && typeof value.seconds === 'number') return value.seconds * 1000;
+      return Number(value || 0);
+    }
+
+    function relativeTime(value) {
+      const time = timestampMs(value);
+      if (!time) return '';
+      const elapsed = Math.max(0, Date.now() - time);
+      if (elapsed < 60000) return 'Baru saja';
+      if (elapsed < 3600000) return `${Math.floor(elapsed / 60000)} mnt`;
+      if (elapsed < 86400000) return `${Math.floor(elapsed / 3600000)} jam`;
+      return new Date(time).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
+    }
+
+    function renderThreadList() {
+      const search = (searchInput.value || '').trim().toLocaleLowerCase('id');
+      const filtered = threads.filter((thread) => String(thread.buyerName || '').toLocaleLowerCase('id').includes(search));
+      if (!filtered.length) {
+        chatList.innerHTML = `<p class="p-5 text-sm text-slate-500">${threads.length ? 'Tidak ada pembeli yang cocok.' : 'Belum ada percakapan.'}</p>`;
+        return;
+      }
+
+      chatList.innerHTML = filtered.map((thread) => {
+        const isActive = activeThread?.id === thread.id;
+        const unread = Math.max(0, Number(thread.unreadForAdmin || 0));
+        const prefix = thread.lastSenderRole === 'admin' ? 'Anda: ' : '';
+        return `<button type="button" data-thread-id="${escapeHtml(thread.id)}" aria-current="${isActive}" class="chat-admin-thread px-4 py-3 ${isActive ? 'bg-pink-50' : ''}">
+          <span class="flex min-w-0 items-center justify-between gap-3">
+            <strong class="truncate text-sm text-slate-900">${escapeHtml(thread.buyerName || 'Pembeli')}</strong>
+            <span class="shrink-0 text-[11px] text-slate-400">${escapeHtml(relativeTime(thread.lastMessageAt || thread.updatedAt))}</span>
+          </span>
+          <span class="mt-1 flex items-center justify-between gap-3">
+            <span class="truncate text-xs text-slate-500">${escapeHtml(prefix + (thread.lastMessage || 'Belum ada pesan'))}</span>
+            ${unread ? `<span class="shrink-0 rounded-full bg-pink-600 px-2 py-0.5 text-[10px] font-semibold text-white">${unread > 99 ? '99+' : unread}</span>` : ''}
+          </span>
+        </button>`;
+      }).join('');
+
+      chatList.querySelectorAll('[data-thread-id]').forEach((button) => {
+        button.addEventListener('click', () => selectThread(button.dataset.threadId));
+      });
+    }
+
+    function renderHeader(thread) {
+      headerName.textContent = thread.buyerName || 'Pembeli';
+      headerEmail.textContent = thread.buyerEmail || '';
+      ordersLink.href = `/admin/marketplace-orders.html?buyerId=${encodeURIComponent(thread.buyerId || thread.id)}`;
+      ordersLink.classList.remove('pointer-events-none', 'text-slate-400');
+      ordersLink.classList.add('text-slate-700');
+      ordersLink.removeAttribute('aria-disabled');
+
+      const productId = thread.productId ? String(thread.productId) : '';
+      if (!productId) {
+        productContext.classList.add('hidden');
+        productContext.innerHTML = '';
+        return;
+      }
+      const imageUrl = /^https?:\/\//i.test(thread.productImage || '') ? thread.productImage : '';
+      const image = imageUrl ? `<img src="${escapeHtml(imageUrl)}" alt="" />` : '';
+      productContext.classList.remove('hidden');
+      productContext.innerHTML = `<div class="flex items-center gap-3">${image}<div class="min-w-0"><p class="text-[11px] font-semibold uppercase text-slate-500">Produk terakhir ditanyakan</p><a class="font-semibold text-pink-700 hover:underline" href="/user/marketplace/product.html?id=${encodeURIComponent(productId)}">${escapeHtml(thread.productName || 'Lihat produk')}</a></div></div>`;
+    }
+
+    function renderMessages(messageDocs) {
+      const nearBottom = messagesEl.scrollHeight - messagesEl.scrollTop - messagesEl.clientHeight < 100;
+      if (!messageDocs.length) {
+        messagesEl.innerHTML = '<p class="text-sm text-slate-500">Belum ada pesan. Mulai percakapan.</p>';
+        return;
+      }
+      let previousDate = '';
+      messagesEl.innerHTML = messageDocs.map((message) => {
+        const date = new Date(timestampMs(message.createdAt) || Date.now());
+        const dateKey = date.toLocaleDateString('sv-SE');
+        const divider = dateKey !== previousDate
+          ? `<div class="chat-admin-date"><span>${escapeHtml(date.toLocaleDateString('id-ID', { dateStyle: 'full' }))}</span></div>`
+          : '';
+        previousDate = dateKey;
+        const isAdmin = message.senderRole === 'admin';
+        return `${divider}<div class="flex ${isAdmin ? 'justify-end' : 'justify-start'}"><article class="chat-admin-bubble ${isAdmin ? 'admin' : 'user'}"><p class="whitespace-pre-wrap">${escapeHtml(message.text || '')}</p><time class="mt-1 block text-right text-[10px] opacity-70">${escapeHtml(date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }))}</time></article></div>`;
+      }).join('');
+      if (nearBottom) messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    async function selectThread(threadId) {
+      const selected = threads.find((thread) => thread.id === threadId);
+      if (!selected) return;
+      stopThreadListener();
+      stopMessagesListener();
+      activeThread = selected;
+      page.dataset.view = 'conversation';
+      errorEl.textContent = '';
+      input.disabled = false;
+      sendButton.disabled = false;
+      input.placeholder = 'Tulis balasan...';
+      renderHeader(selected);
+      renderThreadList();
+      messagesEl.innerHTML = '<p class="text-sm text-slate-500">Memuat pesan...</p>';
+      history.replaceState(null, '', `/admin/marketplace-chat.html?userId=${encodeURIComponent(threadId)}`);
+
+      const summaryRef = doc(db, 'marketplace_chats', threadId);
+      stopThreadListener = onSnapshot(summaryRef, (snapshot) => {
+        if (!snapshot.exists() || activeThread?.id !== threadId) return;
+        activeThread = { id: snapshot.id, ...snapshot.data() };
+        renderHeader(activeThread);
+        renderThreadList();
+        if (Number(activeThread.unreadForAdmin || 0) > 0) {
+          updateDoc(summaryRef, { unreadForAdmin: 0 }).catch((error) => {
+            console.error('[marketplace chat admin] gagal menandai pesan dibaca:', error);
+            errorEl.textContent = `Gagal menandai dibaca: ${error?.code || 'unknown'}`;
+          });
+        }
+      }, (error) => {
+        console.error('[marketplace chat admin] gagal memuat ringkasan thread:', error);
+        errorEl.textContent = `Percakapan gagal dimuat: ${error?.code || 'unknown'}`;
+      });
+
+      stopMessagesListener = onSnapshot(query(collection(summaryRef, 'messages'), orderBy('createdAt', 'asc')), (snapshot) => {
+        renderMessages(snapshot.docs.map((messageDoc) => messageDoc.data()));
+      }, (error) => {
+        console.error('[marketplace chat admin] gagal memuat pesan:', error);
+        errorEl.textContent = `Pesan gagal dimuat: ${error?.code || 'unknown'}`;
+      });
+    }
+
+    async function boot() {
+      await requireAdmin();
+      const requestedThreadId = new URLSearchParams(window.location.search).get('userId') || '';
+      onSnapshot(collection(db, 'marketplace_chats'), (snapshot) => {
+        threads = snapshot.docs
+          .map((threadDoc) => ({ id: threadDoc.id, ...threadDoc.data() }))
+          .filter((thread) => thread.buyerId === thread.id)
+          .sort((a, b) => timestampMs(b.lastMessageAt || b.updatedAt) - timestampMs(a.lastMessageAt || a.updatedAt));
+        renderThreadList();
+        if (requestedThreadId && !didOpenUrlThread && threads.some((thread) => thread.id === requestedThreadId)) {
+          didOpenUrlThread = true;
+          selectThread(requestedThreadId);
+        } else if (activeThread) {
+          const updated = threads.find((thread) => thread.id === activeThread.id);
+          if (updated) {
+            activeThread = updated;
+            renderHeader(updated);
+          }
+        }
+      }, (error) => {
+        console.error('[marketplace chat admin] gagal memuat daftar percakapan:', error);
+        chatList.innerHTML = `<p class="p-5 text-sm text-rose-700">Daftar chat gagal dimuat: ${escapeHtml(error?.code || 'unknown')}</p>`;
+      });
+    }
+
+    searchInput.addEventListener('input', renderThreadList);
+    document.getElementById('backToThreads').addEventListener('click', () => { page.dataset.view = 'threads'; });
+    input.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault();
+        form.requestSubmit();
+      }
+    });
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const text = input.value.trim();
+      if (!activeThread || !text || sendButton.disabled) return;
+      const createdAt = Date.now();
+      const messageRef = doc(collection(db, 'marketplace_chats', activeThread.id, 'messages'));
+      const summaryRef = doc(db, 'marketplace_chats', activeThread.id);
+      const originalText = sendButton.textContent;
+      sendButton.disabled = true;
+      sendButton.textContent = 'Mengirim...';
+      errorEl.textContent = '';
+      try {
+        const batch = writeBatch(db);
+        batch.set(messageRef, {
+          senderId: auth.currentUser?.uid || 'admin',
+          senderRole: 'admin',
+          text,
+          createdAt,
+          ...(activeThread.productId ? { productId: activeThread.productId, productName: activeThread.productName || '' } : {})
+        });
+        batch.set(summaryRef, {
+          buyerId: activeThread.buyerId || activeThread.id,
+          buyerName: activeThread.buyerName || 'Pembeli',
+          participantIds: [activeThread.buyerId || activeThread.id, 'admin'],
+          lastMessage: text,
+          lastMessageAt: createdAt,
+          lastSenderRole: 'admin',
+          updatedAt: createdAt,
+          unreadForUser: increment(1)
+        }, { merge: true });
+        await batch.commit();
+        input.value = '';
+      } catch (error) {
+        console.error('[marketplace chat admin] pesan gagal dikirim:', error);
+        errorEl.textContent = `Pesan gagal terkirim: ${error?.code || 'unknown'}`;
+      } finally {
+        sendButton.disabled = !activeThread;
+        sendButton.textContent = originalText;
+        input.focus();
+      }
+    });
+
+    window.addEventListener('beforeunload', () => {
+      stopThreadListener();
+      stopMessagesListener();
+    });
+    boot();
+  </script>
+</body>
+</html>

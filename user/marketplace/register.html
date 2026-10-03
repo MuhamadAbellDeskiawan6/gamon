@@ -25,9 +25,9 @@
 
               <div class="mini-card">
                 <span class="eyebrow">Bergabung sekarang</span>
-                <h2 style="margin-top: 14px; font-size: 2rem;">Buat akun untuk beli atau jual</h2>
+                <h2 style="margin-top: 14px; font-size: 2rem;">Daftar untuk belanja di Marketplace Mantan</h2>
                 <p class="muted" style="margin-top: 10px; line-height: 1.7;">
-                  Daftar akun agar dapat mengupload barang, chat seller, dan melakukan transaksi secara aman.
+                  Daftar akun agar dapat melihat katalog, chat dengan admin toko, dan melakukan transaksi COD dengan aman.
                 </p>
               </div>
 
@@ -36,7 +36,7 @@
                   <span class="seller-meta"><span class="avatar">R</span> Raka</span>
                   <span class="condition">Buyer baru</span>
                 </div>
-                <p style="margin-top: 12px; color: var(--muted);">Akun bisa dipakai untuk jadi buyer sekaligus seller, sesuai kebutuhan.</p>
+                <p style="margin-top: 12px; color: var(--muted);">Akun pembeli hanya bisa melihat katalog, chat admin, dan melakukan pemesanan COD.</p>
               </div>
             </div>
           </div>
@@ -80,12 +80,8 @@
               <div class="field" data-auth-message style="display:none; padding: 10px 12px; border-radius: 12px; font-size: 0.95rem; margin-bottom: 8px;"></div>
 
               <div class="field">
-                <label for="role">Saya ingin</label>
-                <select id="role" name="role">
-                  <option value="buyer">Beli barang</option>
-                  <option value="seller">Jual barang</option>
-                  <option value="both">Beli & jual</option>
-                </select>
+                <label for="role">Role akun</label>
+                <input id="role" name="role" type="text" value="buyer" readonly aria-readonly="true" />
               </div>
 
               <label class="check-row">

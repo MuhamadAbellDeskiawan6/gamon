@@ -9,6 +9,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="assets/style.css" />
+    <link rel="stylesheet" href="assets/commerce.css" />
   </head>
   <body data-page="profil.html">
     <header class="topbar">
@@ -18,6 +19,7 @@
           <span>Marketplace Mantan</span>
         </a>
         <div class="nav-actions">
+          <a class="btn btn-secondary" href="keranjang.html" data-cart-link aria-label="Keranjang"><span class="material-symbols-outlined" aria-hidden="true">shopping_cart</span> <span data-cart-count hidden>0</span></a>
           <a class="btn btn-secondary" href="profil.html">Profil</a>
           <a class="btn btn-primary" href="../../index.html" data-logout-button>Keluar</a>
         </div>
@@ -28,20 +30,20 @@
       <div class="user-shell">
         <aside class="sidebar">
           <div class="profile-box">
-            <div class="avatar-lg">P</div>
+            <div class="avatar-lg" data-user-avatar></div>
             <div>
               <strong style="display:block; color: var(--primary-strong);">Pengguna</strong>
-              <small class="muted">Seller & Buyer</small>
+              <small class="muted">Pembeli</small>
             </div>
           </div>
 
           <nav aria-label="Sidebar navigasi">
             <a href="dashboard.html"><span class="material-symbols-outlined" style="font-size:17px;vertical-align:middle;">dashboard</span> Dashboard</a>
-            <a href="jual.html"><span class="material-symbols-outlined" style="font-size:17px;vertical-align:middle;">sell</span> Jual</a>
-            <a href="beli.html"><span class="material-symbols-outlined" style="font-size:17px;vertical-align:middle;">shopping_cart</span> Beli</a>
-            <a href="my-products.html"><span class="material-symbols-outlined" style="font-size:17px;vertical-align:middle;">inventory_2</span> Barang Saya</a>
+            <a href="beli.html"><span class="material-symbols-outlined" style="font-size:17px;vertical-align:middle;">shopping_cart</span> Katalog</a>
+            <a href="keranjang.html"><span class="material-symbols-outlined" style="font-size:17px;vertical-align:middle;">shopping_bag</span> Keranjang <span data-cart-count hidden>0</span></a>
+            <a href="pesanan.html"><span class="material-symbols-outlined" style="font-size:17px;vertical-align:middle;">receipt_long</span> Pesanan Saya</a>
             <a class="active" href="profil.html"><span class="material-symbols-outlined" style="font-size:17px;vertical-align:middle;">person</span> Profil</a>
-            <a href="chat.html"><span class="material-symbols-outlined" style="font-size:17px;vertical-align:middle;">chat</span> Chat</a>
+            <a href="chat.html"><span class="material-symbols-outlined" style="font-size:17px;vertical-align:middle;">chat</span> Chat Admin</a>
           </nav>
           <a class="logout-link" href="../../index.html" data-logout-button><span class="material-symbols-outlined" style="font-size:16px;vertical-align:middle;">logout</span> Keluar</a>
         </aside>
@@ -103,6 +105,57 @@
                 <label for="alamat">Alamat</label>
                 <input id="alamat" name="alamat" type="text" placeholder="Masukkan alamat" />
               </div>
+
+              <section class="shipping-profile-section" style="margin-top:24px;padding-top:20px;border-top:1px solid var(--line);">
+                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
+                  <div>
+                    <h3 style="margin:0;">Alamat Pengiriman</h3>
+                    <p class="muted" style="margin:6px 0 0;">Pastikan titik peta sesuai lokasi rumah agar kurir mudah menemukan.</p>
+                  </div>
+                  <strong data-shipping-completeness role="status" aria-live="polite">Alamat belum lengkap</strong>
+                </div>
+                <div class="form-row">
+                  <div class="field">
+                    <label for="shippingRecipientName">Nama penerima</label>
+                    <input id="shippingRecipientName" name="shippingRecipientName" type="text" autocomplete="shipping name" />
+                  </div>
+                  <div class="field">
+                    <label for="shippingPhone">Nomor HP penerima</label>
+                    <input id="shippingPhone" name="shippingPhone" type="tel" autocomplete="shipping tel" placeholder="08xxxxxxxxxx" />
+                  </div>
+                </div>
+                <div class="field">
+                  <label for="shippingAddress">Alamat lengkap (jalan, RT/RW, nomor)</label>
+                  <input id="shippingAddress" name="shippingAddress" type="text" autocomplete="shipping street-address" />
+                </div>
+                <div class="form-row">
+                  <div class="field"><label for="shippingCity">Kota/Kabupaten</label><input id="shippingCity" name="shippingCity" type="text" autocomplete="shipping address-level2" /></div>
+                  <div class="field"><label for="shippingProvince">Provinsi</label><input id="shippingProvince" name="shippingProvince" type="text" autocomplete="shipping address-level1" /></div>
+                  <div class="field"><label for="shippingPostalCode">Kode pos</label><input id="shippingPostalCode" name="shippingPostalCode" type="text" inputmode="numeric" autocomplete="shipping postal-code" /></div>
+                </div>
+                <div class="field">
+                  <label for="shippingNote">Catatan untuk kurir</label>
+                  <textarea id="shippingNote" name="shippingNote" rows="2" placeholder="Patokan atau instruksi tambahan"></textarea>
+                </div>
+                <div class="field">
+                  <label for="shippingMapsUrl">Tempel link Google Maps</label>
+                  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                    <input id="shippingMapsUrl" type="url" inputmode="url" placeholder="https://maps.google.com/..." style="flex:1;min-width:220px;" />
+                    <button class="btn btn-secondary" type="button" data-parse-shipping-map>Ambil koordinat</button>
+                    <button class="btn btn-secondary" type="button" data-use-shipping-location>Gunakan lokasi saya</button>
+                  </div>
+                  <small class="muted" data-shipping-location-status></small>
+                </div>
+                <div class="form-row">
+                  <div class="field"><label for="shippingLatitude">Latitude</label><input id="shippingLatitude" name="shippingLatitude" type="number" step="any" min="-90" max="90" /></div>
+                  <div class="field"><label for="shippingLongitude">Longitude</label><input id="shippingLongitude" name="shippingLongitude" type="number" step="any" min="-180" max="180" /></div>
+                </div>
+                <div class="field">
+                  <label>Preview titik alamat</label>
+                  <div class="map-preview" data-shipping-map-preview><div class="map-placeholder"><span class="material-symbols-outlined map-placeholder-icon">location_on</span></div></div>
+                  <a data-shipping-map-link hidden target="_blank" rel="noopener noreferrer">Buka di Google Maps</a>
+                </div>
+              </section>
 
               <div class="field">
                 <div style="display:flex; gap: 10px; align-items:center; flex-wrap: wrap; margin-bottom: 12px;">

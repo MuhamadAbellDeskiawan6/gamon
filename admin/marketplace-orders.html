@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pesanan Marketplace - Admin</title>
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+  <style>
+    .material-symbols-outlined { font-family:'Material Symbols Outlined';font-variation-settings:'FILL' 0,'wght' 300,'GRAD' 0,'opsz' 24; }
+    .order-detail { width:min(980px,calc(100vw - 28px)); max-height:calc(100dvh - 28px); border:0; border-radius:14px; padding:0; color:#1e293b; }
+    .order-detail::backdrop { background:rgba(15,23,42,.58); }
+    .order-detail-body { max-height:calc(100dvh - 28px); overflow:auto; }
+    .order-map iframe { width:100%;height:230px;border:0;border-radius:10px; }
+    .needs-attention { border-left:4px solid #dc2626;background:#fff1f2; }
+    .order-line img { width:56px;height:56px;object-fit:cover;border-radius:8px; }
+    @media print {
+      body * { visibility:hidden !important; }
+      #shippingLabel,#shippingLabel * { visibility:visible !important; }
+      #shippingLabel { position:absolute;inset:0;padding:24px;background:white;color:black; }
+    }
+  </style>
+</head>
+<body class="bg-slate-100 min-h-screen text-slate-800">
+  <div class="min-h-screen lg:grid lg:grid-cols-[260px_minmax(0,1fr)]">
+    <div data-admin-sidebar></div>
+    <script src="/admin/partials/sidebar.js"></script>
+    <main class="px-4 py-8 lg:px-8">
+      <header class="mb-6 flex flex-wrap items-start justify-between gap-3">
+        <div><h1 class="text-2xl font-bold text-slate-900">Pesanan Marketplace</h1><p class="mt-1 text-sm text-slate-500">Pembayaran DOKU dan pemenuhan pengiriman.</p></div>
+        <p id="pageStatus" class="text-sm text-rose-700" role="status" aria-live="polite"></p>
+      </header>
+      <section class="mb-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-6" aria-label="Ringkasan pesanan">
+        <div class="rounded-xl border border-slate-200 bg-white p-4"><p class="text-xs text-slate-500">Menunggu bayar</p><strong id="statAwaiting" class="mt-2 block text-2xl">0</strong></div>
+        <div class="rounded-xl border border-slate-200 bg-white p-4"><p class="text-xs text-slate-500">Perlu diproses</p><strong id="statProcessing" class="mt-2 block text-2xl">0</strong></div>
+        <div class="rounded-xl border border-slate-200 bg-white p-4"><p class="text-xs text-slate-500">Dikirim</p><strong id="statShipped" class="mt-2 block text-2xl">0</strong></div>
+        <div class="rounded-xl border border-slate-200 bg-white p-4"><p class="text-xs text-slate-500">Selesai</p><strong id="statCompleted" class="mt-2 block text-2xl">0</strong></div>
+        <div class="rounded-xl border border-slate-200 bg-white p-4"><p class="text-xs text-slate-500">Batal/kedaluwarsa</p><strong id="statClosed" class="mt-2 block text-2xl">0</strong></div>
+        <div class="rounded-xl border border-slate-200 bg-white p-4"><p class="text-xs text-slate-500">Omzet dibayar</p><strong id="statRevenue" class="mt-2 block text-lg">Rp 0</strong></div>
+      </section>
+      <section class="overflow-hidden rounded-xl border border-slate-200 bg-white">
+        <div class="flex flex-wrap gap-3 border-b border-slate-200 p-4">
+          <label class="sr-only" for="orderSearch">Cari pesanan</label>
+          <input id="orderSearch" type="search" placeholder="Cari kode, nama, atau HP..." class="min-w-[220px] flex-1 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm" />
+          <label class="sr-only" for="statusFilter">Filter status</label>
+          <select id="statusFilter" class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
+            <option value="all">Semua status</option>
+            <option value="awaiting_payment">Menunggu pembayaran</option>
+            <option value="paid">Dibayar</option>
+            <option value="processing">Diproses</option>
+            <option value="shipped">Dikirim</option>
+            <option value="completed">Selesai</option>
+            <option value="cancelled">Dibatalkan</option>
+            <option value="expired">Kedaluwarsa</option>
+            <option value="payment_failed">Pembayaran gagal</option>
+          </select>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full min-w-[1000px] text-left text-sm">
+            <thead class="bg-slate-50 text-[11px] uppercase text-slate-500"><tr>
+              <th class="px-4 py-3">Kode pesanan</th><th class="px-4 py-3">Pembeli</th><th class="px-4 py-3">Item</th><th class="px-4 py-3">Total</th><th class="px-4 py-3">Pembayaran</th><th class="px-4 py-3">Status</th><th class="px-4 py-3">Waktu</th><th class="px-4 py-3"></th>
+            </tr></thead>
+            <tbody id="ordersTableBody" class="divide-y divide-slate-100"><tr><td colspan="8" class="px-4 py-10 text-center text-slate-500">Memuat pesanan...</td></tr></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="orderDialog" class="order-detail">
+    <div class="order-detail-body">
+      <header class="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-slate-200 bg-white p-5">
+        <div><p id="detailOrderCode" class="text-xs font-semibold text-pink-700"></p><h2 id="detailBuyerName" class="mt-1 text-xl font-bold"></h2><p id="detailBuyerContact" class="mt-1 text-sm text-slate-500"></p></div>
+        <button id="closeOrderDialog" type="button" class="rounded-lg border border-slate-200 px-3 py-2 text-sm">Tutup</button>
+      </header>
+      <div class="grid gap-5 p-5 lg:grid-cols-2">
+        <section><h3 class="mb-3 font-bold">Barang dipesan</h3><div id="detailItems" class="grid gap-3"></div><div id="detailTotals" class="mt-4 border-t border-slate-200 pt-3 text-sm"></div><div id="detailHistory" class="mt-5"></div></section>
+        <section><h3 class="mb-3 font-bold">Alamat Pengiriman</h3><div id="detailShipping" class="text-sm leading-6"></div><div id="detailMap" class="order-map mt-3"></div><div id="detailShippingActions" class="mt-3 flex flex-wrap gap-2"></div></section>
+      </div>
+      <div id="attentionBox" class="mx-5 mb-4 hidden rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800"></div>
+      <section class="border-t border-slate-200 p-5">
+        <p id="actionError" class="mb-3 text-sm text-rose-700" role="alert" aria-live="polite"></p>
+        <div id="shipmentFields" class="mb-3 hidden grid gap-3 sm:grid-cols-2">
+          <label class="text-sm">Kurir<input id="courierInput" class="mt-1 w-full rounded-lg border border-slate-200 p-2" placeholder="JNE, J&T, ..." /></label>
+          <label class="text-sm">Nomor resi<input id="trackingInput" class="mt-1 w-full rounded-lg border border-slate-200 p-2" /></label>
+        </div>
+        <label id="returnStockLabel" class="mb-3 hidden items-start gap-2 text-sm text-slate-700"><input id="returnStockInput" type="checkbox" class="mt-1" />Kembalikan stok (refund pembayaran diproses manual di dashboard DOKU)</label>
+        <div id="detailActions" class="flex flex-wrap justify-end gap-2"></div>
+      </section>
+    </div>
+  </dialog>
+  <section id="shippingLabel" hidden></section>
+
+  <script type="module">
+    import { db, escapeHtml, formatRupiah, formatDate, requireAdmin } from '/admin/admin-firebase.js';
+    import { collection, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+    const body = document.getElementById('ordersTableBody');
+    const statusFilter = document.getElementById('statusFilter');
+    const searchInput = document.getElementById('orderSearch');
+    const dialog = document.getElementById('orderDialog');
+    const pageStatus = document.getElementById('pageStatus');
+    const buyerFilter = new URLSearchParams(window.location.search).get('buyerId') || '';
+    let orders = [];
+    let activeOrder = null;
+
+    const statusText = {
+      awaiting_payment: 'Menunggu pembayaran', paid: 'Dibayar', processing: 'Diproses', shipped: 'Dikirim',
+      completed: 'Selesai', cancelled: 'Dibatalkan', expired: 'Kedaluwarsa', payment_failed: 'Pembayaran gagal'
+    };
+    const statusClass = {
+      awaiting_payment: 'bg-amber-100 text-amber-800', paid: 'bg-blue-100 text-blue-800',
+      processing: 'bg-indigo-100 text-indigo-800', shipped: 'bg-cyan-100 text-cyan-800',
+      completed: 'bg-emerald-100 text-emerald-800', cancelled: 'bg-slate-100 text-slate-700',
+      expired: 'bg-rose-100 text-rose-800', payment_failed: 'bg-rose-100 text-rose-800'
+    };
+
+    function money(value) { return formatRupiah(Math.round(Number(value) || 0)); }
+    function timeValue(value) {
+      if (typeof value === 'number') return value;
+      if (value && typeof value.toMillis === 'function') return value.toMillis();
+      if (value && typeof value.seconds === 'number') return value.seconds * 1000;
+      return Number(value || 0);
+    }
+    function imageSource(value) {
+      const source = String(value || '').trim();
+      return /^https:\/\//i.test(source) ? source : '';
+    }
+    function phoneForWhatsApp(value) {
+      let digits = String(value || '').replace(/\D/g, '');
+      if (digits.startsWith('0')) digits = `62${digits.slice(1)}`;
+      else if (!digits.startsWith('62')) digits = `62${digits}`;
+      return digits;
+    }
+    async function adminAction(action, payload = {}) {
+      const response = await fetch(`/api/admin/${encodeURIComponent(action)}`, {
+        method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || !result.success) {
+        const error = new Error(result.message || 'Permintaan admin gagal.');
+        error.code = result.code || `http-${response.status}`;
+        throw error;
+      }
+      return result;
+    }
+
+    function renderRows() {
+      const search = (searchInput.value || '').trim().toLocaleLowerCase('id');
+      const selectedStatus = statusFilter.value;
+      const filtered = orders.filter((order) => {
+        const itemsText = (order.items || []).map((item) => item.name || '').join(' ');
+        const matchesSearch = !search || `${order.orderCode || order.id} ${order.buyerName || ''} ${order.buyerPhone || ''} ${itemsText}`.toLocaleLowerCase('id').includes(search);
+        const matchesStatus = selectedStatus === 'all' || order.status === selectedStatus;
+        const matchesBuyer = !buyerFilter || order.userId === buyerFilter;
+        return matchesSearch && matchesStatus && matchesBuyer;
+      });
+
+      const awaiting = orders.filter((order) => order.status === 'awaiting_payment').length;
+      const processing = orders.filter((order) => order.status === 'paid' || order.status === 'processing').length;
+      const shipped = orders.filter((order) => order.status === 'shipped').length;
+      const completed = orders.filter((order) => order.status === 'completed').length;
+      const closed = orders.filter((order) => ['cancelled', 'expired', 'payment_failed'].includes(order.status)).length;
+      const revenue = orders.filter((order) => order.paymentStatus === 'PAID').reduce((sum, order) => sum + (Number(order.totalAmount) || 0), 0);
+      document.getElementById('statAwaiting').textContent = awaiting;
+      document.getElementById('statProcessing').textContent = processing;
+      document.getElementById('statShipped').textContent = shipped;
+      document.getElementById('statCompleted').textContent = completed;
+      document.getElementById('statClosed').textContent = closed;
+      document.getElementById('statRevenue').textContent = money(revenue);
+
+      if (!filtered.length) {
+        body.innerHTML = '<tr><td colspan="8" class="px-4 py-10 text-center text-slate-500">Belum ada pesanan yang cocok.</td></tr>';
+        return;
+      }
+      body.innerHTML = filtered.map((order) => {
+        const itemSummary = (order.items || []).map((item) => `${escapeHtml(item.name || 'Barang')} × ${Math.max(0, Number(item.qty) || 0)}`).join('<br>') || '—';
+        const badge = statusClass[order.status] || 'bg-slate-100 text-slate-700';
+        return `<tr class="align-top ${order.needsAttention ? 'needs-attention' : ''}">
+          <td class="px-4 py-3"><strong>${escapeHtml(order.orderCode || order.id)}</strong>${order.needsAttention ? '<p class="mt-1 text-xs font-semibold text-rose-700">Perlu perhatian</p>' : ''}</td>
+          <td class="px-4 py-3"><strong>${escapeHtml(order.buyerName || 'Pembeli')}</strong><p class="text-xs text-slate-500">${escapeHtml(order.buyerPhone || '')}</p></td>
+          <td class="px-4 py-3">${itemSummary}</td>
+          <td class="px-4 py-3 font-semibold">${money(order.totalAmount)}</td>
+          <td class="px-4 py-3">${escapeHtml(order.paymentStatus || 'UNPAID')}</td>
+          <td class="px-4 py-3"><span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${badge}">${escapeHtml(statusText[order.status] || order.status || '—')}</span></td>
+          <td class="px-4 py-3 whitespace-nowrap">${escapeHtml(formatDate(order.createdAt))}</td>
+          <td class="px-4 py-3"><button type="button" data-open-order="${escapeHtml(order.id)}" class="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold hover:bg-slate-50">Detail</button></td>
+        </tr>`;
+      }).join('');
+      body.querySelectorAll('[data-open-order]').forEach((button) => button.addEventListener('click', () => openOrder(button.dataset.openOrder)));
+    }
+
+    function renderDetail(order) {
+      activeOrder = order;
+      document.getElementById('detailOrderCode').textContent = order.orderCode || order.id;
+      document.getElementById('detailBuyerName').textContent = order.buyerName || 'Pembeli';
+      document.getElementById('detailBuyerContact').textContent = `${order.buyerEmail || ''}${order.buyerEmail && order.buyerPhone ? ' · ' : ''}${order.buyerPhone || ''}`;
+      const imageForItem = (item) => {
+        const image = imageSource(item.image);
+        return image ? `<img src="${escapeHtml(image)}" alt="${escapeHtml(item.name || 'Foto produk')}" />` : '<span class="grid h-14 w-14 place-items-center rounded-lg bg-slate-100 font-bold text-pink-700">G</span>';
+      };
+      document.getElementById('detailItems').innerHTML = (order.items || []).map((item) => `<article class="order-line flex items-center gap-3 border-b border-slate-100 pb-3"><div>${imageForItem(item)}</div><div class="min-w-0 flex-1"><strong>${escapeHtml(item.name || 'Produk')}</strong><p class="text-xs text-slate-500">${money(item.unitPrice)} × ${Math.max(0, Number(item.qty) || 0)}</p></div><strong>${money(item.subtotal)}</strong></article>`).join('') || '<p class="text-sm text-slate-500">Rincian item tidak tersedia.</p>';
+      document.getElementById('detailTotals').innerHTML = `<div class="flex justify-between py-1"><span>Subtotal</span><strong>${money(order.subtotal)}</strong></div><div class="flex justify-between py-1"><span>Ongkos kirim</span><strong>${money(order.shippingFee)}</strong></div><div class="flex justify-between border-t border-slate-200 pt-2 text-base"><span>Total</span><strong>${money(order.totalAmount)}</strong></div>`;
+      const shipping = order.shippingAddress || {};
+      document.getElementById('detailShipping').innerHTML = `<p><strong>${escapeHtml(shipping.recipientName || '—')}</strong></p><p>${escapeHtml(shipping.phone || '—')}</p><p>${escapeHtml(shipping.address || 'Alamat belum tersedia')}${shipping.city ? `, ${escapeHtml(shipping.city)}` : ''}${shipping.province ? `, ${escapeHtml(shipping.province)}` : ''}${shipping.postalCode ? ` ${escapeHtml(shipping.postalCode)}` : ''}</p>${shipping.note ? `<p><strong>Catatan kurir:</strong> ${escapeHtml(shipping.note)}</p>` : ''}${shipping.latitude !== undefined && shipping.latitude !== '' ? `<p>Koordinat: ${Number(shipping.latitude).toFixed(6)}, ${Number(shipping.longitude).toFixed(6)}</p>` : ''}`;
+      const detailMap = document.getElementById('detailMap');
+      const detailActions = document.getElementById('detailShippingActions');
+      const latitude = Number(shipping.latitude);
+      const longitude = Number(shipping.longitude);
+      const validPoint = Number.isFinite(latitude) && latitude >= -90 && latitude <= 90 && Number.isFinite(longitude) && longitude >= -180 && longitude <= 180 && shipping.latitude !== '' && shipping.longitude !== '';
+      if (validPoint) {
+        detailMap.innerHTML = `<iframe title="Peta alamat pengiriman" loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="https://maps.google.com/maps?q=${latitude},${longitude}&z=16&output=embed"></iframe>`;
+        const mapUrl = `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
+        const routeUrl = `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}`;
+        detailActions.innerHTML = `<a class="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold" target="_blank" rel="noopener noreferrer" href="${mapUrl}">Buka di Google Maps</a><a class="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold" target="_blank" rel="noopener noreferrer" href="${routeUrl}">Rute ke lokasi</a><button type="button" id="copyShippingAddress" class="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold">Salin alamat</button>${shipping.phone ? `<a class="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-800" target="_blank" rel="noopener noreferrer" href="https://wa.me/${phoneForWhatsApp(shipping.phone)}">WhatsApp</a>` : ''}`;
+        detailActions.querySelector('#copyShippingAddress')?.addEventListener('click', async () => {
+          const text = `${shipping.recipientName || ''}\n${shipping.phone || ''}\n${shipping.address || ''}${shipping.city ? `, ${shipping.city}` : ''}${shipping.province ? `, ${shipping.province}` : ''} ${shipping.postalCode || ''}\n${shipping.note || ''}\n${latitude}, ${longitude}\n${mapUrl}`;
+          try { await navigator.clipboard.writeText(text); pageStatus.textContent = 'Alamat dan koordinat disalin.'; } catch (error) { pageStatus.textContent = 'Gagal menyalin; salin alamat dari detail pesanan.'; }
+        });
+      } else {
+        detailMap.innerHTML = '<p class="text-sm text-amber-700">Koordinat pengiriman belum tersedia.</p>';
+        detailActions.innerHTML = '';
+      }
+
+      const history = Array.isArray(order.statusHistory) ? order.statusHistory : [];
+      document.getElementById('detailHistory').innerHTML = `<h3 class="mb-2 font-bold">Riwayat status</h3>${history.length ? `<ol class="grid gap-2 text-sm">${history.map((entry) => `<li><strong>${escapeHtml(statusText[entry.status] || entry.status || '')}</strong><span class="text-slate-500"> · ${escapeHtml(formatDate(entry.at))}${entry.by ? ` · ${escapeHtml(entry.by)}` : ''}</span>${entry.note ? `<p class="text-xs text-slate-500">${escapeHtml(entry.note)}</p>` : ''}</li>`).join('')}</ol>` : '<p class="text-sm text-slate-500">Belum ada perubahan status.</p>'}`;
+      const attentionBox = document.getElementById('attentionBox');
+      attentionBox.classList.toggle('hidden', !order.needsAttention);
+      attentionBox.textContent = order.needsAttention ? `Perlu perhatian: ${order.attentionReason || 'periksa pesanan ini.'}` : '';
+      renderActions(order);
+    }
+
+    function renderActions(order) {
+      const actions = document.getElementById('detailActions');
+      const shipmentFields = document.getElementById('shipmentFields');
+      const returnStockLabel = document.getElementById('returnStockLabel');
+      const status = order.status;
+      shipmentFields.classList.toggle('hidden', status !== 'processing');
+      returnStockLabel.classList.toggle('hidden', !(order.paymentStatus === 'PAID' && !['cancelled', 'completed'].includes(status)));
+      actions.innerHTML = '';
+      const addAction = (label, nextStatus, extra = {}) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'rounded-lg bg-pink-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-pink-500 disabled:opacity-50';
+        button.textContent = label;
+        button.addEventListener('click', () => updateStatus(nextStatus, extra));
+        actions.appendChild(button);
+      };
+      if (status === 'paid') addAction('Proses pesanan', 'processing');
+      if (status === 'processing') addAction('Tandai dikirim', 'shipped', { shipment: true });
+      if (status === 'shipped') addAction('Tandai selesai', 'completed');
+      if (['awaiting_payment', 'paid', 'processing', 'shipped'].includes(status)) {
+        const cancel = document.createElement('button');
+        cancel.type = 'button';
+        cancel.className = 'rounded-lg border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-semibold text-rose-700';
+        cancel.textContent = 'Batalkan pesanan';
+        cancel.addEventListener('click', () => updateStatus('cancelled', { cancellation: true }));
+        actions.appendChild(cancel);
+      }
+      if (order.paymentStatus === 'PAID' && !['completed', 'cancelled'].includes(status)) {
+        const printButton = document.createElement('button');
+        printButton.type = 'button';
+        printButton.className = 'rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-semibold';
+        printButton.textContent = 'Cetak label pengiriman';
+        printButton.addEventListener('click', () => printShippingLabel(order));
+        actions.appendChild(printButton);
+      }
+    }
+
+    async function updateStatus(status, options = {}) {
+      if (!activeOrder) return;
+      const payload = { orderId: activeOrder.id, status };
+      if (status === 'shipped') {
+        payload.courier = document.getElementById('courierInput').value.trim();
+        payload.trackingNumber = document.getElementById('trackingInput').value.trim();
+        if (!payload.courier || !payload.trackingNumber) {
+          document.getElementById('actionError').textContent = 'Isi nama kurir dan nomor resi.';
+          return;
+        }
+      }
+      if (options.cancellation) {
+        if (!window.confirm('Batalkan pesanan ini? Pesanan yang sudah dibayar mungkin memerlukan refund manual DOKU.')) return;
+        payload.returnStock = document.getElementById('returnStockInput').checked;
+        payload.note = payload.returnStock ? 'Admin mengembalikan stok; refund dibayar manual melalui dashboard DOKU.' : 'Dibatalkan oleh admin.';
+      }
+      document.getElementById('actionError').textContent = '';
+      try {
+        await adminAction('update-marketplace-order-status', payload);
+        await refreshOrders();
+      } catch (error) {
+        console.error('[marketplace orders] perubahan status gagal:', error);
+        document.getElementById('actionError').textContent = `Status gagal diperbarui (${error.code || 'unknown'}): ${error.message}`;
+      }
+    }
+
+    function printShippingLabel(order) {
+      const shipping = order.shippingAddress || {};
+      const map = Number.isFinite(Number(shipping.latitude)) && Number.isFinite(Number(shipping.longitude))
+        ? `https://www.google.com/maps/search/?api=1&query=${Number(shipping.latitude)},${Number(shipping.longitude)}` : '';
+      const items = (order.items || []).map((item) => `${escapeHtml(item.name || 'Produk')} × ${Number(item.qty) || 0}`).join('<br>');
+      const label = `<main style="font:16px Arial,sans-serif;max-width:760px;margin:0 auto;padding:28px"><h1>Label Pengiriman</h1><p><b>Kode pesanan:</b> ${escapeHtml(order.orderCode || order.id)}</p><hr><h2>Penerima</h2><p><b>${escapeHtml(shipping.recipientName || order.buyerName || '')}</b><br>${escapeHtml(shipping.phone || order.buyerPhone || '')}<br>${escapeHtml(shipping.address || '')}${shipping.city ? `, ${escapeHtml(shipping.city)}` : ''}${shipping.province ? `, ${escapeHtml(shipping.province)}` : ''} ${escapeHtml(shipping.postalCode || '')}<br>${escapeHtml(shipping.note || '')}</p><h2>Isi paket</h2><p>${items}</p><p>${map ? `<a href="${map}">${map}</a>` : ''}</p><p><b>Pengirim:</b> Marketplace Mantan</p></main>`;
+      const printWindow = window.open('', '_blank', 'width=800,height=700');
+      if (!printWindow) {
+        pageStatus.textContent = 'Popup label diblokir browser. Izinkan popup lalu coba lagi.';
+        return;
+      }
+      printWindow.document.write(`<!DOCTYPE html><html lang="id"><head><meta charset="utf-8"><title>Label ${escapeHtml(order.orderCode || order.id)}</title></head><body>${label}<script>window.onload=()=>window.print()<\/script></body></html>`);
+      printWindow.document.close();
+    }
+
+    async function openOrder(orderId) {
+      activeOrder = orders.find((order) => order.id === orderId) || null;
+      if (!activeOrder) return;
+      renderDetail(activeOrder);
+      if (!dialog.open) dialog.showModal();
+    }
+
+    async function refreshOrders() {
+      const response = await fetch('/api/admin/get-marketplace-orders', { credentials: 'same-origin' });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || !result.success) throw new Error(result.message || 'Gagal memuat pesanan.');
+      orders = Array.isArray(result.data) ? result.data : [];
+      renderRows();
+      if (activeOrder) {
+        const updated = orders.find((order) => order.id === activeOrder.id);
+        if (updated) renderDetail(updated);
+      }
+    }
+
+    async function boot() {
+      await requireAdmin();
+      try {
+        await adminAction('release-expired-reservations');
+      } catch (error) {
+        console.error('[marketplace orders] sweep kedaluwarsa gagal:', error);
+        pageStatus.textContent = `Pemeriksaan reservasi gagal (${error.code || 'unknown'}).`;
+      }
+      const buyerId = buyerFilter ? `?buyerId=${encodeURIComponent(buyerFilter)}` : '';
+      if (buyerId && buyerFilter) searchInput.placeholder = `Filter UID pembeli aktif · Cari kode/nama/HP`;
+      onSnapshot(collection(db, 'marketplace_orders'), (snapshot) => {
+        orders = snapshot.docs.map((orderDoc) => ({ id: orderDoc.id, ...orderDoc.data() }))
+          .sort((a, b) => timeValue(b.createdAt) - timeValue(a.createdAt));
+        renderRows();
+        if (activeOrder) {
+          const updated = orders.find((order) => order.id === activeOrder.id);
+          if (updated) renderDetail(updated);
+        }
+      }, (error) => {
+        console.error('[marketplace orders] realtime gagal:', error);
+        pageStatus.textContent = `Pesanan gagal dimuat (${error.code || 'unknown'}).`;
+      });
+    }
+
+    searchInput.addEventListener('input', renderRows);
+    statusFilter.addEventListener('change', renderRows);
+    document.getElementById('closeOrderDialog').addEventListener('click', () => dialog.close());
+    dialog.addEventListener('click', (event) => { if (event.target === dialog) dialog.close(); });
+    boot();
+  </script>
++</body>
++</html>

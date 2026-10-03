@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Keranjang — Marketplace Mantan</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="assets/style.css" />
+    <link rel="stylesheet" href="assets/commerce.css" />
+  </head>
+  <body data-page="keranjang.html">
+    <header class="topbar">
+      <div class="container nav">
+        <a href="index.html" class="brand" aria-label="Marketplace Mantan">
+          <span class="brand-mark">G</span>
+          <span>Marketplace Mantan</span>
+        </a>
+        <div class="nav-actions">
+          <a class="btn btn-secondary" href="keranjang.html" data-cart-link aria-label="Keranjang">
+            <span class="material-symbols-outlined" aria-hidden="true">shopping_cart</span>
+            Keranjang <span data-cart-count hidden>0</span>
+          </a>
+          <a class="btn btn-secondary" href="profil.html">Profil</a>
+          <a class="btn btn-primary" href="../../index.html" data-logout-button>Keluar</a>
+        </div>
+      </div>
+    </header>
+    <main class="container user-layout">
+      <div class="user-shell">
+        <aside class="sidebar">
+          <div class="profile-box">
+            <div class="avatar-lg" data-user-avatar></div>
+            <div><strong style="display:block;color:var(--primary-strong);" data-user-name>Pengguna</strong><small class="muted">Pembeli</small></div>
+          </div>
+          <nav aria-label="Sidebar navigasi">
+            <a href="dashboard.html">Dashboard</a>
+            <a href="beli.html">Katalog</a>
+            <a class="active" href="keranjang.html">Keranjang <span data-cart-count hidden>0</span></a>
+            <a href="pesanan.html">Pesanan Saya</a>
+            <a href="profil.html">Profil</a>
+            <a href="chat.html">Chat Admin</a>
+          </nav>
+          <a class="logout-link" href="../../index.html" data-logout-button>Keluar</a>
+        </aside>
+        <div class="main-panel">
+          <header class="mb-5">
+            <span class="eyebrow">Checkout DOKU</span>
+            <h1 style="margin-top:10px;font-size:2rem;">Keranjang belanja</h1>
+          </header>
+          <div class="commerce-layout">
+            <section class="commerce-panel" aria-label="Barang di keranjang">
+              <h2>Barang pilihan</h2>
+              <div class="commerce-cart-list" data-cart-content aria-live="polite">
+                <p class="muted">Memuat keranjang...</p>
+              </div>
+            </section>
+            <aside class="commerce-panel" aria-label="Ringkasan pembayaran">
+              <div data-cart-shipping>
+                <div class="commerce-section-heading"><div><h2>Alamat pengiriman</h2><p>Memuat alamat...</p></div><a href="profil.html">Ubah alamat</a></div>
+              </div>
+              <div class="commerce-summary-total"><span>Total pembayaran</span><strong data-cart-total>Rp 0</strong></div>
+              <p class="commerce-error" data-cart-error role="alert" aria-live="polite"></p>
+              <button class="btn btn-primary" type="button" data-checkout disabled style="width:100%;">Bayar dengan DOKU</button>
+              <small class="muted" style="display:block;margin-top:10px;">Pembayaran aman diproses melalui halaman resmi DOKU.</small>
+            </aside>
+          </div>
+        </div>
+      </div>
+    </main>
+    <script type="module" src="assets/app.js"></script>
+  </body>
+</html>

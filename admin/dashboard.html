@@ -35,7 +35,26 @@
                     <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Masih Menunggu</p>
                     <p id="statMatchWaiting" class="mt-2 text-3xl font-bold text-amber-600">-</p>
                 </div>
-              
+                <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                    <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Marketplace</p>
+                    <p class="mt-2 text-3xl font-bold text-violet-600">Admin</p>
+                    <p class="mt-1 text-xs text-slate-500">Produk hanya dikelola oleh admin</p>
+                </div>
+            </div>
+
+            <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 mb-8">
+                <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                    <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Omzet dibayar</p>
+                    <p id="marketplaceRevenue" class="mt-2 text-2xl font-bold text-emerald-700">Rp 0</p>
+                </div>
+                <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                    <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Perlu diproses</p>
+                    <p id="marketplaceToProcess" class="mt-2 text-3xl font-bold text-amber-600">0</p>
+                </div>
+                <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                    <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Stok menipis</p>
+                    <p id="marketplaceLowStock" class="mt-2 text-3xl font-bold text-rose-600">0</p>
+                </div>
             </div>
 
             <!-- QUICK LINKS -->
@@ -56,6 +75,13 @@
                     <h3 class="font-bold text-slate-900">Frame Foto LDR</h3>
                     <p class="mt-1 text-xs text-slate-500">Kelola frame dua-slot untuk fitur Foto LDR.</p>
                     <span class="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-pink-600 group-hover:underline">Buka halaman <span class="material-symbols-outlined text-sm">arrow_forward</span></span>
+                </a>
+
+                <a href="/admin/marketplace-orders.html" class="group rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-pink-300 hover:shadow-md">
+                    <div class="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700"><span class="material-symbols-outlined">receipt_long</span></div>
+                    <h3 class="font-bold text-slate-900">Pesanan Marketplace</h3>
+                    <p class="mt-1 text-xs text-slate-500">Pantau pembayaran, pengiriman, dan alamat pelanggan.</p>
+                    <span class="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-pink-600 group-hover:underline">Buka pesanan <span class="material-symbols-outlined text-sm">arrow_forward</span></span>
                 </a>
             </div>
 
@@ -92,7 +118,7 @@
             const ok = await verifyAdminPageSession();
             if (!ok) return;
             loadMatchSummary();
-            loadWeddingSummary();
+            loadMarketplaceSummary();
         }
 
         async function verifyAdminPageSession() {
@@ -145,6 +171,29 @@
             return 'bg-amber-100 text-amber-800';
         }
 
+        async function loadMarketplaceSummary() {
+            try {
+                const [ordersResponse, productsResponse] = await Promise.all([
+                    fetch('/api/admin/get-marketplace-orders', { credentials: 'same-origin' }),
+                    fetch('/api/admin/get-marketplace-products', { credentials: 'same-origin' })
+                ]);
+                const [ordersResult, productsResult] = await Promise.all([ordersResponse.json(), productsResponse.json()]);
+                if (!ordersResponse.ok || !ordersResult.success || !productsResponse.ok || !productsResult.success) {
+                    throw new Error('Ringkasan marketplace gagal dimuat.');
+                }
+                const orders = Array.isArray(ordersResult.data) ? ordersResult.data : [];
+                const products = Array.isArray(productsResult.data) ? productsResult.data : [];
+                const revenue = orders.filter((order) => order.paymentStatus === 'PAID').reduce((sum, order) => sum + (Number(order.totalAmount) || 0), 0);
+                const toProcess = orders.filter((order) => order.status === 'paid').length;
+                const lowStock = products.filter((product) => Number(product.stock ?? 1) > 0 && Number(product.stock ?? 1) <= 2).length;
+                document.getElementById('marketplaceRevenue').textContent = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(revenue);
+                document.getElementById('marketplaceToProcess').textContent = String(toProcess);
+                document.getElementById('marketplaceLowStock').textContent = String(lowStock);
+            } catch (error) {
+                console.error('[marketplace admin] dashboard metrics gagal dimuat:', error);
+            }
+        }
+
         async function loadMatchSummary() {
             const tbody = document.getElementById('recentMatchBody');
             try {
@@ -195,23 +244,6 @@
                 document.getElementById('statMatchDone').textContent = '-';
                 document.getElementById('statMatchWaiting').textContent = '-';
                 tbody.innerHTML = '<tr><td colspan="3" class="text-center py-8 text-red-500">Gagal mengambil data match confirm.</td></tr>';
-            }
-        }
-
-        // Catatan: endpoint di bawah ini asumsi mengikuti pola penamaan API admin lain.
-        // Cek nama endpoint asli untuk wedding-requests, sesuaikan jika berbeda.
-        async function loadWeddingSummary() {
-            const statEl = document.getElementById('statWeddingTotal');
-            try {
-                const response = await fetch('/api/admin/get-wedding-requests');
-                if (!response.ok) throw new Error('Endpoint tidak tersedia');
-                const result = await response.json();
-                const data = result.success && Array.isArray(result.data) ? result.data : [];
-                statEl.textContent = data.length;
-            } catch (error) {
-                statEl.textContent = 'Data tidak tersedia';
-                statEl.classList.add('text-sm', 'text-slate-400', 'font-medium');
-                statEl.classList.remove('text-3xl', 'font-bold', 'text-slate-900');
             }
         }
 

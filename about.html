@@ -1,479 +1,203 @@
 <!DOCTYPE html>
-<html class="light" lang="id">
+<html lang="id">
 <head>
-    <meta charset="utf-8"/>
-    <meta name="viewport" content="width=1024" />
-    <title>Tentang Kami - Gamon Tawing Curhat Ruang Dukungan Emosional(Curhat) & Ekspresi Digital</title>
-    <meta name="description" content="Gamon Tawing Curhat adalah platform digital dan peer-support komprehensif bagi generasi muda untuk berekspresi(Curhat), berbagi cerita secara aman, dan mendapatkan dukungan komunitas." />
-    <link rel="icon" type="image/svg+xml" href="image/logo/Gamon%20Tawing.svg" />
-    <link rel="icon" type="image/png" href="image/logo/Gamon%20Tawing.png" />
-    
-    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&amp;display=swap" rel="stylesheet"/>
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400..900&amp;display=swap" rel="stylesheet"/>
-    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
-    
-    <script id="tailwind-config">
-        tailwind.config = {
-            darkMode: "class",
-            theme: {
-                extend: {
-                    "colors": {
-                        "outline": "#7f7478",
-                        "inverse-on-surface": "#f5eff1",
-                        "secondary-fixed": "#ecdeee",
-                        "primary-fixed": "#f4dce4",
-                        "on-primary": "#ffffff",
-                        "secondary": "#655b68",
-                        "on-surface-variant": "#4d4447",
-                        "on-error-container": "#93000a",
-                        "surface-dim": "#ded9db",
-                        "on-secondary": "#ffffff",
-                        "on-surface": "#1d1b1d",
-                        "surface-container-highest": "#e7e1e3",
-                        "surface-container-high": "#ece7e9",
-                        "on-primary-fixed-variant": "#524249",
-                        "outline-variant": "#d0c3c7",
-                        "background": "#fef8fa",
-                        "on-secondary-fixed-variant": "#4d4450",
-                        "tertiary-container": "#d9edf6",
-                        "error-container": "#ffdad6",
-                        "tertiary": "#4f6169",
-                        "surface-container-lowest": "#ffffff",
-                        "surface-container": "#f2ecee",
-                        "secondary-container": "#ecdeee",
-                        "tertiary-fixed-dim": "#b6cad2",
-                        "on-primary-container": "#76646b",
-                        "surface-bright": "#fef8fa",
-                        "primary-fixed-dim": "#d7c1c8",
-                        "primary": "#6b5a60",
-                        "inverse-surface": "#323031",
-                        "on-primary-fixed": "#25181e",
-                        "on-secondary-container": "#6b616e",
-                        "on-tertiary-container": "#596c73",
-                        "on-tertiary-fixed": "#0b1e24",
-                        "inverse-primary": "#d7c1c8",
-                        "on-tertiary": "#ffffff",
-                        "tertiary-fixed": "#d2e6ef",
-                        "secondary-fixed-dim": "#cfc2d2",
-                        "surface": "#fef8fa",
-                        "on-error": "#ffffff",
-                        "primary-container": "#fce4ec",
-                        "surface-variant": "#e7e1e3",
-                        "error": "#ba1a1a",
-                        "on-tertiary-fixed-variant": "#374951",
-                        "on-background": "#1d1b1d",
-                        "surface-tint": "#6b5a60",
-                        "on-secondary-fixed": "#201924",
-                        "surface-container-low": "#f8f2f4"
-                    },
-                    "borderRadius": {
-                        "DEFAULT": "0.25rem",
-                        "lg": "0.5rem",
-                        "xl": "0.75rem",
-                        "full": "9999px"
-                    },
-                    "spacing": {
-                        "unit": "8px",
-                        "section-gap": "60px",
-                        "gutter": "24px",
-                        "container-padding": "40px"
-                    },
-                    "fontFamily": {
-                        "body-lg": ["Inter"],
-                        "body-md": ["Inter"],
-                        "display-lg": ["Playfair Display"],
-                        "label-md": ["Inter"],
-                        "headline-sm": ["Playfair Display"],
-                        "headline-md": ["Playfair Display"]
-                    }
-                },
-            },
-        }
-    </script>
-    <style>
-        body {
-            background: linear-gradient(180deg, #010A17 0%, #0A4267 30%, #20658E 60%, #6BADC4 100%) fixed;
-            min-height: 100vh;
-            overflow-x: hidden;
-            color: rgba(255,255,255,0.9);
-        }
-
-        .star-particle {
-            position: absolute;
-            background: #e7d8ff;
-            border-radius: 50%;
-            opacity: 0.55;
-            pointer-events: none;
-            box-shadow: 0 0 6px rgba(231,216,255,0.6);
-        }
-
-        .space-decor {
-            position: absolute;
-            pointer-events: none;
-            opacity: 0.2;
-            filter: blur(4px);
-            animation: spaceFloat 18s infinite ease-in-out alternate;
-        }
-
-        @keyframes spaceFloat {
-            0% { transform: translateY(0px) rotate(0deg) scale(1); }
-            100% { transform: translateY(-30px) rotate(15deg) scale(1.15); }
-        }
-
-        @keyframes pulse-soft {
-            0%, 100% { transform: scale(1); opacity: 0.4; }
-            50% { transform: scale(1.5); opacity: 0.7; }
-        }
-
-        #gtSkyLayer {
-            position: fixed;
-            inset: 0;
-            z-index: 2;
-            pointer-events: none;
-            overflow: hidden;
-        }
-
-        .gt-cloud {
-            position: absolute;
-            bottom: -6%;
-            width: 620px;
-            max-width: 62vw;
-            opacity: 0.5;
-            will-change: transform;
-            transform: translate3d(0,0,0);
-        }
-
-        .gt-cloud img {
-            width: 100%;
-            display: block;
-        }
-
-        .gt-cloud-left { left: -12%; }
-        .gt-cloud-right { right: -14%; transform: scaleX(-1); }
-
-        .glass-card {
-            background: rgba(255, 255, 255, 0.09);
-            backdrop-filter: blur(18px);
-            -webkit-backdrop-filter: blur(18px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            box-shadow: 0 18px 42px -18px rgba(1,10,23,0.45);
-        }
-
-        .content-shell {
-            position: relative;
-            z-index: 10;
-            width: min(1120px, calc(100% - 32px));
-            margin: 0 auto;
-            padding-top: 6.5rem;
-            padding-bottom: 5rem;
-        }
-
-        .section-title {
-            color: rgba(255,255,255,0.96);
-            letter-spacing: -0.02em;
-        }
-
-        .section-text {
-            color: rgba(255,255,255,0.74);
-        }
-
-        .info-tile {
-            background: rgba(255,255,255,0.06);
-            border: 1px solid rgba(255,255,255,0.12);
-            border-radius: 1rem;
-            padding: 1rem 1.1rem;
-        }
-
-        .feature-pill {
-            background: rgba(255,255,255,0.06);
-            border: 1px solid rgba(255,255,255,0.12);
-            border-radius: 0.9rem;
-            padding: 0.9rem 1rem;
-        }
-
-        .gradient-btn {
-            background: linear-gradient(135deg, #f9d8c5 0%, #f7d9e8 35%, #dfe7ff 100%);
-            color: #2f1f26;
-            box-shadow: 0 8px 24px rgba(1,10,23,0.25);
-        }
-
-        .help-box {
-            border-radius: 1rem;
-            border: 1px solid rgba(255,255,255,0.18);
-            background: rgba(255,255,255,0.07);
-            padding: 1rem 1.15rem;
-        }
-
-        .help-label {
-            font-size: 11px;
-            letter-spacing: 0.12em;
-            text-transform: uppercase;
-            color: rgba(255,255,255,0.6);
-            margin-bottom: 0.5rem;
-        }
-
-        .help-line {
-            font-size: 14px;
-            color: #fff;
-            margin-bottom: 0.25rem;
-        }
-
-        .help-line strong { font-weight: 700; }
-
-        @media (max-width: 768px) {
-            .gt-cloud { display: none; }
-            .content-shell {
-                width: min(100% - 24px, 1120px);
-                padding-top: 5.5rem;
-            }
-        }
-    </style>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Kerja sama dan kolaborasi - Gamon Tawing</title>
+<meta name="description" content="Gamon Tawing membuka kerja sama dan kolaborasi dengan brand, kafe, komunitas, dan lembaga. Hubungi lewat WhatsApp, email, atau Instagram."/>
+<link rel="icon" type="image/svg+xml" href="image/logo/Gamon%20Tawing.svg"/>
+<link rel="icon" type="image/png" href="image/logo/Gamon%20Tawing.png"/>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;800&family=Inter:wght@400;500;600&family=Material+Symbols+Outlined&display=swap" rel="stylesheet"/>
+<style>
+:root{--sky:#d4e9f5;--ink:#0b2342;--coral:#ff5c7a;--sun:#ffd66b;--white:#fff;--mute:#47607c;--f-d:"Bricolage Grotesque","Inter",system-ui,sans-serif;--f-b:"Inter",system-ui,sans-serif}
+*{box-sizing:border-box;margin:0}
+html{scroll-behavior:smooth}
+body{font-family:var(--f-b);background:var(--sky);color:var(--ink);line-height:1.65;overflow-x:hidden}
+.ms{font-family:"Material Symbols Outlined";font-weight:400;font-style:normal;font-size:26px;line-height:1;display:inline-block}
+.wrap{width:min(1080px,calc(100% - 32px));margin:0 auto}
+h1,h2,h3{font-family:var(--f-d);font-weight:800;letter-spacing:-.025em;line-height:1.05}
+h1{font-size:clamp(2.6rem,8vw,5.6rem)}
+h2{font-size:clamp(1.8rem,4.6vw,2.8rem)}
+p{max-width:62ch}
+a{color:inherit}
+:focus-visible{outline:3px solid var(--coral);outline-offset:3px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:13px 22px;border:2px solid var(--ink);border-radius:12px;background:var(--coral);color:var(--ink);font:600 1rem var(--f-b);text-decoration:none;cursor:pointer;box-shadow:4px 4px 0 var(--ink);transition:transform .12s,box-shadow .12s}
+.btn:hover{transform:translate(2px,2px);box-shadow:2px 2px 0 var(--ink)}
+.btn.alt{background:var(--white)}
+.bar{display:flex;justify-content:space-between;align-items:center;padding:20px 0;font-weight:600}
+.bar a{text-decoration:none}.bar a:hover{text-decoration:underline}
+.hero{display:grid;grid-template-columns:1.15fr .85fr;gap:48px;align-items:center;padding:28px 0 72px}
+.hero p{margin-top:22px;font-size:1.12rem;color:var(--mute)}
+.cta{display:flex;flex-wrap:wrap;gap:14px;margin-top:30px}
+.tickets{display:grid;gap:18px}
+.tk{display:flex;border:2px solid var(--ink);border-radius:16px;background:var(--white);text-decoration:none;box-shadow:6px 6px 0 var(--ink);transition:transform .2s}
+.tk:nth-child(1){transform:rotate(-1.6deg)}.tk:nth-child(2){transform:rotate(1.2deg) translateX(14px)}.tk:nth-child(3){transform:rotate(-.8deg)}
+.tk:hover{transform:rotate(0) translateY(-3px)}
+.tk i{flex:none;width:76px;display:grid;place-items:center;border-right:2px dashed var(--ink);border-radius:14px 0 0 14px}
+.tk:nth-child(1) i{background:var(--sun)}.tk:nth-child(2) i{background:var(--coral)}.tk:nth-child(3) i{background:var(--sky)}
+.tk span{padding:14px 18px;min-width:0}
+.tk small{display:block;color:var(--mute);font-size:.82rem}
+.tk b{display:block;font-weight:600;overflow-wrap:anywhere}
+.band{padding:72px 0;border-top:2px solid var(--ink)}
+.band.dark{background:var(--ink);color:var(--white)}
+.band.dark p{color:#b8cce2}
+.intro{margin-bottom:34px}.intro p{margin-top:12px;color:var(--mute);font-size:1.05rem}
+.dark .intro p{color:#b8cce2}
+.pick{display:grid;grid-template-columns:260px 1fr;gap:40px;align-items:start}
+.list{display:flex;flex-direction:column;gap:8px}
+.tab{text-align:left;padding:12px 16px;border:2px solid var(--ink);border-radius:12px;background:transparent;font:600 .98rem var(--f-b);color:var(--ink);cursor:pointer}
+.tab:hover{background:var(--white)}
+.tab[aria-selected=true]{background:var(--ink);color:var(--white)}
+.detail{background:var(--white);border:2px solid var(--ink);border-radius:20px;padding:clamp(22px,4vw,38px);box-shadow:6px 6px 0 var(--ink)}
+.detail h3{font-size:clamp(1.5rem,3.4vw,2.1rem);margin-bottom:12px}
+.detail>p{color:var(--mute)}
+.detail ul{margin:20px 0 26px;padding:0;list-style:none;border-top:2px solid var(--ink)}
+.detail li{padding:11px 0;border-bottom:1px solid #c5d6e6}
+.need{display:grid;grid-template-columns:1fr 1.3fr;gap:48px}
+details{border-bottom:2px solid var(--ink)}
+details:first-of-type{border-top:2px solid var(--ink)}
+summary{cursor:pointer;list-style:none;padding:18px 0;font:800 1.25rem var(--f-d);display:flex;justify-content:space-between;gap:16px}
+summary::-webkit-details-marker{display:none}
+summary::after{content:"+";font-size:1.6rem;line-height:1;transition:transform .2s}
+details[open] summary::after{transform:rotate(45deg)}
+details p{padding:0 0 20px;color:var(--mute)}
+.flow{display:grid;grid-template-columns:repeat(4,1fr);gap:0;counter-reset:s;position:relative}
+.flow::before{content:"";position:absolute;left:0;right:0;top:22px;border-top:2px dashed var(--ink)}
+.flow li{list-style:none;counter-increment:s;position:relative;padding-right:22px}
+.flow li::before{content:counter(s);display:grid;place-items:center;width:46px;height:46px;border-radius:50%;background:var(--sun);border:2px solid var(--ink);font:800 1.15rem var(--f-d);position:relative;margin-bottom:16px}
+.flow h3{font-size:1.25rem;margin-bottom:6px}.flow p{color:var(--mute);font-size:.95rem}
+form{display:grid;gap:18px;max-width:720px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+label{display:grid;gap:7px;font-weight:500;font-size:.95rem}
+input,select,textarea{font:inherit;color:var(--ink);background:var(--white);border:2px solid var(--white);border-radius:12px;padding:12px 14px;width:100%}
+input:focus,select:focus,textarea:focus{outline:3px solid var(--sun);border-color:var(--sun)}
+.err{color:var(--sun);font-weight:600}
+.fa{display:flex;flex-wrap:wrap;gap:14px}
+.dark .btn{box-shadow:4px 4px 0 var(--sun);border-color:var(--sun)}
+.dark .btn.alt{border-color:var(--white);box-shadow:4px 4px 0 var(--white)}
+.dark .btn:hover{box-shadow:2px 2px 0 var(--sun)}
+footer{padding:28px 0 40px;color:var(--mute);font-size:.9rem}
+footer p{max-width:none}
+@media(max-width:860px){
+ .hero,.need,.pick{grid-template-columns:1fr;gap:34px}
+ .tk:nth-child(2){transform:rotate(1.2deg)}
+ .list{flex-direction:row;overflow-x:auto;padding:2px 2px 10px;scroll-snap-type:x proximity}
+ .tab{white-space:nowrap;scroll-snap-align:start}
+ .flow{grid-template-columns:1fr;gap:26px}.flow::before{left:22px;right:auto;top:0;bottom:0;border-top:0;border-left:2px dashed var(--ink)}
+ .flow li{padding:0 0 0 64px}.flow li::before{position:absolute;left:0;top:0;margin:0}
+ .band{padding:52px 0}
+}
+@media(max-width:560px){.two{grid-template-columns:1fr}.btn{width:100%}}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}html{scroll-behavior:auto}}
+</style>
 </head>
-<body class="text-white/90 selection:bg-primary-container">
-    <div class="fixed inset-0 pointer-events-none z-0" id="spaceBackground">
-        <div class="fixed inset-0" id="stars"></div>
+<body>
+<div class="wrap">
+  <div class="bar"><a href="index.html">Kembali</a><span>Gamon Tawing</span></div>
+  <header class="hero">
+    <div>
+      <h1>Gamon Tawing lagi cari teman jalan.</h1>
+      <p>Gamon Tawing adalah platform komunitas, curhat anonim, dan ekosistem kreatif digital yang dibangun mandiri. Supaya bisa melayani lebih banyak orang, kami membuka kerja sama dan kolaborasi dengan brand, kafe, komunitas, dan lembaga.</p>
+      <div class="cta">
+        <a class="btn" href="#ajukan">Ajukan kolaborasi</a>
+        <a class="btn alt" href="#bentuk">Lihat bentuknya</a>
+      </div>
     </div>
+    <div class="tickets" id="contacts" aria-label="Kontak"></div>
+  </header>
+</div>
 
-    <div id="gtSkyLayer">
-        <div class="gt-cloud gt-cloud-left" id="gtCloudLeft">
-            <img src="https://soft-zoom-63098134.figma.site/_assets/v11/0d6dfd3f90b930f21726f2ed56a3320d79b7a797.png" alt="" />
-        </div>
-        <div class="gt-cloud gt-cloud-right" id="gtCloudRight">
-            <img src="https://soft-zoom-63098134.figma.site/_assets/v11/0d6dfd3f90b930f21726f2ed56a3320d79b7a797.png" alt="" />
-        </div>
+<section class="band" id="bentuk">
+  <div class="wrap">
+    <div class="intro"><h2>Mau kerja sama dalam bentuk apa?</h2><p>Pilih salah satu untuk melihat contoh idenya. Semuanya bisa disesuaikan dengan kemampuan masing-masing pihak.</p></div>
+    <div class="pick">
+      <div class="list" role="tablist" aria-orientation="vertical" id="tabs" aria-label="Jenis kolaborasi"></div>
+      <div class="detail" id="panel" role="tabpanel"></div>
     </div>
+  </div>
+</section>
 
-    <main class="content-shell">
-        <div class="mb-6 flex justify-start">
-            <a href="index.html" class="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-full gradient-btn font-semibold transition-all hover:shadow-lg hover:scale-[1.02] active:scale-95 border border-white/50 text-sm sm:text-base">
-                <span class="material-symbols-outlined text-sm">arrow_back</span>
-                Kembali
-            </a>
-        </div>
+<section class="band" style="background:#fff">
+  <div class="wrap need">
+    <div><h2>Yang kami butuhkan</h2><p style="margin-top:14px;color:var(--mute)">Dukungan tidak harus uang. Teknologi, infrastruktur, keahlian, dan jaringan sama berharganya. Gamon Tawing tidak membatasi bentuk dukungan.</p></div>
+    <div>
+      <details open><summary>Identitas dan infrastruktur digital</summary><p>Domain profesional, server atau cloud, dan database yang lebih optimal supaya platform lebih kredibel, cepat, stabil, dan aman.</p></details>
+      <details><summary>Pengembangan teknologi</summary><p>Peningkatan backend, arsitektur sistem, keamanan aplikasi, dan infrastruktur AI Curhat agar performanya tetap baik saat pengguna bertambah.</p></details>
+      <details><summary>Pengembangan produk</summary><p>Penyempurnaan AI Curhat, Foto LDR, Self Photo, Marketplace Mantan, dan Undangan Digital, serta aplikasi Android/iOS dan fitur baru.</p></details>
+      <details><summary>Marketing dan jangkauan</summary><p>Digital marketing, SEO, iklan berbayar, branding, kegiatan komunitas, dan kolaborasi lintas pihak.</p></details>
+      <details><summary>Kemitraan teknis dan strategis</summary><p>Pendanaan, teknologi, infrastruktur, keahlian, mentoring, kemitraan pengembangan, dan sponsorship.</p></details>
+    </div>
+  </div>
+</section>
 
-        <header class="text-center mb-10 sm:mb-12">
-            <p class="font-label-md text-white/75 uppercase tracking-[0.18em] mb-3">Ruang Aman Digital untuk Generasi Muda</p>
-            <h1 class="font-display-lg text-3xl sm:text-4xl md:text-5xl font-semibold text-white mb-4">Tentang Gamon Tawing Curhat</h1>
-            <p class="font-body-lg text-white/80 max-w-2xl mx-auto leading-relaxed">
-                Wadah kolaboratif untuk kesejahteraan mental dan kreativitas generasi muda.
-            </p>
-        </header>
+<section class="band">
+  <div class="wrap">
+    <div class="intro"><h2>Cara mulainya</h2><p>Singkat dan fleksibel. Peran Creator sebagai inisiator Gamon Tawing (Abell) tetap sesuai kesepakatan para pihak.</p></div>
+    <ol class="flow" style="padding:0">
+      <li><h3>Kenalan</h3><p>Hubungi kami dan ceritakan siapa kamu atau brand kamu.</p></li>
+      <li><h3>Diskusi ide</h3><p>Kita cari bentuk kerja sama yang cocok untuk dua pihak.</p></li>
+      <li><h3>Sepakati peran</h3><p>Tentukan kontribusi, jadwal, dan batasan masing-masing.</p></li>
+      <li><h3>Jalan bareng</h3><p>Jalankan, evaluasi, lalu kembangkan bersama.</p></li>
+    </ol>
+  </div>
+</section>
 
-        <div class="glass-card rounded-[30px] p-5 sm:p-8 md:p-12 space-y-8 sm:space-y-10">
-            <section>
-                <div class="flex items-center gap-2 mb-4 text-white">
-                    <span class="material-symbols-outlined text-2xl">auto_awesome</span>
-                    <h2 class="font-headline-md text-2xl sm:text-3xl font-medium section-title">Apa Itu Gamon Tawing Curhat?</h2>
-                </div>
-                <p class="font-body-md section-text leading-relaxed text-base sm:text-lg">
-                    Gamon Tawing Curhat adalah platform digital dan <em>peer-support</em> komprehensif bagi generasi muda untuk berekspresi(Curhat), berbagi cerita secara aman, saling mendukung, serta memanfaatkan berbagai fitur kreatif dan kesehatan mental dalam satu ekosistem terpadu. Kami mendorong ekspresi positif, anonimitas yang terjaga, serta lingkungan inklusif yang siap bersinergi dengan berbagai pihak, termasuk instansi pemerintah dan lembaga terkait kesehatan mental generasi muda.
-                </p>
-            </section>
+<section class="band dark" id="ajukan">
+  <div class="wrap">
+    <div class="intro"><h2>Ceritakan idemu</h2><p>Setelah diisi, pesan akan tersusun otomatis di WhatsApp atau email. Tidak ada data yang disimpan di situs ini.</p></div>
+    <form id="form" onsubmit="return false" novalidate>
+      <div class="two">
+        <label>Nama atau brand<input id="f-nama" autocomplete="name" placeholder="Contoh: Kafe Senja"/></label>
+        <label>Jenis kerja sama<select id="f-jenis"></select></label>
+      </div>
+      <label>Idemu<textarea id="f-pesan" rows="4" placeholder="Apa yang ingin dikerjakan bersama, dan apa yang bisa kamu bawa?"></textarea></label>
+      <p class="err" id="f-err" role="alert" hidden>Isi nama atau brand dulu.</p>
+      <div class="fa">
+        <button class="btn" type="button" id="send-wa">Kirim lewat WhatsApp</button>
+        <button class="btn alt" type="button" id="send-mail">Kirim lewat email</button>
+      </div>
+    </form>
+  </div>
+</section>
 
-            <hr class="border-white/15">
+<footer><div class="wrap"><p>Gamon Tawing adalah ruang dukungan sebaya, bukan pengganti layanan profesional. Jika butuh bantuan segera, hubungi Sejiwa di 119 ext. 8. Dibuat sejak 2025.</p></div></footer>
 
-            <section>
-                <div class="flex items-center gap-2 mb-6 text-white">
-                    <span class="material-symbols-outlined text-2xl">info</span>
-                    <h2 class="font-headline-md text-2xl sm:text-3xl font-medium section-title">Informasi Platform</h2>
-                </div>
-                <div class="grid md:grid-cols-2 gap-4">
-                    <div class="info-tile">
-                        <div class="font-semibold text-white mb-1">Nama Platform</div>
-                        <div class="section-text">Gamon Tawing Curhat</div>
-                    </div>
-                    <div class="info-tile">
-                        <div class="font-semibold text-white mb-1">Didirikan</div>
-                        <div class="section-text">Since 2025</div>
-                    </div>
-                    <div class="info-tile">
-                        <div class="font-semibold text-white mb-1">Lokasi asal</div>
-                        <div class="section-text">Banjarmasin, Kalimantan Selatan</div>
-                    </div>
-                    <div class="info-tile">
-                        <div class="font-semibold text-white mb-1">Bidang</div>
-                        <div class="section-text">Digital Platform, Peer-Support & Creative Technology</div>
-                    </div>
-                </div>
-            </section>
-
-            <section>
-                <div class="info-tile flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                    <div>
-                        <div class="font-semibold text-white mb-1">Ikuti Kami</div>
-                        <p class="section-text">Stay update dengan cerita dan kegiatan terbaru melalui Instagram resmi kami.</p>
-                    </div>
-                    <a href="https://www.instagram.com/gamontawing/" target="_blank" rel="noreferrer noopener" class="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-full gradient-btn font-semibold shadow-sm hover:shadow-md transition-all hover:scale-[1.02] active:scale-95">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="min-w-[20px] min-h-[20px]">
-                            <path d="M7.75 2H16.25C19.0457 2 21.25 4.20435 21.25 7V17C21.25 19.7957 19.0457 22 16.25 22H7.75C4.95435 22 2.75 19.7957 2.75 17V7C2.75 4.20435 4.95435 2 7.75 2Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                            <path d="M15.5 11.9999C15.5 14.0611 14.0611 15.5 11.9999 15.5C9.93875 15.5 8.49985 14.0611 8.49985 11.9999C8.49985 9.9387 9.93875 8.4998 11.9999 8.4998C14.0611 8.4998 15.5 9.9387 15.5 11.9999Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                            <path d="M17.75 6.49988H17.7601" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                        </svg>
-                        @gamontawing
-                    </a>
-                </div>
-            </section>
-
-            <hr class="border-white/15">
-
-            <section>
-                <div class="flex items-center gap-2 mb-4 text-white">
-                    <span class="material-symbols-outlined text-2xl">favorite</span>
-                    <h2 class="font-headline-md text-2xl sm:text-3xl font-medium section-title">Mengapa Kami Membuat Ini?</h2>
-                </div>
-                <div class="font-body-md section-text space-y-4 leading-relaxed text-base sm:text-lg">
-                    <p>Banyak generasi muda mengalami kehilangan, penolakan, perpisahan, patah hati, dan berbagai tekanan emosional tanpa memiliki ruang yang aman dan nyaman untuk mengekspresikan perasaannya.</p>
-                    <p>Tidak sedikit konflik, tindakan impulsif, hingga tekanan psikologis berat yang berawal dari emosi yang dipendam terlalu lama tanpa adanya ruang untuk bercerita dan mendapatkan dukungan sebaya yang sehat.</p>
-                    <p>Gamon Tawing Curhat hadir sebagai ruang digital yang memungkinkan setiap orang menuliskan isi hati mereka, mengenang kenangan, menyampaikan pesan yang belum sempat terucap, serta menemukan bahwa mereka tidak sendirian dalam menghadapi rasa kehilangan.</p>
-                    <p>Kami percaya bahwa setiap cerita layak didengar dan setiap perasaan berhak mendapatkan ruang untuk disampaikan secara sehat, bertanggung jawab, dan terhubung dengan dukungan yang tepat bila dibutuhkan.</p>
-                </div>
-            </section>
-
-            <hr class="border-white/15">
-
-            <section>
-                <div class="flex items-center gap-2 mb-6 text-white">
-                    <span class="material-symbols-outlined text-2xl">apps</span>
-                    <h2 class="font-headline-md text-2xl sm:text-3xl font-medium section-title">Fitur Platform</h2>
-                </div>
-                <div class="grid sm:grid-cols-2 md:grid-cols-3 gap-4">
-                    <div class="feature-pill flex items-center gap-3 text-white/90">
-                        <span class="material-symbols-outlined text-xl">mail</span> <span class="font-medium">Pesan Gamon</span>
-                    </div>
-                    <div class="feature-pill flex items-center gap-3 text-white/90">
-                        <span class="material-symbols-outlined text-xl">smart_toy</span> <span class="font-medium">AI Curhat</span>
-                    </div>
-                    <div class="feature-pill flex items-center gap-3 text-white/90">
-                        <span class="material-symbols-outlined text-xl">favorite</span> <span class="font-medium">Dukungan Komunitas</span>
-                    </div>
-                    <div class="feature-pill flex items-center gap-3 text-white/90">
-                        <span class="material-symbols-outlined text-xl">map</span> <span class="font-medium">Peta Persebaran Cerita</span>
-                    </div>
-                    <div class="feature-pill flex items-center gap-3 text-white/90">
-                        <span class="material-symbols-outlined text-xl">photo_camera_front</span> <span class="font-medium">Foto LDR</span>
-                    </div>
-                    <div class="feature-pill flex items-center gap-3 text-white/90">
-                        <span class="material-symbols-outlined text-xl">celebration</span> <span class="font-medium">Undangan Digital</span>
-                    </div>
-                    <div class="feature-pill flex items-center gap-3 text-white/90">
-                        <span class="material-symbols-outlined text-xl">shopping_bag</span> <span class="font-medium">Marketplace Mantan</span>
-                    </div>
-                </div>
-            </section>
-
-            <hr class="border-white/15">
-
-            <section class="grid md:grid-cols-2 gap-8">
-                <div>
-                    <div class="flex items-center gap-2 mb-3 text-white">
-                        <span class="material-symbols-outlined text-xl">visibility</span>
-                        <h3 class="font-headline-sm text-xl font-medium section-title">Visi</h3>
-                    </div>
-                    <p class="font-body-md section-text leading-relaxed text-base sm:text-lg">
-                        Menjadi wadah kolaboratif terdepan bagi kesejahteraan mental dan kreativitas generasi muda, yang terbuka untuk bersinergi dengan komunitas, institusi pendidikan, maupun instansi pemerintah.
-                    </p>
-                </div>
-                <div>
-                    <div class="flex items-center gap-2 mb-3 text-white">
-                        <span class="material-symbols-outlined text-xl">track_changes</span>
-                        <h3 class="font-headline-sm text-xl font-medium section-title">Misi</h3>
-                    </div>
-                    <ul class="font-body-md section-text space-y-2 text-base sm:text-lg">
-                        <li class="flex items-start gap-2">
-                            <span class="text-pink-200 mt-1">•</span>
-                            <span>Menyediakan ruang ekspresi yang aman, anonim, dan mudah diakses.</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-pink-200 mt-1">•</span>
-                            <span>Mengembangkan teknologi pendukung kesehatan mental dan kreativitas positif.</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-pink-200 mt-1">•</span>
-                            <span>Membangun komunitas peer-support yang saling memahami dan menguatkan.</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-pink-200 mt-1">•</span>
-                            <span>Berkolaborasi dengan berbagai pihak untuk perluasan akses dukungan kesehatan mental generasi muda.</span>
-                        </li>
-                    </ul>
-                </div>
-            </section>
-
-            <hr class="border-white/15">
-
-            <section class="bg-white/5 border border-white/10 rounded-2xl p-5 sm:p-6">
-                <div class="flex items-center gap-2 mb-3 text-pink-200">
-                    <span class="material-symbols-outlined">warning</span>
-                    <h2 class="font-headline-sm text-lg font-semibold text-white">Disclaimer</h2>
-                </div>
-                <div class="font-body-md section-text space-y-3 text-sm sm:text-base leading-relaxed">
-                    <p>Gamon Tawing Curhat adalah ruang dukungan sebaya dan ekosistem digital positif, bukan pengganti layanan psikologi, psikiatri, maupun konseling profesional.</p>
-                    <p>Jika kamu atau temanmu mengalami kondisi darurat, krisis emosional berat, atau keinginan menyakiti diri sendiri, segera hubungi keluarga, tenaga kesehatan, psikolog, psikiater, atau layanan darurat di wilayah Anda.</p>
-                </div>
-                <div class="help-box mt-4">
-                    <div class="help-label">Layanan Bantuan Resmi</div>
-                    <div class="help-line"><strong>Sejiwa</strong> — 119 ext. 8</div>
-                    <div class="help-line" style="color:rgba(255,255,255,0.8); font-weight:400;">Hotline kesehatan jiwa Kementerian Kesehatan RI untuk dukungan awal dan rujukan profesional.</div>
-                </div>
-            </section>
-
-            <div class="pt-4 text-center border-t border-white/10">
-                <p class="text-xs text-white/65">Dibuat dengan ❤️ sejak 2025.</p>
-            </div>
-        </div>
-    </main>
-
-    <script>
-        const starsContainer = document.getElementById('stars');
-        const starCount = 60;
-
-        for (let i = 0; i < starCount; i++) {
-            const star = document.createElement('div');
-            star.className = 'star-particle';
-            const size = 2 + Math.random() * 4;
-            star.style.width = `${size}px`;
-            star.style.height = `${size}px`;
-            star.style.left = `${Math.random() * 100}%`;
-            star.style.top = `${Math.random() * 100}%`;
-            star.style.animation = `pulse-soft ${3 + Math.random() * 6}s infinite ease-in-out`;
-            star.style.animationDelay = `${Math.random() * 5}s`;
-            starsContainer.appendChild(star);
-        }
-
-        const spaceBg = document.getElementById('spaceBackground');
-        const spaceEmojis = ['☁️', '🪐', '✨', '☁️', '🌙'];
-        for (let i = 0; i < 6; i++) {
-            const decor = document.createElement('div');
-            decor.className = 'space-decor';
-            decor.textContent = spaceEmojis[i % spaceEmojis.length];
-            decor.style.fontSize = (40 + Math.random() * 60) + 'px';
-            decor.style.left = (Math.random() * 90) + '%';
-            decor.style.top = (Math.random() * 80) + '%';
-            decor.style.animationDelay = (Math.random() * -10) + 's';
-            decor.style.animationDuration = (15 + Math.random() * 15) + 's';
-            spaceBg.appendChild(decor);
-        }
-
-        (function () {
-            const cloudL = document.getElementById('gtCloudLeft');
-            const cloudR = document.getElementById('gtCloudRight');
-            if (!cloudL || !cloudR) return;
-
-            let targetY = 0, currentY = 0;
-            function onScroll() {
-                targetY = window.scrollY || window.pageYOffset || 0;
-            }
-            window.addEventListener('scroll', onScroll, { passive: true });
-
-            function tick() {
-                currentY += (targetY - currentY) * 0.06;
-                cloudL.style.transform = `translate3d(${-currentY * 0.03}px, ${-currentY * 0.05}px, 0)`;
-                cloudR.style.transform = `translate3d(${currentY * 0.03}px, ${-currentY * 0.05}px, 0) scaleX(-1)`;
-                requestAnimationFrame(tick);
-            }
-            requestAnimationFrame(tick);
-        })();
-    </script>
+<script>
+var CONTACT={wa:"62895703228001",waLabel:"0895-7032-28001",email:"muhamadabelldeskiawan@gmail.com",ig:"gamontawing"};
+var TYPES=[
+{id:"brand",name:"Brand pakaian",title:"Brand pakaian x Gamon Tawing",desc:"Gabungkan gaya dengan cerita. Brand fashion bisa menghadirkan produk dengan pesan positif tentang move on dan ekspresi diri.",ideas:["Koleksi kapsul atau merch bertema Gamon Tawing","Promo atau kode khusus lewat Marketplace Mantan","Konten bareng, giveaway, atau photoshoot kampanye","Sebagian penjualan disumbangkan untuk kegiatan komunitas"]},
+{id:"kafe",name:"Kafe",title:"Kafe x Gamon Tawing",desc:"Tempat nongkrong bisa jadi ruang aman untuk bercerita dan berkumpul.",ideas:["Acara ngopi dan curhat bareng komunitas","Menu spesial hasil kolaborasi","QR di meja yang mengarah ke Gamon Tawing","Tempat gathering dan kegiatan komunitas"]},
+{id:"komunitas",name:"Komunitas dan kampus",title:"Komunitas, kampus, dan organisasi",desc:"Bangun budaya saling mendukung dan ruang ekspresi yang sehat untuk anak muda.",ideas:["Talkshow, workshop, atau webinar","Kegiatan peer-support dan kampanye kesadaran","Lomba dan program kreatif bersama","Sosialisasi platform ke anggota"]},
+{id:"teknis",name:"Teknologi dan server",title:"Dukungan teknologi dan infrastruktur",desc:"Bantu platform tumbuh lebih stabil dan aman lewat infrastruktur, keahlian, atau mentoring.",ideas:["Domain, server, cloud, atau database","Pengembangan backend, keamanan, dan AI Curhat","Aplikasi Android dan iOS","Mentoring dan tinjauan teknis"]},
+{id:"sponsor",name:"Sponsor dan media",title:"Sponsor, media, dan kreator",desc:"Perluas jangkauan lewat publikasi, promosi, atau sponsorship dengan nilai yang selaras.",ideas:["Sponsorship kegiatan atau fitur","Liputan dan kolaborasi konten","Iklan, SEO, dan branding bersama","Kerja sama dengan kreator"]},
+{id:"instansi",name:"Instansi dan lembaga",title:"Instansi pemerintah dan lembaga kesehatan mental",desc:"Bersinergi memperluas akses dukungan kesehatan mental anak muda secara aman dan bertanggung jawab.",ideas:["Program literasi kesehatan mental","Jalur rujukan ke layanan profesional","Kajian dan program percontohan bersama","Dukungan pendanaan atau kemitraan strategis"]}
+];
+var $=function(s){return document.querySelector(s)},active=TYPES[0].id;
+function tk(href,icon,label,val,ext){return '<a class="tk" href="'+href+'"'+(ext?' target="_blank" rel="noopener"':'')+'><i><span class="ms">'+icon+'</span></i><span><small>'+label+'</small><b>'+val+'</b></span></a>'}
+$("#contacts").innerHTML=
+ tk("https://wa.me/"+CONTACT.wa+"?text="+encodeURIComponent("Halo, saya ingin bertanya soal kerja sama dengan Gamon Tawing."),"chat","WhatsApp",CONTACT.waLabel,1)+
+ tk("mailto:"+CONTACT.email+"?subject="+encodeURIComponent("Kerja sama dengan Gamon Tawing"),"mail","Email",CONTACT.email)+
+ tk("https://www.instagram.com/"+CONTACT.ig+"/","photo_camera","Instagram","@"+CONTACT.ig,1);
+function render(){
+ $("#tabs").innerHTML=TYPES.map(function(t){return '<button class="tab" role="tab" id="tab-'+t.id+'" aria-selected="'+(t.id===active)+'" tabindex="'+(t.id===active?0:-1)+'" data-id="'+t.id+'">'+t.name+'</button>'}).join("");
+ var t=TYPES.filter(function(x){return x.id===active})[0];
+ $("#panel").setAttribute("aria-labelledby","tab-"+t.id);
+ $("#panel").innerHTML='<h3>'+t.title+'</h3><p>'+t.desc+'</p><ul>'+t.ideas.map(function(i){return "<li>"+i+"</li>"}).join("")+'</ul><button class="btn" type="button" id="pick">Ajukan yang ini</button>';
+ $("#pick").onclick=function(){$("#f-jenis").value=t.id;$("#ajukan").scrollIntoView({behavior:"smooth"});setTimeout(function(){$("#f-nama").focus({preventScroll:true})},500)};
+}
+$("#tabs").addEventListener("click",function(e){var b=e.target.closest(".tab");if(!b)return;active=b.dataset.id;render();$("#tab-"+active).focus()});
+$("#tabs").addEventListener("keydown",function(e){
+ var d={ArrowRight:1,ArrowDown:1,ArrowLeft:-1,ArrowUp:-1}[e.key];if(!d)return;e.preventDefault();
+ var i=TYPES.findIndex(function(t){return t.id===active});active=TYPES[(i+d+TYPES.length)%TYPES.length].id;render();$("#tab-"+active).focus()});
+render();
+$("#f-jenis").innerHTML=TYPES.map(function(t){return '<option value="'+t.id+'">'+t.name+'</option>'}).join("")+'<option value="lain">Lainnya</option>';
+function msg(){
+ var n=$("#f-nama").value.trim();if(!n){$("#f-err").hidden=false;$("#f-nama").focus();return null}
+ $("#f-err").hidden=true;var p=$("#f-pesan").value.trim();
+ return "Halo Gamon Tawing, saya "+n+".\nSaya tertarik untuk kerja sama: "+$("#f-jenis").selectedOptions[0].textContent+"."+(p?"\n\nIde saya:\n"+p:"");
+}
+$("#send-wa").onclick=function(){var t=msg();if(t)window.open("https://wa.me/"+CONTACT.wa+"?text="+encodeURIComponent(t),"_blank","noopener")};
+$("#send-mail").onclick=function(){var t=msg();if(t)location.href="mailto:"+CONTACT.email+"?subject="+encodeURIComponent("Kolaborasi: "+$("#f-jenis").selectedOptions[0].textContent)+"&body="+encodeURIComponent(t)};
+</script>
 </body>
 </html>

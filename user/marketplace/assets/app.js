@@ -1,6 +1,6 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut, sendPasswordResetEmail } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
-import { getFirestore, collection, doc, setDoc, getDoc, getDocs, addDoc, query, orderBy, where, onSnapshot, updateDoc, deleteDoc, serverTimestamp, deleteField } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+import { getFirestore, collection, doc, setDoc, getDoc, getDocs, query, where, orderBy, onSnapshot, updateDoc, writeBatch, increment, deleteField } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
 const firebaseConfig = {
   apiKey: 'AIzaSyC247K8yyL67aWV95KNQy8CkMZsjgGCudQ',
@@ -15,20 +15,18 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
+const ADMIN_ACCOUNT_EMAIL = 'muhamadabelldeskiawan@gmail.com';
 
 const STORAGE_KEYS = {
   USERS: 'gamon_marketplace_users',
   PRODUCTS: 'gamon_marketplace_products',
   USER: 'gamon_marketplace_current_user',
-  CHATS: 'gamon_marketplace_chats',
   LOGIN_ATTEMPTS: 'gamon_marketplace_login_attempts'
 };
 
 const productSeed = [];
 
 const demoUsers = [];
-
-const chatSeed = {};
 
 const moneyFormatter = new Intl.NumberFormat('id-ID', {
   style: 'currency',
@@ -636,6 +634,11 @@ function currentUser() {
   const user = readStorage(STORAGE_KEYS.USER, null);
   if (!user) return null;
 
+  if (String(user.email || '').toLowerCase() === ADMIN_ACCOUNT_EMAIL) {
+    clearCurrentUser();
+    return null;
+  }
+
   const expiresAt = Number(user.sessionExpiresAt || 0);
   if (expiresAt && Date.now() > expiresAt) {
     clearCurrentUser();
@@ -694,28 +697,17 @@ async function syncCurrentUserFromFirebase(firebaseUser, rememberMe = true) {
 }
 
 function purgeKnownDummyData() {
-  const knownDummyProductIds = new Set(['p1', 'p2', 'p3', 'p4']);
-  const knownDummyUserEmails = new Set(['annisa@email.com']);
-
   Object.entries(STORAGE_KEYS).forEach(([_, key]) => {
+    if (key === STORAGE_KEYS.PRODUCTS) return;
     const current = readStorage(key, null);
     if (!Array.isArray(current)) return;
 
     const cleaned = current.filter((item) => {
-      const id = String(item?.id || '');
-      const email = String(item?.email || '').toLowerCase();
       const name = String(item?.name || '').toLowerCase();
-      const seller = String(item?.seller || '').toLowerCase();
-      return !knownDummyProductIds.has(id)
-        && !knownDummyUserEmails.has(email)
-        && !name.includes('hoodie putih premium')
+      return !name.includes('hoodie putih premium')
         && !name.includes('jam tangan casio')
         && !name.includes('set kado anniversary')
-        && !name.includes('jaket oversize')
-        && !seller.includes('annisa')
-        && !seller.includes('raka')
-        && !seller.includes('dinda')
-        && !seller.includes('sari');
+        && !name.includes('jaket oversize');
     });
 
     if (cleaned.length !== current.length) {
@@ -729,7 +721,6 @@ function ensureDemoData() {
 
   if (!readStorage(STORAGE_KEYS.USERS, null)) writeStorage(STORAGE_KEYS.USERS, demoUsers);
   if (!readStorage(STORAGE_KEYS.PRODUCTS, null)) writeStorage(STORAGE_KEYS.PRODUCTS, productSeed);
-  if (!readStorage(STORAGE_KEYS.CHATS, null)) writeStorage(STORAGE_KEYS.CHATS, chatSeed);
 }
 
 function setAuthMessage(message, tone = 'info') {
@@ -789,24 +780,142 @@ function getProductDetailUrl(productId) {
   return `product.html?id=${id}`;
 }
 
-function getUserChatUrl(sellerName, sellerId, productId = '', productName = '') {
-  const basePage = 'chat.html';
-  const safeSeller = sellerName || 'Penjual';
-  const safeSellerId = sellerId || sellerName || '';
-  const query = new URLSearchParams({
-    user: safeSeller,
-    userId: safeSellerId,
+function safeMarketplaceImageUrl(value) {
+  const imageUrl = String(value || '').trim();
+  return /^https:\/\//i.test(imageUrl) || /^data:image\/(?:jpeg|png|webp);base64,/i.test(imageUrl) ? imageUrl : '';
+}
+
+function getShippingAddressFromUser(user) {
+  const shipping = user?.shipping || {};
+  const latitudeSource = shipping.latitude ?? user?.latitude;
+  const longitudeSource = shipping.longitude ?? user?.longitude;
+  const latitude = Number(latitudeSource);
+  const longitude = Number(longitudeSource);
+  const validCoordinates = Number.isFinite(latitude) && latitude >= -90 && latitude <= 90 &&
+    Number.isFinite(longitude) && longitude >= -180 && longitude <= 180 &&
+    latitudeSource !== '' && latitudeSource !== null && latitudeSource !== undefined &&
+    longitudeSource !== '' && longitudeSource !== null && longitudeSource !== undefined;
+  const address = {
+    recipientName: String(shipping.recipientName || user?.name || ''),
+    phone: String(shipping.phone || user?.phone || ''),
+    address: String(shipping.address || user?.address || user?.location || ''),
+    city: String(shipping.city || user?.city || ''),
+    province: String(shipping.province || ''),
+    postalCode: String(shipping.postalCode || ''),
+    note: String(shipping.note || ''),
+    latitude: validCoordinates ? latitude : null,
+    longitude: validCoordinates ? longitude : null,
+    mapsUrl: validCoordinates ? `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}` : ''
+  };
+  address.complete = Boolean(address.recipientName.trim() && address.phone.trim() && address.address.trim() && validCoordinates);
+  address.outsideIndonesia = validCoordinates && (latitude < -11.2 || latitude > 6.2 || longitude < 95 || longitude > 141);
+  return address;
+}
+
+async function waitForMarketplaceFirebaseUser() {
+  if (auth.currentUser) return auth.currentUser;
+  return new Promise((resolve) => {
+    let unsubscribe = () => {};
+    unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      unsubscribe();
+      resolve(firebaseUser);
+    }, () => resolve(null));
   });
+}
 
+async function getMarketplaceCartUserId() {
+  const cachedUser = currentUser() || requireAuth();
+  if (!cachedUser) return '';
+  const firebaseUser = await waitForMarketplaceFirebaseUser();
+  if (!firebaseUser) {
+    window.location.href = getAuthTarget();
+    return '';
+  }
+  return firebaseUser.uid;
+}
+
+async function addProductToCart(productId, quantity = 1, openCart = false) {
+  try {
+    const userId = await getMarketplaceCartUserId();
+    if (!userId) return;
+    const productRef = doc(db, 'marketplace_products', String(productId));
+    const productSnapshot = await getDoc(productRef);
+    if (!productSnapshot.exists()) throw new Error('Produk sudah tidak tersedia.');
+    const product = productSnapshot.data();
+    const stockValue = Number(product.stock);
+    const stock = Number.isInteger(stockValue) && stockValue >= 0 ? stockValue : 1;
+    if (!stock) throw new Error('Stok produk habis.');
+
+    const cartRef = doc(db, 'marketplace_carts', userId);
+    const cartSnapshot = await getDoc(cartRef);
+    const items = cartSnapshot.exists() && Array.isArray(cartSnapshot.data().items) ? cartSnapshot.data().items : [];
+    const index = items.findIndex((item) => String(item.productId) === String(productId));
+    const previousQty = index >= 0 ? Number(items[index].qty || 0) : 0;
+    const requestedQty = Math.max(1, Math.min(99, Math.trunc(Number(quantity) || 1)));
+    const nextQty = Math.min(stock, previousQty + requestedQty);
+    const nextItems = [...items];
+    if (index >= 0) nextItems[index] = { productId: String(productId), qty: nextQty };
+    else {
+      if (items.length >= 30) throw new Error('Keranjang maksimal 30 jenis barang.');
+      nextItems.push({ productId: String(productId), qty: nextQty });
+    }
+
+    await setDoc(cartRef, { items: nextItems, updatedAt: Date.now() });
+    if (nextQty < previousQty + requestedQty) showToast(`Jumlah dibatasi ke stok tersedia: ${stock}.`, 'info');
+    else showToast('Barang ditambahkan ke keranjang.', 'success');
+    if (openCart) window.location.href = 'keranjang.html';
+  } catch (error) {
+    console.error('[marketplace] gagal menambahkan barang ke keranjang:', error);
+    showPopup(error.message || 'Barang gagal ditambahkan ke keranjang.', 'Keranjang', 'error');
+  }
+}
+
+function bindAddToCartButtons(container = document) {
+  if (container.dataset?.cartButtonsBound === 'true') return;
+  if (container.dataset) container.dataset.cartButtonsBound = 'true';
+  container.addEventListener('click', async (event) => {
+    const button = event.target.closest('[data-add-cart]');
+    if (!button || !container.contains(button)) return;
+    const user = currentUser();
+    if (!user) {
+      window.location.href = getAuthTarget();
+      return;
+    }
+    button.disabled = true;
+    const originalText = button.textContent;
+    button.textContent = 'Menambahkan...';
+    await addProductToCart(button.dataset.addCart, 1, button.dataset.buyNow === 'true');
+    button.disabled = false;
+    button.textContent = originalText;
+  });
+}
+
+function subscribeToCartBadge() {
+  const badges = document.querySelectorAll('[data-cart-count]');
+  if (!badges.length || !auth.currentUser) return () => {};
+  const userId = auth.currentUser.uid;
+  const unsubscribe = onSnapshot(doc(db, 'marketplace_carts', userId), (snapshot) => {
+    const items = snapshot.exists() && Array.isArray(snapshot.data().items) ? snapshot.data().items : [];
+    const count = items.reduce((total, item) => total + Math.max(0, Number(item.qty || 0)), 0);
+    badges.forEach((badge) => {
+      badge.textContent = count > 99 ? '99+' : String(count);
+      badge.hidden = count === 0;
+    });
+  }, (error) => console.error('[marketplace] badge keranjang gagal dimuat:', error));
+  return unsubscribe;
+}
+
+function getBuyerChatUrl(productId = '', productName = '', orderId = '') {
+  const params = new URLSearchParams();
   if (productId) {
-    query.set('productId', String(productId));
+    params.set('productId', String(productId));
   }
-
   if (productName) {
-    query.set('productName', String(productName));
+    params.set('productName', String(productName));
   }
-
-  return `${basePage}?${query.toString()}`;
+  if (orderId) params.set('orderId', String(orderId));
+  const search = params.toString();
+  return `chat.html${search ? `?${search}` : ''}`;
 }
 
 function getSafeUserName(name) {
@@ -824,7 +933,7 @@ function getUserPhotoUrl(user) {
   // `photoUrl` is the single canonical field going forward. The other keys
   // are only read for backward-compatibility with documents saved before
   // this fix (they get cleaned up automatically the next time that user
-  // saves their profile — see bindEditForm/renderProfile submit handlers).
+  // saves their profile in renderProfile).
   return user.photoUrl || user.photo || user.profilePhotoUrl || user.avatarUrl || '';
 }
 
@@ -881,16 +990,6 @@ async function resolveUserForMarketplaceLookup(userName, userId) {
   }
 
   return null;
-}
-
-function getUserAvatarMarkup(userName, userPhotoUrl = '', fallbackText = 'P') {
-  const name = getSafeUserName(userName || fallbackText);
-  const photo = userPhotoUrl || '';
-  if (photo) {
-    return `<img src="${escapeHtml(photo)}" alt="${escapeHtml(name)}" />`;
-  }
-
-  return escapeHtml(getUserInitial(name));
 }
 
 /* =========================================================================
@@ -988,157 +1087,82 @@ function requireAuth() {
   return user;
 }
 
+function cacheMarketplaceProducts(items) {
+  try {
+    writeStorage(STORAGE_KEYS.PRODUCTS, items);
+  } catch (error) {
+    console.warn('[marketplace] cache produk tidak dapat disimpan:', error);
+  }
+}
+
 async function fetchProductsFromFirebase() {
   try {
-    const q = query(collection(db, 'marketplace_products'), orderBy('createdAt', 'desc'));
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
-  } catch (error) {
-    return readStorage(STORAGE_KEYS.PRODUCTS, []);
-  }
-}
-
-async function fetchMyProductsFromFirebase(user) {
-  const ownerId = user?.id || user?.uid || auth.currentUser?.uid;
-  const localItems = readStorage(STORAGE_KEYS.PRODUCTS, []);
-
-  if (!ownerId) {
-    return localItems.filter((item) => item.seller === (user?.name || 'Seller'));
-  }
-
-  try {
-    const q = query(collection(db, 'marketplace_products'), where('ownerId', '==', ownerId));
-    const snapshot = await getDocs(q);
+    const snapshot = await getDocs(collection(db, 'marketplace_products'));
     const items = snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
-    if (items.length > 0) return items;
-  } catch (error) {
-    console.warn('Gagal mengambil produk milik user dari Firestore:', error);
-  }
-
-  return localItems.filter((item) => (item.ownerId || '').toString() === ownerId.toString() || item.seller === (user?.name || 'Seller'));
-}
-
-async function repairMarketplaceSellerPhotos({ silent = true } = {}) {
-  try {
-    const firebaseProducts = await fetchProductsFromFirebase();
-    const localProducts = readStorage(STORAGE_KEYS.PRODUCTS, []);
-    const mergedProducts = [...firebaseProducts, ...localProducts];
-    const seen = new Map();
-
-    mergedProducts.forEach((product) => {
-      if (!product || !product.id) return;
-      const key = String(product.id);
-      const current = seen.get(key) || {};
-      seen.set(key, { ...current, ...product });
-    });
-
-    const updates = [];
-    for (const product of seen.values()) {
-      const hasSellerPhoto = Boolean(product.sellerPhotoUrl || product.sellerPhoto || product.avatarUrl || product.photoUrl || product.profilePhotoUrl);
-      if (hasSellerPhoto || !product.id) continue;
-
-      const sellerIdentifier = normalizeUserIdentifier(product.sellerId || product.ownerId || resolveUserIdByName(product.seller) || product.seller || '');
-      const sellerUser = await resolveUserForMarketplaceLookup(product.seller, sellerIdentifier);
-      const sellerPhotoUrl = getUserPhotoUrl(sellerUser || null);
-      if (!sellerPhotoUrl) continue;
-
-      const nextProduct = { ...product, sellerPhotoUrl };
-      updates.push(nextProduct);
-
-      try {
-        await updateDoc(doc(db, 'marketplace_products', String(product.id)), { sellerPhotoUrl }, { merge: true });
-      } catch (error) {
-        console.warn('Gagal memperbarui sellerPhotoUrl produk lama:', error);
-      }
-    }
-
-    if (!silent) {
-      console.log(`Migrasi sellerPhotoUrl selesai: ${updates.length} produk diperbarui.`);
-    }
-
-    if (!updates.length) return 0;
-
-    const normalizedLocal = readStorage(STORAGE_KEYS.PRODUCTS, []);
-    const nextLocal = normalizedLocal.map((entry) => {
-      const match = updates.find((item) => String(item.id) === String(entry.id));
-      return match ? { ...entry, ...match, sellerPhotoUrl: match.sellerPhotoUrl || entry.sellerPhotoUrl || '' } : entry;
-    });
-
-    writeStorage(STORAGE_KEYS.PRODUCTS, nextLocal.length ? nextLocal : normalizedLocal);
-    return updates.length;
-  } catch (error) {
-    console.warn('Gagal migrasi foto seller produk lama:', error);
-    return 0;
-  }
-}
-
-async function migrateExistingProductSellerPhotos() {
-  return repairMarketplaceSellerPhotos({ silent: true });
-}
-
-async function syncSellerPhotosAcrossProducts(user) {
-  if (!user) return 0;
-
-  const userId = normalizeUserIdentifier(user.id || user.uid || user.email || '');
-  const photoUrl = getUserPhotoUrl(user) || '';
-  if (!userId || !photoUrl) return 0;
-
-  const ownerMatches = (item) => {
-    const ownerValue = normalizeUserIdentifier(item?.ownerId || item?.sellerId || '').toLowerCase();
-    const sellerValue = normalizeUserIdentifier(item?.seller || '').toLowerCase();
-    const userName = normalizeUserIdentifier(user.name || '').toLowerCase();
-    return ownerValue === userId.toLowerCase() || sellerValue === userName;
-  };
-
-  let updatedCount = 0;
-
-  try {
-    const q = query(collection(db, 'marketplace_products'), where('ownerId', '==', userId));
-    const snapshot = await getDocs(q);
-
-    for (const docSnap of snapshot.docs) {
-      const productData = docSnap.data() || {};
-      const nextSellerPhotoUrl = photoUrl || productData.sellerPhotoUrl || '';
-      const nextSellerName = user.name || productData.seller || 'Seller';
-      const payload = {
-        sellerPhotoUrl: nextSellerPhotoUrl,
-        seller: nextSellerName,
-        sellerInitial: (nextSellerName || 'S').charAt(0).toUpperCase()
+    cacheMarketplaceProducts(items);
+    console.log('[marketplace] produk dimuat:', items.length);
+    if (snapshot.metadata.fromCache) {
+      window.__marketplaceProductsError = {
+        code: 'unavailable',
+        message: 'Firestore belum memberikan data terbaru; katalog memakai data tersimpan.'
       };
-
-      if ((productData.sellerPhotoUrl || '') === nextSellerPhotoUrl && (productData.seller || '') === nextSellerName) continue;
-
-      await updateDoc(doc(db, 'marketplace_products', docSnap.id), payload, { merge: true });
-      updatedCount += 1;
+      window.__marketplaceProductsFromCache = items.length > 0;
+      return items;
     }
+    delete window.__marketplaceProductsError;
+    delete window.__marketplaceProductsFromCache;
+    return items;
   } catch (error) {
-    console.warn('Gagal memperbarui foto seller produk milik user dari Firestore:', error);
-  }
-
-  const localProducts = readStorage(STORAGE_KEYS.PRODUCTS, []);
-  const nextLocalProducts = localProducts.map((item) => {
-    if (!ownerMatches(item)) return item;
-    const nextSellerName = user.name || item.seller || 'Seller';
-    const nextItem = {
-      ...item,
-      sellerPhotoUrl: photoUrl,
-      seller: nextSellerName,
-      sellerInitial: (nextSellerName || 'S').charAt(0).toUpperCase()
+    console.error('[marketplace] gagal memuat produk dari Firestore:', error);
+    window.__marketplaceProductsError = {
+      code: error?.code || 'unknown',
+      message: error?.message || 'Terjadi kesalahan saat membaca katalog.'
     };
-
-    if ((item.sellerPhotoUrl || '') === photoUrl && (item.seller || '') === nextSellerName) return item;
-    return nextItem;
-  });
-
-  if (JSON.stringify(nextLocalProducts) !== JSON.stringify(localProducts)) {
-    writeStorage(STORAGE_KEYS.PRODUCTS, nextLocalProducts);
+    const cached = readStorage(STORAGE_KEYS.PRODUCTS, []);
+    window.__marketplaceProductsFromCache = cached.length > 0;
+    return cached;
   }
-
-  return updatedCount;
 }
 
-window.repairMarketplaceSellerPhotos = repairMarketplaceSellerPhotos;
-window.syncSellerPhotosAcrossProducts = syncSellerPhotosAcrossProducts;
+function marketplaceLoadErrorMarkup() {
+  const error = window.__marketplaceProductsError;
+  if (!error) return '';
+
+  const cacheLabel = window.__marketplaceProductsFromCache
+    ? '<p style="margin: 8px 0 0;">Menampilkan data tersimpan di perangkat.</p>'
+    : '';
+  return `
+    <div class="panel" role="alert" style="margin-bottom: 14px; padding: 14px; color: #991b1b; background: #fff1f2; border: 1px solid #fecdd3;">
+      <strong>Gagal memuat katalog (${escapeHtml(error.code)}).</strong>
+      <p style="margin: 6px 0 0;">${escapeHtml(error.message)}</p>
+      ${cacheLabel}
+      <button class="btn btn-secondary" type="button" data-marketplace-retry style="margin-top: 10px;">Muat ulang</button>
+    </div>
+  `;
+}
+
+function normalizeMarketplaceProducts(items) {
+  return items.flatMap((item) => {
+    try {
+      return [normalizeProduct(item)];
+    } catch (error) {
+      console.error('[marketplace] produk dilewati karena data tidak valid:', item?.id, error);
+      return [];
+    }
+  });
+}
+
+function bindMarketplaceRetry(container, reload) {
+  if (container.dataset.marketplaceRetryBound === 'true') return;
+  container.dataset.marketplaceRetryBound = 'true';
+  container.addEventListener('click', async (event) => {
+    const button = event.target.closest('[data-marketplace-retry]');
+    if (!button) return;
+    button.disabled = true;
+    button.textContent = 'Memuat...';
+    await reload();
+  });
+}
 
 async function fetchUserDoc(uid) {
   try {
@@ -1161,8 +1185,33 @@ function productEmoji(category) {
   return 'card_giftcard';
 }
 
+function getCreatedAtMs(value) {
+  if (value === null || value === undefined || value === '') return 0;
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string') {
+    const numeric = Number(value);
+    if (Number.isFinite(numeric)) return numeric;
+    const parsed = Date.parse(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  if (typeof value === 'object') {
+    if (typeof value.toMillis === 'function') {
+      const ms = value.toMillis();
+      return Number.isFinite(ms) ? ms : 0;
+    }
+    if (typeof value.seconds === 'number') {
+      return Number(value.seconds) * 1000 + Math.floor((Number(value.nanoseconds || 0) / 1e6));
+    }
+  }
+  return 0;
+}
+
+function getMarketplaceSellerDisplayName() {
+  return 'Marketplace Mantan';
+}
+
 function normalizeProduct(item) {
-  const parsedImages = Array.isArray(item?.images)
+  const rawImages = Array.isArray(item?.images)
     ? item.images.filter(Boolean)
     : Array.isArray(item?.imageUrls)
       ? item.imageUrls.filter(Boolean)
@@ -1170,10 +1219,16 @@ function normalizeProduct(item) {
         ? [item.imageUrl]
         : [];
 
-  const primaryImage = parsedImages[0] || item.imageUrl || item.image || '';
+  const parsedImages = rawImages.map(safeMarketplaceImageUrl).filter(Boolean);
+  const primaryImage = parsedImages[0] || safeMarketplaceImageUrl(item?.imageUrl) || safeMarketplaceImageUrl(item?.image) || '';
   const latitude = item.latitude ?? item.lat ?? '';
   const longitude = item.longitude ?? item.lng ?? '';
   const sellerPhotoUrl = item.sellerPhotoUrl || item.sellerPhoto || item.avatarUrl || item.photoUrl || item.profilePhotoUrl || '';
+  const sellerName = getMarketplaceSellerDisplayName();
+  const stockValue = Number(item.stock);
+  const stock = Number.isInteger(stockValue) && stockValue >= 0 ? stockValue : 1;
+  const soldValue = Number(item.sold);
+  const sold = Number.isInteger(soldValue) && soldValue >= 0 ? soldValue : 0;
 
   return {
     id: item.id || item.slug || `p-${Date.now()}`,
@@ -1181,20 +1236,22 @@ function normalizeProduct(item) {
     category: item.category || 'barang',
     price: Number(item.price || 0),
     condition: item.condition || 'Layak pakai',
-    status: item.status || (item.isSold ? 'Terjual' : 'Tersedia') || 'Tersedia',
-    image: primaryImage || item.image || productEmoji(item.category),
+    status: stock > 0 ? 'Tersedia' : 'Habis',
+    stock,
+    sold,
+    image: primaryImage || productEmoji(item.category),
     label: item.label || productLabel(item.category),
     city: item.city || item.address || 'Jakarta',
     address: item.address || item.location || item.city || 'Jakarta',
-    seller: item.seller || 'Penjual',
-    sellerInitial: item.sellerInitial || (item.seller || 'P').charAt(0).toUpperCase(),
-    sellerPhotoUrl,
+    seller: sellerName,
+    sellerInitial: 'M',
+    sellerPhotoUrl: '',
     description: item.description || 'Deskripsi produk belum tersedia.',
     imageUrl: primaryImage || item.imageUrl || '',
     images: parsedImages.length ? parsedImages : [primaryImage || ''],
-    createdAt: item.createdAt || Date.now(),
-    ownerId: item.ownerId || item.owner_id || '',
-    sellerId: item.sellerId || item.ownerId || item.owner_id || '',
+    createdAt: getCreatedAtMs(item.createdAt),
+    ownerId: item.ownerId || item.owner_id || 'admin',
+    sellerId: item.sellerId || item.ownerId || item.owner_id || 'admin',
     storyType: item.storyType || 'barang-kenangan',
     storyNote: item.storyNote || '',
     latitude: latitude,
@@ -1207,83 +1264,10 @@ function normalizeUserIdentifier(value) {
   return String(value || '').trim();
 }
 
-function isPlaceholderUser(value) {
-  const normalized = normalizeUserIdentifier(value || '').toLowerCase();
-  return !normalized || ['penjual', 'seller', 'buyer', 'guest', 'me', 'user'].includes(normalized);
-}
-
 function getCurrentUserIdentifier() {
   const user = currentUser() || requireAuth();
   if (!user) return '';
-  return normalizeUserIdentifier(user.id || user.uid || user.email || user.name || 'guest');
-}
-
-function resolveUserIdByName(name) {
-  const value = normalizeUserIdentifier(name || '').trim();
-  if (!value) return '';
-
-  const users = readStorage(STORAGE_KEYS.USERS, []);
-  const match = users.find((user) => {
-    const userName = normalizeUserIdentifier(user.name || '').toLowerCase();
-    const userEmail = normalizeUserIdentifier(user.email || '').toLowerCase();
-    return userName === value.toLowerCase() || userEmail === value.toLowerCase();
-  });
-
-  return match ? normalizeUserIdentifier(match.id || match.uid || match.email || value) : value;
-}
-
-/* =========================================================================
- * CHAT SYSTEM
- * -------------------------------------------------------------------------
- * One deterministic thread id per pair of users - no more guessing which
- * Firestore doc "is" a conversation. Thread docs carry:
- *   - participantIds: [idA, idB]   -> lets us query "all my chats"
- *   - participants:   [{id,name}]  -> display info for the list/header
- *   - messages:       [{id, senderId, sender, text, createdAt}]
- *   - lastMessage / lastMessageAt / updatedAt -> for the chat list preview
- *   - lastReadAt: { [userId]: timestamp } -> drives unread counts
- * ========================================================================= */
-
-function getChatThreadId(userIdA, userIdB, productId = '') {
-  const left = normalizeUserIdentifier(userIdA || '').toLowerCase();
-  const right = normalizeUserIdentifier(userIdB || '').toLowerCase();
-  const productKey = normalizeUserIdentifier(String(productId || '')).toLowerCase();
-  return [left, right, productKey].filter(Boolean).sort().join('__');
-}
-
-function buildTargetKey(targetUserId, targetName) {
-  if (targetUserId && !isPlaceholderUser(targetUserId)) return normalizeUserIdentifier(targetUserId);
-  if (targetName) return `name:${normalizeUserIdentifier(targetName).toLowerCase()}`;
-  return '';
-}
-
-function readChatThreadsCache() {
-  return readStorage('gamon_marketplace_threads_cache', {});
-}
-
-function writeChatThreadsCache(data) {
-  writeStorage('gamon_marketplace_threads_cache', data);
-}
-
-function computeUnreadCount(thread, currentUserId) {
-  const messages = thread?.messages || [];
-  const lastReadAt = Number((thread?.lastReadAt || {})[currentUserId] || 0);
-  const normalizedCurrent = normalizeUserIdentifier(currentUserId || '').toLowerCase();
-
-  return messages.filter((msg) => {
-    const senderId = normalizeUserIdentifier(msg.senderId || msg.sender || '').toLowerCase();
-    return senderId !== normalizedCurrent && Number(msg.createdAt || 0) > lastReadAt;
-  }).length;
-}
-
-function getOtherParticipant(thread, currentUserId) {
-  const normalizedCurrent = normalizeUserIdentifier(currentUserId || '').toLowerCase();
-  const participants = thread?.participants || [];
-  return participants.find((participant) => normalizeUserIdentifier(participant.id || '').toLowerCase() !== normalizedCurrent) || { id: '', name: 'Pengguna' };
-}
-
-function getTotalUnreadCount(threadDocs, currentUserId) {
-  return threadDocs.reduce((total, thread) => total + computeUnreadCount(thread, currentUserId), 0);
+  return normalizeUserIdentifier(auth.currentUser?.uid || user.uid || user.id || user.email || user.name || 'guest');
 }
 
 function ensureChatBadgeElements() {
@@ -1325,57 +1309,28 @@ function updateChatBadges(count) {
 function subscribeToGlobalChatNotifications(currentUserId) {
   if (!currentUserId) return () => {};
 
-  const knownLastMessageIds = new Map();
   let isInitialSnapshot = true;
+  let previousUnread = 0;
 
   try {
-    const listQuery = query(collection(db, 'marketplace_chats'), where('participantIds', 'array-contains', currentUserId));
-
-    const unsubscribe = onSnapshot(listQuery, (snapshot) => {
-      const threadDocs = snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
-
-      threadDocs.forEach((thread) => {
-        const messages = thread.messages || [];
-        const lastMessage = messages[messages.length - 1];
-        if (!lastMessage) return;
-
-        const previousLastId = knownLastMessageIds.get(thread.id);
-        knownLastMessageIds.set(thread.id, lastMessage.id);
-
-        if (isInitialSnapshot) return;
-
-        const senderId = normalizeUserIdentifier(lastMessage.senderId || '').toLowerCase();
-        const isFromMe = senderId === normalizeUserIdentifier(currentUserId).toLowerCase();
-        const isNewMessage = previousLastId !== lastMessage.id;
-        const isActiveThread = thread.id === window.__marketplaceActiveChatThreadId;
-
-        if (isNewMessage && !isFromMe && !isActiveThread) {
-          const other = getOtherParticipant(thread, currentUserId);
-          const senderName = lastMessage.sender || other.name || 'Seseorang';
-          const preview = String(lastMessage.text || '').slice(0, 80);
-          showToast(`${senderName}: ${preview}`, 'info');
-        }
-      });
-
+    const unsubscribe = onSnapshot(doc(db, 'marketplace_chats', currentUserId), (snapshot) => {
+      const summary = snapshot.exists() ? snapshot.data() : {};
+      const unread = Math.max(0, Number(summary.unreadForUser || 0));
+      if (!isInitialSnapshot && unread > previousUnread && document.body.dataset.page !== 'chat.html') {
+        const preview = String(summary.lastMessage || '').slice(0, 80);
+        showToast(`Marketplace Mantan: ${preview}`, 'info');
+      }
+      previousUnread = unread;
       isInitialSnapshot = false;
-      updateChatBadges(getTotalUnreadCount(threadDocs, currentUserId));
+      updateChatBadges(unread);
     }, (error) => {
-      console.warn('Gagal memuat notifikasi chat:', error);
+      console.error('[marketplace chat] gagal memuat ringkasan chat:', error);
     });
 
     return unsubscribe;
   } catch (error) {
-    console.warn('Gagal membuka notifikasi chat:', error);
+    console.error('[marketplace chat] gagal membuka listener ringkasan:', error);
     return () => {};
-  }
-}
-
-async function markThreadReadRemote(chatRef, existingData, currentUserId) {
-  const lastReadAt = { ...(existingData?.lastReadAt || {}), [currentUserId]: Date.now() };
-  try {
-    await setDoc(chatRef, { lastReadAt }, { merge: true });
-  } catch (error) {
-    console.warn('Gagal menandai chat sudah dibaca:', error);
   }
 }
 
@@ -1387,75 +1342,25 @@ function renderChatMessages(container, messages, currentUserId) {
     return;
   }
 
-  const normalizedCurrent = normalizeUserIdentifier(currentUserId || '').toLowerCase();
-  container.innerHTML = messages.map((msg) => {
-    const senderIsMe = normalizeUserIdentifier(msg.senderId || '').toLowerCase() === normalizedCurrent;
-    return `
+  const wasNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 100;
+  let previousDate = '';
+  container.innerHTML = messages.map((message) => {
+    const createdAt = Number(message.createdAt || 0);
+    const date = createdAt ? new Date(createdAt) : new Date();
+    const dateKey = date.toLocaleDateString('sv-SE');
+    const dateDivider = dateKey !== previousDate
+      ? `<div class="chat-date-divider"><span>${escapeHtml(date.toLocaleDateString('id-ID', { dateStyle: 'full' }))}</span></div>`
+      : '';
+    previousDate = dateKey;
+    const senderIsMe = message.senderRole !== 'admin' && message.senderId === currentUserId;
+    return `${dateDivider}
       <div class="bubble-message ${senderIsMe ? 'me' : 'other'}">
-        <div>${escapeHtml(msg.text)}</div>
+        <div>${escapeHtml(message.text || '')}</div>
+        <small>${escapeHtml(date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }))}</small>
       </div>
     `;
   }).join('');
-  container.scrollTop = container.scrollHeight;
-}
-
-/* -------------------------------------------------------------------------
- * Chat thread list — now resolves and shows each OTHER participant's own
- * profile photo (via getUserAvatarMarkupByName -> resolveUserForMarketplaceLookup,
- * which falls back to Firestore when the user isn't cached locally yet).
- * This function is now async because fetching a photo can require a network
- * call; callers must `await` it.
- * ------------------------------------------------------------------------- */
-async function renderChatThreadList(container, threadDocs, currentUserId, activeThreadId) {
-  if (!container) return;
-
-  if (!threadDocs.length) {
-    container.innerHTML = '<div class="empty-state">Belum ada chat</div>';
-    return;
-  }
-
-  const sorted = [...threadDocs].sort((a, b) => Number(b.updatedAt || b.lastMessageAt || 0) - Number(a.updatedAt || a.lastMessageAt || 0));
-
-  const rows = await Promise.all(sorted.map(async (thread) => {
-    const other = getOtherParticipant(thread, currentUserId);
-    const unread = computeUnreadCount(thread, currentUserId);
-    const isActive = thread.id === activeThreadId;
-    const preview = thread.lastMessage ? escapeHtml(thread.lastMessage) : 'Belum ada pesan';
-    const productName = thread.productName ? escapeHtml(thread.productName) : '';
-    const productId = thread.productId ? escapeHtml(String(thread.productId)) : '';
-    const avatarMarkup = await getUserAvatarMarkupByName(other.name, other.id, other.name || 'P');
-
-    return `
-      <button class="chat-item ${isActive ? 'active' : ''}" type="button" data-thread-user-id="${escapeHtml(other.id || '')}" data-thread-user-name="${escapeHtml(other.name || 'Pengguna')}" data-thread-product-id="${productId}" data-thread-product-name="${productName}">
-        ${avatarMarkup}
-        <div class="chat-item-body">
-          <div class="chat-item-head">
-            <strong>${escapeHtml(other.name || 'Pengguna')}</strong>
-            ${unread ? `<span class="chat-badge">${unread}</span>` : ''}
-          </div>
-          <div class="chat-item-product">${productName ? `Produk: ${productName}` : 'Produk: Barang umum'}</div>
-          <small class="muted">${preview}</small>
-        </div>
-      </button>
-    `;
-  }));
-
-  container.innerHTML = rows.join('');
-
-  container.querySelectorAll('[data-thread-user-id]').forEach((button) => {
-    button.addEventListener('click', () => {
-      const targetId = button.dataset.threadUserId;
-      const targetName = button.dataset.threadUserName;
-      const productId = button.dataset.threadProductId || '';
-      const productName = button.dataset.threadProductName || '';
-      const params = new URLSearchParams({ user: targetName || 'Pengguna', userId: targetId || '' });
-
-      if (productId) params.set('productId', productId);
-      if (productName) params.set('productName', productName);
-
-      window.location.href = `chat.html?${params.toString()}`;
-    });
-  });
+  if (wasNearBottom) container.scrollTop = container.scrollHeight;
 }
 
 async function renderChat() {
@@ -1463,178 +1368,156 @@ async function renderChat() {
   if (!user) return;
 
   const params = new URLSearchParams(window.location.search);
-  const sellerNameParam = params.get('user') || '';
-  const sellerIdParam = params.get('userId') || '';
   const productIdParam = params.get('productId') || '';
   const productNameParam = params.get('productName') || '';
-
-  const currentUserId = getCurrentUserIdentifier();
-  const currentUserName = getSafeUserName((currentUser() || {}).name || user.name);
-
-  const resolvedTargetId = !isPlaceholderUser(sellerIdParam)
-    ? normalizeUserIdentifier(sellerIdParam)
-    : (sellerNameParam ? resolveUserIdByName(sellerNameParam) : '');
-  const targetName = sellerNameParam ? normalizeUserIdentifier(sellerNameParam) : '';
-  const targetKey = buildTargetKey(resolvedTargetId, targetName);
-  const hasTarget = Boolean(targetKey);
-  const threadId = hasTarget ? getChatThreadId(currentUserId, targetKey, productIdParam) : '';
-
-  const sellerLabel = document.querySelector('[data-chat-contact]');
-  if (sellerLabel) sellerLabel.textContent = targetName || 'Pilih percakapan';
-
-  const productContextEl = document.querySelector('[data-chat-product-context]');
-  if (productContextEl) {
-    productContextEl.hidden = true;
-    productContextEl.innerHTML = '';
-  }
-
-  const threadListEl = document.querySelector('[data-chat-list]');
+  const orderIdParam = params.get('orderId') || '';
+  const hasProductContextParam = Boolean(productIdParam);
+  const currentUserId = auth.currentUser?.uid || user.id || user.uid || '';
+  if (!currentUserId) return;
+  const currentUserName = getSafeUserName(user.name || auth.currentUser?.displayName || 'Pembeli');
+  const summaryRef = doc(db, 'marketplace_chats', currentUserId);
+  const messagesRef = collection(summaryRef, 'messages');
   const threadEl = document.querySelector('[data-chat-thread]');
   const composer = document.querySelector('[data-chat-form]');
-
-  // ---- Chat list: realtime "all conversations that contain me" ----
-  let listUnsubscribe = () => {};
-  if (threadListEl && currentUserId) {
-    try {
-      const listQuery = query(collection(db, 'marketplace_chats'), where('participantIds', 'array-contains', currentUserId));
-      listUnsubscribe = onSnapshot(listQuery, async (snapshot) => {
-        const threadDocs = snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
-        const cache = readChatThreadsCache();
-        threadDocs.forEach((thread) => { cache[thread.id] = thread; });
-        writeChatThreadsCache(cache);
-        await renderChatThreadList(threadListEl, threadDocs, currentUserId, threadId);
-      }, async (error) => {
-        console.warn('Gagal memuat daftar chat:', error);
-        const cache = readChatThreadsCache();
-        const cachedDocs = Object.entries(cache).map(([id, thread]) => ({ id, ...thread }));
-        await renderChatThreadList(threadListEl, cachedDocs, currentUserId, threadId);
-      });
-    } catch (error) {
-      console.warn('Gagal membuka daftar chat:', error);
-    }
-  }
-
-  if (!hasTarget) {
-    window.__marketplaceActiveChatThreadId = null;
-    if (threadEl) threadEl.innerHTML = '<div class="empty-state">Pilih percakapan untuk mulai chat</div>';
-    if (composer) composer.style.display = 'none';
-    window.__marketplaceChatCleanup = listUnsubscribe;
-    return;
-  }
-
-  window.__marketplaceActiveChatThreadId = threadId;
-
-  // ---- Active thread: realtime messages ----
-  const chatRef = doc(db, 'marketplace_chats', threadId);
-  const participants = [
-    { id: currentUserId, name: currentUserName },
-    { id: targetKey, name: targetName || 'Pengguna' }
-  ];
-
-  const messageUnsubscribe = onSnapshot(chatRef, async (snapshot) => {
-    const data = snapshot.exists() ? snapshot.data() : { messages: [] };
-    const messages = data.messages || [];
-    const activeProductId = productIdParam || data?.productId || '';
-    const activeProductName = productNameParam || data?.productName || '';
-
-    if (productContextEl) {
-      if (activeProductId) {
-        let productName = activeProductName || 'Produk yang ditanyakan';
-        const productList = readStorage(STORAGE_KEYS.PRODUCTS, productSeed);
-        const localProduct = productList.find((item) => String(item.id) === String(activeProductId));
-        if (localProduct?.name) {
-          productName = localProduct.name;
-        } else {
-          try {
-            const productSnapshot = await getDoc(doc(db, 'marketplace_products', activeProductId));
-            if (productSnapshot.exists()) {
-              const productData = productSnapshot.data();
-              if (productData?.name) {
-                productName = productData.name;
-              }
-            }
-          } catch (error) {
-            console.warn('Gagal memuat detail produk untuk context chat:', error);
-          }
-        }
-
-        productContextEl.hidden = false;
-        productContextEl.innerHTML = `
-          <span class="chat-product-context-label">Produk</span>
-          <a href="${getProductDetailUrl(activeProductId)}" class="chat-product-context-link">${escapeHtml(productName)}</a>
-        `;
-      } else {
-        productContextEl.hidden = true;
-        productContextEl.innerHTML = '';
+  const input = composer?.querySelector('textarea');
+  const submitButton = composer?.querySelector('button[type="submit"]');
+  const statusEl = document.querySelector('[data-chat-status]');
+  const sellerLabel = document.querySelector('[data-chat-contact]');
+  const productContextEl = document.querySelector('[data-chat-product-context]');
+  if (sellerLabel) sellerLabel.textContent = 'Marketplace Mantan';
+  if (input && submitButton) {
+    input.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault();
+        composer.requestSubmit();
       }
+    });
+  }
+
+  let productContext = productIdParam ? { productId: productIdParam, productName: productNameParam || 'Produk yang ditanyakan', productImage: '' } : null;
+  const renderProductContext = (context) => {
+    if (!productContextEl) return;
+    if (!context?.productId) {
+      if (orderIdParam) {
+        productContextEl.hidden = false;
+        productContextEl.innerHTML = `<span class="chat-product-context-label">Pesanan</span><span>${escapeHtml(orderIdParam)}</span>`;
+        return;
+      }
+      productContextEl.hidden = true;
+      productContextEl.innerHTML = '';
+      return;
     }
+    const image = /^https?:\/\//i.test(context.productImage || '')
+      ? `<img src="${escapeHtml(context.productImage)}" alt="" />`
+      : '';
+    productContextEl.hidden = false;
+    productContextEl.innerHTML = `<span class="chat-product-context-label">Produk ditanyakan</span><a href="${getProductDetailUrl(context.productId)}" class="chat-product-context-link">${image}<span>${escapeHtml(context.productName || 'Lihat produk')}</span></a>${orderIdParam ? `<span class="chat-product-context-label">Pesanan</span><span>${escapeHtml(orderIdParam)}</span>` : ''}`;
+  };
 
-    renderChatMessages(threadEl, messages, currentUserId);
+  if (productContext?.productId) {
+    try {
+      const productSnapshot = await getDoc(doc(db, 'marketplace_products', productContext.productId));
+      if (productSnapshot.exists()) {
+        const product = productSnapshot.data();
+        productContext = {
+          ...productContext,
+          productName: product.name || productContext.productName,
+          productImage: /^https?:\/\//i.test(product.imageUrl || '') ? product.imageUrl : ''
+        };
+      }
+    } catch (error) {
+      console.error('[marketplace chat] gagal memuat konteks produk:', error);
+    }
+  }
+  renderProductContext(productContext);
 
-    const cache = readChatThreadsCache();
-    cache[threadId] = { id: threadId, participants, ...data, productId: activeProductId || data?.productId || '', productName: activeProductName || data?.productName || '', messages };
-    writeChatThreadsCache(cache);
-
-    if (snapshot.exists() && computeUnreadCount(data, currentUserId) > 0) {
-      markThreadReadRemote(chatRef, data, currentUserId);
+  let summaryUnsubscribe = () => {};
+  let messagesUnsubscribe = () => {};
+  let isMarkingRead = false;
+  summaryUnsubscribe = onSnapshot(summaryRef, (snapshot) => {
+    const summary = snapshot.exists() ? snapshot.data() : {};
+    if (!hasProductContextParam && summary.productId) {
+      productContext = {
+        productId: String(summary.productId),
+        productName: summary.productName || 'Produk yang ditanyakan',
+        productImage: summary.productImage || ''
+      };
+      renderProductContext(productContext);
+    }
+    const unread = Number(summary.unreadForUser || 0);
+    updateChatBadges(unread);
+    if (unread > 0 && !isMarkingRead) {
+      isMarkingRead = true;
+      updateDoc(summaryRef, { unreadForUser: 0 })
+        .catch((error) => console.error('[marketplace chat] gagal menandai pesan dibaca:', error))
+        .finally(() => { isMarkingRead = false; });
     }
   }, (error) => {
-    console.warn('Gagal memuat pesan chat:', error);
-    const cache = readChatThreadsCache();
-    const cachedThread = cache[threadId];
-    renderChatMessages(threadEl, cachedThread?.messages || [], currentUserId);
+    console.error('[marketplace chat] gagal memuat ringkasan:', error);
+    if (statusEl) statusEl.textContent = `Chat gagal dimuat (${error?.code || 'unknown'}).`;
   });
 
-  if (composer) {
-    composer.style.display = '';
+  messagesUnsubscribe = onSnapshot(query(messagesRef, orderBy('createdAt', 'asc')), (snapshot) => {
+    if (statusEl) statusEl.textContent = '';
+    const messages = snapshot.docs.map((messageDoc) => ({ id: messageDoc.id, ...messageDoc.data() }));
+    renderChatMessages(threadEl, messages, currentUserId);
+  }, (error) => {
+    console.error('[marketplace chat] gagal memuat pesan:', error);
+    if (statusEl) statusEl.textContent = `Pesan gagal dimuat (${error?.code || 'unknown'}).`;
+  });
+
+  if (composer && input && submitButton) {
     composer.addEventListener('submit', async (event) => {
       event.preventDefault();
-      const input = composer.querySelector('input');
-      const text = (input.value || '').trim();
-      if (!text) return;
-
-      input.value = '';
-
+      const text = input.value.trim();
+      if (!text || submitButton.disabled) return;
+      const createdAt = Date.now();
+      const messageRef = doc(messagesRef);
+      const message = {
+        senderId: currentUserId,
+        senderRole: 'user',
+        text,
+        createdAt,
+        ...(productContext ? { productId: productContext.productId, productName: productContext.productName } : {}),
+        ...(orderIdParam ? { orderId: orderIdParam } : {})
+      };
+      const summary = {
+        buyerId: currentUserId,
+        buyerName: currentUserName,
+        participantIds: [currentUserId, 'admin'],
+        lastMessage: text,
+        lastMessageAt: createdAt,
+        lastSenderRole: 'user',
+        updatedAt: createdAt,
+        unreadForAdmin: increment(1),
+        ...(productContext ? {
+          productId: productContext.productId,
+          productName: productContext.productName,
+          ...(productContext.productImage ? { productImage: productContext.productImage } : {})
+        } : {})
+      };
+      submitButton.disabled = true;
+      if (statusEl) statusEl.textContent = 'Mengirim pesan...';
       try {
-        const existing = await getDoc(chatRef);
-        const existingData = existing.exists() ? existing.data() : {};
-        const currentMessages = existingData.messages || [];
-
-        const newMessage = {
-          id: `msg-${Date.now()}`,
-          senderId: currentUserId,
-          sender: currentUserName,
-          text,
-          createdAt: Date.now()
-        };
-
-        const nextMessages = [...currentMessages, newMessage];
-        const nextLastReadAt = { ...(existingData.lastReadAt || {}), [currentUserId]: Date.now() };
-
-        const activeProductId = productIdParam || (existingData?.productId || '');
-        const activeProductName = productNameParam || (existingData?.productName || '');
-
-        await setDoc(chatRef, {
-          participantIds: [currentUserId, targetKey],
-          participants,
-          messages: nextMessages,
-          lastMessage: text,
-          lastMessageAt: Date.now(),
-          updatedAt: Date.now(),
-          lastReadAt: nextLastReadAt,
-          ...(activeProductId ? { productId: activeProductId } : {}),
-          ...(activeProductName ? { productName: activeProductName } : {})
-        }, { merge: true });
+        const batch = writeBatch(db);
+        batch.set(messageRef, message);
+        batch.set(summaryRef, summary, { merge: true });
+        await batch.commit();
+        input.value = '';
+        if (statusEl) statusEl.textContent = '';
       } catch (error) {
-        console.error('Gagal mengirim pesan:', error);
-        showToast('Pesan gagal terkirim. Coba lagi.', 'error');
+        console.error('[marketplace chat] pesan user gagal dikirim:', error);
+        if (statusEl) statusEl.textContent = `Pesan gagal terkirim: ${error?.code || 'unknown'}`;
+      } finally {
+        submitButton.disabled = false;
+        input.focus();
       }
     });
   }
 
   window.__marketplaceChatCleanup = () => {
-    listUnsubscribe();
-    messageUnsubscribe();
+    summaryUnsubscribe();
+    messagesUnsubscribe();
   };
 }
 
@@ -1658,47 +1541,6 @@ function chunkProducts(items, chunkSize = 4) {
   return chunks;
 }
 
-async function renderProductCards(items) {
-  const renderedCards = [];
-
-  for (const item of items) {
-    const normalized = normalizeProduct(item);
-    const imageMarkup = normalized.imageUrl ? `<img src="${normalized.imageUrl}" alt="${escapeHtml(normalized.name)}" style="width: 100%; height: 100%; object-fit: cover;" />` : normalized.image;
-    const statusLabel = normalized.status || 'Tersedia';
-    const statusStyle = statusLabel === 'Terjual'
-      ? 'background: rgba(220, 38, 38, 0.08); color: #b91c1c; border: 1px solid rgba(220, 38, 38, 0.18);'
-      : 'background: rgba(34, 197, 94, 0.08); color: #15803d; border: 1px solid rgba(34, 197, 94, 0.18);';
-    const sellerAvatarMarkup = await getUserAvatarMarkupByName(
-      normalized.seller,
-      normalized.sellerId || normalized.ownerId || '',
-      normalized.sellerInitial || 'P',
-      normalized.sellerPhotoUrl || ''
-    );
-
-    renderedCards.push(`
-      <article class="product-card compact-card thread-card" data-category="${normalized.category}">
-        <div class="image">${imageMarkup} <span class="chip">${escapeHtml(normalized.label)}</span></div>
-        <div class="product-body">
-          <div class="product-head">
-            <div class="price">${formatCurrency(normalized.price)}</div>
-            <span class="condition" style="${statusStyle}">${escapeHtml(statusLabel)}</span>
-          </div>
-          <h3>${escapeHtml(normalized.name)}</h3>
-          <div class="seller-row compact-row">
-            <span class="seller-meta">${sellerAvatarMarkup} <span class="seller-name">${escapeHtml(normalized.seller)}</span></span>
-            <span>${escapeHtml(normalized.city)}</span>
-          </div>
-          <div class="card-actions compact-actions">
-            <a class="btn btn-soft" href="${getProductDetailUrl(normalized.id)}">Lihat detail</a>
-          </div>
-        </div>
-      </article>
-    `);
-  }
-
-  return renderedCards.join('');
-}
-
 function renderProductCarousel(items) {
   const chunks = chunkProducts(items, 4);
   if (!chunks.length) {
@@ -1717,7 +1559,7 @@ function renderProductCarousel(items) {
           <div class="product-body">
             <div class="product-head">
               <div class="price">${formatCurrency(item.price)}</div>
-              <span class="condition" style="${(item.status || 'Tersedia') === 'Terjual' ? 'background: rgba(220, 38, 38, 0.08); color: #b91c1c; border: 1px solid rgba(220, 38, 38, 0.18);' : 'background: rgba(34, 197, 94, 0.08); color: #15803d; border: 1px solid rgba(34, 197, 94, 0.18);'}">${escapeHtml(item.status || 'Tersedia')}</span>
+              <span class="condition" style="${item.stock === 0 ? 'background: rgba(220, 38, 38, 0.08); color: #b91c1c; border: 1px solid rgba(220, 38, 38, 0.18);' : item.stock <= 2 ? 'background: rgba(245, 158, 11, 0.1); color: #92400e; border: 1px solid rgba(245, 158, 11, 0.2);' : 'background: rgba(34, 197, 94, 0.08); color: #15803d; border: 1px solid rgba(34, 197, 94, 0.18);'}">${item.stock > 0 ? `Stok: ${item.stock}` : 'Stok habis'}</span>
             </div>
             <h3>${escapeHtml(item.name)}</h3>
             <div class="seller-row compact-row">
@@ -1726,6 +1568,7 @@ function renderProductCarousel(items) {
             </div>
             <div class="card-actions compact-actions">
               <a class="btn btn-soft" href="${getProductDetailUrl(item.id)}">Lihat detail</a>
+              ${item.stock > 0 ? `<button class="btn btn-primary" type="button" data-add-cart="${escapeHtml(item.id)}">+ Keranjang</button>` : '<button class="btn btn-secondary" type="button" disabled>Stok habis</button>'}
             </div>
           </div>
         </article>
@@ -1794,35 +1637,22 @@ async function refreshMarketplaceLandingMetrics() {
   if (!itemsEl && !buyersEl) return;
 
   try {
-    const [productsSnapshot, usersSnapshot] = await Promise.all([
-      getDocs(collection(db, 'marketplace_products')),
-      getDocs(collection(db, 'marketplace_users'))
-    ]);
-
+    const productsSnapshot = await getDocs(collection(db, 'marketplace_products'));
     const products = productsSnapshot.docs.map((docSnap) => docSnap.data());
-    const activeItems = products.filter((product) => {
-      const status = String(product?.status || '').trim().toLowerCase();
-      const sold = Boolean(product?.isSold || product?.sold || product?.is_sold);
-      return !sold && status !== 'terjual';
-    }).length;
-
-    const buyers = usersSnapshot.docs.filter((docSnap) => {
-      const user = docSnap.data() || {};
-      const role = String(user.role || '').trim().toLowerCase();
-      return role === 'buyer' || role === 'both' || !role;
-    }).length;
+    const activeItems = products.filter((product) => Number(product?.stock ?? 1) > 0).length;
+    const soldItems = products.reduce((total, product) => total + Math.max(0, Number(product?.sold || 0)), 0);
 
     if (itemsEl) {
-      itemsEl.textContent = formatCompactMetric(Math.max(activeItems, 0), 'item aktif');
+      itemsEl.textContent = formatCompactMetric(Math.max(activeItems, 0), 'produk aktif');
     }
 
     if (buyersEl) {
-      buyersEl.textContent = formatCompactMetric(Math.max(buyers, 0), 'pembeli');
+      buyersEl.textContent = formatCompactMetric(Math.max(soldItems, 0), 'terjual');
     }
   } catch (error) {
     console.warn('Gagal memuat metric marketplace dari Firestore:', error);
-    if (itemsEl) itemsEl.textContent = '0 item aktif';
-    if (buyersEl) buyersEl.textContent = '0 pembeli';
+    if (itemsEl) itemsEl.textContent = '0 produk aktif';
+    if (buyersEl) buyersEl.textContent = '0 terjual';
   }
 }
 
@@ -1853,31 +1683,199 @@ function renderBuyerProductsLoadingState() {
   `;
 }
 
-function renderMyProductsLoadingState() {
-  return `
-    <div class="product-loading-state" aria-live="polite" aria-label="Sedang memuat barang saya">
-      <div class="product-loading-indicator" role="status" aria-live="polite">
-        <span class="product-loading-spinner" aria-hidden="true"></span>
-        <span>Sedang memuat barang saya...</span>
-      </div>
-      <div class="product-loading-grid">
-        ${Array.from({ length: 4 }, () => `
-          <article class="product-card compact-card product-loading-card" aria-busy="true">
-            <div class="product-loading-image"></div>
-            <div class="product-body product-loading-body">
-              <div class="product-loading-line product-loading-price"></div>
-              <div class="product-loading-line"></div>
-              <div class="product-loading-line product-loading-line-short"></div>
-              <div class="product-loading-meta">
-                <span class="product-loading-avatar"></span>
-                <span class="product-loading-line product-loading-meta-line"></span>
-              </div>
-            </div>
-          </article>
-        `).join('')}
-      </div>
-    </div>
-  `;
+async function callMarketplaceApi(action, body = {}) {
+  const firebaseUser = auth.currentUser;
+  if (!firebaseUser) throw Object.assign(new Error('Silakan masuk kembali untuk melanjutkan.'), { code: 'unauthenticated' });
+  const idToken = await firebaseUser.getIdToken();
+  const response = await fetch(`/api/marketplace?action=${encodeURIComponent(action)}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${idToken}`
+    },
+    body: JSON.stringify(body)
+  });
+  let result = {};
+  try {
+    result = await response.json();
+  } catch (error) {
+    result = {};
+  }
+  if (!response.ok || result.success === false) {
+    const apiError = new Error(result.message || 'Permintaan toko gagal.');
+    apiError.code = result.code || `http-${response.status}`;
+    apiError.details = result.details;
+    throw apiError;
+  }
+  return result;
+}
+
+async function renderCartPage() {
+  const container = document.querySelector('[data-cart-content]');
+  if (!container) return;
+  const user = requireAuth();
+  if (!user) return;
+  const userId = auth.currentUser?.uid || user.uid || user.id;
+  if (!userId) return;
+
+  const cartRef = doc(db, 'marketplace_carts', userId);
+  let profile = user;
+  try {
+    const [profileSnapshot] = await Promise.all([
+      getDoc(doc(db, 'marketplace_users', userId)),
+      callMarketplaceApi('release-expired-reservations').catch((error) => {
+        console.error('[marketplace] gagal melepas reservasi kedaluwarsa saat buka keranjang:', error);
+      })
+    ]);
+    if (profileSnapshot.exists()) profile = { ...user, ...profileSnapshot.data() };
+  } catch (error) {
+    console.error('[marketplace] gagal memuat alamat profil untuk keranjang:', error);
+  }
+
+  const shipping = getShippingAddressFromUser(profile);
+  const cartSummary = document.querySelector('[data-cart-shipping]');
+  if (cartSummary) {
+    const completeness = shipping.complete ? 'Alamat siap untuk checkout.' : 'Alamat belum lengkap; isi nama penerima, HP, alamat, latitude, dan longitude di Profil.';
+    const warning = shipping.outsideIndonesia ? '<p class="commerce-warning">Koordinat berada di luar Indonesia; periksa kembali sebelum membayar.</p>' : '';
+    const map = shipping.complete ? `<iframe title="Preview alamat pengiriman" loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="https://maps.google.com/maps?q=${shipping.latitude},${shipping.longitude}&z=16&output=embed"></iframe><a href="${shipping.mapsUrl}" target="_blank" rel="noopener noreferrer">Lihat titik di Google Maps</a>` : '';
+    cartSummary.innerHTML = `<div class="commerce-section-heading"><div><h2>Alamat pengiriman</h2><p>${escapeHtml(completeness)}</p></div><a href="profil.html">Ubah alamat</a></div>${shipping.complete ? `<address>${escapeHtml(shipping.recipientName)} · ${escapeHtml(shipping.phone)}<br>${escapeHtml(shipping.address)}${shipping.city ? `, ${escapeHtml(shipping.city)}` : ''}${shipping.province ? `, ${escapeHtml(shipping.province)}` : ''}${shipping.postalCode ? ` ${escapeHtml(shipping.postalCode)}` : ''}${shipping.note ? `<br>Catatan: ${escapeHtml(shipping.note)}` : ''}</address><div class="commerce-map">${map}</div>` : ''}${warning}`;
+  }
+
+  let renderSequence = 0;
+  const showCartError = (message) => {
+    const errorEl = document.querySelector('[data-cart-error]');
+    if (errorEl) errorEl.textContent = message || '';
+  };
+
+  const renderCartContents = async (cartSnapshot) => {
+    const sequence = ++renderSequence;
+    const savedItems = cartSnapshot.exists() && Array.isArray(cartSnapshot.data().items) ? cartSnapshot.data().items : [];
+    if (!savedItems.length) {
+      container.innerHTML = '<div class="commerce-empty">Keranjang masih kosong. <a href="beli.html">Lihat katalog</a></div>';
+      const totalEl = document.querySelector('[data-cart-total]');
+      if (totalEl) totalEl.textContent = formatCurrency(0);
+      syncCheckoutButton(shipping.complete, true);
+      return;
+    }
+
+    const resolved = await Promise.all(savedItems.map(async (item) => {
+      try {
+        const snapshot = await getDoc(doc(db, 'marketplace_products', String(item.productId)));
+        if (!snapshot.exists()) return { productId: String(item.productId), qty: Number(item.qty || 1), product: null, stock: 0 };
+        const product = normalizeProduct({ id: snapshot.id, ...snapshot.data() });
+        return { productId: snapshot.id, qty: Number(item.qty || 1), product, stock: product.stock };
+      } catch (error) {
+        console.error('[marketplace] gagal memeriksa produk keranjang:', item.productId, error);
+        return { productId: String(item.productId), qty: Number(item.qty || 1), product: null, stock: 0 };
+      }
+    }));
+    if (sequence !== renderSequence) return;
+
+    let changed = false;
+    const correctedItems = resolved.map((item) => {
+      if (!item.product || item.stock === 0) return { productId: item.productId, qty: item.qty };
+      const qty = Math.max(1, Math.min(99, item.stock, item.qty));
+      if (qty !== item.qty) changed = true;
+      return { productId: item.productId, qty };
+    });
+    if (changed) {
+      await setDoc(cartRef, { items: correctedItems, updatedAt: Date.now() });
+      showCartError('Jumlah di keranjang disesuaikan karena stok barang berubah.');
+    }
+
+    const total = resolved.reduce((sum, item) => item.product && item.stock > 0
+      ? sum + Math.round(item.product.price) * Math.min(item.qty, item.stock)
+      : sum, 0);
+    const hasUnavailable = resolved.some((item) => !item.product || item.stock === 0);
+    container.innerHTML = resolved.map((item) => {
+      const product = item.product;
+      const unavailable = !product || item.stock === 0;
+      const qty = product && item.stock > 0 ? Math.min(item.qty, item.stock) : item.qty;
+      const unitPrice = product ? Math.round(product.price) : 0;
+      const imageUrl = safeMarketplaceImageUrl(product?.imageUrl);
+      const image = imageUrl ? `<img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(product.name)}" />` : '<span class="commerce-image-fallback">G</span>';
+      return `<article class="commerce-cart-item ${unavailable ? 'is-unavailable' : ''}" data-cart-item="${escapeHtml(item.productId)}">
+        <div class="commerce-cart-image">${image}</div>
+        <div class="commerce-cart-main"><div class="commerce-cart-title"><h3>${escapeHtml(product?.name || 'Produk tidak tersedia')}</h3><strong>${formatCurrency(unitPrice)}</strong></div>
+          <p class="commerce-stock ${unavailable ? 'is-unavailable' : ''}">${unavailable ? 'Produk habis atau tidak tersedia' : `Stok tersisa: ${item.stock}`}</p>
+          <div class="commerce-cart-controls">
+            <div class="commerce-quantity"><button type="button" data-cart-step="-1" aria-label="Kurangi jumlah" ${unavailable || qty <= 1 ? 'disabled' : ''}>−</button><output>${qty}</output><button type="button" data-cart-step="1" aria-label="Tambah jumlah" ${unavailable || qty >= item.stock || qty >= 99 ? 'disabled' : ''}>+</button></div>
+            <strong>Subtotal: ${formatCurrency(unavailable ? 0 : unitPrice * qty)}</strong>
+            <button class="commerce-remove" type="button" data-cart-remove>Hapus</button>
+          </div>
+        </div>
+      </article>`;
+    }).join('');
+
+    const totalEl = document.querySelector('[data-cart-total]');
+    if (totalEl) totalEl.textContent = formatCurrency(total);
+    syncCheckoutButton(shipping.complete, !resolved.length || hasUnavailable);
+  };
+
+  function syncCheckoutButton(addressComplete, hasInvalidItems) {
+    const button = document.querySelector('[data-checkout]');
+    if (!button) return;
+    button.disabled = !addressComplete || hasInvalidItems;
+    const reason = !addressComplete ? 'Lengkapi alamat pengiriman di Profil.' : hasInvalidItems ? 'Hapus barang habis atau periksa stok.' : '';
+    button.title = reason;
+  }
+
+  container.addEventListener('click', async (event) => {
+    const row = event.target.closest('[data-cart-item]');
+    if (!row) return;
+    const productId = row.dataset.cartItem;
+    try {
+      const snapshot = await getDoc(cartRef);
+      const items = snapshot.exists() && Array.isArray(snapshot.data().items) ? snapshot.data().items : [];
+      const current = items.find((item) => String(item.productId) === productId);
+      if (!current) return;
+      if (event.target.closest('[data-cart-remove]')) {
+        await setDoc(cartRef, { items: items.filter((item) => String(item.productId) !== productId), updatedAt: Date.now() });
+      } else {
+        const step = Number(event.target.closest('[data-cart-step]')?.dataset.cartStep || 0);
+        if (!step) return;
+        const productSnapshot = await getDoc(doc(db, 'marketplace_products', productId));
+        const rawStock = productSnapshot.exists() ? Number(productSnapshot.data().stock) : 0;
+        const stock = Number.isInteger(rawStock) && rawStock >= 0 ? rawStock : (productSnapshot.exists() ? 1 : 0);
+        const nextQty = Math.max(1, Math.min(99, stock, Number(current.qty || 1) + step));
+        if (stock <= 0) return;
+        await setDoc(cartRef, { items: items.map((item) => String(item.productId) === productId ? { productId, qty: nextQty } : item), updatedAt: Date.now() });
+      }
+    } catch (error) {
+      console.error('[marketplace] gagal mengubah keranjang:', error);
+      showCartError(`Keranjang gagal diperbarui: ${error?.code || error.message || 'unknown'}`);
+    }
+  });
+
+  const checkoutButton = document.querySelector('[data-checkout]');
+  checkoutButton?.addEventListener('click', async () => {
+    if (checkoutButton.disabled) return;
+    checkoutButton.disabled = true;
+    checkoutButton.textContent = 'Menyiapkan pembayaran...';
+    showCartError('');
+    try {
+      const result = await callMarketplaceApi('checkout', { shippingAddress: shipping });
+      if (!result.paymentUrl || !/^https:\/\//i.test(result.paymentUrl)) throw new Error('DOKU tidak mengembalikan link pembayaran HTTPS.');
+      window.location.href = result.paymentUrl;
+    } catch (error) {
+      console.error('[marketplace] checkout gagal:', error);
+      const stockIssues = Array.isArray(error.details) ? error.details.map((item) => `${item.name || 'Produk'}: stok ${item.stock ?? 0}`).join(' · ') : '';
+      showCartError(`Checkout gagal (${error.code || 'unknown'}): ${error.message}${stockIssues ? ` ${stockIssues}` : ''}`);
+      checkoutButton.disabled = false;
+      checkoutButton.textContent = 'Bayar dengan DOKU';
+    }
+  });
+
+  const unsubscribe = onSnapshot(cartRef, (snapshot) => {
+    renderCartContents(snapshot).catch((error) => {
+      console.error('[marketplace] gagal merender keranjang:', error);
+      showCartError(`Keranjang gagal dimuat: ${error?.code || 'unknown'}`);
+    });
+  }, (error) => {
+    console.error('[marketplace] gagal membaca keranjang:', error);
+    showCartError(`Keranjang gagal dimuat: ${error?.code || 'unknown'}`);
+  });
+  window.__marketplaceCartCleanup = unsubscribe;
 }
 
 async function renderHomeProducts() {
@@ -1889,6 +1887,7 @@ async function renderHomeProducts() {
 
   container.innerHTML = renderHomeProductsLoadingState();
   ensureDemoData();
+  bindAddToCartButtons(container);
 
   const bindProductCarouselControls = () => {
     const carousel = container.querySelector('[data-product-carousel]');
@@ -1914,12 +1913,16 @@ async function renderHomeProducts() {
   };
 
   const rerenderProducts = async () => {
-    const filteredItems = activeFilter === 'all'
-      ? latestProducts
-      : latestProducts.filter((item) => normalizeProduct(item).category === activeFilter);
-
-    const normalized = filteredItems.map(normalizeProduct);
-    container.innerHTML = renderProductCarousel(normalized);
+    const normalizedItems = normalizeMarketplaceProducts(
+      [...latestProducts].sort((a, b) => getCreatedAtMs(b.createdAt) - getCreatedAtMs(a.createdAt))
+    );
+    const normalized = activeFilter === 'all'
+      ? normalizedItems
+      : normalizedItems.filter((item) => item.category === activeFilter);
+    const loadNotice = marketplaceLoadErrorMarkup();
+    container.innerHTML = window.__marketplaceProductsError && !normalized.length
+      ? loadNotice
+      : `${loadNotice}${renderProductCarousel(normalized)}`;
     bindProductCarouselControls();
 
     const filterButtons = document.querySelectorAll('[data-filter]');
@@ -1932,17 +1935,34 @@ async function renderHomeProducts() {
     });
   };
 
+  bindMarketplaceRetry(container, async () => {
+    latestProducts = await fetchProductsFromFirebase();
+    await rerenderProducts();
+  });
+
   const products = await fetchProductsFromFirebase();
   latestProducts = products;
   await rerenderProducts();
 
-  const productsQuery = query(collection(db, 'marketplace_products'), orderBy('createdAt', 'desc'));
-  const unsubscribe = onSnapshot(productsQuery, (snapshot) => {
+  const productsQuery = collection(db, 'marketplace_products');
+  const unsubscribe = onSnapshot(productsQuery, { includeMetadataChanges: true }, (snapshot) => {
     const items = snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
+    console.log('[marketplace] produk dimuat:', items.length);
     latestProducts = items;
+    cacheMarketplaceProducts(items);
+    if (snapshot.metadata.fromCache) {
+      window.__marketplaceProductsError ||= { code: 'unavailable', message: 'Firestore belum memberikan data terbaru; katalog memakai data tersimpan.' };
+      window.__marketplaceProductsFromCache = items.length > 0;
+    } else {
+      delete window.__marketplaceProductsError;
+      delete window.__marketplaceProductsFromCache;
+    }
     rerenderProducts();
   }, (error) => {
-    console.error('Realtime home products error:', error);
+    console.error('[marketplace] realtime home products gagal:', error);
+    window.__marketplaceProductsError = { code: error?.code || 'unknown', message: error?.message || 'Terjadi kesalahan saat membaca katalog.' };
+    window.__marketplaceProductsFromCache = readStorage(STORAGE_KEYS.PRODUCTS, []).length > 0;
+    rerenderProducts();
   });
 
   window.__marketplaceHomeProductsCleanup = unsubscribe;
@@ -1991,9 +2011,9 @@ async function handleAuthSubmit(event) {
         email: payload.email,
         phone: payload.phone || '',
         username: `${(payload.firstName || 'user').toLowerCase()}${(payload.lastName || '').toLowerCase()}`.trim() || 'user',
-        bio: 'Saya membuka akun untuk jual dan beli barang dengan rasa aman dan nyaman.',
+        bio: 'Saya menggunakan akun sebagai pembeli di Marketplace Mantan.',
         city: 'Jakarta',
-        role: payload.role || 'both'
+        role: 'buyer'
       };
 
       await setDoc(doc(db, 'marketplace_users', cred.user.uid), newUser);
@@ -2020,9 +2040,9 @@ async function handleAuthSubmit(event) {
       email: cred.user.email,
       phone: '',
       username: 'user',
-      bio: '',
+      bio: 'Pembeli Marketplace Mantan',
       city: 'Jakarta',
-      role: 'both'
+      role: 'buyer'
     };
 
     resetLoginAttempts();
@@ -2100,11 +2120,15 @@ async function bindAuthPage() {
   }
 
   onAuthStateChanged(auth, async (firebaseUser) => {
-    if (!firebaseUser) return;
+    if (!firebaseUser || String(firebaseUser.email || '').toLowerCase() === ADMIN_ACCOUNT_EMAIL) return;
 
-    await syncCurrentUserFromFirebase(firebaseUser, true);
-    if (window.location.pathname.endsWith('login.html') || window.location.pathname.endsWith('register.html')) {
-      window.location.href = 'dashboard.html';
+    try {
+      await syncCurrentUserFromFirebase(firebaseUser, true);
+      if (window.location.pathname.endsWith('login.html') || window.location.pathname.endsWith('register.html')) {
+        window.location.href = 'dashboard.html';
+      }
+    } catch (error) {
+      console.error('[marketplace] gagal memuat sesi pada halaman login:', error);
     }
   });
 }
@@ -2179,25 +2203,43 @@ async function renderDashboard() {
   const greeting = document.querySelector('[data-greeting]');
   if (greeting) greeting.textContent = `Halo, ${getSafeUserName(user.name)}`;
 
-  const products = await fetchMyProductsFromFirebase(user);
-  const normalizedProducts = products.map((item) => normalizeProduct(item));
-  const totalSold = normalizedProducts.filter((item) => {
-    const status = String(item.status || '').toLowerCase();
-    const condition = String(item.condition || '').toLowerCase();
-    return status === 'terjual' || condition === 'terjual';
-  }).length;
-  const activeProducts = normalizedProducts.filter((item) => {
-    const status = String(item.status || '').toLowerCase();
-    return status !== 'terjual';
-  }).length;
-  const balance = normalizedProducts.reduce((sum, item) => sum + Number(item.price || 0), 0);
+  const userId = auth.currentUser?.uid || user.uid || user.id || '';
+  const [productsResult, ordersResult, chatResult] = await Promise.allSettled([
+    getDocs(collection(db, 'marketplace_products')),
+    userId ? getDocs(query(collection(db, 'marketplace_orders'), where('userId', '==', userId))) : Promise.resolve({ docs: [] }),
+    userId ? getDoc(doc(db, 'marketplace_chats', userId)) : Promise.resolve(null)
+  ]);
 
-  const soldEl = document.querySelector('[data-stat-sold]');
-  if (soldEl) soldEl.textContent = String(totalSold);
+  const products = productsResult.status === 'fulfilled'
+    ? productsResult.value.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }))
+    : [];
+  const orders = ordersResult.status === 'fulfilled'
+    ? ordersResult.value.docs.map((docSnap) => docSnap.data())
+    : [];
+  const chatSummary = chatResult.status === 'fulfilled' && chatResult.value?.exists()
+    ? chatResult.value.data()
+    : {};
+
+  [productsResult, ordersResult, chatResult].forEach((result) => {
+    if (result.status === 'rejected') console.error('[marketplace] dashboard gagal memuat data pembeli:', result.reason);
+  });
+
+  if (productsResult.status === 'fulfilled') cacheMarketplaceProducts(products);
+  const normalizedProducts = normalizeMarketplaceProducts(products)
+    .sort((a, b) => getCreatedAtMs(b.createdAt) - getCreatedAtMs(a.createdAt));
+  const awaitingPaymentOrders = orders.filter((order) => String(order.status || '').toLowerCase() === 'awaiting_payment');
+  const activeOrders = orders.filter((order) => ['paid', 'processing', 'shipped'].includes(String(order.status || '').toLowerCase()));
+  const completedOrders = orders.filter((order) => String(order.status || '').toLowerCase() === 'completed');
+  const unreadMessages = Math.max(0, Number(chatSummary.unreadForUser || 0));
+
   const orderEl = document.querySelector('[data-stat-orders]');
-  if (orderEl) orderEl.textContent = String(activeProducts);
-  const balanceEl = document.querySelector('[data-stat-balance]');
-  if (balanceEl) balanceEl.textContent = formatCurrency(balance);
+  if (orderEl) orderEl.textContent = String(activeOrders.length);
+  const awaitingEl = document.querySelector('[data-stat-awaiting]');
+  if (awaitingEl) awaitingEl.textContent = String(awaitingPaymentOrders.length);
+  const finishedEl = document.querySelector('[data-stat-finished]');
+  if (finishedEl) finishedEl.textContent = String(completedOrders.length);
+  const chatEl = document.querySelector('[data-stat-chat]');
+  if (chatEl) chatEl.textContent = String(unreadMessages);
 
   const productList = document.querySelector('[data-dashboard-products]');
   if (productList) {
@@ -2205,9 +2247,8 @@ async function renderDashboard() {
       productList.innerHTML = `
         <div style="display: grid; place-items: center; text-align: center; min-height: 180px;">
           <div>
-            <div style="font-size: 2.5rem; margin-bottom: 12px;"><span class="material-symbols-outlined">inventory_2</span></div>
-            <h3 style="margin: 0 0 8px;">Belum ada produk</h3>
-            <p class="muted" style="margin: 0;">Mulai dengan menambahkan barang pertama Anda.</p>
+            <h3 style="margin: 0 0 8px;">Belum ada produk toko</h3>
+            <p class="muted" style="margin: 0;">Produk terbaru dari Marketplace Mantan akan tampil di sini.</p>
           </div>
         </div>
       `;
@@ -2218,10 +2259,10 @@ async function renderDashboard() {
             ${item.imageUrl ? `<img src="${item.imageUrl}" alt="${escapeHtml(item.name)}" style="width:100%; height:100%; object-fit:cover;" />` : `<span style="font-size: 1.5rem;">${escapeHtml(item.label?.charAt(0) || 'B')}</span>`}
           </div>
           <div>
-            <div style="font-weight: 700; color: var(--primary-strong);">${escapeHtml(item.name)}</div>
+            <div style="font-weight:700;color:var(--primary-strong);">${escapeHtml(item.name)}</div>
             <small class="muted">${escapeHtml(item.category || 'Barang')} • ${formatCurrency(item.price)}</small>
           </div>
-          <span class="condition" style="${item.status === 'Terjual' ? 'background: #fee2e2; color: #991b1b; border: 1px solid #fecaca;' : 'background: #dcfce7; color: #166534; border: 1px solid #bbf7d0;'}">${escapeHtml(item.status || 'Tersedia')}</span>
+          <span class="condition" style="${item.stock === 0 ? 'background: #fee2e2; color: #991b1b; border: 1px solid #fecaca;' : item.stock <= 2 ? 'background: #fef3c7; color: #92400e; border: 1px solid #fde68a;' : 'background: #dcfce7; color: #166534; border: 1px solid #bbf7d0;'}">${item.stock > 0 ? `Stok: ${item.stock}` : 'Habis'}</span>
         </div>
       `).join('');
     }
@@ -2234,20 +2275,18 @@ async function renderDashboard() {
         <div class="activity-item">
           <span class="dot"></span>
           <div>
-            <p><strong>Aktivitas</strong> akan muncul di sini saat produk atau transaksi mulai dibuat.</p>
-            <small>Belum ada update</small>
+            <p><strong>Pesanan dan chat</strong> akan muncul di menu Pesanan Saya dan Chat Admin.</p>
+            <small>${activeOrders.length} pesanan aktif · ${unreadMessages} pesan belum dibaca</small>
           </div>
         </div>
       `;
       return;
     }
 
-    const latestActivities = normalizedProducts
-      .slice(0, 4)
-      .map((item) => ({
-        title: item.status === 'Terjual' ? `Barang terjual: ${item.name}` : `Barang aktif: ${item.name}`,
-        time: item.createdAt ? new Date(item.createdAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Baru'
-      }));
+    const latestActivities = normalizedProducts.slice(0, 4).map((item) => ({
+      title: `Produk toko: ${item.name}`,
+      time: item.createdAt ? new Date(item.createdAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Baru'
+    }));
 
     activityContainer.innerHTML = latestActivities.map((activity) => `
       <div class="activity-item">
@@ -2263,753 +2302,170 @@ async function renderDashboard() {
   updateSidebarProfile();
 }
 
-async function handleSellSubmit(event) {
-  event.preventDefault();
-
-  const form = event.currentTarget;
-  const submitButton = form.querySelector('button[type="submit"]');
-  const user = currentUser() || requireAuth();
+async function renderOrdersForBuyer() {
+  const container = document.querySelector('[data-buyer-orders]');
+  if (!container) return;
+  const user = requireAuth();
   if (!user) return;
 
-  if (submitButton) {
-    setButtonLoading(submitButton, true, 'Menyimpan...');
-  }
+  const userId = auth.currentUser?.uid || user.uid || user.id || '';
+  const pageStatus = document.querySelector('[data-orders-status]');
+  let orders = [];
+  let countdownInterval = null;
 
-  try {
-    const formData = new FormData(form);
-    const payload = Object.fromEntries(formData.entries());
-    const fileInput = form.querySelector('input[type="file"]');
-    const selectedFiles = fileInput && fileInput.files ? Array.from(fileInput.files).filter((file) => file && file.type.startsWith('image/')) : [];
+  const statusLabels = {
+    awaiting_payment: ['Menunggu Pembayaran', 'bg-amber-100 text-amber-800'],
+    paid: ['Dibayar', 'bg-blue-100 text-blue-800'],
+    processing: ['Diproses', 'bg-indigo-100 text-indigo-800'],
+    shipped: ['Dikirim', 'bg-cyan-100 text-cyan-800'],
+    completed: ['Selesai', 'bg-emerald-100 text-emerald-800'],
+    cancelled: ['Dibatalkan', 'bg-slate-100 text-slate-700'],
+    expired: ['Kedaluwarsa', 'bg-rose-100 text-rose-800'],
+    payment_failed: ['Pembayaran Gagal', 'bg-rose-100 text-rose-800']
+  };
 
-    if (!payload.name || !payload.description || !payload.price || !payload.location) {
-      throw new Error('Form jual belum lengkap. Isi nama barang, harga, lokasi, dan deskripsi terlebih dahulu.');
-    }
-
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'];
-    const maxFileSize = 5 * 1024 * 1024;
-    const validFiles = selectedFiles.filter((file) => {
-      if (!allowedTypes.includes(file.type)) return false;
-      if (file.size > maxFileSize) return false;
-      return true;
-    });
-
-    if (selectedFiles.length && validFiles.length !== selectedFiles.length) {
-      throw new Error('Beberapa foto tidak valid: gunakan JPG, PNG, atau WebP dengan ukuran maksimal 5 MB per file.');
-    }
-
-    const resizedFiles = validFiles.length ? await Promise.all(validFiles.map((file) => prepareImageForUpload(file))) : [];
-    const finalFiles = resizedFiles.filter((file) => file && file.size <= maxFileSize);
-
-    if (validFiles.length && finalFiles.length !== validFiles.length) {
-      throw new Error('Foto terlalu besar untuk diupload. Silakan pilih foto yang lebih kecil atau lebih ringan.');
-    }
-
-    const productPayload = {
-      name: payload.name || 'Barang Baru',
-      category: payload.category || 'barang',
-      price: Number(String(payload.price || '').replace(/[^\d]/g, '')) || 0,
-      condition: payload.condition || 'Layak pakai',
-      status: payload.status || 'Tersedia',
-      description: payload.description || 'Barang ini siap dijual.',
-      city: payload.location || 'Jakarta',
-      address: payload.location || 'Jakarta',
-      location: payload.location || 'Jakarta',
-      seller: user.name || 'Seller',
-      sellerInitial: (user.name || 'S').charAt(0).toUpperCase(),
-      sellerPhotoUrl: getUserPhotoUrl(user) || '',
-      sellerId: user.id || user.uid || auth.currentUser?.uid || '',
-      ownerId: user.id || user.uid || auth.currentUser?.uid || '',
-      image: payload.category === 'pakaian' ? '👕' : payload.category === 'aksesori' ? '⌚' : '🎁',
-      label: productLabel(payload.category || 'barang'),
-      storyType: payload.storyType || 'barang-kenangan',
-      storyNote: payload.storyNote || '',
-      latitude: payload.latitude || '',
-      longitude: payload.longitude || '',
-      imageUrl: '',
-      images: [],
-      createdAt: Date.now()
-    };
-
-    if (finalFiles.length) {
-      if (submitButton) {
-        setButtonLoading(submitButton, true, 'Mengolah foto...');
-      }
-
-      const dataUrls = await Promise.all(
-        finalFiles.map(async (file) => fileToDataUrl(file))
-      );
-
-      productPayload.images = dataUrls;
-      productPayload.imageUrl = dataUrls[0] || '';
-      productPayload.image = dataUrls[0] || productPayload.image;
-    }
-
-    if (productPayload.ownerId) {
-      const productRef = await withTimeout(addDoc(collection(db, 'marketplace_products'), productPayload), FILE_UPLOAD_TIMEOUT_MS, 'Simpan produk');
-      productPayload.id = productRef.id;
-      await withTimeout(updateDoc(productRef, { id: productRef.id }), FILE_UPLOAD_TIMEOUT_MS, 'Update ID produk');
-    }
-
-    showPopup('Barang berhasil dipublish.', 'Berhasil', 'success');
-    setTimeout(() => {
-      window.location.href = 'my-products.html';
-    }, 1500);
-  } catch (error) {
-    console.error('Gagal publish produk:', error);
-    showPopup(error.message || 'Proses menambahkan barang gagal. Data tidak disimpan.', 'Gagal', 'error');
-  } finally {
-    if (submitButton) {
-      setButtonLoading(submitButton, false);
-    }
-  }
-}
-
-async function bindEditForm() {
-  const form = document.querySelector('[data-edit-form]');
-  if (!form) return;
-
-  bindPriceFieldFormatting(form);
-
-  const productId = new URLSearchParams(window.location.search).get('id');
-  if (!productId) {
-    showPopup('Produk tidak ditemukan untuk diedit.', 'Tidak ditemukan', 'error');
-    window.location.href = 'my-products.html';
-    return;
-  }
-
-  const photoInput = form.querySelector('input[type="file"]');
-  const browseButton = form.querySelector('[data-browse-files]');
-  const dropzone = form.querySelector('[data-upload-dropzone]');
-  const uploadedList = form.querySelector('[data-uploaded-file-list]');
-  const locationButton = form.querySelector('[data-use-location]');
-  const locationStatus = form.querySelector('[data-location-status]');
-  const latField = form.querySelector('[name="latitude"]');
-  const lngField = form.querySelector('[name="longitude"]');
-  const mapPreview = form.querySelector('[data-location-map-preview]');
-
-  const updateLocationPreview = (lat, lng) => {
-    if (!mapPreview) return;
-    const latitude = Number(lat || 0);
-    const longitude = Number(lng || 0);
-    if (!latitude || !longitude) {
-      mapPreview.innerHTML = '<div class="map-placeholder">📍</div>';
+  const renderOrders = () => {
+    if (!orders.length) {
+      container.innerHTML = '<div class="commerce-empty">Belum ada pesanan. <a href="beli.html">Pilih barang dari katalog</a>.</div>';
       return;
     }
-
-    const mapUrl = `https://maps.google.com/maps?q=${latitude},${longitude}&z=14&output=embed`;
-    mapPreview.innerHTML = `<iframe title="Preview lokasi" loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="${mapUrl}"></iframe>`;
+    container.innerHTML = orders.map((order) => {
+      const [label, badgeClass] = statusLabels[order.status] || ['Status diperiksa admin', 'bg-slate-100 text-slate-700'];
+      const items = Array.isArray(order.items) ? order.items : [];
+      const shipping = order.shippingAddress || {};
+      const hasCoordinates = Number.isFinite(Number(shipping.latitude)) && Number.isFinite(Number(shipping.longitude)) && shipping.latitude !== '' && shipping.longitude !== '';
+      const mapUrl = hasCoordinates ? `https://www.google.com/maps/search/?api=1&query=${Number(shipping.latitude)},${Number(shipping.longitude)}` : '';
+      const canPay = order.status === 'awaiting_payment' && Number(order.paymentExpiresAt || 0) > Date.now();
+      const itemMarkup = items.map((item) => `<li>${escapeHtml(item.name || 'Produk')} × ${Math.max(1, Number(item.qty || 1))} <span>${formatCurrency(item.subtotal || 0)}</span></li>`).join('');
+      return `<article class="commerce-panel commerce-order-card" data-order-id="${escapeHtml(order.id)}">
+        <header class="commerce-order-header"><div><strong>${escapeHtml(order.orderCode || order.id)}</strong><p class="muted">${escapeHtml(order.createdAt ? new Date(getCreatedAtMs(order.createdAt)).toLocaleString('id-ID') : 'Tanggal belum tersedia')}</p></div><span class="commerce-status ${badgeClass}">${label}</span></header>
+        <ul class="commerce-order-items">${itemMarkup}</ul>
+        <div class="commerce-order-total"><span>Total</span><strong>${formatCurrency(order.totalAmount || 0)}</strong></div>
+        ${canPay ? `<p class="commerce-payment-countdown" data-payment-countdown="${Number(order.paymentExpiresAt)}"></p>` : ''}
+        <div class="commerce-order-shipping"><strong>Alamat pengiriman</strong><p>${escapeHtml(shipping.recipientName || '')} · ${escapeHtml(shipping.phone || '')}<br>${escapeHtml(shipping.address || '')}${shipping.city ? `, ${escapeHtml(shipping.city)}` : ''}${shipping.province ? `, ${escapeHtml(shipping.province)}` : ''}${shipping.postalCode ? ` ${escapeHtml(shipping.postalCode)}` : ''}${shipping.note ? `<br>Catatan: ${escapeHtml(shipping.note)}` : ''}</p>${mapUrl ? `<a href="${mapUrl}" target="_blank" rel="noopener noreferrer">Lihat di Google Maps</a>` : ''}</div>
+        ${order.trackingNumber ? `<p class="commerce-tracking"><strong>${escapeHtml(order.courier || 'Kurir')}:</strong> ${escapeHtml(order.trackingNumber)}</p>` : ''}
+        <footer class="commerce-order-actions">
+          ${canPay ? `<button class="btn btn-primary" type="button" data-pay-order="${escapeHtml(order.id)}">Bayar Sekarang</button><button class="btn btn-secondary" type="button" data-cancel-order="${escapeHtml(order.id)}">Batalkan</button>` : ''}
+          <a class="btn btn-secondary" href="chat.html?orderId=${encodeURIComponent(order.id)}">Tanya Admin</a>
+        </footer>
+      </article>`;
+    }).join('');
+    bindOrderActions();
+    updatePaymentCountdowns();
   };
 
-  const syncChosenFiles = (files = []) => {
-    if (!photoInput) return [];
-    const validFiles = Array.from(files || []).filter((file) => file && file.name && file.type && file.type.startsWith('image/'));
-    const uniqueFiles = [];
-    const seen = new Set();
-
-    validFiles.forEach((file) => {
-      const key = `${file.name}-${file.size}-${file.lastModified}`;
-      if (!seen.has(key)) {
-        seen.add(key);
-        uniqueFiles.push(file);
-      }
-    });
-
-    const dt = new DataTransfer();
-    uniqueFiles.forEach((file) => dt.items.add(file));
-    photoInput.files = dt.files;
-    photoInput.__gamonSelectedFiles = uniqueFiles;
-    return uniqueFiles;
+  const loadOrders = async () => {
+    const snapshot = await getDocs(query(collection(db, 'marketplace_orders'), where('userId', '==', userId)));
+    orders = snapshot.docs
+      .map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }))
+      .sort((a, b) => getCreatedAtMs(b.createdAt) - getCreatedAtMs(a.createdAt));
+    renderOrders();
   };
 
-  const getStoredSelectedFiles = () => {
-    if (!photoInput) return [];
-    if (Array.isArray(photoInput.__gamonSelectedFiles)) {
-      return [...photoInput.__gamonSelectedFiles];
-    }
-    return Array.from(photoInput.files || []);
-  };
-
-  const renderSelectedFiles = (fileList = []) => {
-    if (!uploadedList) return;
-    const files = Array.from(fileList || []).filter((file) => file && file.type && file.type.startsWith('image/'));
-
-    if (!files.length) {
-      uploadedList.innerHTML = '';
-      return;
-    }
-
-    Promise.all(files.slice(0, 8).map((file) => fileToDataUrl(file))).then((urls) => {
-      uploadedList.innerHTML = urls.map((url, index) => `
-        <div class="uploaded-item">
-          <div class="uploaded-item-thumb">
-            <img src="${url}" alt="${escapeHtml(files[index]?.name || 'Preview foto')}" />
-          </div>
-          <div class="uploaded-item-name">${escapeHtml(files[index]?.name || 'Foto')}</div>
-          <button class="uploaded-item-remove" type="button" data-remove-file="${index}" aria-label="Hapus foto">🗑</button>
-        </div>
-      `).join('');
-
-      uploadedList.querySelectorAll('[data-remove-file]').forEach((button) => {
-        button.addEventListener('click', () => {
-          if (!photoInput) return;
-          const fileArray = getStoredSelectedFiles();
-          const removeIndex = Number(button.dataset.removeFile || 0);
-          const remainingFiles = fileArray.filter((_, idx) => idx !== removeIndex);
-          const syncedFiles = syncChosenFiles(remainingFiles);
-          renderSelectedFiles(syncedFiles);
-        });
-      });
-    }).catch(() => {
-      uploadedList.innerHTML = '';
-    });
-  };
-
-  if (browseButton && photoInput) {
-    browseButton.addEventListener('click', () => photoInput.click());
-  }
-
-  if (dropzone && photoInput) {
-    dropzone.addEventListener('dragover', (event) => {
-      event.preventDefault();
-      dropzone.classList.add('is-dragover');
-    });
-
-    dropzone.addEventListener('dragleave', () => dropzone.classList.remove('is-dragover'));
-    dropzone.addEventListener('drop', (event) => {
-      event.preventDefault();
-      dropzone.classList.remove('is-dragover');
-      if (event.dataTransfer?.files?.length) {
-        const previousFiles = getStoredSelectedFiles();
-        const mergedFiles = syncChosenFiles([...previousFiles, ...Array.from(event.dataTransfer.files || [])]);
-        renderSelectedFiles(mergedFiles);
-      }
-    });
-  }
-
-  if (photoInput) {
-    photoInput.addEventListener('change', (event) => {
-      const incomingFiles = Array.from(event.target.files || []);
-      const mergedFiles = syncChosenFiles(incomingFiles);
-      renderSelectedFiles(mergedFiles);
-    });
-  }
-
-  let existingImages = [];
-  const localProducts = readStorage(STORAGE_KEYS.PRODUCTS, productSeed);
-  const product = localProducts.find((item) => String(item.id) === String(productId)) || null;
-
-  const resolveProduct = async () => {
-    try {
-      const snapshot = await getDoc(doc(db, 'marketplace_products', productId));
-      if (snapshot.exists()) {
-        return snapshot.data();
-      }
-    } catch (error) {
-      console.warn('Failed to fetch product from Firestore', error);
-    }
-    return product;
-  };
-
-  const selectedProduct = await resolveProduct();
-  const normalized = selectedProduct ? normalizeProduct(selectedProduct) : null;
-
-  if (!normalized) {
-    showPopup('Produk yang akan diedit tidak ditemukan.', 'Tidak ditemukan', 'error');
-    window.location.href = 'my-products.html';
-    return;
-  }
-
-  form.querySelector('[name="name"]').value = normalized.name || '';
-  form.querySelector('[name="category"]').value = normalized.category || 'barang';
-  form.querySelector('[name="price"]').value = formatRupiahInputValue(normalized.price || '');
-  form.querySelector('[name="condition"]').value = normalized.condition || 'Layak pakai';
-  form.querySelector('[name="status"]').value = normalized.status || 'Tersedia';
-  form.querySelector('[name="storyType"]').value = normalized.storyType || 'barang-kenangan';
-  form.querySelector('[name="storyNote"]').value = normalized.storyNote || '';
-  form.querySelector('[name="description"]').value = normalized.description || '';
-  form.querySelector('[name="location"]').value = normalized.address || normalized.city || '';
-  if (latField) latField.value = normalized.latitude || '';
-  if (lngField) lngField.value = normalized.longitude || '';
-  if (normalized.latitude && normalized.longitude) {
-    updateLocationPreview(normalized.latitude, normalized.longitude);
-  }
-
-  existingImages = Array.isArray(normalized.images) ? normalized.images.filter(Boolean) : [];
-  if (existingImages.length) {
-    uploadedList.innerHTML = existingImages.map((src, index) => `
-      <div class="uploaded-item">
-        <div class="uploaded-item-thumb">
-          <img src="${src}" alt="${escapeHtml(normalized.name || 'Foto produk')}" />
-        </div>
-        <div class="uploaded-item-name">Foto ${index + 1}</div>
-        <button class="uploaded-item-remove" type="button" data-remove-existing="${index}" aria-label="Hapus foto lama">🗑</button>
-      </div>
-    `).join('');
-
-    uploadedList.querySelectorAll('[data-remove-existing]').forEach((button) => {
-      button.addEventListener('click', () => {
-        const index = Number(button.dataset.removeExisting || 0);
-        existingImages = existingImages.filter((_, i) => i !== index);
-        if (!existingImages.length) {
-          uploadedList.innerHTML = '';
-          return;
-        }
-        uploadedList.innerHTML = existingImages.map((src, btnIndex) => `
-          <div class="uploaded-item">
-            <div class="uploaded-item-thumb">
-              <img src="${src}" alt="${escapeHtml(normalized.name || 'Foto produk')}" />
-            </div>
-            <div class="uploaded-item-name">Foto ${btnIndex + 1}</div>
-            <button class="uploaded-item-remove" type="button" data-remove-existing="${btnIndex}" aria-label="Hapus foto lama">🗑</button>
-          </div>
-        `).join('');
-        uploadedList.querySelectorAll('[data-remove-existing]').forEach((newButton) => {
-          newButton.addEventListener('click', () => {
-            const secondIndex = Number(newButton.dataset.removeExisting || 0);
-            existingImages = existingImages.filter((_, idx) => idx !== secondIndex);
-            uploadedList.innerHTML = existingImages.length ? existingImages.map((img, innerIndex) => `
-              <div class="uploaded-item">
-                <div class="uploaded-item-thumb">
-                  <img src="${img}" alt="${escapeHtml(normalized.name || 'Foto produk')}" />
-                </div>
-                <div class="uploaded-item-name">Foto ${innerIndex + 1}</div>
-                <button class="uploaded-item-remove" type="button" data-remove-existing="${innerIndex}" aria-label="Hapus foto lama">🗑</button>
-              </div>
-            `).join('') : '';
-          });
-        });
-      });
-    });
-  }
-
-  if (locationButton) {
-    locationButton.addEventListener('click', () => {
-      if (!navigator.geolocation) {
-        showPopup('Browser Anda tidak mendukung pembacaan lokasi otomatis.', 'Lokasi tidak tersedia', 'error');
-        if (locationStatus) locationStatus.textContent = 'Browser tidak mendukung';
-        return;
-      }
-
-      if (locationStatus) locationStatus.textContent = 'Mencari lokasi...';
-      locationButton.disabled = true;
-
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const latitude = Number(position.coords.latitude || 0);
-          const longitude = Number(position.coords.longitude || 0);
-          if (latField) latField.value = String(latitude.toFixed(6));
-          if (lngField) lngField.value = String(longitude.toFixed(6));
-          updateLocationPreview(latitude, longitude);
-          if (locationStatus) locationStatus.textContent = 'Lokasi berhasil dipakai';
-          showPopup('Lokasi Anda berhasil dipakai untuk produk.', 'Lokasi diperbarui', 'success');
-          locationButton.disabled = false;
-        },
-        (error) => {
-          console.warn('Geolocation error:', error);
-          if (locationStatus) locationStatus.textContent = 'Gagal mengambil lokasi';
-          showPopup('Tidak dapat mengambil lokasi otomatis. Silakan izinkan akses lokasi browser Anda.', 'Lokasi gagal', 'error');
-          locationButton.disabled = false;
-        },
-        {
-          enableHighAccuracy: true,
-          timeout: 15000,
-          maximumAge: 0
-        }
-      );
-    });
-  }
-
-  form.addEventListener('submit', async (event) => {
-    event.preventDefault();
-
-    const submitButton = form.querySelector('button[type="submit"]');
-    if (submitButton) {
-      submitButton.disabled = true;
-      submitButton.textContent = 'Menyimpan...';
-    }
-
-    try {
-      const formData = new FormData(form);
-      const payload = Object.fromEntries(formData.entries());
-      const selectedFiles = getStoredSelectedFiles();
-      const user = currentUser() || requireAuth();
-
-      const imageUrls = [...existingImages];
-      const newFiles = Array.from(selectedFiles || []).filter((file) => file && file.type && file.type.startsWith('image/'));
-      if (newFiles.length) {
-        const prepared = await Promise.all(newFiles.map((file) => prepareImageForUpload(file)));
-        const urls = await Promise.all(prepared.map((file) => fileToDataUrl(file)));
-        imageUrls.push(...urls);
-      }
-
-      const updatedData = {
-        name: payload.name,
-        category: payload.category,
-        price: Number(String(payload.price).replace(/[^\d]/g, '')) || 0,
-        condition: payload.condition,
-        status: payload.status || 'Tersedia',
-        description: payload.description,
-        city: payload.location,
-        address: payload.location,
-        location: payload.location,
-        storyType: payload.storyType || 'barang-kenangan',
-        storyNote: payload.storyNote || '',
-        latitude: payload.latitude || normalized.latitude || '',
-        longitude: payload.longitude || normalized.longitude || '',
-        label: productLabel(payload.category || 'barang'),
-        updatedAt: Date.now(),
-        images: imageUrls,
-        imageUrl: imageUrls[0] || normalized.imageUrl || normalized.image || '',
-        image: imageUrls[0] || normalized.imageUrl || normalized.image || productEmoji(payload.category || normalized.category),
-        seller: user?.name || normalized.seller || 'Seller',
-        sellerInitial: (user?.name || normalized.seller || 'S').charAt(0).toUpperCase(),
-        sellerPhotoUrl: getUserPhotoUrl(user || null) || normalized.sellerPhotoUrl || '',
-        ownerId: normalized.ownerId || user?.id || user?.uid || '',
-        sellerId: normalized.sellerId || normalized.ownerId || user?.id || user?.uid || ''
-      };
-
-      await updateDoc(doc(db, 'marketplace_products', productId), updatedData);
-
-      const localProducts = readStorage(STORAGE_KEYS.PRODUCTS, productSeed);
-      const index = localProducts.findIndex((item) => String(item.id) === String(productId));
-      if (index >= 0) {
-        localProducts[index] = { ...localProducts[index], ...updatedData, id: productId };
-        writeStorage(STORAGE_KEYS.PRODUCTS, localProducts);
-      }
-
-      showPopup('Produk berhasil diperbarui.', 'Berhasil', 'success');
-      setTimeout(() => {
-        window.location.href = 'my-products.html';
-      }, 700);
-    } catch (error) {
-      console.error('Update edit form error:', error);
-      showPopup(error.message || 'Gagal memperbarui produk.', 'Gagal', 'error');
-    } finally {
-      if (submitButton) {
-        submitButton.disabled = false;
-        submitButton.textContent = 'Simpan perubahan';
-      }
-    }
-  });
-}
-
-async function bindSellForm() {
-  const form = document.querySelector('[data-sell-form]');
-  if (!form) return;
-
-  bindPriceFieldFormatting(form);
-
-  const locationField = form.querySelector('[name="location"]');
-  const photoInput = form.querySelector('input[type="file"]');
-  const browseButton = form.querySelector('[data-browse-files]');
-  const dropzone = form.querySelector('[data-upload-dropzone]');
-  const uploadedList = form.querySelector('[data-uploaded-file-list]');
-  const locationButton = form.querySelector('[data-use-location]');
-  const locationStatus = form.querySelector('[data-location-status]');
-  const latField = form.querySelector('[name="latitude"]');
-  const lngField = form.querySelector('[name="longitude"]');
-  const mapPreview = form.querySelector('[data-location-map-preview]');
-
-  const currentProfile = currentUser();
-  const profileLocation = currentProfile?.location || currentProfile?.address || currentProfile?.city || '';
-  const profileLatitude = currentProfile?.latitude || '';
-  const profileLongitude = currentProfile?.longitude || '';
-
-  if (locationField && profileLocation && !locationField.value) {
-    locationField.value = profileLocation;
-  }
-
-  if (latField && profileLatitude && !latField.value) {
-    latField.value = String(profileLatitude);
-  }
-
-  if (lngField && profileLongitude && !lngField.value) {
-    lngField.value = String(profileLongitude);
-  }
-
-  const updateLocationPreview = (lat, lng) => {
-    if (!mapPreview) return;
-    const latitude = Number(lat || 0);
-    const longitude = Number(lng || 0);
-    if (!latitude || !longitude) {
-      mapPreview.innerHTML = '<div class="map-placeholder">📍</div>';
-      return;
-    }
-
-    const mapUrl = `https://maps.google.com/maps?q=${latitude},${longitude}&z=14&output=embed`;
-    mapPreview.innerHTML = `<iframe title="Preview lokasi" loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="${mapUrl}"></iframe>`;
-  };
-
-  if (profileLatitude && profileLongitude) {
-    updateLocationPreview(profileLatitude, profileLongitude);
-    if (locationStatus) locationStatus.textContent = 'Alamat profil terpakai';
-  }
-
-  const syncChosenFiles = (files = []) => {
-    if (!photoInput) return [];
-
-    const validFiles = Array.from(files || []).filter((file) => file && file.name && file.type && file.type.startsWith('image/'));
-    const uniqueFiles = [];
-    const seen = new Set();
-
-    validFiles.forEach((file) => {
-      const key = `${file.name}-${file.size}-${file.lastModified}`;
-      if (!seen.has(key)) {
-        seen.add(key);
-        uniqueFiles.push(file);
-      }
-    });
-
-    const dt = new DataTransfer();
-    uniqueFiles.forEach((file) => dt.items.add(file));
-    photoInput.files = dt.files;
-    photoInput.__gamonSelectedFiles = uniqueFiles;
-    return uniqueFiles;
-  };
-
-  const getStoredSelectedFiles = () => {
-    if (!photoInput) return [];
-    if (Array.isArray(photoInput.__gamonSelectedFiles)) {
-      return [...photoInput.__gamonSelectedFiles];
-    }
-    return Array.from(photoInput.files || []);
-  };
-
-  const renderSelectedFiles = (fileList = []) => {
-    if (!uploadedList) return;
-    const files = Array.from(fileList || []).filter((file) => file && file.type && file.type.startsWith('image/'));
-
-    if (!files.length) {
-      uploadedList.innerHTML = '';
-      return;
-    }
-
-    Promise.all(files.slice(0, 8).map((file) => fileToDataUrl(file))).then((urls) => {
-      uploadedList.innerHTML = urls.map((url, index) => `
-        <div class="uploaded-item">
-          <div class="uploaded-item-thumb">
-            <img src="${url}" alt="${escapeHtml(files[index]?.name || 'Preview foto')}" />
-          </div>
-          <div class="uploaded-item-name">${escapeHtml(files[index]?.name || 'Foto')}</div>
-          <button class="uploaded-item-remove" type="button" data-remove-file="${index}" aria-label="Hapus foto">🗑</button>
-        </div>
-      `).join('');
-
-      uploadedList.querySelectorAll('[data-remove-file]').forEach((button) => {
-        button.addEventListener('click', () => {
-          if (!photoInput) return;
-          const fileArray = getStoredSelectedFiles();
-          const removeIndex = Number(button.dataset.removeFile || 0);
-          const remainingFiles = fileArray.filter((_, idx) => idx !== removeIndex);
-          const syncedFiles = syncChosenFiles(remainingFiles);
-          renderSelectedFiles(syncedFiles);
-        });
-      });
-    }).catch(() => {
-      uploadedList.innerHTML = '';
-    });
-  };
-
-  if (browseButton && photoInput) {
-    browseButton.addEventListener('click', () => photoInput.click());
-  }
-
-  if (dropzone && photoInput) {
-    dropzone.addEventListener('dragover', (event) => {
-      event.preventDefault();
-      dropzone.classList.add('is-dragover');
-    });
-
-    dropzone.addEventListener('dragleave', () => dropzone.classList.remove('is-dragover'));
-    dropzone.addEventListener('drop', (event) => {
-      event.preventDefault();
-      dropzone.classList.remove('is-dragover');
-      if (event.dataTransfer?.files?.length) {
-        const previousFiles = getStoredSelectedFiles();
-        const mergedFiles = syncChosenFiles([...previousFiles, ...Array.from(event.dataTransfer.files || [])]);
-        renderSelectedFiles(mergedFiles);
-      }
-    });
-  }
-
-  if (photoInput) {
-    photoInput.addEventListener('change', (event) => {
-      const previousFiles = getStoredSelectedFiles();
-      const incomingFiles = Array.from(event.target.files || []);
-      const mergedFiles = syncChosenFiles([...previousFiles, ...incomingFiles]);
-      renderSelectedFiles(mergedFiles);
-    });
-  }
-
-  if (photoInput) {
-    photoInput.__gamonSelectedFiles = Array.from(photoInput.files || []);
-  }
-
-  if (locationButton) {
-    locationButton.addEventListener('click', () => {
-      if (!navigator.geolocation) {
-        showPopup('Browser Anda tidak mendukung pembacaan lokasi otomatis.', 'Lokasi tidak tersedia', 'error');
-        if (locationStatus) locationStatus.textContent = 'Browser tidak mendukung';
-        return;
-      }
-
-      if (locationStatus) locationStatus.textContent = 'Mencari lokasi...';
-      locationButton.disabled = true;
-
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const latitude = Number(position.coords.latitude || 0);
-          const longitude = Number(position.coords.longitude || 0);
-
-          if (latField) latField.value = String(latitude.toFixed(6));
-          if (lngField) lngField.value = String(longitude.toFixed(6));
-          updateLocationPreview(latitude, longitude);
-
-          if (locationStatus) locationStatus.textContent = 'Lokasi berhasil dipakai';
-          showPopup('Lokasi Anda berhasil dipakai untuk iklan.', 'Lokasi diperbarui', 'success');
-          locationButton.disabled = false;
-        },
-        (error) => {
-          console.warn('Geolocation error:', error);
-          if (locationStatus) locationStatus.textContent = 'Gagal mengambil lokasi';
-          showPopup('Tidak dapat mengambil lokasi otomatis. Silakan izinkan akses lokasi browser Anda.', 'Lokasi gagal', 'error');
-          locationButton.disabled = false;
-        },
-        {
-          enableHighAccuracy: true,
-          timeout: 15000,
-          maximumAge: 0
-        }
-      );
-    });
-  }
-
-  const params = new URLSearchParams(window.location.search);
-  const editId = params.get('edit');
-  if (editId) {
-    const localProducts = readStorage(STORAGE_KEYS.PRODUCTS, productSeed);
-    const product = localProducts.find((item) => String(item.id) === String(editId));
-    if (product) {
-      form.querySelector('[name="name"]').value = product.name || '';
-      form.querySelector('[name="category"]').value = product.category || 'barang';
-      form.querySelector('[name="price"]').value = formatRupiahInputValue(product.price || '');
-      form.querySelector('[name="condition"]').value = product.condition || 'Layak pakai';
-      form.querySelector('[name="status"]').value = product.status || 'Tersedia';
-      form.querySelector('[name="description"]').value = product.description || '';
-      form.querySelector('[name="location"]').value = product.address || product.city || '';
-      form.querySelector('[name="storyType"]').value = product.storyType || 'barang-kenangan';
-      form.querySelector('[name="storyNote"]').value = product.storyNote || '';
-      if (latField) latField.value = product.latitude || '';
-      if (lngField) lngField.value = product.longitude || '';
-      if (product.latitude && product.longitude) {
-        updateLocationPreview(product.latitude, product.longitude);
-      }
-      form.dataset.editId = editId;
-      const submitButton = form.querySelector('button[type="submit"]');
-      if (submitButton) submitButton.textContent = 'Update iklan';
-    }
-  }
-
-  renderSelectedFiles([]);
-
-  form.addEventListener('submit', async (event) => {
-    const editId = form.dataset.editId;
-    if (editId) {
-      event.preventDefault();
-      const submitButton = form.querySelector('button[type="submit"]');
-      if (submitButton) {
-        submitButton.disabled = true;
-        submitButton.textContent = 'Mengupdate...';
-      }
-
+  async function bindOrderActions() {
+    container.querySelectorAll('[data-pay-order]').forEach((button) => button.addEventListener('click', async () => {
+      button.disabled = true;
       try {
-        const formData = new FormData(form);
-        const payload = Object.fromEntries(formData.entries());
-
-        const updatedData = {
-          name: payload.name,
-          category: payload.category,
-          price: Number(String(payload.price || '').replace(/[^\d]/g, '')) || 0,
-          condition: payload.condition,
-          status: payload.status || 'Tersedia',
-          description: payload.description,
-          city: payload.location,
-          seller: currentUser()?.name || 'Seller',
-          sellerInitial: (currentUser()?.name || 'S').charAt(0).toUpperCase(),
-          label: productLabel(payload.category || 'barang'),
-          updatedAt: Date.now()
-        };
-
-        const fileInput = form.querySelector('input[type="file"]');
-        if (fileInput && fileInput.files && fileInput.files[0]) {
-          const file = fileInput.files[0];
-          const compressedFile = await prepareImageForUpload(file);
-          updatedData.imageUrl = await fileToDataUrl(compressedFile);
-        }
-
-        await updateDoc(doc(db, 'marketplace_products', editId), updatedData);
-
-        const localProducts = readStorage(STORAGE_KEYS.PRODUCTS, productSeed);
-        const index = localProducts.findIndex((item) => String(item.id) === String(editId));
-        if (index >= 0) {
-          localProducts[index] = { ...localProducts[index], ...updatedData, id: editId };
-          writeStorage(STORAGE_KEYS.PRODUCTS, localProducts);
-        }
-
-        showPopup('Barang berhasil diperbarui.', 'Berhasil', 'success');
-        window.location.href = 'my-products.html';
+        const result = await callMarketplaceApi('pay-again', { orderId: button.dataset.payOrder });
+        if (!/^https:\/\//i.test(String(result.paymentUrl || ''))) throw new Error('Link pembayaran tidak valid.');
+        window.location.href = result.paymentUrl;
       } catch (error) {
-        console.error('Update product error:', error);
-        showPopup('Gagal update produk. Coba lagi.', 'Gagal', 'error');
-      } finally {
-        const submitButton = form.querySelector('button[type="submit"]');
-        if (submitButton) {
-          submitButton.disabled = false;
-          submitButton.textContent = 'Update iklan';
-        }
+        console.error('[marketplace] gagal membuka pembayaran ulang:', error);
+        if (pageStatus) pageStatus.textContent = `Pembayaran gagal dibuka (${error.code || 'unknown'}): ${error.message}`;
+        button.disabled = false;
       }
-      return;
-    }
+    }));
+    container.querySelectorAll('[data-cancel-order]').forEach((button) => button.addEventListener('click', async () => {
+      if (!window.confirm('Batalkan pesanan ini dan lepaskan stok yang dicadangkan?')) return;
+      button.disabled = true;
+      try {
+        await callMarketplaceApi('cancel-order', { orderId: button.dataset.cancelOrder });
+        await loadOrders();
+      } catch (error) {
+        console.error('[marketplace] gagal membatalkan pesanan:', error);
+        if (pageStatus) pageStatus.textContent = `Pembatalan gagal (${error.code || 'unknown'}): ${error.message}`;
+        button.disabled = false;
+      }
+    }));
+  }
 
-    handleSellSubmit(event);
-  });
+  function updatePaymentCountdowns() {
+    if (countdownInterval) clearInterval(countdownInterval);
+    const update = () => {
+      container.querySelectorAll('[data-payment-countdown]').forEach((element) => {
+        const remaining = Math.max(0, Number(element.dataset.paymentCountdown) - Date.now());
+        const minutes = Math.floor(remaining / 60000);
+        const seconds = Math.floor((remaining % 60000) / 1000);
+        element.textContent = remaining ? `Selesaikan pembayaran dalam ${minutes}:${String(seconds).padStart(2, '0')}` : 'Batas pembayaran lewat; memeriksa pelepasan stok...';
+      });
+    };
+    update();
+    countdownInterval = setInterval(update, 1000);
+  }
+
+  container.innerHTML = '<p class="muted">Memuat pesanan...</p>';
+  try {
+    await callMarketplaceApi('release-expired-reservations');
+    const requestedOrderId = new URLSearchParams(window.location.search).get('orderId');
+    if (requestedOrderId) {
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        const result = await callMarketplaceApi('check-payment', { orderId: requestedOrderId });
+        if (result.order && result.order.status !== 'awaiting_payment') break;
+        if (attempt < 2) await new Promise((resolve) => setTimeout(resolve, 2500));
+      }
+    }
+    await loadOrders();
+  } catch (error) {
+    console.error('[marketplace] gagal memuat pesanan:', error);
+    if (pageStatus) pageStatus.textContent = `Gagal memuat pesanan (${error.code || 'unknown'}): ${error.message}`;
+    container.innerHTML = '<p class="commerce-error">Pesanan gagal dimuat. Muat ulang halaman untuk mencoba lagi.</p>';
+  }
+  window.addEventListener('beforeunload', () => { if (countdownInterval) clearInterval(countdownInterval); }, { once: true });
 }
 
 async function renderProductsForBuyer() {
   const container = document.querySelector('[data-buyer-list]');
   if (!container) return;
-  const user = requireAuth();
-  if (!user) return;
 
   container.innerHTML = renderBuyerProductsLoadingState();
-  const currentUserId = normalizeUserIdentifier(user.id || user.uid || auth.currentUser?.uid || user.email || user.name || 'guest').toLowerCase();
+  bindAddToCartButtons(container);
 
+  let latestItems = [];
   const renderFromItems = (items) => {
-    const visibleItems = items.filter((item) => {
-      const normalized = normalizeProduct(item);
-      const productOwnerId = normalizeUserIdentifier(normalized.ownerId || normalized.sellerId || '').toLowerCase();
-      const sellerName = normalizeUserIdentifier(normalized.seller || '').toLowerCase();
-      const userName = normalizeUserIdentifier(user.name || '').toLowerCase();
-      return productOwnerId !== currentUserId && sellerName !== userName;
-    });
+    const visibleItems = normalizeMarketplaceProducts(
+      [...items].sort((a, b) => getCreatedAtMs(b.createdAt) - getCreatedAtMs(a.createdAt))
+    );
 
     if (!visibleItems.length) {
-      container.innerHTML = `
+      container.innerHTML = window.__marketplaceProductsError
+        ? marketplaceLoadErrorMarkup()
+        : `
         <div class="panel" style="padding: 20px; grid-column: 1 / -1;">
-          <p class="muted">Belum ada barang lain yang bisa kamu beli saat ini.</p>
+          <p class="muted">Belum ada barang yang tersedia saat ini.</p>
         </div>
       `;
       return;
     }
 
-    container.innerHTML = visibleItems.map((item) => {
-      const normalized = normalizeProduct(item);
+    const controls = container.closest('.panel') || document;
+    const search = (controls.querySelector('[data-product-search]')?.value || '').trim().toLocaleLowerCase('id');
+    const category = controls.querySelector('[data-product-category]')?.value || 'all';
+    const status = controls.querySelector('[data-product-status]')?.value || 'all';
+    const filteredItems = visibleItems.filter((item) =>
+      (!search || item.name.toLocaleLowerCase('id').includes(search)) &&
+      (category === 'all' || item.category === category) &&
+      (status === 'all' || item.status === status)
+    );
+
+    container.innerHTML = `${marketplaceLoadErrorMarkup()}${filteredItems.length ? filteredItems.map((normalized) => {
       const imageMarkup = normalized.imageUrl ? `<img src="${normalized.imageUrl}" alt="${escapeHtml(normalized.name)}" style="width: 100%; height: 100%; object-fit: cover;" />` : normalized.image;
-      const sellerRef = normalizeUserIdentifier(normalized.sellerId || normalized.ownerId || resolveUserIdByName(normalized.seller) || normalized.seller || '');
-      const chatHref = getUserChatUrl(normalized.seller, sellerRef || normalized.seller || '', normalized.id, normalized.name);
-      const statusStyle = normalized.status === 'Terjual'
+      const available = normalized.stock > 0;
+      const chatHref = currentUser() ? getBuyerChatUrl(normalized.id, normalized.name) : 'login.html';
+      const statusStyle = normalized.stock === 0
         ? 'background: #fee2e2; color: #991b1b; border: 1px solid #fecaca;'
-        : 'background: #dcfce7; color: #166534; border: 1px solid #bbf7d0;';
+        : normalized.stock <= 2
+          ? 'background: #fef3c7; color: #92400e; border: 1px solid #fde68a;'
+          : 'background: #dcfce7; color: #166534; border: 1px solid #bbf7d0;';
       return `
         <article class="product-card">
           <div class="image">${imageMarkup} <span class="chip">${escapeHtml(normalized.label)}</span></div>
@@ -3018,152 +2474,63 @@ async function renderProductsForBuyer() {
               <div class="price">${formatCurrency(normalized.price)}</div>
               <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; justify-content:flex-end;">
                 <span class="condition">${escapeHtml(normalized.condition)}</span>
-                <span class="condition" style="${statusStyle}">${escapeHtml(normalized.status || 'Tersedia')}</span>
+                <span class="condition" style="${statusStyle}">${normalized.stock > 0 ? `Stok: ${normalized.stock}` : 'Terjual/Habis'}</span>
               </div>
             </div>
             <h3>${escapeHtml(normalized.name)}</h3>
             <p>${escapeHtml(normalized.description)}</p>
             <div class="seller-row">
               <span>${escapeHtml(normalized.city)}</span>
-              <span>Penjual: ${escapeHtml(normalized.seller)}</span>
+              <span>Marketplace Mantan</span>
             </div>
             <div class="card-actions">
               <a class="btn btn-soft" href="${getProductDetailUrl(normalized.id)}">Detail</a>
-              <a class="btn btn-primary" href="${chatHref}">Chat penjual</a>
+              ${available ? `<button class="btn btn-primary" type="button" data-add-cart="${escapeHtml(normalized.id)}">+ Keranjang</button><a class="btn btn-secondary" href="${chatHref}">Chat admin</a>` : '<button class="btn btn-secondary" type="button" disabled>Stok habis</button>'}
             </div>
           </div>
         </article>
       `;
-    }).join('');
+    }).join('') : '<div class="panel" style="padding: 20px; grid-column: 1 / -1;"><p class="muted">Tidak ada produk yang cocok dengan pencarian dan filter.</p></div>'}`;
   };
 
-  const items = await fetchProductsFromFirebase();
-  renderFromItems(items);
+  const reload = async () => {
+    try {
+      latestItems = await fetchProductsFromFirebase();
+      renderFromItems(latestItems);
+    } catch (error) {
+      console.error('[marketplace] gagal memuat katalog pembeli:', error);
+      window.__marketplaceProductsError = { code: error?.code || 'unknown', message: error?.message || 'Terjadi kesalahan saat membaca katalog.' };
+      renderFromItems(latestItems);
+    }
+  };
+  bindMarketplaceRetry(container, reload);
+  document.querySelectorAll('[data-product-search], [data-product-category], [data-product-status]').forEach((control) => {
+    control.addEventListener(control.matches('[data-product-search]') ? 'input' : 'change', () => renderFromItems(latestItems));
+  });
+  await reload();
 
-  const productsQuery = query(collection(db, 'marketplace_products'), orderBy('createdAt', 'desc'));
-  const unsubscribe = onSnapshot(productsQuery, (snapshot) => {
+  const productsQuery = collection(db, 'marketplace_products');
+  const unsubscribe = onSnapshot(productsQuery, { includeMetadataChanges: true }, (snapshot) => {
     const liveItems = snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
+    console.log('[marketplace] produk dimuat:', liveItems.length);
+    latestItems = liveItems;
+    cacheMarketplaceProducts(liveItems);
+    if (snapshot.metadata.fromCache) {
+      window.__marketplaceProductsError ||= { code: 'unavailable', message: 'Firestore belum memberikan data terbaru; katalog memakai data tersimpan.' };
+      window.__marketplaceProductsFromCache = liveItems.length > 0;
+    } else {
+      delete window.__marketplaceProductsError;
+      delete window.__marketplaceProductsFromCache;
+    }
     renderFromItems(liveItems);
   }, (error) => {
-    console.error('Realtime buyer products error:', error);
+    console.error('[marketplace] realtime buyer products gagal:', error);
+    window.__marketplaceProductsError = { code: error?.code || 'unknown', message: error?.message || 'Terjadi kesalahan saat membaca katalog.' };
+    window.__marketplaceProductsFromCache = latestItems.length > 0;
+    renderFromItems(latestItems);
   });
 
   window.__marketplaceBuyerProductsCleanup = unsubscribe;
-}
-
-async function renderMyProducts() {
-  const user = requireAuth();
-  if (!user) return;
-
-  const container = document.querySelector('[data-my-products-list]');
-  if (!container) return;
-
-  container.innerHTML = renderMyProductsLoadingState();
-
-  const renderFromItems = (items) => {
-    if (!items.length) {
-      container.innerHTML = `
-        <div class="panel" style="padding: 20px;">
-          <p class="muted">Belum ada barang yang kamu tambah. <a href="jual.html">Tambah barang baru</a></p>
-        </div>
-      `;
-      return;
-    }
-
-    container.innerHTML = items.map((item) => {
-      const normalized = normalizeProduct(item);
-      const imageMarkup = normalized.imageUrl ? `<img src="${normalized.imageUrl}" alt="${escapeHtml(normalized.name)}" style="width: 100%; height: 100%; object-fit: cover;" />` : normalized.image;
-      const statusStyle = normalized.status === 'Terjual'
-        ? 'background: #fee2e2; color: #991b1b; border: 1px solid #fecaca;'
-        : 'background: #dcfce7; color: #166534; border: 1px solid #bbf7d0;';
-      return `
-        <article class="product-card">
-          <div class="image">${imageMarkup} <span class="chip">${escapeHtml(normalized.label)}</span></div>
-          <div class="product-body">
-            <div class="product-head">
-              <div class="price">${formatCurrency(normalized.price)}</div>
-              <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; justify-content:flex-end;">
-                <span class="condition">${escapeHtml(normalized.condition)}</span>
-                <span class="condition" style="${statusStyle}">${escapeHtml(normalized.status || 'Tersedia')}</span>
-              </div>
-            </div>
-            <h3>${escapeHtml(normalized.name)}</h3>
-            <p>${escapeHtml(normalized.description)}</p>
-            <div class="seller-row">
-              <span>${escapeHtml(normalized.city)}</span>
-            </div>
-            <div class="card-actions">
-              <a class="btn btn-soft" href="${getProductDetailUrl(normalized.id)}">Detail</a>
-              <button class="btn btn-secondary" type="button" data-edit-product="${normalized.id}">Edit</button>
-              <button class="btn btn-danger" type="button" data-delete-product="${normalized.id}">Hapus</button>
-            </div>
-          </div>
-        </article>
-      `;
-    }).join('');
-
-    const editButtons = document.querySelectorAll('[data-edit-product]');
-    editButtons.forEach((button) => {
-      button.addEventListener('click', () => {
-        const productId = button.dataset.editProduct;
-        window.location.href = `edit.html?id=${encodeURIComponent(productId)}`;
-      });
-    });
-
-    const deleteButtons = document.querySelectorAll('[data-delete-product]');
-    deleteButtons.forEach((button) => {
-      button.addEventListener('click', () => {
-        const productId = button.dataset.deleteProduct;
-
-        showConfirm({
-          title: 'Hapus barang?',
-          message: 'Barang ini akan dihapus dari marketplace dan tidak bisa dikembalikan. Lanjutkan?',
-          confirmText: 'Hapus barang',
-          cancelText: 'Batal',
-          tone: 'error',
-          onConfirm: async () => {
-            try {
-              await deleteDoc(doc(db, 'marketplace_products', productId));
-              const localProducts = readStorage(STORAGE_KEYS.PRODUCTS, productSeed).filter((item) => String(item.id) !== String(productId));
-              writeStorage(STORAGE_KEYS.PRODUCTS, localProducts);
-              showPopup('Barang berhasil dihapus.', 'Berhasil', 'success');
-              await renderMyProducts();
-            } catch (error) {
-              console.error('Delete product error:', error);
-              const localProducts = readStorage(STORAGE_KEYS.PRODUCTS, productSeed).filter((item) => String(item.id) !== String(productId));
-              writeStorage(STORAGE_KEYS.PRODUCTS, localProducts);
-              showPopup('Barang dihapus dari perangkat.', 'Pemberitahuan', 'info');
-              await renderMyProducts();
-            }
-          }
-        });
-      });
-    });
-  };
-
-  const items = await fetchMyProductsFromFirebase(user);
-  renderFromItems(items);
-
-  const productsQuery = query(collection(db, 'marketplace_products'), where('ownerId', '==', user.id || user.uid || auth.currentUser?.uid || ''));
-  const unsubscribe = onSnapshot(productsQuery, (snapshot) => {
-    const liveItems = snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
-    renderFromItems(liveItems.length ? liveItems : items);
-  }, (error) => {
-    console.error('Realtime my-products error:', error);
-  });
-
-  window.__marketplaceMyProductsCleanup = unsubscribe;
-}
-
-function findUserByIdentifier(value) {
-  const target = normalizeUserIdentifier(value || '').toLowerCase();
-  if (!target) return null;
-
-  const users = readStorage(STORAGE_KEYS.USERS, []);
-  return users.find((user) => {
-    const candidates = [user?.id, user?.uid, user?.email, user?.name, user?.username].map((entry) => normalizeUserIdentifier(entry || '').toLowerCase());
-    return candidates.includes(target);
-  }) || null;
 }
 
 function renderProfile() {
@@ -3176,6 +2543,7 @@ function renderProfile() {
   const phoneField = document.querySelector('#phone');
   const bioField = document.querySelector('#bio');
   const cityField = document.querySelector('#alamat');
+  const shipping = user.shipping || {};
 
   if (nameField) nameField.value = user.name || '';
   if (usernameField) usernameField.value = user.username || (user.name || 'user').toLowerCase().replace(/\s+/g, '');
@@ -3183,6 +2551,27 @@ function renderProfile() {
   if (phoneField) phoneField.value = user.phone || '';
   if (bioField) bioField.value = user.bio || '';
   if (cityField) cityField.value = user.city || user.address || user.location || '';
+
+  const shippingFields = {
+    recipientName: document.querySelector('[name="shippingRecipientName"]'),
+    phone: document.querySelector('[name="shippingPhone"]'),
+    address: document.querySelector('[name="shippingAddress"]'),
+    city: document.querySelector('[name="shippingCity"]'),
+    province: document.querySelector('[name="shippingProvince"]'),
+    postalCode: document.querySelector('[name="shippingPostalCode"]'),
+    note: document.querySelector('[name="shippingNote"]'),
+    latitude: document.querySelector('[name="shippingLatitude"]'),
+    longitude: document.querySelector('[name="shippingLongitude"]')
+  };
+  Object.entries(shippingFields).forEach(([key, field]) => {
+    if (field) field.value = shipping[key] ?? '';
+  });
+  if (shippingFields.recipientName && !shippingFields.recipientName.value) shippingFields.recipientName.value = user.name || '';
+  if (shippingFields.phone && !shippingFields.phone.value) shippingFields.phone.value = user.phone || '';
+  if (shippingFields.address && !shippingFields.address.value) shippingFields.address.value = user.address || user.location || '';
+  if (shippingFields.city && !shippingFields.city.value) shippingFields.city.value = user.city || '';
+  if (shippingFields.latitude && !shippingFields.latitude.value && user.latitude !== undefined) shippingFields.latitude.value = user.latitude;
+  if (shippingFields.longitude && !shippingFields.longitude.value && user.longitude !== undefined) shippingFields.longitude.value = user.longitude;
 
   const form = document.querySelector('[data-profile-form]');
   if (!form) return;
@@ -3267,6 +2656,124 @@ function renderProfile() {
   const latField = form.querySelector('[name="latitude"]');
   const lngField = form.querySelector('[name="longitude"]');
   const mapPreview = form.querySelector('[data-location-map-preview]');
+  const shippingMapPreview = form.querySelector('[data-shipping-map-preview]');
+  const shippingMapLink = form.querySelector('[data-shipping-map-link]');
+  const shippingMapsUrl = form.querySelector('#shippingMapsUrl');
+  const shippingStatus = form.querySelector('[data-shipping-completeness]');
+  const shippingLocationStatus = form.querySelector('[data-shipping-location-status]');
+  const parseMapsButton = form.querySelector('[data-parse-shipping-map]');
+  const shippingLocationButton = form.querySelector('[data-use-shipping-location]');
+
+  if (shippingMapsUrl && typeof shipping.mapsUrl === 'string' && /^https:\/\//i.test(shipping.mapsUrl)) {
+    shippingMapsUrl.value = shipping.mapsUrl;
+  }
+
+  const getShippingCoordinates = () => {
+    const latitudeText = String(shippingFields.latitude?.value || '').trim();
+    const longitudeText = String(shippingFields.longitude?.value || '').trim();
+    if (!latitudeText || !longitudeText) return null;
+    const latitude = Number(latitudeText);
+    const longitude = Number(longitudeText);
+    return Number.isFinite(latitude) && latitude >= -90 && latitude <= 90 &&
+      Number.isFinite(longitude) && longitude >= -180 && longitude <= 180
+      ? { latitude, longitude }
+      : null;
+  };
+
+  const updateShippingPreview = () => {
+    const coordinates = getShippingCoordinates();
+    const addressComplete = Boolean(
+      shippingFields.recipientName?.value.trim() &&
+      shippingFields.phone?.value.trim() &&
+      shippingFields.address?.value.trim() &&
+      coordinates
+    );
+
+    if (shippingStatus) {
+      shippingStatus.textContent = addressComplete ? 'Alamat lengkap' : 'Alamat belum lengkap';
+      shippingStatus.style.color = addressComplete ? '#15803d' : '#b45309';
+    }
+
+    if (!coordinates) {
+      if (shippingMapPreview) shippingMapPreview.innerHTML = '<div class="map-placeholder"><span class="material-symbols-outlined map-placeholder-icon">location_on</span></div>';
+      if (shippingMapLink) shippingMapLink.hidden = true;
+      return;
+    }
+
+    const { latitude, longitude } = coordinates;
+    const mapUrl = `https://maps.google.com/maps?q=${latitude},${longitude}&z=16&output=embed`;
+    if (shippingMapPreview) {
+      shippingMapPreview.innerHTML = `<iframe title="Titik alamat pengiriman" loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="${mapUrl}"></iframe>`;
+    }
+    if (shippingMapLink) {
+      shippingMapLink.href = `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
+      shippingMapLink.hidden = false;
+      shippingMapLink.textContent = 'Buka di Google Maps';
+    }
+  };
+
+  const parseGoogleMapsCoordinates = (rawValue) => {
+    let url;
+    try {
+      url = new URL(rawValue);
+    } catch (error) {
+      return null;
+    }
+    if (url.protocol !== 'https:') return null;
+
+    const candidate = url.searchParams.get('q') || url.searchParams.get('query') || url.searchParams.get('ll') || '';
+    const queryMatch = candidate.match(/(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)/);
+    const pathMatch = url.href.match(/@(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/);
+    const placeMatch = url.href.match(/!3d(-?\d+(?:\.\d+)?)!4d(-?\d+(?:\.\d+)?)/);
+    const match = queryMatch || pathMatch || placeMatch;
+    if (!match) return null;
+    const latitude = Number(match[1]);
+    const longitude = Number(match[2]);
+    if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90 || !Number.isFinite(longitude) || longitude < -180 || longitude > 180) return null;
+    return { latitude, longitude };
+  };
+
+  const syncShippingCoordinates = (latitude, longitude, message = '') => {
+    if (shippingFields.latitude) shippingFields.latitude.value = String(Number(latitude.toFixed(6)));
+    if (shippingFields.longitude) shippingFields.longitude.value = String(Number(longitude.toFixed(6)));
+    const canonicalUrl = `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
+    if (shippingMapsUrl) shippingMapsUrl.value = canonicalUrl;
+    if (shippingLocationStatus) shippingLocationStatus.textContent = message;
+    updateShippingPreview();
+  };
+
+  [shippingFields.recipientName, shippingFields.phone, shippingFields.address, shippingFields.latitude, shippingFields.longitude].forEach((field) => {
+    field?.addEventListener('input', updateShippingPreview);
+  });
+
+  parseMapsButton?.addEventListener('click', () => {
+    const url = String(shippingMapsUrl?.value || '').trim();
+    const coordinates = parseGoogleMapsCoordinates(url);
+    if (!coordinates) {
+      showPopup('Link Google Maps HTTPS tidak berisi koordinat yang valid.', 'Link tidak valid', 'error');
+      return;
+    }
+    syncShippingCoordinates(coordinates.latitude, coordinates.longitude, 'Koordinat diambil dari link Google Maps.');
+  });
+
+  shippingLocationButton?.addEventListener('click', () => {
+    if (!navigator.geolocation) {
+      showPopup('Browser Anda tidak mendukung pembacaan lokasi otomatis.', 'Lokasi tidak tersedia', 'error');
+      return;
+    }
+    shippingLocationButton.disabled = true;
+    if (shippingLocationStatus) shippingLocationStatus.textContent = 'Mencari lokasi...';
+    navigator.geolocation.getCurrentPosition((position) => {
+      syncShippingCoordinates(position.coords.latitude, position.coords.longitude, 'Lokasi berhasil dipakai.');
+      shippingLocationButton.disabled = false;
+    }, (error) => {
+      console.error('[marketplace] gagal membaca lokasi pengiriman:', error);
+      if (shippingLocationStatus) shippingLocationStatus.textContent = 'Gagal mengambil lokasi';
+      showPopup('Tidak dapat mengambil lokasi. Izinkan akses lokasi atau isi koordinat manual.', 'Lokasi gagal', 'error');
+      shippingLocationButton.disabled = false;
+    }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
+  });
+  updateShippingPreview();
 
   const updateLocationPreview = (lat, lng) => {
     if (!mapPreview) return;
@@ -3357,13 +2864,31 @@ function renderProfile() {
         email: formData.get('email') || user.email,
         phone: formData.get('phone') || user.phone,
         bio: formData.get('bio') || user.bio,
-        city: formData.get('alamat') || user.city || user.address || user.location,
-        address: formData.get('alamat') || user.address || user.city || user.location,
-        location: formData.get('alamat') || user.location || user.address || user.city,
+        city: shippingFields.city?.value.trim() || formData.get('alamat') || user.city || user.address || user.location,
+        address: shippingFields.address?.value.trim() || formData.get('alamat') || user.address || user.city || user.location,
+        location: shippingFields.address?.value.trim() || formData.get('alamat') || user.location || user.address || user.city,
         latitude: formData.get('latitude') || user.latitude || '',
         longitude: formData.get('longitude') || user.longitude || '',
+        shipping: {
+          recipientName: shippingFields.recipientName?.value.trim() || '',
+          phone: shippingFields.phone?.value.trim() || '',
+          address: shippingFields.address?.value.trim() || '',
+          city: shippingFields.city?.value.trim() || '',
+          province: shippingFields.province?.value.trim() || '',
+          postalCode: shippingFields.postalCode?.value.trim() || '',
+          note: shippingFields.note?.value.trim() || '',
+          latitude: getShippingCoordinates()?.latitude ?? '',
+          longitude: getShippingCoordinates()?.longitude ?? '',
+          mapsUrl: getShippingCoordinates()
+            ? `https://www.google.com/maps/search/?api=1&query=${getShippingCoordinates().latitude},${getShippingCoordinates().longitude}`
+            : '',
+          updatedAt: Date.now()
+        },
         photoUrl
       };
+
+      updatedUser.latitude = updatedUser.shipping.latitude !== '' ? updatedUser.shipping.latitude : updatedUser.latitude;
+      updatedUser.longitude = updatedUser.shipping.longitude !== '' ? updatedUser.shipping.longitude : updatedUser.longitude;
 
       if (userId) {
         // Write the canonical field AND explicitly delete the old duplicate
@@ -3386,7 +2911,6 @@ function renderProfile() {
       }
       writeStorage(STORAGE_KEYS.USERS, users);
       setCurrentUser(updatedUser);
-      await syncSellerPhotosAcrossProducts(updatedUser);
       hydrateUserProfileUI();
       syncProfilePhotoPreview(photoUrl);
       showPopup('Profil berhasil diperbarui.', 'Berhasil', 'success');
@@ -3589,7 +3113,9 @@ async function renderProductDetail() {
   if (detailCondition) detailCondition.textContent = normalized.condition;
 
   const detailStatus = document.querySelector('[data-detail-status]');
-  if (detailStatus) detailStatus.textContent = normalized.status || 'Tersedia';
+  if (detailStatus) detailStatus.textContent = normalized.stock > 0 ? 'Tersedia' : 'Terjual/Habis';
+  const detailStock = document.querySelector('[data-detail-stock]');
+  if (detailStock) detailStock.textContent = normalized.stock > 0 ? `Stok: ${normalized.stock}` : 'Stok habis';
 
   const detailName = document.querySelector('[data-detail-name]');
   if (detailName) detailName.textContent = normalized.name;
@@ -3604,26 +3130,12 @@ async function renderProductDetail() {
   if (detailCity) detailCity.textContent = normalized.city;
 
   const detailSeller = document.querySelector('[data-detail-seller]');
-  if (detailSeller) detailSeller.textContent = normalized.seller;
+  if (detailSeller) detailSeller.textContent = 'Marketplace Mantan';
 
-  // Seller avatar on the product detail page: resolve via
-  // resolveUserForMarketplaceLookup so it falls back to Firestore when the
-  // seller isn't cached in this browser's localStorage yet (e.g. a buyer
-  // opening the marketplace for the very first time on a new device).
-  // findUserByIdentifier() alone (localStorage-only) was the cause of
-  // seller photos silently not appearing on other devices.
   const detailSellerInitial = document.querySelector('[data-detail-seller-initial]');
   if (detailSellerInitial) {
-    const sellerIdentifier = normalized.sellerId || normalized.ownerId || resolveUserIdByName(normalized.seller) || normalized.seller || '';
-    const sellerUser = await resolveUserForMarketplaceLookup(normalized.seller, sellerIdentifier);
-    const sellerPhoto = normalized.sellerPhotoUrl || getUserPhotoUrl(sellerUser || null);
-    if (sellerPhoto) {
-      detailSellerInitial.innerHTML = `<img src="${escapeHtml(sellerPhoto)}" alt="${escapeHtml(normalized.seller)}" />`;
-      detailSellerInitial.classList.add('has-photo');
-    } else {
-      detailSellerInitial.textContent = normalized.sellerInitial;
-      detailSellerInitial.classList.remove('has-photo');
-    }
+    detailSellerInitial.textContent = 'M';
+    detailSellerInitial.classList.remove('has-photo');
   }
 
   const detailLocation = document.querySelector('[data-detail-location]');
@@ -3656,41 +3168,43 @@ async function renderProductDetail() {
   const chatButton = document.querySelector('[data-chat-product]');
   if (chatButton) {
     const currentUserData = currentUser();
-    const sellerRef = normalizeUserIdentifier(normalized.sellerId || normalized.ownerId || resolveUserIdByName(normalized.seller) || normalized.seller || '');
-    const chatUrl = getUserChatUrl(normalized.seller, sellerRef || normalized.seller || '', normalized.id, normalized.name);
+    const chatUrl = getBuyerChatUrl(normalized.id, normalized.name);
 
-    if (!isUserPage && !currentUserData) {
-      chatButton.style.display = '';
-      chatButton.href = getAuthTarget();
-      chatButton.removeAttribute('aria-disabled');
-      chatButton.removeAttribute('tabindex');
-      return;
-    }
-
-    const currentUserId = getCurrentUserIdentifier();
-    const user = currentUserData || requireAuth();
-    if (!user) return;
-
-    const currentUserName = normalizeUserIdentifier((user || {}).name || '');
-    const productOwnerId = normalizeUserIdentifier(normalized.sellerId || normalized.ownerId || resolveUserIdByName(normalized.seller) || normalized.seller || '');
-    const productOwnerName = normalizeUserIdentifier(normalized.seller || '');
-    const isProductOwner = Boolean(
-      (currentUserId && productOwnerId && normalizeUserIdentifier(currentUserId).toLowerCase() === normalizeUserIdentifier(productOwnerId).toLowerCase()) ||
-      (currentUserName && productOwnerName && normalizeUserIdentifier(currentUserName).toLowerCase() === normalizeUserIdentifier(productOwnerName).toLowerCase())
-    );
-
-    if (isProductOwner) {
-      chatButton.style.display = 'none';
-      chatButton.removeAttribute('href');
-      chatButton.setAttribute('aria-disabled', 'true');
-      chatButton.setAttribute('tabindex', '-1');
-    } else {
-      chatButton.style.display = '';
-      chatButton.href = isUserPage ? chatUrl : (getAuthTarget() && !currentUserData ? getAuthTarget() : chatUrl);
-      chatButton.removeAttribute('aria-disabled');
-      chatButton.removeAttribute('tabindex');
-    }
+    chatButton.style.display = normalized.stock > 0 ? '' : 'none';
+    chatButton.href = currentUserData ? chatUrl : getAuthTarget();
+    chatButton.removeAttribute('aria-disabled');
+    chatButton.removeAttribute('tabindex');
   }
+
+  const quantityOutput = document.querySelector('[data-product-quantity]');
+  const decreaseQuantity = document.querySelector('[data-product-quantity-step="-1"]');
+  const increaseQuantity = document.querySelector('[data-product-quantity-step="1"]');
+  let quantity = 1;
+  const syncQuantity = () => {
+    quantity = Math.max(1, Math.min(normalized.stock || 1, quantity));
+    if (quantityOutput) quantityOutput.textContent = String(quantity);
+    if (decreaseQuantity) decreaseQuantity.disabled = normalized.stock <= 0 || quantity <= 1;
+    if (increaseQuantity) increaseQuantity.disabled = normalized.stock <= 0 || quantity >= normalized.stock || quantity >= 99;
+  };
+  decreaseQuantity?.addEventListener('click', () => { quantity -= 1; syncQuantity(); });
+  increaseQuantity?.addEventListener('click', () => { quantity += 1; syncQuantity(); });
+  syncQuantity();
+
+  const addButton = document.querySelector('[data-add-to-cart]');
+  const buyButton = document.querySelector('[data-buy-now]');
+  [addButton, buyButton].forEach((button) => {
+    if (!button) return;
+    button.disabled = normalized.stock <= 0;
+    if (normalized.stock <= 0) button.textContent = 'Stok habis';
+    button.addEventListener('click', () => {
+      if (normalized.stock <= 0) return;
+      if (!currentUser()) {
+        window.location.href = getAuthTarget();
+        return;
+      }
+      addProductToCart(normalized.id, quantity, button === buyButton);
+    });
+  });
 }
 
 function handleSidebarState() {
@@ -3735,34 +3249,7 @@ function bindLogoutButtons() {
   });
 }
 
-function bindRepairSellerPhotosButton() {
-  const button = document.querySelector('[data-repair-seller-photos]');
-  if (!button) return;
-
-  button.addEventListener('click', async () => {
-    const originalText = button.textContent;
-    button.disabled = true;
-    button.textContent = 'Memperbaiki avatar...';
-
-    try {
-      const updatedCount = await repairMarketplaceSellerPhotos({ silent: false });
-      if (updatedCount > 0) {
-        showPopup(`Berhasil memperbarui avatar untuk ${updatedCount} produk lama.`, 'Berhasil', 'success');
-      } else {
-        showPopup('Semua produk sudah memiliki avatar seller yang lengkap.', 'Info', 'info');
-      }
-    } catch (error) {
-      console.error('Repair seller photos failed:', error);
-      showPopup('Gagal memperbaiki avatar produk lama. Silakan coba lagi nanti.', 'Gagal', 'error');
-    } finally {
-      button.disabled = false;
-      button.textContent = originalText;
-    }
-  });
-}
-
 async function init() {
-  await migrateExistingProductSellerPhotos();
   ensureDemoData();
   handleSidebarState();
   bindLogoutButtons();
@@ -3772,16 +3259,24 @@ async function init() {
   hydrateUserProfileUI();
 
   onAuthStateChanged(auth, async (firebaseUser) => {
-    if (firebaseUser) {
-      await syncCurrentUserFromFirebase(firebaseUser, localStorage.getItem('gamon_marketplace_remember_me') === '1');
-      hydrateUserProfileUI();
+    try {
+      if (firebaseUser && String(firebaseUser.email || '').toLowerCase() !== ADMIN_ACCOUNT_EMAIL) {
+        await syncCurrentUserFromFirebase(firebaseUser, localStorage.getItem('gamon_marketplace_remember_me') === '1');
+        hydrateUserProfileUI();
 
-      if (!window.__marketplaceGlobalChatUnsubscribe) {
-        const currentUserId = getCurrentUserIdentifier();
-        if (currentUserId) {
-          window.__marketplaceGlobalChatUnsubscribe = subscribeToGlobalChatNotifications(currentUserId);
+        if (!window.__marketplaceCartUnsubscribe) {
+          window.__marketplaceCartUnsubscribe = subscribeToCartBadge();
+        }
+
+        if (!window.__marketplaceGlobalChatUnsubscribe) {
+          const currentUserId = getCurrentUserIdentifier();
+          if (currentUserId) {
+            window.__marketplaceGlobalChatUnsubscribe = subscribeToGlobalChatNotifications(currentUserId);
+          }
         }
       }
+    } catch (error) {
+      console.error('[marketplace] gagal menyinkronkan sesi pembeli:', error);
     }
   });
 
@@ -3799,23 +3294,18 @@ async function init() {
     return;
   }
 
-  if (page === 'jual.html') {
-    await bindSellForm();
-    return;
-  }
-
-  if (page === 'edit.html') {
-    await bindEditForm();
-    return;
-  }
-
   if (page === 'beli.html') {
     await renderProductsForBuyer();
     return;
   }
 
-  if (page === 'my-products.html') {
-    await renderMyProducts();
+  if (page === 'pesanan.html') {
+    await renderOrdersForBuyer();
+    return;
+  }
+
+  if (page === 'keranjang.html') {
+    await renderCartPage();
     return;
   }
 
@@ -3844,6 +3334,6 @@ window.addEventListener('beforeunload', () => {
   if (window.__marketplaceChatCleanup) window.__marketplaceChatCleanup();
   if (window.__marketplaceHomeProductsCleanup) window.__marketplaceHomeProductsCleanup();
   if (window.__marketplaceBuyerProductsCleanup) window.__marketplaceBuyerProductsCleanup();
-  if (window.__marketplaceMyProductsCleanup) window.__marketplaceMyProductsCleanup();
   if (window.__marketplaceGlobalChatUnsubscribe) window.__marketplaceGlobalChatUnsubscribe();
+  if (window.__marketplaceCartUnsubscribe) window.__marketplaceCartUnsubscribe();
 });

@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Produk Marketplace - Admin</title>
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+  <style>
+    .material-symbols-outlined { font-family: 'Material Symbols Outlined'; font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24; }
+  </style>
+</head>
+<body class="bg-slate-100 min-h-screen text-slate-800">
+  <div class="min-h-screen lg:grid lg:grid-cols-[260px_minmax(0,1fr)]">
+    <div data-admin-sidebar></div>
+    <script src="/admin/partials/sidebar.js"></script>
+
+    <main class="px-4 py-8 lg:px-8">
+      <div class="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h2 class="text-2xl font-bold text-slate-900">Produk Marketplace</h2>
+          <p class="mt-1 text-sm text-slate-500">Kelola katalog admin dan status stok produk.</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <button id="repairLegacyProductsBtn" type="button" class="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50">Rapikan data produk lama</button>
+          <a href="/admin/marketplace-product-form.html" class="inline-flex items-center justify-center rounded-xl bg-pink-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-pink-500">+ Tambah Produk</a>
+        </div>
+      </div>
+
+      <div class="mb-6 grid gap-4 md:grid-cols-3">
+        <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Total Produk</p>
+          <p id="totalProducts" class="mt-2 text-3xl font-bold text-slate-900">0</p>
+        </div>
+        <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Tersedia</p>
+          <p id="availableProducts" class="mt-2 text-3xl font-bold text-emerald-600">0</p>
+        </div>
+        <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Terjual</p>
+          <p id="soldProducts" class="mt-2 text-3xl font-bold text-rose-600">0</p>
+        </div>
+      </div>
+
+      <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div class="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <input id="searchInput" type="search" placeholder="Cari nama produk..." class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-pink-200 md:max-w-xs" />
+          <select id="statusFilter" class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-pink-200">
+            <option value="all">Semua status</option>
+            <option value="Tersedia">Tersedia</option>
+            <option value="Habis">Habis</option>
+          </select>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-sm text-slate-700">
+            <thead>
+              <tr class="border-b border-slate-200 bg-slate-50 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                <th class="px-3 py-3">Produk</th>
+                <th class="px-3 py-3">Kategori</th>
+                <th class="px-3 py-3">Harga</th>
+                <th class="px-3 py-3">Stok</th>
+                <th class="px-3 py-3">Terjual</th>
+                <th class="px-3 py-3">Status</th>
+                <th class="px-3 py-3">Tanggal</th>
+                <th class="px-3 py-3 text-right">Aksi</th>
+              </tr>
+            </thead>
+            <tbody id="productsTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script type="module">
+    import { db, escapeHtml, formatRupiah, formatDate, requireAdmin, deleteMarketplaceProduct } from '/admin/admin-firebase.js';
+    import { onSnapshot, collection } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+    const searchInput = document.getElementById('searchInput');
+    const statusFilter = document.getElementById('statusFilter');
+    const body = document.getElementById('productsTableBody');
+    let productsCache = [];
+
+    function getCreatedAtMs(value) {
+      if (value === null || value === undefined || value === '') return 0;
+      if (typeof value === 'number' && Number.isFinite(value)) return value;
+      if (typeof value === 'string') {
+        const numeric = Number(value);
+        if (Number.isFinite(numeric)) return numeric;
+        const parsed = Date.parse(value);
+        return Number.isFinite(parsed) ? parsed : 0;
+      }
+      if (typeof value === 'object') {
+        if (typeof value.toMillis === 'function') {
+          const ms = value.toMillis();
+          return Number.isFinite(ms) ? ms : 0;
+        }
+        if (typeof value.seconds === 'number') {
+          return Number(value.seconds) * 1000 + Math.floor((Number(value.nanoseconds || 0) / 1e6));
+        }
+      }
+      return 0;
+    }
+
+    async function repairLegacyMarketplaceProducts() {
+      const repairButton = document.getElementById('repairLegacyProductsBtn');
+      if (!repairButton) return;
+
+      repairButton.disabled = true;
+      repairButton.textContent = 'Merapikan data...';
+
+      try {
+        const response = await fetch('/api/admin/migrate-marketplace-stock', { method: 'POST', credentials: 'same-origin' });
+        const result = await response.json();
+        if (!response.ok || !result.success) throw new Error(result.message || 'Migrasi stok gagal.');
+        alert(`${result.migrated || 0} dari ${result.scanned || 0} produk diperiksa; produk legacy diperbarui.`);
+      } catch (error) {
+        console.error('Repair produk lama gagal:', error);
+        alert('Gagal merapikan data produk lama. Coba lagi.');
+      } finally {
+        repairButton.disabled = false;
+        repairButton.textContent = 'Rapikan data produk lama';
+      }
+    }
+
+    async function boot() {
+      await requireAdmin();
+      const q = collection(db, 'marketplace_products');
+      onSnapshot(q, (snapshot) => {
+        const products = snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
+        productsCache = products;
+        renderProducts(products);
+      }, (error) => {
+        console.error('Error fetching marketplace products:', error);
+      });
+    }
+
+    function renderProducts(products) {
+      const sorted = [...products].sort((a, b) => getCreatedAtMs(b.createdAt) - getCreatedAtMs(a.createdAt));
+      const total = sorted.length;
+      const available = sorted.filter((item) => Number(item.stock ?? 1) > 0).length;
+      const sold = sorted.reduce((totalSold, item) => totalSold + Math.max(0, Number(item.sold || 0)), 0);
+      document.getElementById('totalProducts').textContent = total;
+      document.getElementById('availableProducts').textContent = available;
+      document.getElementById('soldProducts').textContent = sold;
+
+      const search = (searchInput.value || '').toLowerCase();
+      const filter = statusFilter.value || 'all';
+      const filtered = sorted.filter((item) => {
+        const stockValue = Number(item.stock);
+        const stock = Number.isInteger(stockValue) && stockValue >= 0 ? stockValue : 1;
+        const derivedStatus = stock > 0 ? 'Tersedia' : 'Habis';
+        const matchesSearch = !search || String(item.name || '').toLowerCase().includes(search);
+        const matchesStatus = filter === 'all' || derivedStatus === filter;
+        return matchesSearch && matchesStatus;
+      });
+
+      if (!filtered.length) {
+        body.innerHTML = `<tr><td colspan="8" class="py-8 text-center text-slate-400">Belum ada produk yang sesuai.</td></tr>`;
+        return;
+      }
+
+      body.innerHTML = filtered.map((item) => {
+        const stockValue = Number(item.stock);
+        const stock = Number.isInteger(stockValue) && stockValue >= 0 ? stockValue : 1;
+        const sold = Math.max(0, Number(item.sold || 0));
+        const status = stock > 0 ? 'Tersedia' : 'Habis';
+        const badgeClass = stock === 0 ? 'bg-rose-100 text-rose-700' : stock <= 2 ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700';
+        const statusLabel = stock === 0 ? 'Habis' : stock <= 2 ? 'Stok menipis' : 'Tersedia';
+        const img = item.imageUrl || item.image || 'https://placehold.co/600x400/f8fafc/64748b?text=G';
+        return `
+          <tr class="border-b border-slate-100 align-middle">
+            <td class="px-3 py-3">
+              <div class="flex items-center gap-3">
+                <img src="${escapeHtml(img)}" alt="${escapeHtml(item.name || 'Produk')}" class="h-12 w-12 rounded-xl object-cover border border-slate-200" />
+                <div>
+                  <div class="font-semibold text-slate-900">${escapeHtml(item.name || '-')}</div>
+                  <div class="text-[11px] text-slate-500">${escapeHtml(item.city || item.address || 'Lokasi belum diisi')}</div>
+                </div>
+              </div>
+            </td>
+            <td class="px-3 py-3">${escapeHtml(item.category || '-')}</td>
+            <td class="px-3 py-3 font-semibold text-slate-900">${formatRupiah(item.price || 0)}</td>
+            <td class="px-3 py-3 font-semibold">${stock}</td>
+            <td class="px-3 py-3">${sold}</td>
+            <td class="px-3 py-3"><span class="inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${badgeClass}">${statusLabel}</span></td>
+            <td class="px-3 py-3">${formatDate(item.createdAt)}</td>
+            <td class="px-3 py-3">
+              <div class="flex justify-end gap-2">
+                <a href="/admin/marketplace-product-form.html?id=${item.id}" class="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50">Edit</a>
+                <button data-delete-id="${item.id}" class="rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-xs font-medium text-rose-600 hover:bg-rose-100">Hapus</button>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      document.querySelectorAll('[data-delete-id]').forEach((button) => {
+        button.addEventListener('click', async () => {
+          const id = button.dataset.deleteId;
+          if (confirm('Apakah Anda yakin ingin menghapus produk ini?')) {
+            await deleteMarketplaceProduct(id);
+          }
+        });
+      });
+    }
+
+    searchInput.addEventListener('input', () => renderProducts(productsCache));
+    statusFilter.addEventListener('change', () => renderProducts(productsCache));
+    document.getElementById('repairLegacyProductsBtn')?.addEventListener('click', repairLegacyMarketplaceProducts);
+
+    boot();
+  </script>
+</body>
+</html>

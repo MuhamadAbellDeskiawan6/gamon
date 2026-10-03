@@ -1,9 +1,11 @@
 import crypto from 'crypto';
 import { initializeApp, cert, getApps } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
+import { applyMarketplacePayment, releaseOrderStock } from './lib/marketplace-orders.js';
 
-const DOKU_CLIENT_ID = process.env.DOKU_CLIENT_ID || process.env.DOKU_PRODUCTION_CLIENT_ID || "BRN-0226-1781255193170";
-const DOKU_SECRET_KEY = process.env.DOKU_SECRET_KEY || process.env.DOKU_PRODUCTION_SECRET_KEY || "SK-NgMsKzkHcLlY95v7wsju";
+const DOKU_CLIENT_ID = String(process.env.DOKU_CLIENT_ID || '').trim();
+const DOKU_SECRET_KEY = String(process.env.DOKU_SECRET_KEY || '').trim();
+const SITE_URL = String(process.env.SITE_URL || '').trim().replace(/\/$/, '');
 
 export const config = {
     api: {
@@ -51,7 +53,7 @@ async function readRawBody(req) {
 
 function getRequestTarget(req) {
     const rawUrl = String(req.url || '/api/doku-notify');
-    return new URL(rawUrl, 'https://gamon-tawing.vercel.app').pathname;
+    return new URL(rawUrl, 'http://localhost').pathname;
 }
 
 function verifyDokuSignature(req, rawBody, fallbackBody = null) {
@@ -114,6 +116,13 @@ function getReturnOrderId(req) {
         return photoboxOrderId.trim();
     }
 
+    const marketplaceOrderId = values.find((value) => (
+        typeof value === 'string' && /^MM-\d{6}-[A-Z0-9]{6}$/i.test(value.trim())
+    ));
+    if (marketplaceOrderId) {
+        return marketplaceOrderId.trim();
+    }
+
     return '';
 }
 
@@ -122,6 +131,10 @@ export default async function handler(req, res) {
     if (req.method === 'GET') {
         console.log('[DOKU return] RAW REQUEST:', { url: req.url, query: req.query });
         const orderId = getReturnOrderId(req);
+        if (orderId.startsWith('MM-')) {
+            if (!SITE_URL) return res.status(503).send('SITE_URL is not configured');
+            return res.redirect(302, `${SITE_URL}/user/marketplace/pesanan.html?orderId=${encodeURIComponent(orderId)}`);
+        }
         if (orderId.startsWith('LDR-')) {
             try {
                 const orderSnapshot = await getFirestore().collection('ldr_order').doc(orderId).get();
@@ -197,7 +210,53 @@ export default async function handler(req, res) {
         
         // Pengaman ekstra: fallback check jika penamaan properti di sandbox sedikit berbeda
         const orderId = data.order?.invoice_number;
-        const status = data.transaction?.status || data.target?.status; 
+        const status = String(data.transaction?.status || data.target?.status || '').toUpperCase();
+
+        if (typeof orderId === 'string' && /^MM-\d{6}-[A-Z0-9]{6}$/i.test(orderId)) {
+            try {
+                if (['SUCCESS', 'PAID'].includes(status)) {
+                    const result = await applyMarketplacePayment({
+                        orderId,
+                        amount: data.order?.amount,
+                        requestId: signatureCheck.requestId,
+                    });
+                    if (!result.found) {
+                        console.warn('[DOKU marketplace] order tidak ditemukan; event valid sudah diterima:', orderId);
+                        return res.status(200).send('Marketplace Order Not Found');
+                    }
+                    if (result.amountMismatch || result.needsAttention) {
+                        console.error('[DOKU marketplace] pembayaran perlu perhatian admin:', { orderId, amountMismatch: Boolean(result.amountMismatch) });
+                    }
+                    return res.status(200).send('OK');
+                }
+
+                if (status === 'EXPIRED') {
+                    await releaseOrderStock(orderId, {
+                        status: 'expired',
+                        paymentStatus: 'EXPIRED',
+                        by: 'doku',
+                        reason: 'DOKU mengirim status EXPIRED.',
+                    });
+                    return res.status(200).send('OK');
+                }
+
+                if (['FAILED', 'CANCELLED', 'DENIED'].includes(status)) {
+                    await releaseOrderStock(orderId, {
+                        status: 'payment_failed',
+                        paymentStatus: 'FAILED',
+                        by: 'doku',
+                        reason: `DOKU mengirim status ${status}.`,
+                    });
+                    return res.status(200).send('OK');
+                }
+
+                console.info('[DOKU marketplace] status event tidak mengubah order:', { orderId, status });
+                return res.status(200).send('Not Processed');
+            } catch (error) {
+                console.error('[DOKU marketplace] gagal memproses webhook:', { orderId, code: error.code || 'unknown', message: error.message });
+                return res.status(500).send('Marketplace webhook processing failed');
+            }
+        }
 
         if (orderId && (status === 'SUCCESS' || status === 'PAID')) {
             const db = getFirestore();

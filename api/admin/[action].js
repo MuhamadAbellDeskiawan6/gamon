@@ -1,5 +1,7 @@
 import { getAdminAuth, getAdminDb } from '../lib/firebase-admin.js';
 import { verifyAdminSession } from '../lib/admin-session.js';
+import { FieldValue } from 'firebase-admin/firestore';
+import { releaseExpiredReservations, updateMarketplaceOrderStatus } from '../lib/marketplace-orders.js';
 import fs from 'fs';
 import path from 'path';
 import nodemailer from 'nodemailer';
@@ -883,6 +885,258 @@ async function handleUpdateMarketplaceItemStatus(req, res) {
     }
 }
 
+async function handleGetMarketplaceProducts(req, res) {
+    if (req.method !== 'GET') {
+        return res.status(405).json({ success: false, message: 'Method Not Allowed' });
+    }
+
+    const authResult = await requireAdmin(req, res);
+    if (!authResult) return;
+
+    try {
+        const snapshot = await getAdminDb().collection('marketplace_products').get();
+        const items = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })).sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0));
+        return res.status(200).json({ success: true, data: items });
+    } catch (error) {
+        return res.status(500).json({ success: false, message: error.message });
+    }
+}
+
+async function handleSaveMarketplaceProduct(req, res) {
+    if (req.method !== 'POST') {
+        return res.status(405).json({ success: false, message: 'Method Not Allowed' });
+    }
+
+    const authResult = await requireAdmin(req, res);
+    if (!authResult) return;
+
+    const body = req.body || {};
+    const productId = body.id ? String(body.id) : null;
+    const name = String(body.name || '').trim();
+    const price = Number(body.price || 0);
+    const stock = Number(body.stock);
+
+    if (!name) {
+        return res.status(400).json({ success: false, message: 'Nama produk wajib diisi.' });
+    }
+    if (!Number.isSafeInteger(price) || price < 0) {
+        return res.status(400).json({ success: false, message: 'Harga harus berupa bilangan bulat rupiah.' });
+    }
+    if (!Number.isInteger(stock) || stock < 0) {
+        return res.status(400).json({ success: false, message: 'Stok harus berupa bilangan bulat minimal 0.' });
+    }
+
+    const productData = {
+        name,
+        category: body.category || 'barang',
+        price,
+        stock,
+        sold: 0,
+        condition: body.condition || 'Layak pakai',
+        status: stock > 0 ? 'Tersedia' : 'Habis',
+        description: String(body.description || '').trim(),
+        city: body.city || body.address || 'Jakarta',
+        address: body.address || body.city || 'Jakarta',
+        storyType: body.storyType || 'barang-kenangan',
+        storyNote: body.storyNote || '',
+        latitude: body.latitude || '',
+        longitude: body.longitude || '',
+        imageUrl: body.imageUrl || body.image || '',
+        images: Array.isArray(body.images) ? body.images : (body.imageUrl || body.image ? [body.imageUrl || body.image] : []),
+        seller: 'Marketplace Mantan',
+        sellerId: 'admin',
+        ownerId: 'admin',
+        updatedAt: Date.now(),
+    };
+
+    try {
+        const db = getAdminDb();
+        const collectionRef = db.collection('marketplace_products');
+        if (productId) {
+            const ref = collectionRef.doc(String(productId));
+            const existing = await ref.get();
+            const currentSold = Number(existing.data()?.sold);
+            const sold = Number.isInteger(currentSold) && currentSold >= 0 ? currentSold : 0;
+            await ref.set({ ...productData, sold, updatedAt: Date.now() }, { merge: true });
+            return res.status(200).json({ success: true, message: 'Produk berhasil diperbarui.', id: productId });
+        }
+
+        const createdAt = Date.now();
+        const ref = collectionRef.doc();
+        await ref.set({ ...productData, createdAt, updatedAt: createdAt });
+        return res.status(200).json({ success: true, message: 'Produk berhasil ditambahkan.', id: ref.id });
+    } catch (error) {
+        return res.status(500).json({ success: false, message: error.message });
+    }
+}
+
+async function handleDeleteMarketplaceProduct(req, res) {
+    if (req.method !== 'POST') {
+        return res.status(405).json({ success: false, message: 'Method Not Allowed' });
+    }
+
+    const authResult = await requireAdmin(req, res);
+    if (!authResult) return;
+
+    const { id } = req.body || {};
+    if (!id) {
+        return res.status(400).json({ success: false, message: 'ID produk wajib diisi.' });
+    }
+
+    try {
+        await getAdminDb().collection('marketplace_products').doc(String(id)).delete();
+        return res.status(200).json({ success: true, message: 'Produk berhasil dihapus.' });
+    } catch (error) {
+        return res.status(500).json({ success: false, message: error.message });
+    }
+}
+
+async function handleUpdateMarketplaceOrderStatus(req, res) {
+    if (req.method !== 'POST') {
+        return res.status(405).json({ success: false, message: 'Method Not Allowed' });
+    }
+
+    const authResult = await requireAdmin(req, res);
+    if (!authResult) return;
+
+    const { id, orderId, status, courier, trackingNumber, returnStock, note } = req.body || {};
+    const targetOrderId = String(orderId || id || '').trim();
+    if (!targetOrderId || !status) {
+        return res.status(400).json({ success: false, message: 'Kode order dan status wajib diisi.' });
+    }
+
+    try {
+        const result = await updateMarketplaceOrderStatus({
+            orderId: targetOrderId,
+            status: String(status),
+            by: authResult.claims?.email || OWNER_EMAIL,
+            courier,
+            trackingNumber,
+            returnStock: returnStock === true,
+            note: String(note || '').trim()
+        });
+        return res.status(200).json({ success: true, message: 'Status pesanan berhasil diperbarui.', data: result });
+    } catch (error) {
+        const statusCode = error.code === 'not-found' ? 404 : error.code === 'invalid-transition' ? 409 : 500;
+        return res.status(statusCode).json({ success: false, code: error.code || 'order-update-failed', message: error.message });
+    }
+}
+
+async function handleReleaseExpiredMarketplaceReservations(req, res) {
+    if (req.method !== 'POST') return res.status(405).json({ success: false, message: 'Method Not Allowed' });
+    const authResult = await requireAdmin(req, res);
+    if (!authResult) return;
+    try {
+        const result = await releaseExpiredReservations();
+        return res.status(200).json({ success: true, data: result });
+    } catch (error) {
+        return res.status(500).json({ success: false, code: error.code || 'reservation-sweep-failed', message: error.message });
+    }
+}
+
+async function handleMigrateMarketplaceStock(req, res) {
+    if (req.method !== 'POST') return res.status(405).json({ success: false, message: 'Method Not Allowed' });
+    const authResult = await requireAdmin(req, res);
+    if (!authResult) return;
+    try {
+        const db = getAdminDb();
+        const snapshot = await db.collection('marketplace_products').get();
+        let batch = db.batch();
+        let batchCount = 0;
+        let migrated = 0;
+        const commitBatch = async () => {
+            if (!batchCount) return;
+            await batch.commit();
+            batch = db.batch();
+            batchCount = 0;
+        };
+        for (const productDoc of snapshot.docs) {
+            const product = productDoc.data() || {};
+            const stockValue = Number(product.stock);
+            const soldValue = Number(product.sold);
+            const stockValid = Number.isInteger(stockValue) && stockValue >= 0;
+            const soldValid = Number.isInteger(soldValue) && soldValue >= 0;
+            if (stockValid && soldValid) continue;
+            const stock = stockValid ? stockValue : 1;
+            const sold = soldValid ? soldValue : 0;
+            batch.set(productDoc.ref, { stock, sold, status: stock > 0 ? 'Tersedia' : 'Habis', updatedAt: Date.now() }, { merge: true });
+            batchCount += 1;
+            migrated += 1;
+            if (batchCount >= 450) await commitBatch();
+        }
+        await commitBatch();
+        return res.status(200).json({ success: true, migrated, scanned: snapshot.size });
+    } catch (error) {
+        return res.status(500).json({ success: false, code: error.code || 'stock-migration-failed', message: error.message });
+    }
+}
+
+async function handleGetMarketplaceChatThreads(req, res) {
+    if (req.method !== 'GET') {
+        return res.status(405).json({ success: false, message: 'Method Not Allowed' });
+    }
+
+    const authResult = await requireAdmin(req, res);
+    if (!authResult) return;
+
+    try {
+        const snapshot = await getAdminDb().collection('marketplace_chats').get();
+        const threads = snapshot.docs
+            .map((doc) => ({ id: doc.id, ...doc.data() }))
+            .sort((a, b) => Number(b.lastMessageAt || b.updatedAt || 0) - Number(a.lastMessageAt || a.updatedAt || 0));
+        return res.status(200).json({ success: true, data: threads });
+    } catch (error) {
+        return res.status(500).json({ success: false, message: error.message });
+    }
+}
+
+async function handleSendMarketplaceChatMessage(req, res) {
+    if (req.method !== 'POST') {
+        return res.status(405).json({ success: false, message: 'Method Not Allowed' });
+    }
+
+    const authResult = await requireAdmin(req, res);
+    if (!authResult) return;
+
+    const { threadId, buyerId, buyerName, text } = req.body || {};
+    const trimmed = String(text || '').trim();
+    if (!threadId || !buyerId || String(threadId) !== String(buyerId) || !trimmed) {
+        return res.status(400).json({ success: false, message: 'threadId harus sama dengan buyerId dan text wajib diisi.' });
+    }
+
+    try {
+        const db = getAdminDb();
+        const ref = db.collection('marketplace_chats').doc(String(buyerId));
+        const messageRef = ref.collection('messages').doc();
+        const createdAt = Date.now();
+        const nextMessage = {
+            id: messageRef.id,
+            senderId: authResult.claims?.uid || 'admin',
+            senderRole: 'admin',
+            text: trimmed,
+            createdAt,
+        };
+
+        const batch = db.batch();
+        batch.set(messageRef, nextMessage);
+        batch.set(ref, {
+            buyerId: String(buyerId),
+            buyerName: String(buyerName || 'Pembeli'),
+            participantIds: [String(buyerId), 'admin'],
+            lastMessage: trimmed,
+            lastMessageAt: createdAt,
+            lastSenderRole: 'admin',
+            updatedAt: createdAt,
+            unreadForUser: FieldValue.increment(1),
+        }, { merge: true });
+        await batch.commit();
+
+        return res.status(200).json({ success: true, message: 'Pesan berhasil dikirim.', data: nextMessage });
+    } catch (error) {
+        return res.status(500).json({ success: false, message: error.message });
+    }
+}
+
 async function handleUpdateWeddingRequestStatus(req, res) {
     if (req.method !== 'POST') {
         return res.status(405).json({ success: false, message: 'Method Not Allowed' });
@@ -956,10 +1210,26 @@ export default async function handler(req, res) {
             return handleGetMatchConfirmRequests(req, res);
         case 'get-marketplace-items':
             return handleGetMarketplaceItems(req, res);
+        case 'get-marketplace-products':
+            return handleGetMarketplaceProducts(req, res);
+        case 'save-marketplace-product':
+            return handleSaveMarketplaceProduct(req, res);
+        case 'delete-marketplace-product':
+            return handleDeleteMarketplaceProduct(req, res);
         case 'get-marketplace-orders':
             return handleGetMarketplaceOrders(req, res);
+        case 'update-marketplace-order-status':
+            return handleUpdateMarketplaceOrderStatus(req, res);
+        case 'release-expired-reservations':
+            return handleReleaseExpiredMarketplaceReservations(req, res);
+        case 'migrate-marketplace-stock':
+            return handleMigrateMarketplaceStock(req, res);
         case 'update-marketplace-item-status':
             return handleUpdateMarketplaceItemStatus(req, res);
+        case 'get-marketplace-chat-threads':
+            return handleGetMarketplaceChatThreads(req, res);
+        case 'send-marketplace-chat-message':
+            return handleSendMarketplaceChatMessage(req, res);
         case 'update-wedding-request-status':
             return handleUpdateWeddingRequestStatus(req, res);
         case 'save-redeem-code':

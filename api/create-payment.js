@@ -7,8 +7,10 @@ export default async function handler(req, res) {
         });
     }
 
-   const clientId = "BRN-0226-1781255193170";
-const secretKey = "SK-NgMsKzkHcLlY95v7wsju";
+    const clientId = String(process.env.DOKU_CLIENT_ID || '').trim();
+    const secretKey = String(process.env.DOKU_SECRET_KEY || '').trim();
+    const baseUrl = String(process.env.DOKU_BASE_URL || '').trim().replace(/\/$/, '');
+    const siteUrl = String(process.env.SITE_URL || '').trim().replace(/\/$/, '');
 
     try {
         const { amount, orderId } = req.body;
@@ -27,6 +29,10 @@ const secretKey = "SK-NgMsKzkHcLlY95v7wsju";
             });
         }
 
+        if (!clientId || !secretKey || !baseUrl || !siteUrl) {
+            return res.status(503).json({ success: false, message: 'Konfigurasi DOKU atau SITE_URL belum lengkap di server.' });
+        }
+
        const timestamp = new Date().toISOString().split('.')[0] + "Z";
 
      // Di dalam api/create-payment.js
@@ -34,17 +40,17 @@ const requestBody = {
     order: {
         amount: amount,
         invoice_number: orderId,
-        callback_url: "https://gamon-fawn.vercel.app/api/doku-notify"
+        callback_url: `${siteUrl}/api/doku-notify`
     },
     payment: {
         payment_due_date: 60,
-        return_url: `https://gamon-fawn.vercel.app/photobox.html?orderId=${encodeURIComponent(orderId)}`,
+        return_url: `${siteUrl}/photobox.html?orderId=${encodeURIComponent(orderId)}`,
 
         // paksa QRIS
         payment_method_types: ["QRIS"]
     },
     additional_info: {
-        override_notification_url: "https://gamon-fawn.vercel.app/api/doku-notify"
+        override_notification_url: `${siteUrl}/api/doku-notify`
     }
 };
 
@@ -80,7 +86,7 @@ const requestBody = {
         // console.log("SIGNATURE:", signature);
 
         const response = await fetch(
-            "https://api.doku.com/checkout/v1/payment",
+            `${baseUrl}/checkout/v1/payment`,
             {
                 method: "POST",
                // Tambahkan Request-Target ke dalam headers fetch:

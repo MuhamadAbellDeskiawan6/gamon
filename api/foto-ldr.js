@@ -4,12 +4,11 @@ const fs = require("fs");
 const path = require("path");
 const SESSION_TIME_LIMIT_SECONDS = 60;
 const LDR_PAYMENT_AMOUNT = 2000;
-const DOKU_CLIENT_ID = process.env.DOKU_CLIENT_ID || process.env.DOKU_PRODUCTION_CLIENT_ID || "BRN-0226-1781255193170";
-const DOKU_SECRET_KEY = process.env.DOKU_SECRET_KEY || process.env.DOKU_PRODUCTION_SECRET_KEY || "SK-NgMsKzkHcLlY95v7wsju";
-const DOKU_NOTIFICATION_URL = process.env.DOKU_WEBHOOK_BASE_URL
-  ? `${String(process.env.DOKU_WEBHOOK_BASE_URL).replace(/\/$/, "")}/api/doku-notify`
-  : "https://gamon-tawing.vercel.app/api/doku-notify";
-const DOKU_RETURN_ORIGIN = String(process.env.PUBLIC_APP_URL || "https://gamon-tawing.vercel.app").replace(/\/$/, "");
+const DOKU_CLIENT_ID = String(process.env.DOKU_CLIENT_ID || '').trim();
+const DOKU_SECRET_KEY = String(process.env.DOKU_SECRET_KEY || '').trim();
+const DOKU_BASE_URL = String(process.env.DOKU_BASE_URL || '').trim().replace(/\/$/, '');
+const SITE_URL = String(process.env.SITE_URL || '').trim().replace(/\/$/, '');
+const DOKU_NOTIFICATION_URL = SITE_URL ? `${SITE_URL}/api/doku-notify` : '';
 
 function getFirebaseAdmin() {
   if (!admin.apps.length) {
@@ -197,6 +196,10 @@ async function createPaymentHandler(req, res, body = {}) {
   }
 
   try {
+    if (!DOKU_CLIENT_ID || !DOKU_SECRET_KEY || !DOKU_BASE_URL || !SITE_URL) {
+      return res.status(503).json({ success: false, message: "Konfigurasi DOKU atau SITE_URL belum lengkap di server." });
+    }
+
     const sessionId = String(body.sessionId || body.code || "").trim().toUpperCase();
     if (!/^[A-Z0-9]{6}$/.test(sessionId)) {
       return res.status(400).json({ success: false, message: "Sesi Foto LDR tidak valid." });
@@ -265,7 +268,7 @@ async function createPaymentHandler(req, res, body = {}) {
       });
 
     const timestamp = getDokuTimestamp();
-    const returnUrl = `${DOKU_RETURN_ORIGIN}/foto-ldr.html?sessionId=${encodeURIComponent(sessionId)}&orderId=${encodeURIComponent(orderId)}`;
+    const returnUrl = `${SITE_URL}/foto-ldr.html?sessionId=${encodeURIComponent(sessionId)}&orderId=${encodeURIComponent(orderId)}`;
     const requestBody = {
       order: {
         amount: LDR_PAYMENT_AMOUNT,
@@ -286,7 +289,7 @@ async function createPaymentHandler(req, res, body = {}) {
     const signature = createDokuSignature({ orderId, timestamp, digest });
 
     console.log("[LDR payment] Membuat checkout DOKU:", { orderId, sessionId, amount: LDR_PAYMENT_AMOUNT });
-    const response = await fetch("https://api.doku.com/checkout/v1/payment", {
+    const response = await fetch(`${DOKU_BASE_URL}/checkout/v1/payment`, {
       method: "POST",
       headers: {
         "Client-Id": DOKU_CLIENT_ID,
