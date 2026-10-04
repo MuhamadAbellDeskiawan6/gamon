@@ -1,8 +1,12 @@
 import crypto from 'crypto';
+import fs from 'fs';
+import path from 'path';
 import { getAdminAuth, getAdminDb } from './lib/firebase-admin.js';
 import { applyMarketplacePayment, releaseExpiredReservations, releaseOrderStock } from './lib/marketplace-orders.js';
 
 const PAYMENT_WINDOW_MS = 60 * 60 * 1000;
+const DEFAULT_SITE_URL = 'https://gamon-tawing.vercel.app';
+const DEFAULT_DOKU_BASE_URL = 'https://api.doku.com';
 
 function responseError(res, status, code, message, details) {
   return res.status(status).json({ success: false, code, message, ...(details ? { details } : {}) });
@@ -30,19 +34,72 @@ async function requireBuyer(req, res) {
   }
 }
 
-function getDokuConfig() {
+// Fallback khusus development: kalau server lokal tidak memuat file env,
+// baca variabel DOKU langsung dari file env di folder proyek.
+// Tidak berjalan di production (Vercel) dan hanya mengisi variabel yang masih kosong.
+let localEnvLoaded = false;
+function loadLocalEnvFallback() {
+  if (localEnvLoaded) return;
+  localEnvLoaded = true;
+  if (process.env.VERCEL_ENV === 'production' || process.env.NODE_ENV === 'production') return;
+
+  const wanted = ['DOKU_CLIENT_ID', 'DOKU_SECRET_KEY', 'DOKU_BASE_URL', 'SITE_URL', 'DOKU_PAYMENT_METHODS', 'MARKETPLACE_SHIPPING_FEE'];
+  const files = ['.env.local', '.env.development.local', '.env.development', '.env'];
+  const found = [];
+
+  for (const file of files) {
+    let content = '';
+    try {
+      content = fs.readFileSync(path.join(process.cwd(), file), 'utf8');
+    } catch (error) {
+      continue;
+    }
+    for (const line of content.split(/\r?\n/)) {
+      const match = line.match(/^\s*(?:export\s+)?([A-Z0-9_]+)\s*=\s*(.*)\s*$/);
+      if (!match || !wanted.includes(match[1])) continue;
+      let value = match[2].trim();
+      if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+        value = value.slice(1, -1);
+      }
+      if (value && !String(process.env[match[1]] || '').trim()) {
+        process.env[match[1]] = value;
+        found.push(`${match[1]}<-${file}`);
+      }
+    }
+  }
+  console.log('[marketplace] env fallback:', found.length ? found.join(', ') : 'tidak ada variabel yang ditemukan di file env', '| cwd:', process.cwd());
+}
+
+function getDokuConfig(req) {
+  loadLocalEnvFallback();
   const clientId = String(process.env.DOKU_CLIENT_ID || '').trim();
   const secretKey = String(process.env.DOKU_SECRET_KEY || '').trim();
-  const baseUrl = String(process.env.DOKU_BASE_URL || '').trim().replace(/\/$/, '');
-  const siteUrl = String(process.env.SITE_URL || '').trim().replace(/\/$/, '');
-  if (!clientId || !secretKey || !baseUrl || !siteUrl) {
-    throw Object.assign(new Error('DOKU_CLIENT_ID, DOKU_SECRET_KEY, DOKU_BASE_URL, dan SITE_URL wajib diatur.'), { code: 'doku-config-missing' });
+  if (!clientId || !secretKey) {
+    throw Object.assign(new Error('DOKU_CLIENT_ID dan DOKU_SECRET_KEY wajib diatur di environment server.'), { code: 'doku-config-missing' });
   }
-  const localHttpSite = process.env.NODE_ENV !== 'production' && /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(siteUrl);
-  if (!/^https:\/\//i.test(baseUrl) || (!/^https:\/\//i.test(siteUrl) && !localHttpSite)) {
-    throw Object.assign(new Error('DOKU_BASE_URL harus HTTPS; SITE_URL harus HTTPS kecuali localhost saat development.'), { code: 'invalid-server-url' });
+
+  let baseUrl = String(process.env.DOKU_BASE_URL || '').trim().replace(/\/$/, '');
+  if (!baseUrl) {
+    console.warn(`[marketplace] DOKU_BASE_URL kosong, memakai default ${DEFAULT_DOKU_BASE_URL}`);
+    baseUrl = DEFAULT_DOKU_BASE_URL;
   }
-  return { clientId, secretKey, baseUrl, siteUrl };
+  if (!/^https:\/\//i.test(baseUrl)) {
+    throw Object.assign(new Error('DOKU_BASE_URL harus berupa URL HTTPS.'), { code: 'invalid-server-url' });
+  }
+
+  // URL publik (HTTPS) untuk webhook DOKU. localhost tidak bisa dijangkau DOKU.
+  let siteUrl = String(process.env.SITE_URL || '').trim().replace(/\/$/, '');
+  if (!/^https:\/\//i.test(siteUrl)) {
+    if (siteUrl) console.warn(`[marketplace] SITE_URL "${siteUrl}" bukan HTTPS publik, webhook memakai ${DEFAULT_SITE_URL}`);
+    siteUrl = DEFAULT_SITE_URL;
+  }
+
+  // URL tujuan redirect browser setelah bayar: kalau dites di localhost, kembali ke localhost.
+  const host = String(req?.headers?.host || '');
+  const isLocalHost = /^(localhost|127\.0\.0\.1)(:\d+)?$/i.test(host);
+  const returnBaseUrl = isLocalHost ? `http://${host}` : siteUrl;
+
+  return { clientId, secretKey, baseUrl, siteUrl, returnBaseUrl };
 }
 
 function createDokuHeaders({ clientId, secretKey, requestId, timestamp, path, bodyText = '' }) {
@@ -123,14 +180,25 @@ async function createDokuPayment(order, config) {
   const timestamp = new Date().toISOString().split('.')[0] + 'Z';
   const lineItems = order.items.map((item) => ({ name: item.name.slice(0, 100), price: item.unitPrice, quantity: item.qty }));
   if (order.shippingFee > 0) lineItems.push({ name: 'Ongkos kirim', price: order.shippingFee, quantity: 1 });
-  const paymentMethods = String(process.env.DOKU_PAYMENT_METHODS || '').split(',').map((value) => value.trim()).filter(Boolean);
-  const payment = { payment_due_date: 60 };
+
+  // Default QRIS seperti Foto LDR. DOKU_PAYMENT_METHODS=ALL membuka semua metode,
+  // atau isi daftar dipisah koma, mis. "QRIS,VIRTUAL_ACCOUNT_BCA".
+  const rawMethods = String(process.env.DOKU_PAYMENT_METHODS || 'QRIS').trim();
+  const paymentMethods = rawMethods.toUpperCase() === 'ALL'
+    ? []
+    : rawMethods.split(',').map((value) => value.trim()).filter(Boolean);
+
+  // Sama seperti Foto LDR: callback_url dan return_url sama-sama ke halaman pesanan.
+  const returnUrl = `${config.returnBaseUrl}/user/marketplace/pesanan.html?orderId=${encodeURIComponent(order.orderId)}`;
+
+  const payment = { payment_due_date: 60, return_url: returnUrl };
   if (paymentMethods.length) payment.payment_method_types = paymentMethods;
+
   const body = {
     order: {
       amount: order.totalAmount,
       invoice_number: order.orderId,
-      callback_url: `${config.siteUrl}/api/doku-notify`,
+      callback_url: returnUrl,
       line_items: lineItems,
       currency: 'IDR'
     },
@@ -145,6 +213,7 @@ async function createDokuPayment(order, config) {
       override_notification_url: `${config.siteUrl}/api/doku-notify`
     }
   };
+
   const path = '/checkout/v1/payment';
   const jsonBody = JSON.stringify(body);
   const response = await fetch(`${config.baseUrl}${path}`, {
@@ -161,7 +230,8 @@ async function createDokuPayment(order, config) {
   }
   const paymentUrl = payload?.response?.payment?.url;
   if (!response.ok || typeof paymentUrl !== 'string' || !/^https:\/\//i.test(paymentUrl)) {
-    throw Object.assign(new Error(payload?.message || payload?.error || `DOKU menolak checkout (${response.status}).`), {
+    console.error('[marketplace] respons DOKU:', response.status, JSON.stringify(payload).slice(0, 1500));
+    throw Object.assign(new Error(payload?.error_messages?.join?.(', ') || payload?.message || payload?.error || `DOKU menolak checkout (${response.status}).`), {
       code: 'doku-checkout-failed',
       dokuRequestId: requestId
     });
@@ -306,7 +376,7 @@ async function reserveOrderForBuyer(claims) {
 async function checkout(req, res, claims) {
   let config;
   try {
-    config = getDokuConfig();
+    config = getDokuConfig(req);
   } catch (error) {
     return responseError(res, 503, error.code, error.message);
   }
@@ -343,7 +413,8 @@ async function checkout(req, res, claims) {
       } catch (releaseError) {
         console.error('[marketplace] gagal melepas reservasi setelah error DOKU:', releaseError);
       }
-      return responseError(res, 502, error.code || 'doku-checkout-failed', 'Pembayaran gagal disiapkan. Stok telah dilepas jika reservasi sudah dibuat.');
+      // Sertakan pesan asli dari DOKU agar mudah didiagnosis saat testing.
+      return responseError(res, 502, error.code || 'doku-checkout-failed', `Pembayaran gagal disiapkan: ${cleanText(error.message, 300)}. Stok telah dilepas jika reservasi sudah dibuat.`);
     }
   } catch (error) {
     console.error('[marketplace] checkout gagal:', { code: error.code || 'unknown', message: error.message });
@@ -396,7 +467,7 @@ async function checkPayment(req, res, claims) {
   if (order.status !== 'awaiting_payment') return res.status(200).json({ success: true, order: { id: orderId, ...order } });
 
   try {
-    const config = getDokuConfig();
+    const config = getDokuConfig(req);
     const path = `/orders/v1/status/${encodeURIComponent(orderId)}`;
     const timestamp = new Date().toISOString().split('.')[0] + 'Z';
     const requestId = crypto.randomUUID();

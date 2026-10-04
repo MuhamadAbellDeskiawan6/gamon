@@ -1684,7 +1684,9 @@ function renderBuyerProductsLoadingState() {
 }
 
 async function callMarketplaceApi(action, body = {}) {
-  const firebaseUser = auth.currentUser;
+  // Tunggu Firebase selesai memulihkan sesi login (penting setelah halaman baru dibuka
+  // atau setelah kembali dari halaman pembayaran DOKU).
+  const firebaseUser = auth.currentUser || await waitForMarketplaceFirebaseUser();
   if (!firebaseUser) throw Object.assign(new Error('Silakan masuk kembali untuk melanjutkan.'), { code: 'unauthenticated' });
   const idToken = await firebaseUser.getIdToken();
   const response = await fetch(`/api/marketplace?action=${encodeURIComponent(action)}`, {
