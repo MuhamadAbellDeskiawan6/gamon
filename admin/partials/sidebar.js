@@ -2,27 +2,42 @@
     const sidebarHost = document.querySelector('[data-admin-sidebar]');
     if (!sidebarHost) return;
 
-    const currentPath = window.location.pathname.replace(/\/$/, '') || '/';
+    const normalizePath = (path) => (String(path || '').replace(/\/+$/, '').replace(/\.html$/, '')) || '/';
+    const currentPath = normalizePath(window.location.pathname);
+
     const menuItems = [
-        { href: '/admin/dashboard.html', label: 'Dashboard' },
-        { href: '/admin/match-confirm.html', label: 'Kelola Match Confirm' },
-        { href: '/admin/ldr-frames.html', label: 'Frame Foto LDR' },
-        { href: '/admin/marketplace.html', label: 'Produk Marketplace' },
-        { href: '/admin/marketplace-orders.html', label: 'Pesanan Marketplace', orders: true },
-        { href: '/admin/marketplace-chat.html', label: 'Chat Pembeli', chat: true }
+        { href: '/admin/dashboard.html', label: 'Dashboard', icon: 'dashboard' },
+        { href: '/admin/match-confirm.html', label: 'Kelola Match Confirm', icon: 'favorite' },
+        { href: '/admin/ldr-frames.html', label: 'Frame Foto LDR', icon: 'photo_library' },
+        { section: 'Marketplace Mantan' },
+        { href: '/admin/marketplace.html', label: 'Ringkasan Marketplace', icon: 'storefront' },
+        {
+            href: '/admin/marketplace-products.html',
+            label: 'Produk Marketplace',
+            icon: 'inventory_2',
+            alsoActive: ['/admin/marketplace-product-form.html']
+        },
+        { href: '/admin/marketplace-orders.html', label: 'Pesanan Marketplace', icon: 'receipt_long', orders: true },
+        { href: '/admin/marketplace-chat.html', label: 'Chat Pembeli', icon: 'chat', chat: true }
     ];
 
     const menuMarkup = menuItems.map((item) => {
-        const isActive = currentPath === item.href;
+        if (item.section) {
+            return `<p class="px-3 pb-1 pt-4 text-[10px] font-bold uppercase tracking-wider text-slate-400">${item.section}</p>`;
+        }
+
+        const targets = [item.href, ...(item.alsoActive || [])].map(normalizePath);
+        const isActive = targets.includes(currentPath);
         const classes = isActive
-            ? 'block rounded-xl bg-pink-600 px-3 py-2 text-sm font-semibold text-white'
-            : 'block rounded-xl px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100';
+            ? 'flex items-center justify-between gap-2 rounded-xl bg-pink-600 px-3 py-2 text-sm font-semibold text-white'
+            : 'flex items-center justify-between gap-2 rounded-xl px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100';
         const badge = item.chat
             ? '<span data-admin-chat-unread class="hidden rounded-full bg-rose-600 px-2 py-0.5 text-[10px] font-bold text-white"></span>'
             : item.orders
                 ? '<span data-admin-orders-unread class="hidden rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-bold text-white"></span>'
                 : '';
-        return `<a href="${item.href}" class="${classes} flex items-center justify-between gap-2"${isActive ? ' aria-current="page"' : ''}>${item.label}${badge}</a>`;
+        const icon = item.icon ? `<span class="material-symbols-outlined" style="font-size:20px">${item.icon}</span>` : '';
+        return `<a href="${item.href}" class="${classes}"${isActive ? ' aria-current="page"' : ''}><span class="flex items-center gap-2">${icon}<span>${item.label}</span></span>${badge}</a>`;
     }).join('');
 
     sidebarHost.outerHTML = `<aside class="border-r border-slate-200 bg-white p-4 lg:p-6">
@@ -30,7 +45,7 @@
             <h1 class="text-lg font-bold text-pink-600">Gamon Admin</h1>
             <p class="mt-1 text-xs text-slate-500">Panel pengelolaan admin</p>
         </div>
-        <nav class="space-y-2">${menuMarkup}</nav>
+        <nav class="space-y-1">${menuMarkup}</nav>
         <div class="mt-6 border-t border-slate-200 pt-4">
             <p id="adminEmail" class="mb-2 text-xs text-slate-500">Memeriksa sesi...</p>
             <button id="logoutButton" type="button" class="w-full rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-600 transition hover:bg-rose-100">Keluar Sesi</button>

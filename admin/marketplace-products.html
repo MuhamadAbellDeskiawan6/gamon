@@ -21,13 +21,15 @@
           <h2 class="text-2xl font-bold text-slate-900">Produk Marketplace</h2>
           <p class="mt-1 text-sm text-slate-500">Kelola katalog admin dan status stok produk.</p>
         </div>
-        <div class="flex items-center gap-2">
-          <button id="repairLegacyProductsBtn" type="button" class="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50">Rapikan data produk lama</button>
+        <div class="flex flex-wrap items-center gap-2">
+          <button id="repairLegacyProductsBtn" type="button" class="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-60">Rapikan data produk lama</button>
           <a href="/admin/marketplace-product-form.html" class="inline-flex items-center justify-center rounded-xl bg-pink-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-pink-500">+ Tambah Produk</a>
         </div>
       </div>
 
-      <div class="mb-6 grid gap-4 md:grid-cols-3">
+      <p id="pageStatus" class="mb-4 text-sm text-rose-700" role="status" aria-live="polite"></p>
+
+      <div class="mb-6 grid gap-4 md:grid-cols-4">
         <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
           <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Total Produk</p>
           <p id="totalProducts" class="mt-2 text-3xl font-bold text-slate-900">0</p>
@@ -37,7 +39,11 @@
           <p id="availableProducts" class="mt-2 text-3xl font-bold text-emerald-600">0</p>
         </div>
         <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Terjual</p>
+          <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Stok menipis</p>
+          <p id="lowProducts" class="mt-2 text-3xl font-bold text-amber-600">0</p>
+        </div>
+        <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Total unit terjual</p>
           <p id="soldProducts" class="mt-2 text-3xl font-bold text-rose-600">0</p>
         </div>
       </div>
@@ -47,13 +53,14 @@
           <input id="searchInput" type="search" placeholder="Cari nama produk..." class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-pink-200 md:max-w-xs" />
           <select id="statusFilter" class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-pink-200">
             <option value="all">Semua status</option>
-            <option value="Tersedia">Tersedia</option>
+            <option value="Tersedia">Tersedia (stok &gt; 2)</option>
+            <option value="Menipis">Stok menipis (1–2)</option>
             <option value="Habis">Habis</option>
           </select>
         </div>
 
         <div class="overflow-x-auto">
-          <table class="w-full text-left text-sm text-slate-700">
+          <table class="w-full min-w-[900px] text-left text-sm text-slate-700">
             <thead>
               <tr class="border-b border-slate-200 bg-slate-50 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
                 <th class="px-3 py-3">Produk</th>
@@ -66,7 +73,7 @@
                 <th class="px-3 py-3 text-right">Aksi</th>
               </tr>
             </thead>
-            <tbody id="productsTableBody"></tbody>
+            <tbody id="productsTableBody"><tr><td colspan="8" class="py-8 text-center text-slate-400">Memuat produk...</td></tr></tbody>
           </table>
         </div>
       </div>
@@ -80,6 +87,7 @@
     const searchInput = document.getElementById('searchInput');
     const statusFilter = document.getElementById('statusFilter');
     const body = document.getElementById('productsTableBody');
+    const pageStatus = document.getElementById('pageStatus');
     let productsCache = [];
 
     function getCreatedAtMs(value) {
@@ -101,6 +109,17 @@
         }
       }
       return 0;
+    }
+
+    function stockOf(item) {
+      const value = Number(item.stock);
+      return Number.isInteger(value) && value >= 0 ? value : 1;
+    }
+
+    function stateOf(stock) {
+      if (stock === 0) return 'Habis';
+      if (stock <= 2) return 'Menipis';
+      return 'Tersedia';
     }
 
     async function repairLegacyMarketplaceProducts() {
@@ -128,44 +147,42 @@
       await requireAdmin();
       const q = collection(db, 'marketplace_products');
       onSnapshot(q, (snapshot) => {
-        const products = snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
-        productsCache = products;
-        renderProducts(products);
+        productsCache = snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
+        renderProducts(productsCache);
       }, (error) => {
         console.error('Error fetching marketplace products:', error);
+        pageStatus.textContent = `Produk gagal dimuat (${error.code || 'unknown'}).`;
+        body.innerHTML = '<tr><td colspan="8" class="py-8 text-center text-rose-600">Gagal memuat produk.</td></tr>';
       });
     }
 
     function renderProducts(products) {
       const sorted = [...products].sort((a, b) => getCreatedAtMs(b.createdAt) - getCreatedAtMs(a.createdAt));
       const total = sorted.length;
-      const available = sorted.filter((item) => Number(item.stock ?? 1) > 0).length;
+      const available = sorted.filter((item) => stockOf(item) > 0).length;
+      const low = sorted.filter((item) => stockOf(item) > 0 && stockOf(item) <= 2).length;
       const sold = sorted.reduce((totalSold, item) => totalSold + Math.max(0, Number(item.sold || 0)), 0);
       document.getElementById('totalProducts').textContent = total;
       document.getElementById('availableProducts').textContent = available;
+      document.getElementById('lowProducts').textContent = low;
       document.getElementById('soldProducts').textContent = sold;
 
-      const search = (searchInput.value || '').toLowerCase();
+      const search = (searchInput.value || '').trim().toLowerCase();
       const filter = statusFilter.value || 'all';
       const filtered = sorted.filter((item) => {
-        const stockValue = Number(item.stock);
-        const stock = Number.isInteger(stockValue) && stockValue >= 0 ? stockValue : 1;
-        const derivedStatus = stock > 0 ? 'Tersedia' : 'Habis';
         const matchesSearch = !search || String(item.name || '').toLowerCase().includes(search);
-        const matchesStatus = filter === 'all' || derivedStatus === filter;
+        const matchesStatus = filter === 'all' || stateOf(stockOf(item)) === filter;
         return matchesSearch && matchesStatus;
       });
 
       if (!filtered.length) {
-        body.innerHTML = `<tr><td colspan="8" class="py-8 text-center text-slate-400">Belum ada produk yang sesuai.</td></tr>`;
+        body.innerHTML = `<tr><td colspan="8" class="py-8 text-center text-slate-400">${total ? 'Tidak ada produk yang sesuai filter.' : 'Belum ada produk. Klik "+ Tambah Produk" untuk memulai.'}</td></tr>`;
         return;
       }
 
       body.innerHTML = filtered.map((item) => {
-        const stockValue = Number(item.stock);
-        const stock = Number.isInteger(stockValue) && stockValue >= 0 ? stockValue : 1;
-        const sold = Math.max(0, Number(item.sold || 0));
-        const status = stock > 0 ? 'Tersedia' : 'Habis';
+        const stock = stockOf(item);
+        const soldCount = Math.max(0, Number(item.sold || 0));
         const badgeClass = stock === 0 ? 'bg-rose-100 text-rose-700' : stock <= 2 ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700';
         const statusLabel = stock === 0 ? 'Habis' : stock <= 2 ? 'Stok menipis' : 'Tersedia';
         const img = item.imageUrl || item.image || 'https://placehold.co/600x400/f8fafc/64748b?text=G';
@@ -183,24 +200,32 @@
             <td class="px-3 py-3">${escapeHtml(item.category || '-')}</td>
             <td class="px-3 py-3 font-semibold text-slate-900">${formatRupiah(item.price || 0)}</td>
             <td class="px-3 py-3 font-semibold">${stock}</td>
-            <td class="px-3 py-3">${sold}</td>
+            <td class="px-3 py-3">${soldCount}</td>
             <td class="px-3 py-3"><span class="inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${badgeClass}">${statusLabel}</span></td>
             <td class="px-3 py-3">${formatDate(item.createdAt)}</td>
             <td class="px-3 py-3">
               <div class="flex justify-end gap-2">
-                <a href="/admin/marketplace-product-form.html?id=${item.id}" class="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50">Edit</a>
-                <button data-delete-id="${item.id}" class="rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-xs font-medium text-rose-600 hover:bg-rose-100">Hapus</button>
+                <a href="/admin/marketplace-product-form.html?id=${encodeURIComponent(item.id)}" class="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50">Edit</a>
+                <button type="button" data-delete-id="${escapeHtml(item.id)}" data-delete-name="${escapeHtml(item.name || 'produk ini')}" class="rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-xs font-medium text-rose-600 hover:bg-rose-100">Hapus</button>
               </div>
             </td>
           </tr>
         `;
       }).join('');
 
-      document.querySelectorAll('[data-delete-id]').forEach((button) => {
+      body.querySelectorAll('[data-delete-id]').forEach((button) => {
         button.addEventListener('click', async () => {
           const id = button.dataset.deleteId;
-          if (confirm('Apakah Anda yakin ingin menghapus produk ini?')) {
+          const name = button.dataset.deleteName;
+          if (!confirm(`Hapus "${name}"? Tindakan ini tidak bisa dibatalkan.`)) return;
+          button.disabled = true;
+          try {
             await deleteMarketplaceProduct(id);
+            pageStatus.textContent = '';
+          } catch (error) {
+            console.error('Hapus produk gagal:', error);
+            button.disabled = false;
+            pageStatus.textContent = `Produk gagal dihapus (${error.code || 'unknown'}).`;
           }
         });
       });

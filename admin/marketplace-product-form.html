@@ -6,8 +6,13 @@
   <title>Form Produk - Admin</title>
   <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
   <style>
     .material-symbols-outlined { font-family: 'Material Symbols Outlined'; font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24; }
+    #locationMap { height: 340px; border-radius: 12px; border: 1px solid #e2e8f0; z-index: 0; isolation: isolate; }
+    /* Tailwind preflight membuat img max-width:100%, ini merusak tile Leaflet */
+    .leaflet-container img, .leaflet-container img.leaflet-tile { max-width: none !important; max-height: none !important; }
+    .leaflet-container { font-family: inherit; }
   </style>
 </head>
 <body class="bg-slate-100 min-h-screen text-slate-800">
@@ -16,7 +21,7 @@
     <script src="/admin/partials/sidebar.js"></script>
 
     <main class="px-4 py-8 lg:px-8">
-      <div class="mb-6 flex items-center justify-between">
+      <div class="mb-6 flex items-center justify-between gap-3">
         <div>
           <h2 id="pageTitle" class="text-2xl font-bold text-slate-900">Tambah Produk</h2>
           <p class="mt-1 text-sm text-slate-500">Tambah atau edit katalog Marketplace Mantan.</p>
@@ -24,12 +29,13 @@
         <a href="/admin/marketplace-products.html" class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Kembali</a>
       </div>
 
-      <form id="productForm" class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <form id="productForm" class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm" novalidate>
         <div class="grid gap-5 md:grid-cols-2">
           <label class="block">
             <span class="mb-1 block text-sm font-medium text-slate-700">Nama produk</span>
-            <input name="name" required class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-pink-200" />
+            <input name="name" required maxlength="120" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-pink-200" />
           </label>
+
           <label class="block">
             <span class="mb-1 block text-sm font-medium text-slate-700">Kategori</span>
             <select name="category" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-pink-200">
@@ -38,10 +44,13 @@
               <option value="barang">Barang Lain</option>
             </select>
           </label>
+
           <label class="block">
             <span class="mb-1 block text-sm font-medium text-slate-700">Harga</span>
-            <input name="price" required class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-pink-200" placeholder="Rp 250.000" />
+            <input id="priceInput" name="price" type="text" inputmode="numeric" autocomplete="off" required placeholder="Rp 250.000" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-pink-200" />
+            <small class="mt-1 block text-slate-500">Ketik angka saja, titik pemisah ribuan otomatis.</small>
           </label>
+
           <label class="block">
             <span class="mb-1 block text-sm font-medium text-slate-700">Kondisi</span>
             <select name="condition" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-pink-200">
@@ -50,23 +59,55 @@
               <option value="Bekas terawat">Bekas terawat</option>
             </select>
           </label>
+
           <label class="block">
             <span class="mb-1 block text-sm font-medium text-slate-700">Stok</span>
             <input name="stock" type="number" min="0" step="1" required value="1" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-pink-200" />
-            <small class="mt-1 block text-slate-500">Status otomatis: <span data-stock-state>Tersedia</span></small>
+            <small class="mt-1 block text-slate-500">Status otomatis: <span data-stock-state class="font-semibold">Tersedia</span></small>
           </label>
+
           <label class="block">
-            <span class="mb-1 block text-sm font-medium text-slate-700">Lokasi COD</span>
-            <input name="city" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-pink-200" placeholder="Jakarta Selatan" />
+            <span class="mb-1 block text-sm font-medium text-slate-700">Kota / lokasi asal barang</span>
+            <input name="city" id="cityInput" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-pink-200" placeholder="Jakarta Selatan" />
           </label>
+
           <label class="block md:col-span-2">
             <span class="mb-1 block text-sm font-medium text-slate-700">Alamat lengkap</span>
-            <input name="address" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-pink-200" placeholder="Jl. ..." />
+            <input name="address" id="addressInput" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-pink-200" placeholder="Jl. ..." />
+            <small class="mt-1 block text-slate-500">Terisi otomatis saat Anda memilih titik di peta (kalau masih kosong). Boleh diedit.</small>
           </label>
+
+          <!-- PETA LOKASI -->
+          <div class="md:col-span-2">
+            <span class="mb-1 block text-sm font-medium text-slate-700">Titik lokasi di peta <span class="font-normal text-slate-400">(opsional, disarankan)</span></span>
+            <div class="mb-2 flex flex-col gap-2 sm:flex-row">
+              <input id="mapSearchInput" type="search" placeholder="Cari alamat / nama tempat, lalu tekan Enter..." class="min-w-0 flex-1 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-pink-200" />
+              <div class="flex gap-2">
+                <button type="button" id="mapSearchBtn" class="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Cari</button>
+                <button type="button" id="mapLocateBtn" class="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Lokasi saya</button>
+                <button type="button" id="mapClearBtn" class="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2.5 text-sm font-semibold text-rose-600 hover:bg-rose-100">Hapus titik</button>
+              </div>
+            </div>
+            <div id="mapResults" class="mb-2 hidden overflow-hidden rounded-xl border border-slate-200 bg-white text-sm"></div>
+            <div id="locationMap"></div>
+            <p id="mapStatus" class="mt-2 text-xs text-slate-500" role="status" aria-live="polite">Klik peta atau geser marker untuk menentukan titik lokasi.</p>
+            <div class="mt-2 grid gap-3 sm:grid-cols-2">
+              <label class="block">
+                <span class="mb-1 block text-xs font-medium text-slate-500">Latitude</span>
+                <input name="latitude" id="latitudeInput" readonly placeholder="Belum dipilih" class="w-full cursor-not-allowed rounded-xl border border-slate-200 bg-slate-100 px-3 py-2 text-sm text-slate-600" />
+              </label>
+              <label class="block">
+                <span class="mb-1 block text-xs font-medium text-slate-500">Longitude</span>
+                <input name="longitude" id="longitudeInput" readonly placeholder="Belum dipilih" class="w-full cursor-not-allowed rounded-xl border border-slate-200 bg-slate-100 px-3 py-2 text-sm text-slate-600" />
+              </label>
+            </div>
+          </div>
+
           <label class="block md:col-span-2">
             <span class="mb-1 block text-sm font-medium text-slate-700">Deskripsi</span>
             <textarea name="description" rows="4" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-pink-200" placeholder="Jelaskan kondisi barang..."></textarea>
           </label>
+
           <label class="block">
             <span class="mb-1 block text-sm font-medium text-slate-700">Tipe cerita</span>
             <select name="storyType" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-pink-200">
@@ -75,36 +116,39 @@
               <option value="vintage">Vintage</option>
             </select>
           </label>
+
           <label class="block">
             <span class="mb-1 block text-sm font-medium text-slate-700">Catatan cerita</span>
             <input name="storyNote" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-pink-200" placeholder="Opsional" />
           </label>
-          <label class="block">
-            <span class="mb-1 block text-sm font-medium text-slate-700">Latitude</span>
-            <input name="latitude" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-pink-200" />
-          </label>
-          <label class="block">
-            <span class="mb-1 block text-sm font-medium text-slate-700">Longitude</span>
-            <input name="longitude" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-pink-200" />
-          </label>
+
+          <!-- FOTO -->
           <div class="md:col-span-2">
-            <label class="block text-sm font-medium text-slate-700">Foto produk</label>
+            <label class="block text-sm font-medium text-slate-700" for="photoInput">Foto produk <span class="font-normal text-slate-400">(maksimal 4, foto pertama jadi foto utama)</span></label>
             <input id="photoInput" type="file" accept="image/png,image/jpeg,image/webp" multiple class="mt-2 block w-full rounded-xl border border-dashed border-slate-300 bg-slate-50 px-3 py-4 text-sm" />
+            <p id="photoStatus" class="mt-2 text-xs text-slate-500" role="status" aria-live="polite"></p>
             <div id="previewList" class="mt-3 flex flex-wrap gap-3"></div>
           </div>
         </div>
 
-        <div class="mt-6 flex items-center justify-end gap-3">
+        <p id="formError" class="mt-5 text-sm font-medium text-rose-700" role="alert" aria-live="polite"></p>
+
+        <div class="mt-4 flex items-center justify-end gap-3">
           <a href="/admin/marketplace-products.html" class="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">Batal</a>
-          <button type="submit" class="rounded-xl bg-pink-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-pink-500">Simpan Produk</button>
+          <button id="submitButton" type="submit" class="rounded-xl bg-pink-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-pink-500 disabled:cursor-not-allowed disabled:opacity-60">Simpan Produk</button>
         </div>
       </form>
     </main>
   </div>
 
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
   <script type="module">
-    import { auth, db, escapeHtml, fileToDataUrl, prepareImageForUpload, requireAdmin } from '/admin/admin-firebase.js';
-    import { addDoc, collection, doc, getDoc, setDoc, updateDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+    import { db, escapeHtml, fileToDataUrl, prepareImageForUpload, requireAdmin } from '/admin/admin-firebase.js';
+    import { addDoc, collection, doc, getDoc, updateDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+    const MAX_PHOTOS = 4;
+    // Batas dokumen Firestore 1 MB. Foto pertama disimpan 3x (images, imageUrl, image).
+    const MAX_DOC_CHARS = 900000;
 
     const params = new URLSearchParams(window.location.search);
     const productId = params.get('id');
@@ -112,93 +156,324 @@
     const pageTitle = document.getElementById('pageTitle');
     const previewList = document.getElementById('previewList');
     const photoInput = document.getElementById('photoInput');
+    const photoStatus = document.getElementById('photoStatus');
+    const formError = document.getElementById('formError');
+    const submitButton = document.getElementById('submitButton');
     const stockInput = form.elements.namedItem('stock');
     const stockState = document.querySelector('[data-stock-state]');
-    let existingSold = 0;
-    let existingImages = [];
+    const priceInput = document.getElementById('priceInput');
+    const cityInput = document.getElementById('cityInput');
+    const addressInput = document.getElementById('addressInput');
+    const latitudeInput = document.getElementById('latitudeInput');
+    const longitudeInput = document.getElementById('longitudeInput');
+    const mapStatus = document.getElementById('mapStatus');
+    const mapResults = document.getElementById('mapResults');
+    const mapSearchInput = document.getElementById('mapSearchInput');
 
+    let existingSold = 0;
+    let images = [];
+    let isSaving = false;
+    const touched = { city: false, address: false };
+
+    /* ---------- STOK ---------- */
     function refreshStockLabel() {
       const stock = Number(stockInput.value);
       stockState.textContent = Number.isInteger(stock) && stock > 0 ? 'Tersedia' : 'Habis';
     }
-
     stockInput.addEventListener('input', refreshStockLabel);
 
-    async function boot() {
-      await requireAdmin();
-      if (productId) {
-        pageTitle.textContent = 'Edit Produk';
-        const productSnap = await getDoc(doc(db, 'marketplace_products', productId));
-        if (productSnap.exists()) {
-          const data = productSnap.data();
-          existingSold = Number.isInteger(Number(data.sold)) ? Number(data.sold) : 0;
-          stockInput.value = Number.isInteger(Number(data.stock)) && Number(data.stock) >= 0 ? Number(data.stock) : 1;
-          existingImages = Array.isArray(data.images) ? data.images : (data.imageUrl ? [data.imageUrl] : []);
-          refreshStockLabel();
-          Object.entries(data).forEach(([key, value]) => {
-            if (key === 'stock') return;
-            const field = form.elements.namedItem(key);
-            if (field && field.name === key) {
-              field.value = value;
-            }
-          });
-          if (data.images && data.images.length) {
-            renderPreview(data.images);
-          }
-        }
+    /* ---------- HARGA ---------- */
+    function formatPrice(value) {
+      const digits = String(value ?? '').replace(/\D/g, '').replace(/^0+(?=\d)/, '').slice(0, 12);
+      return digits ? `Rp ${Number(digits).toLocaleString('id-ID')}` : '';
+    }
+    function parsePrice(value) {
+      return Number(String(value ?? '').replace(/\D/g, '')) || 0;
+    }
+    priceInput.addEventListener('input', () => {
+      priceInput.value = formatPrice(priceInput.value);
+    });
+    priceInput.addEventListener('focus', () => {
+      if (!priceInput.value) priceInput.value = 'Rp ';
+    });
+    priceInput.addEventListener('blur', () => {
+      if (priceInput.value.trim() === 'Rp') priceInput.value = '';
+    });
+
+    /* ---------- ALAMAT (tandai kalau diketik manual) ---------- */
+    cityInput.addEventListener('input', () => { touched.city = true; });
+    addressInput.addEventListener('input', () => { touched.address = true; });
+
+    /* ---------- PETA ---------- */
+    const DEFAULT_CENTER = [-6.2088, 106.8456];
+    const map = L.map('locationMap', { scrollWheelZoom: true }).setView(DEFAULT_CENTER, 11);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>'
+    }).addTo(map);
+
+    const markerIcon = L.icon({
+      iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
+      iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
+      shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+      iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41]
+    });
+
+    let marker = null;
+    let reverseToken = 0;
+
+    function setMapStatus(text) { mapStatus.textContent = text; }
+
+    function setPoint(lat, lng, options = {}) {
+      lat = Number(Number(lat).toFixed(6));
+      lng = Number(Number(lng).toFixed(6));
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+
+      if (!marker) {
+        marker = L.marker([lat, lng], { draggable: true, icon: markerIcon }).addTo(map);
+        marker.on('dragend', () => {
+          const point = marker.getLatLng();
+          setPoint(point.lat, point.lng, { reverse: true });
+        });
+      } else {
+        marker.setLatLng([lat, lng]);
+      }
+
+      latitudeInput.value = lat.toFixed(6);
+      longitudeInput.value = lng.toFixed(6);
+      setMapStatus(`Titik dipilih: ${lat.toFixed(6)}, ${lng.toFixed(6)}. Geser marker untuk menyesuaikan.`);
+
+      if (options.fly) map.setView([lat, lng], Math.max(map.getZoom(), 16));
+      if (options.reverse) reverseGeocode(lat, lng);
+    }
+
+    function clearPoint() {
+      if (marker) { map.removeLayer(marker); marker = null; }
+      latitudeInput.value = '';
+      longitudeInput.value = '';
+      setMapStatus('Titik dihapus. Klik peta untuk memilih lagi.');
+    }
+
+    async function reverseGeocode(lat, lng) {
+      const token = ++reverseToken;
+      try {
+        const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&addressdetails=1&zoom=18&accept-language=id&lat=${lat}&lon=${lng}`;
+        const response = await fetch(url, { headers: { Accept: 'application/json' } });
+        if (!response.ok) return;
+        const result = await response.json();
+        if (token !== reverseToken || !result) return;
+        const a = result.address || {};
+        const city = a.city || a.town || a.municipality || a.county || a.city_district || a.regency || a.village || '';
+        if (!touched.address && result.display_name) addressInput.value = result.display_name;
+        if (!touched.city && city) cityInput.value = city;
+      } catch (error) {
+        console.warn('[product form] reverse geocode gagal:', error);
       }
     }
 
-    function renderPreview(images = []) {
-      previewList.innerHTML = images.map((src) => `
-        <div class="h-20 w-20 overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
-          <img src="${escapeHtml(src)}" alt="Preview produk" class="h-full w-full object-cover" />
+    map.on('click', (event) => setPoint(event.latlng.lat, event.latlng.lng, { reverse: true }));
+
+    async function searchPlace() {
+      const q = mapSearchInput.value.trim();
+      if (!q) return;
+      mapResults.classList.add('hidden');
+      setMapStatus('Mencari lokasi...');
+      try {
+        const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=5&countrycodes=id&accept-language=id&q=${encodeURIComponent(q)}`;
+        const response = await fetch(url, { headers: { Accept: 'application/json' } });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const results = await response.json();
+        if (!Array.isArray(results) || !results.length) {
+          setMapStatus('Lokasi tidak ditemukan. Coba kata kunci lain atau klik langsung di peta.');
+          return;
+        }
+        mapResults.innerHTML = results.map((item, index) => `<button type="button" data-result="${index}" class="block w-full border-b border-slate-100 px-3 py-2 text-left hover:bg-pink-50">${escapeHtml(item.display_name)}</button>`).join('');
+        mapResults.classList.remove('hidden');
+        setMapStatus('Pilih salah satu hasil pencarian di bawah.');
+        mapResults.querySelectorAll('[data-result]').forEach((button) => {
+          button.addEventListener('click', () => {
+            const item = results[Number(button.dataset.result)];
+            mapResults.classList.add('hidden');
+            setPoint(Number(item.lat), Number(item.lon), { fly: true, reverse: true });
+          });
+        });
+      } catch (error) {
+        console.error('[product form] pencarian lokasi gagal:', error);
+        setMapStatus('Pencarian lokasi gagal. Periksa koneksi, atau klik langsung di peta.');
+      }
+    }
+
+    function useMyLocation() {
+      if (!navigator.geolocation) {
+        setMapStatus('Browser tidak mendukung geolokasi.');
+        return;
+      }
+      setMapStatus('Mengambil lokasi Anda...');
+      navigator.geolocation.getCurrentPosition(
+        (position) => setPoint(position.coords.latitude, position.coords.longitude, { fly: true, reverse: true }),
+        () => setMapStatus('Gagal mengambil lokasi. Izinkan akses lokasi di browser atau pilih manual di peta.'),
+        { enableHighAccuracy: true, timeout: 10000 }
+      );
+    }
+
+    document.getElementById('mapSearchBtn').addEventListener('click', searchPlace);
+    document.getElementById('mapLocateBtn').addEventListener('click', useMyLocation);
+    document.getElementById('mapClearBtn').addEventListener('click', clearPoint);
+    mapSearchInput.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') { event.preventDefault(); searchPlace(); }
+    });
+
+    /* ---------- FOTO ---------- */
+    function renderPreview() {
+      if (!images.length) {
+        previewList.innerHTML = '';
+        return;
+      }
+      previewList.innerHTML = images.map((src, index) => `
+        <div class="relative h-24 w-24 overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
+          <img src="${escapeHtml(src)}" alt="Foto produk ${index + 1}" class="h-full w-full object-cover" />
+          ${index === 0 ? '<span class="absolute bottom-1 left-1 rounded bg-pink-600 px-1.5 py-0.5 text-[10px] font-bold text-white">Utama</span>' : ''}
+          <button type="button" data-remove-photo="${index}" aria-label="Hapus foto ${index + 1}" class="absolute right-1 top-1 grid h-6 w-6 place-items-center rounded-full bg-black/60 text-xs font-bold text-white hover:bg-rose-600">×</button>
         </div>
       `).join('');
+      previewList.querySelectorAll('[data-remove-photo]').forEach((button) => {
+        button.addEventListener('click', () => {
+          images.splice(Number(button.dataset.removePhoto), 1);
+          renderPreview();
+          updatePhotoStatus();
+        });
+      });
+    }
+
+    function estimateDocChars(list) {
+      const total = list.reduce((sum, src) => sum + String(src).length, 0);
+      return total + (list[0] ? String(list[0]).length * 2 : 0);
+    }
+
+    function updatePhotoStatus(message = '') {
+      const base = `${images.length}/${MAX_PHOTOS} foto`;
+      photoStatus.textContent = message ? `${base}. ${message}` : base;
     }
 
     photoInput.addEventListener('change', async () => {
-      const files = Array.from(photoInput.files || []).slice(0, 4);
-      const images = [];
-      for (const file of files) {
-        const prepared = await prepareImageForUpload(file);
-        images.push(await fileToDataUrl(prepared));
-      }
-      renderPreview(images);
-    });
+      const files = Array.from(photoInput.files || []);
+      photoInput.value = '';
+      if (!files.length) return;
 
-    form.addEventListener('submit', async (event) => {
-      event.preventDefault();
-      const payload = Object.fromEntries(new FormData(form).entries());
-      const files = Array.from(photoInput.files || []).slice(0, 4);
-      const stock = Number(payload.stock);
-      if (!Number.isInteger(stock) || stock < 0) {
-        alert('Stok harus berupa bilangan bulat minimal 0.');
+      const remaining = MAX_PHOTOS - images.length;
+      if (remaining <= 0) {
+        updatePhotoStatus(`Maksimal ${MAX_PHOTOS} foto. Hapus salah satu dulu untuk menambah.`);
         return;
       }
-      let images = existingImages;
-      for (const file of files) {
-        const prepared = await prepareImageForUpload(file);
-        const dataUrl = await fileToDataUrl(prepared);
-        images.push(dataUrl);
+
+      const selected = files.slice(0, remaining);
+      photoStatus.textContent = 'Memproses foto...';
+      const notes = [];
+      if (files.length > remaining) notes.push(`Hanya ${remaining} foto pertama yang diambil.`);
+
+      for (const file of selected) {
+        try {
+          const prepared = await prepareImageForUpload(file);
+          const dataUrl = await fileToDataUrl(prepared);
+          if (estimateDocChars([...images, dataUrl]) > MAX_DOC_CHARS) {
+            notes.push(`"${file.name}" dilewati karena total ukuran foto terlalu besar.`);
+            continue;
+          }
+          images.push(dataUrl);
+        } catch (error) {
+          console.error('[product form] foto gagal diproses:', error);
+          notes.push(`"${file.name}" gagal diproses.`);
+        }
+      }
+      renderPreview();
+      updatePhotoStatus(notes.join(' '));
+    });
+
+    /* ---------- LOAD DATA EDIT ---------- */
+    function setFieldValue(name, value) {
+      const field = form.elements.namedItem(name);
+      if (!field || field.name !== name || value === undefined || value === null) return;
+      field.value = value;
+    }
+
+    async function boot() {
+      await requireAdmin();
+      updatePhotoStatus();
+
+      if (!productId) return;
+      pageTitle.textContent = 'Edit Produk';
+      try {
+        const productSnap = await getDoc(doc(db, 'marketplace_products', productId));
+        if (!productSnap.exists()) {
+          alert('Produk tidak ditemukan. Mungkin sudah dihapus.');
+          window.location.href = '/admin/marketplace-products.html';
+          return;
+        }
+        const data = productSnap.data();
+        existingSold = Number.isInteger(Number(data.sold)) ? Number(data.sold) : 0;
+
+        ['name', 'category', 'condition', 'description', 'storyType', 'storyNote', 'city', 'address'].forEach((key) => setFieldValue(key, data[key]));
+        if (data.city) touched.city = true;
+        if (data.address) touched.address = true;
+
+        priceInput.value = formatPrice(data.price);
+        stockInput.value = Number.isInteger(Number(data.stock)) && Number(data.stock) >= 0 ? Number(data.stock) : 1;
+        refreshStockLabel();
+
+        images = Array.isArray(data.images) && data.images.length
+          ? data.images.filter(Boolean).slice(0, MAX_PHOTOS)
+          : (data.imageUrl || data.image ? [data.imageUrl || data.image] : []);
+        renderPreview();
+        updatePhotoStatus();
+
+        const lat = parseFloat(data.latitude);
+        const lng = parseFloat(data.longitude);
+        if (Number.isFinite(lat) && Number.isFinite(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+          setPoint(lat, lng, { fly: true });
+        }
+      } catch (error) {
+        console.error('[product form] gagal memuat produk:', error);
+        formError.textContent = `Produk gagal dimuat (${error.code || 'unknown'}). Muat ulang halaman.`;
+      }
+    }
+
+    /* ---------- SIMPAN ---------- */
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      if (isSaving) return;
+      formError.textContent = '';
+
+      const payload = Object.fromEntries(new FormData(form).entries());
+      const name = String(payload.name || '').trim();
+      const stock = Number(payload.stock);
+      const price = parsePrice(priceInput.value);
+
+      if (!name) { formError.textContent = 'Nama produk wajib diisi.'; form.elements.namedItem('name').focus(); return; }
+      if (price <= 0) { formError.textContent = 'Harga harus lebih dari Rp 0.'; priceInput.focus(); return; }
+      if (!Number.isInteger(stock) || stock < 0) { formError.textContent = 'Stok harus berupa bilangan bulat minimal 0.'; stockInput.focus(); return; }
+      if (!images.length) { formError.textContent = 'Tambahkan minimal 1 foto produk.'; photoInput.focus(); return; }
+      if (estimateDocChars(images) > MAX_DOC_CHARS) {
+        formError.textContent = 'Total ukuran foto terlalu besar untuk disimpan. Kurangi jumlah foto atau pakai foto lebih kecil.';
+        return;
       }
 
-      const normalizedPrice = Number(String(payload.price || '').replace(/[^\d]/g, '')) || 0;
+      const city = String(payload.city || '').trim();
+      const address = String(payload.address || '').trim();
       const productData = {
-        name: payload.name,
+        name,
         category: payload.category,
-        price: normalizedPrice,
+        price,
         condition: payload.condition,
         status: stock > 0 ? 'Tersedia' : 'Habis',
         stock,
         sold: existingSold,
-        description: payload.description,
-        city: payload.city || payload.address || 'Jakarta',
-        address: payload.address || payload.city || 'Jakarta',
+        description: String(payload.description || '').trim(),
+        city: city || address || 'Jakarta',
+        address: address || city || 'Jakarta',
         storyType: payload.storyType || 'barang-kenangan',
-        storyNote: payload.storyNote || '',
-        latitude: payload.latitude || '',
-        longitude: payload.longitude || '',
+        storyNote: String(payload.storyNote || '').trim(),
+        latitude: latitudeInput.value || '',
+        longitude: longitudeInput.value || '',
         label: payload.category || 'barang',
         images,
         imageUrl: images[0] || '',
@@ -207,16 +482,26 @@
         sellerInitial: 'M',
         ownerId: 'admin',
         sellerId: 'admin',
-        updatedAt: Date.now(),
+        updatedAt: Date.now()
       };
 
-      if (productId) {
-        await updateDoc(doc(db, 'marketplace_products', productId), productData);
-      } else {
-        await addDoc(collection(db, 'marketplace_products'), { ...productData, createdAt: Date.now() });
+      isSaving = true;
+      submitButton.disabled = true;
+      submitButton.textContent = 'Menyimpan...';
+      try {
+        if (productId) {
+          await updateDoc(doc(db, 'marketplace_products', productId), productData);
+        } else {
+          await addDoc(collection(db, 'marketplace_products'), { ...productData, createdAt: Date.now() });
+        }
+        window.location.href = '/admin/marketplace-products.html';
+      } catch (error) {
+        console.error('[product form] gagal menyimpan produk:', error);
+        formError.textContent = `Produk gagal disimpan (${error.code || 'unknown'}): ${error.message || 'coba lagi.'}`;
+        isSaving = false;
+        submitButton.disabled = false;
+        submitButton.textContent = 'Simpan Produk';
       }
-
-      window.location.href = '/admin/marketplace-products.html';
     });
 
     boot();

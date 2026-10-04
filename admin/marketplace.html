@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Marketplace Admin - Gamon</title>
+  <title>Ringkasan Marketplace - Admin Gamon</title>
   <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
   <style>
@@ -16,31 +16,271 @@
     <script src="/admin/partials/sidebar.js"></script>
 
     <main class="px-4 py-8 lg:px-8">
-      <div class="mb-6">
-        <h2 class="text-2xl font-bold text-slate-900">Marketplace Toko</h2>
-        <p class="mt-1 text-sm text-slate-500">Produk hanya ditambahkan, diedit, dan dihapus oleh admin toko.</p>
+      <div class="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h2 class="text-2xl font-bold text-slate-900">Ringkasan Marketplace</h2>
+          <p class="mt-1 text-sm text-slate-500">Pantau produk, pesanan, dan stok Marketplace Mantan dari satu tempat.</p>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+          <a href="/admin/marketplace-products.html" class="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50">Kelola Produk</a>
+          <a href="/admin/marketplace-product-form.html" class="inline-flex items-center justify-center rounded-xl bg-pink-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-pink-500">+ Tambah Produk</a>
+        </div>
       </div>
 
-      <div class="grid gap-4 md:grid-cols-2">
-        <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h3 class="text-lg font-bold text-slate-900">Status model</h3>
-          <ul class="mt-4 space-y-3 text-sm text-slate-600">
-            <li>• Produk ditulis oleh admin saja.</li>
-            <li>• User hanya bisa membaca katalog dan chat admin.</li>
-            <li>• COD dan chat tetap berlaku tanpa pembayaran digital.</li>
-          </ul>
+      <p id="pageStatus" class="mb-4 text-sm text-rose-700" role="status" aria-live="polite"></p>
+
+      <!-- STATISTIK PRODUK -->
+      <div class="mb-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Total produk</p>
+          <p id="statProducts" class="mt-2 text-3xl font-bold text-slate-900">-</p>
+        </div>
+        <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Tersedia</p>
+          <p id="statAvailable" class="mt-2 text-3xl font-bold text-emerald-600">-</p>
+        </div>
+        <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Stok menipis (≤ 2)</p>
+          <p id="statLow" class="mt-2 text-3xl font-bold text-amber-600">-</p>
+        </div>
+        <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Habis</p>
+          <p id="statSoldOut" class="mt-2 text-3xl font-bold text-rose-600">-</p>
+        </div>
+      </div>
+
+      <!-- STATISTIK PESANAN -->
+      <div class="mb-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Perlu diproses</p>
+          <p id="statToProcess" class="mt-2 text-3xl font-bold text-amber-600">-</p>
+        </div>
+        <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Menunggu pembayaran</p>
+          <p id="statAwaiting" class="mt-2 text-3xl font-bold text-slate-900">-</p>
+        </div>
+        <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Sedang dikirim</p>
+          <p id="statShipped" class="mt-2 text-3xl font-bold text-cyan-700">-</p>
+        </div>
+        <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Omzet dibayar</p>
+          <p id="statRevenue" class="mt-2 text-2xl font-bold text-emerald-700">-</p>
+        </div>
+      </div>
+
+      <!-- PINTASAN -->
+      <div class="mb-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <a href="/admin/marketplace-product-form.html" class="group rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-pink-300 hover:shadow-md">
+          <div class="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-pink-100 text-pink-600"><span class="material-symbols-outlined">add_box</span></div>
+          <h3 class="font-bold text-slate-900">Tambah Produk</h3>
+          <p class="mt-1 text-xs text-slate-500">Buat produk baru lengkap dengan foto dan titik lokasi di peta.</p>
+        </a>
+        <a href="/admin/marketplace-products.html" class="group rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-pink-300 hover:shadow-md">
+          <div class="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-violet-100 text-violet-600"><span class="material-symbols-outlined">inventory_2</span></div>
+          <h3 class="font-bold text-slate-900">Kelola Produk</h3>
+          <p class="mt-1 text-xs text-slate-500">Edit, cari, filter, dan hapus produk di katalog.</p>
+        </a>
+        <a href="/admin/marketplace-orders.html" class="group rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-pink-300 hover:shadow-md">
+          <div class="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700"><span class="material-symbols-outlined">receipt_long</span></div>
+          <h3 class="font-bold text-slate-900">Pesanan</h3>
+          <p class="mt-1 text-xs text-slate-500">Proses pembayaran, pengiriman, resi, dan alamat pembeli.</p>
+        </a>
+        <a href="/admin/marketplace-chat.html" class="group rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-pink-300 hover:shadow-md">
+          <div class="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-sky-100 text-sky-700"><span class="material-symbols-outlined">chat</span></div>
+          <h3 class="font-bold text-slate-900">Chat Pembeli</h3>
+          <p class="mt-1 text-xs text-slate-500">Balas pertanyaan pembeli tentang produk.</p>
+        </a>
+      </div>
+
+      <div class="grid gap-6 xl:grid-cols-2">
+        <!-- PERLU PERHATIAN -->
+        <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <div class="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+            <h3 class="font-bold text-slate-900">Perlu perhatian</h3>
+            <a href="/admin/marketplace-products.html" class="text-xs font-semibold text-pink-600 hover:underline">Kelola stok</a>
+          </div>
+          <div id="attentionList" class="divide-y divide-slate-100 text-sm">
+            <p class="px-5 py-8 text-center text-slate-400">Memuat data...</p>
+          </div>
         </section>
 
-        <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h3 class="text-lg font-bold text-slate-900">Data utama</h3>
-          <ul class="mt-4 space-y-3 text-sm text-slate-600">
-            <li>• Koleksi: products / marketplace_products</li>
-            <li>• Pesanan: marketplace_orders</li>
-            <li>• Chat: marketplace_chats</li>
-          </ul>
+        <!-- PESANAN TERBARU -->
+        <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <div class="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+            <h3 class="font-bold text-slate-900">Pesanan terbaru</h3>
+            <a href="/admin/marketplace-orders.html" class="text-xs font-semibold text-pink-600 hover:underline">Lihat semua</a>
+          </div>
+          <div id="recentOrders" class="divide-y divide-slate-100 text-sm">
+            <p class="px-5 py-8 text-center text-slate-400">Memuat data...</p>
+          </div>
+        </section>
+
+        <!-- PRODUK TERBARU -->
+        <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm xl:col-span-2">
+          <div class="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+            <h3 class="font-bold text-slate-900">Produk terbaru</h3>
+            <a href="/admin/marketplace-products.html" class="text-xs font-semibold text-pink-600 hover:underline">Lihat semua</a>
+          </div>
+          <div id="recentProducts" class="divide-y divide-slate-100 text-sm">
+            <p class="px-5 py-8 text-center text-slate-400">Memuat data...</p>
+          </div>
         </section>
       </div>
     </main>
   </div>
+
+  <script type="module">
+    import { db, escapeHtml, formatRupiah, formatDate, requireAdmin } from '/admin/admin-firebase.js';
+    import { collection, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+    const pageStatus = document.getElementById('pageStatus');
+    let products = [];
+    let orders = [];
+
+    const statusText = {
+      awaiting_payment: 'Menunggu pembayaran', paid: 'Dibayar', processing: 'Diproses', shipped: 'Dikirim',
+      completed: 'Selesai', cancelled: 'Dibatalkan', expired: 'Kedaluwarsa', payment_failed: 'Pembayaran gagal'
+    };
+    const statusClass = {
+      awaiting_payment: 'bg-amber-100 text-amber-800', paid: 'bg-blue-100 text-blue-800',
+      processing: 'bg-indigo-100 text-indigo-800', shipped: 'bg-cyan-100 text-cyan-800',
+      completed: 'bg-emerald-100 text-emerald-800', cancelled: 'bg-slate-100 text-slate-700',
+      expired: 'bg-rose-100 text-rose-800', payment_failed: 'bg-rose-100 text-rose-800'
+    };
+
+    function timeValue(value) {
+      if (value === null || value === undefined || value === '') return 0;
+      if (typeof value === 'number') return value;
+      if (typeof value === 'string') {
+        const numeric = Number(value);
+        if (Number.isFinite(numeric)) return numeric;
+        const parsed = Date.parse(value);
+        return Number.isFinite(parsed) ? parsed : 0;
+      }
+      if (typeof value.toMillis === 'function') return value.toMillis();
+      if (typeof value.seconds === 'number') return value.seconds * 1000;
+      return 0;
+    }
+
+    function stockOf(item) {
+      const value = Number(item.stock);
+      return Number.isInteger(value) && value >= 0 ? value : 1;
+    }
+
+    function money(value) { return formatRupiah(Math.round(Number(value) || 0)); }
+
+    function renderProducts() {
+      const total = products.length;
+      const soldOut = products.filter((item) => stockOf(item) === 0).length;
+      const low = products.filter((item) => stockOf(item) > 0 && stockOf(item) <= 2).length;
+      const available = total - soldOut;
+      document.getElementById('statProducts').textContent = total;
+      document.getElementById('statAvailable').textContent = available;
+      document.getElementById('statLow').textContent = low;
+      document.getElementById('statSoldOut').textContent = soldOut;
+
+      const recent = [...products].sort((a, b) => timeValue(b.createdAt) - timeValue(a.createdAt)).slice(0, 5);
+      const recentEl = document.getElementById('recentProducts');
+      if (!recent.length) {
+        recentEl.innerHTML = '<p class="px-5 py-8 text-center text-slate-400">Belum ada produk. <a class="font-semibold text-pink-600 hover:underline" href="/admin/marketplace-product-form.html">Tambah produk pertama</a>.</p>';
+      } else {
+        recentEl.innerHTML = recent.map((item) => {
+          const stock = stockOf(item);
+          const img = item.imageUrl || item.image || 'https://placehold.co/600x400/f8fafc/64748b?text=G';
+          const badge = stock === 0 ? 'bg-rose-100 text-rose-700' : stock <= 2 ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700';
+          const label = stock === 0 ? 'Habis' : stock <= 2 ? `Stok ${stock}` : `Stok ${stock}`;
+          return `<a href="/admin/marketplace-product-form.html?id=${encodeURIComponent(item.id)}" class="flex items-center gap-3 px-5 py-3 hover:bg-slate-50">
+            <img src="${escapeHtml(img)}" alt="" class="h-11 w-11 rounded-xl border border-slate-200 object-cover" />
+            <div class="min-w-0 flex-1">
+              <p class="truncate font-semibold text-slate-900">${escapeHtml(item.name || '-')}</p>
+              <p class="text-xs text-slate-500">${escapeHtml(item.category || '-')} · ${escapeHtml(formatDate(item.createdAt))}</p>
+            </div>
+            <span class="font-semibold text-slate-900">${money(item.price)}</span>
+            <span class="inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${badge}">${label}</span>
+          </a>`;
+        }).join('');
+      }
+      renderAttention();
+    }
+
+    function renderOrders() {
+      const toProcess = orders.filter((order) => order.status === 'paid').length;
+      const awaiting = orders.filter((order) => order.status === 'awaiting_payment').length;
+      const shipped = orders.filter((order) => order.status === 'shipped').length;
+      const revenue = orders.filter((order) => order.paymentStatus === 'PAID').reduce((sum, order) => sum + (Number(order.totalAmount) || 0), 0);
+      document.getElementById('statToProcess').textContent = toProcess;
+      document.getElementById('statAwaiting').textContent = awaiting;
+      document.getElementById('statShipped').textContent = shipped;
+      document.getElementById('statRevenue').textContent = money(revenue);
+
+      const recent = [...orders].sort((a, b) => timeValue(b.createdAt) - timeValue(a.createdAt)).slice(0, 5);
+      const recentEl = document.getElementById('recentOrders');
+      if (!recent.length) {
+        recentEl.innerHTML = '<p class="px-5 py-8 text-center text-slate-400">Belum ada pesanan.</p>';
+      } else {
+        recentEl.innerHTML = recent.map((order) => {
+          const badge = statusClass[order.status] || 'bg-slate-100 text-slate-700';
+          return `<a href="/admin/marketplace-orders.html" class="flex items-center gap-3 px-5 py-3 hover:bg-slate-50">
+            <div class="min-w-0 flex-1">
+              <p class="truncate font-semibold text-slate-900">${escapeHtml(order.orderCode || order.id)}</p>
+              <p class="truncate text-xs text-slate-500">${escapeHtml(order.buyerName || 'Pembeli')} · ${escapeHtml(formatDate(order.createdAt))}</p>
+            </div>
+            <span class="font-semibold text-slate-900">${money(order.totalAmount)}</span>
+            <span class="inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${badge}">${escapeHtml(statusText[order.status] || order.status || '-')}</span>
+          </a>`;
+        }).join('');
+      }
+      renderAttention();
+    }
+
+    function renderAttention() {
+      const el = document.getElementById('attentionList');
+      const rows = [];
+
+      const needsAttentionOrders = orders.filter((order) => order.needsAttention);
+      if (needsAttentionOrders.length) {
+        rows.push(`<a href="/admin/marketplace-orders.html" class="flex items-center gap-3 border-l-4 border-rose-500 bg-rose-50 px-5 py-3 hover:bg-rose-100">
+          <span class="material-symbols-outlined text-rose-600">warning</span>
+          <div class="flex-1"><p class="font-semibold text-rose-800">${needsAttentionOrders.length} pesanan perlu perhatian</p><p class="text-xs text-rose-700">Buka halaman pesanan untuk memeriksa.</p></div>
+        </a>`);
+      }
+
+      products
+        .filter((item) => stockOf(item) <= 2)
+        .sort((a, b) => stockOf(a) - stockOf(b))
+        .slice(0, 8)
+        .forEach((item) => {
+          const stock = stockOf(item);
+          rows.push(`<a href="/admin/marketplace-product-form.html?id=${encodeURIComponent(item.id)}" class="flex items-center gap-3 px-5 py-3 hover:bg-slate-50">
+            <span class="material-symbols-outlined ${stock === 0 ? 'text-rose-600' : 'text-amber-600'}">inventory</span>
+            <div class="min-w-0 flex-1"><p class="truncate font-semibold text-slate-900">${escapeHtml(item.name || '-')}</p><p class="text-xs text-slate-500">${stock === 0 ? 'Stok habis' : `Sisa ${stock} stok`}</p></div>
+            <span class="text-xs font-semibold text-pink-600">Edit stok</span>
+          </a>`);
+        });
+
+      el.innerHTML = rows.length ? rows.join('') : '<p class="px-5 py-8 text-center text-slate-400">Semua aman. Tidak ada yang perlu ditindaklanjuti.</p>';
+    }
+
+    async function boot() {
+      await requireAdmin();
+      onSnapshot(collection(db, 'marketplace_products'), (snapshot) => {
+        products = snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
+        renderProducts();
+      }, (error) => {
+        console.error('[marketplace admin] produk gagal dimuat:', error);
+        pageStatus.textContent = `Produk gagal dimuat (${error.code || 'unknown'}).`;
+      });
+      onSnapshot(collection(db, 'marketplace_orders'), (snapshot) => {
+        orders = snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
+        renderOrders();
+      }, (error) => {
+        console.error('[marketplace admin] pesanan gagal dimuat:', error);
+        pageStatus.textContent = `Pesanan gagal dimuat (${error.code || 'unknown'}).`;
+      });
+    }
+
+    boot();
+  </script>
 </body>
 </html>
