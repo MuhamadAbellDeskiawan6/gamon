@@ -9,11 +9,11 @@ service cloud.firestore {
       return isSignedIn() && request.auth.token.email == 'muhamadabelldeskiawan@gmail.com';
     }
 
-    function isBuyer() {
+    // ID thread chat milik pembeli: "{uid}" (chat lama) atau "{uid}__..." (per produk/pesanan/umum).
+    function ownsChatId(chatId) {
       return isSignedIn() && (
-        !exists(/databases/$(database)/documents/marketplace_users/$(request.auth.uid)) ||
-        get(/databases/$(database)/documents/marketplace_users/$(request.auth.uid)).data.role == 'buyer' ||
-        get(/databases/$(database)/documents/marketplace_users/$(request.auth.uid)).data.role == 'both'
+        chatId == request.auth.uid ||
+        chatId.matches(request.auth.uid + '__.*')
       );
     }
 
@@ -43,66 +43,9 @@ service cloud.firestore {
         validCartItem(items, 27) && validCartItem(items, 28) && validCartItem(items, 29);
     }
 
-    match /gamon/{docId} {
-      allow read: if true;
-      allow create: if true;
-      allow update, delete: if false;
-    }
-
-    match /matchRequests/{requestId} {
-      allow create: if true;
-      allow read: if true;
-      allow update: if
-        request.resource.data.diff(resource.data).affectedKeys()
-          .hasOnly(['status', 'matchId', 'matchedWithRequestId', 'updatedAt', 'confirmedBy']) &&
-        (
-          request.resource.data.status == 'matched' ||
-          request.resource.data.status == 'confirmed' ||
-          request.resource.data.status == 'pending'
-        );
-    }
-
-    match /matches/{matchId} {
-      allow create: if true;
-      allow read: if true;
-      allow update: if
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'confirmedBy', 'updatedAt']) &&
-        request.resource.data.confirmedBy is map &&
-        request.resource.data.status in ['pending_confirmation', 'confirmed'];
-    }
-
-    match /matchContacts/{contactId} {
-      allow create: if true;
-      allow update: if
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['matchId', 'updatedAt']) &&
-        resource.data.matchId == null;
-
-      allow read: if
-        resource.data.matchId != null &&
-        exists(/databases/$(database)/documents/matches/$(resource.data.matchId)) &&
-        get(/databases/$(database)/documents/matches/$(resource.data.matchId)).data.status == 'confirmed' &&
-        (
-          get(/databases/$(database)/documents/matches/$(resource.data.matchId)).data.requestIds[0] == resource.data.requestId ||
-          get(/databases/$(database)/documents/matches/$(resource.data.matchId)).data.requestIds[1] == resource.data.requestId
-        );
-    }
-
-    match /fotoLdrSessions/{sessionId} {
-      allow read: if true;
-      allow create, update, delete: if false;
-    }
-
-    match /ldr_order/{orderId} {
-      allow read: if true;
-      allow create, update, delete: if false;
-    }
-
-    match /users/{userId} {
-      allow read: if isSignedIn() && (userId == request.auth.uid || isAdmin());
-      allow create: if isSignedIn() && userId == request.auth.uid && request.resource.data.role in ['buyer', 'both'];
-      allow update: if isSignedIn() && userId == request.auth.uid && request.resource.data.role in ['buyer', 'both'];
-      allow delete: if false;
-    }
+    /* =====================================================================
+     * MARKETPLACE  (dikunci ketat)
+     * ===================================================================== */
 
     match /marketplace_users/{userId} {
       allow read: if isSignedIn() && (userId == request.auth.uid || isAdmin());
@@ -111,20 +54,13 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    match /products/{productId} {
-      allow read: if true;
-      allow create: if isAdmin();
-      allow update, delete: if isAdmin();
-    }
-
     match /marketplace_products/{productId} {
       allow read: if true;
-      allow create: if isAdmin();
-      allow update, delete: if isAdmin();
+      allow create, update, delete: if isAdmin();
     }
 
     match /marketplace_orders/{orderId} {
-      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow read: if isSignedIn() && (resource == null || resource.data.userId == request.auth.uid || isAdmin());
       allow create, update, delete: if false;
     }
 
@@ -137,24 +73,97 @@ service cloud.firestore {
       allow delete: if isSignedIn() && request.auth.uid == userId;
     }
 
-    match /marketplace_chats/{buyerUid} {
-      allow read: if isSignedIn() && (request.auth.uid == buyerUid || isAdmin());
-      allow create, update: if isSignedIn() && (
+    match /marketplace_chats/{chatId} {
+      allow read: if isSignedIn() && (
         isAdmin() ||
-        (request.auth.uid == buyerUid && request.resource.data.buyerId == request.auth.uid)
+        resource == null ||
+        resource.data.buyerId == request.auth.uid
       );
+
+      allow create: if isSignedIn() && (
+        isAdmin() ||
+        (ownsChatId(chatId) && request.resource.data.buyerId == request.auth.uid)
+      );
+
+      allow update: if isSignedIn() && (
+        isAdmin() ||
+        (
+          resource.data.buyerId == request.auth.uid &&
+          request.resource.data.buyerId == request.auth.uid &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'buyerId', 'buyerName', 'buyerEmail', 'participantIds', 'type',
+            'productId', 'productName', 'productImage', 'orderId',
+            'lastMessage', 'lastMessageAt', 'lastSenderRole',
+            'updatedAt', 'createdAt', 'unreadForAdmin', 'unreadForUser'
+          ])
+        )
+      );
+
       allow delete: if isAdmin();
 
       match /messages/{msgId} {
-        allow read: if isSignedIn() && (request.auth.uid == buyerUid || isAdmin());
+        allow read: if isSignedIn() && (
+          isAdmin() ||
+          get(/databases/$(database)/documents/marketplace_chats/$(chatId)).data.buyerId == request.auth.uid
+        );
+
         allow create: if isSignedIn() && (
           (isAdmin() && request.resource.data.senderRole == 'admin') ||
-          (request.auth.uid == buyerUid &&
+          (
+            ownsChatId(chatId) &&
             request.resource.data.senderRole == 'user' &&
-            request.resource.data.senderId == request.auth.uid)
+            request.resource.data.senderId == request.auth.uid
+          )
         );
+
         allow update, delete: if isAdmin();
       }
     }
+
+    /* =====================================================================
+     * FOTO LDR  (baca publik, tulis hanya lewat API server)
+     * ===================================================================== */
+
+    match /fotoLdrSessions/{sessionId} {
+      allow read: if true;
+      allow create, update, delete: if false;
+    }
+
+    match /ldr_order/{orderId} {
+      allow read: if true;
+      allow create, update, delete: if false;
+    }
+
+    /* =====================================================================
+     * SEMENTARA TERBUKA (sama seperti kondisi sekarang).
+     * Kode browser untuk fitur ini belum diperiksa. Jangan dikencangkan
+     * sebelum kode submit.html, match-confirm.html, index-main.js, dan
+     * user/undangan/assets/app.js dicek, supaya fiturnya tidak rusak.
+     * ===================================================================== */
+
+    match /gamon/{docId} {
+      allow read, write: if true;
+    }
+    match /matchRequests/{docId} {
+      allow read, write: if true;
+    }
+    match /matches/{docId} {
+      allow read, write: if true;
+    }
+    match /matchContacts/{docId} {
+      allow read, write: if true;
+    }
+    match /gamon_wedding_users/{docId} {
+      allow read, write: if true;
+    }
+    match /gamon_wedding_invitations/{docId} {
+      allow read, write: if true;
+    }
+    match /gamon_wedding_rsvps/{docId} {
+      allow read, write: if true;
+    }
+
+    // Koleksi lain (orders, photobox_*, ldr_frames, marketplace_items, dst.)
+    // tidak dicantumkan -> ditolak untuk browser, tetap bisa lewat API (Admin SDK).
   }
 }

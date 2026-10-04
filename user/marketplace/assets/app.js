@@ -1313,19 +1313,33 @@ function subscribeToGlobalChatNotifications(currentUserId) {
   let previousUnread = 0;
 
   try {
-    const unsubscribe = onSnapshot(doc(db, 'marketplace_chats', currentUserId), (snapshot) => {
-      const summary = snapshot.exists() ? snapshot.data() : {};
-      const unread = Math.max(0, Number(summary.unreadForUser || 0));
-      if (!isInitialSnapshot && unread > previousUnread && document.body.dataset.page !== 'chat.html') {
-        const preview = String(summary.lastMessage || '').slice(0, 80);
-        showToast(`Marketplace Mantan: ${preview}`, 'info');
+    const unsubscribe = onSnapshot(
+      query(collection(db, 'marketplace_chats'), where('buyerId', '==', currentUserId)),
+      (snapshot) => {
+        let unread = 0;
+        let latest = null;
+        snapshot.docs.forEach((threadDoc) => {
+          const summary = threadDoc.data() || {};
+          const threadUnread = Math.max(0, Number(summary.unreadForUser || 0));
+          unread += threadUnread;
+          if (threadUnread > 0 && (!latest || getCreatedAtMs(summary.lastMessageAt) > getCreatedAtMs(latest.lastMessageAt))) {
+            latest = summary;
+          }
+        });
+
+        if (!isInitialSnapshot && unread > previousUnread && document.body.dataset.page !== 'chat.html') {
+          const preview = String(latest?.lastMessage || '').slice(0, 80);
+          const label = latest?.productName ? `Marketplace Mantan (${latest.productName})` : 'Marketplace Mantan';
+          showToast(`${label}: ${preview}`, 'info');
+        }
+        previousUnread = unread;
+        isInitialSnapshot = false;
+        updateChatBadges(unread);
+      },
+      (error) => {
+        console.error('[marketplace chat] gagal memuat ringkasan chat:', error);
       }
-      previousUnread = unread;
-      isInitialSnapshot = false;
-      updateChatBadges(unread);
-    }, (error) => {
-      console.error('[marketplace chat] gagal memuat ringkasan chat:', error);
-    });
+    );
 
     return unsubscribe;
   } catch (error) {
@@ -1363,160 +1377,332 @@ function renderChatMessages(container, messages, currentUserId) {
   if (wasNearBottom) container.scrollTop = container.scrollHeight;
 }
 
+function buildChatThreadId(userId, { productId = '', orderId = '' } = {}) {
+  const clean = (value) => String(value).replace(/[^A-Za-z0-9_-]/g, '_');
+  if (productId) return `${userId}__p_${clean(productId)}`;
+  if (orderId) return `${userId}__o_${clean(orderId)}`;
+  return `${userId}__general`;
+}
+
 async function renderChat() {
   const user = requireAuth();
   if (!user) return;
 
+  const firebaseUser = auth.currentUser || await waitForMarketplaceFirebaseUser();
+  if (!firebaseUser) {
+    window.location.href = getAuthTarget();
+    return;
+  }
+
   const params = new URLSearchParams(window.location.search);
-  const productIdParam = params.get('productId') || '';
-  const productNameParam = params.get('productName') || '';
-  const orderIdParam = params.get('orderId') || '';
-  const hasProductContextParam = Boolean(productIdParam);
-  const currentUserId = auth.currentUser?.uid || user.id || user.uid || '';
-  if (!currentUserId) return;
-  const currentUserName = getSafeUserName(user.name || auth.currentUser?.displayName || 'Pembeli');
-  const summaryRef = doc(db, 'marketplace_chats', currentUserId);
-  const messagesRef = collection(summaryRef, 'messages');
+  const productIdParam = (params.get('productId') || '').trim();
+  const productNameParam = (params.get('productName') || '').trim();
+  const orderIdParam = (params.get('orderId') || '').trim();
+
+  const currentUserId = firebaseUser.uid;
+  const currentUserName = getSafeUserName(user.name || firebaseUser.displayName || 'Pembeli');
+  const currentUserEmail = String(user.email || firebaseUser.email || '');
+
+  const layout = document.querySelector('[data-chat-layout]');
+  const listEl = document.querySelector('[data-chat-list]');
+  const newGeneralButton = document.querySelector('[data-chat-new-general]');
+  const backButton = document.querySelector('[data-chat-back]');
+  const titleEl = document.querySelector('[data-chat-title]');
+  const contextEl = document.querySelector('[data-chat-product-context]');
   const threadEl = document.querySelector('[data-chat-thread]');
   const composer = document.querySelector('[data-chat-form]');
   const input = composer?.querySelector('textarea');
   const submitButton = composer?.querySelector('button[type="submit"]');
   const statusEl = document.querySelector('[data-chat-status]');
-  const sellerLabel = document.querySelector('[data-chat-contact]');
-  const productContextEl = document.querySelector('[data-chat-product-context]');
-  if (sellerLabel) sellerLabel.textContent = 'Marketplace Mantan';
-  if (input && submitButton) {
-    input.addEventListener('keydown', (event) => {
-      if (event.key === 'Enter' && !event.shiftKey) {
-        event.preventDefault();
-        composer.requestSubmit();
+  if (!layout || !listEl || !threadEl || !composer || !input || !submitButton) return;
+
+  let threads = [];
+  let draft = null;
+  let activeId = '';
+  let listeningId = '';
+  let messagesUnsubscribe = () => {};
+  let threadsUnsubscribe = () => {};
+  let isMarkingRead = false;
+  let didInitialSelect = false;
+  const productMeta = new Map();
+
+  const setStatus = (message) => { if (statusEl) statusEl.textContent = message || ''; };
+
+  const relativeTime = (value) => {
+    const time = getCreatedAtMs(value);
+    if (!time) return '';
+    const elapsed = Math.max(0, Date.now() - time);
+    if (elapsed < 60000) return 'Baru saja';
+    if (elapsed < 3600000) return `${Math.floor(elapsed / 60000)} mnt`;
+    if (elapsed < 86400000) return `${Math.floor(elapsed / 3600000)} jam`;
+    return new Date(time).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
+  };
+
+  const findThread = (id) => {
+    const saved = threads.find((thread) => thread.id === id);
+    if (saved) return saved;
+    return draft && draft.id === id ? { ...draft, isDraft: true } : null;
+  };
+
+  const threadLabel = (thread) => {
+    if (thread.productId) {
+      const meta = productMeta.get(String(thread.productId));
+      return thread.productName || meta?.name || 'Produk';
+    }
+    if (thread.orderId) return `Pesanan ${thread.orderId}`;
+    if (thread.id === currentUserId) return 'Percakapan lama';
+    return 'Pertanyaan umum';
+  };
+
+  async function loadProductMeta(productId) {
+    const key = String(productId || '');
+    if (!key) return null;
+    if (productMeta.has(key)) return productMeta.get(key);
+    productMeta.set(key, null);
+    try {
+      const snapshot = await getDoc(doc(db, 'marketplace_products', key));
+      if (snapshot.exists()) {
+        const data = snapshot.data() || {};
+        const firstImage = Array.isArray(data.images) ? data.images[0] : '';
+        productMeta.set(key, {
+          name: String(data.name || ''),
+          image: safeMarketplaceImageUrl(data.imageUrl || data.image || firstImage)
+        });
       }
+    } catch (error) {
+      console.error('[marketplace chat] gagal memuat info produk:', key, error);
+    }
+    renderList();
+    renderHeader();
+    return productMeta.get(key);
+  }
+
+  function renderList() {
+    const items = [...threads];
+    if (draft && !items.some((thread) => thread.id === draft.id)) items.unshift({ ...draft, isDraft: true });
+
+    if (!items.length) {
+      listEl.innerHTML = '<p class="chat-list-empty">Belum ada percakapan. Tanyakan produk lewat tombol "Chat admin" di katalog atau halaman produk, atau pakai "+ Pertanyaan umum".</p>';
+      return;
+    }
+
+    listEl.innerHTML = items.map((thread) => {
+      const meta = thread.productId ? productMeta.get(String(thread.productId)) : null;
+      const icon = thread.orderId && !thread.productId ? 'receipt_long' : thread.productId ? 'sell' : 'help';
+      const thumb = meta?.image
+        ? `<img src="${escapeHtml(meta.image)}" alt="" />`
+        : `<span class="material-symbols-outlined" aria-hidden="true">${icon}</span>`;
+      const unread = Math.max(0, Number(thread.unreadForUser || 0));
+      const isActive = thread.id === activeId;
+      const last = thread.isDraft
+        ? 'Percakapan baru, belum ada pesan'
+        : `${thread.lastSenderRole === 'admin' ? '' : 'Anda: '}${thread.lastMessage || 'Belum ada pesan'}`;
+      return `<button type="button" class="chat-list-item ${isActive ? 'is-active' : ''}" data-thread-id="${escapeHtml(thread.id)}">
+        <span class="chat-list-thumb">${thumb}</span>
+        <span class="chat-list-body">
+          <span class="chat-list-row"><span class="chat-list-title">${escapeHtml(threadLabel(thread))}</span><span class="chat-list-time">${thread.isDraft ? '' : escapeHtml(relativeTime(thread.lastMessageAt || thread.updatedAt))}</span></span>
+          <span class="chat-list-row"><span class="chat-list-last">${escapeHtml(last)}</span>${thread.isDraft ? '<span class="chat-list-new">Baru</span>' : unread ? `<span class="chat-list-badge">${unread > 99 ? '99+' : unread}</span>` : ''}</span>
+        </span>
+      </button>`;
+    }).join('');
+
+    listEl.querySelectorAll('[data-thread-id]').forEach((button) => {
+      button.addEventListener('click', () => selectThread(button.dataset.threadId));
     });
   }
 
-  let productContext = productIdParam ? { productId: productIdParam, productName: productNameParam || 'Produk yang ditanyakan', productImage: '' } : null;
-  const renderProductContext = (context) => {
-    if (!productContextEl) return;
-    if (!context?.productId) {
-      if (orderIdParam) {
-        productContextEl.hidden = false;
-        productContextEl.innerHTML = `<span class="chat-product-context-label">Pesanan</span><span>${escapeHtml(orderIdParam)}</span>`;
-        return;
-      }
-      productContextEl.hidden = true;
-      productContextEl.innerHTML = '';
+  function renderHeader() {
+    const thread = activeId ? findThread(activeId) : null;
+    if (!thread) {
+      if (titleEl) titleEl.textContent = 'Pilih percakapan';
+      if (contextEl) { contextEl.hidden = true; contextEl.innerHTML = ''; }
       return;
     }
-    const image = /^https?:\/\//i.test(context.productImage || '')
-      ? `<img src="${escapeHtml(context.productImage)}" alt="" />`
-      : '';
-    productContextEl.hidden = false;
-    productContextEl.innerHTML = `<span class="chat-product-context-label">Produk ditanyakan</span><a href="${getProductDetailUrl(context.productId)}" class="chat-product-context-link">${image}<span>${escapeHtml(context.productName || 'Lihat produk')}</span></a>${orderIdParam ? `<span class="chat-product-context-label">Pesanan</span><span>${escapeHtml(orderIdParam)}</span>` : ''}`;
-  };
+    if (titleEl) titleEl.textContent = threadLabel(thread);
+    if (!contextEl) return;
 
-  if (productContext?.productId) {
-    try {
-      const productSnapshot = await getDoc(doc(db, 'marketplace_products', productContext.productId));
-      if (productSnapshot.exists()) {
-        const product = productSnapshot.data();
-        productContext = {
-          ...productContext,
-          productName: product.name || productContext.productName,
-          productImage: /^https?:\/\//i.test(product.imageUrl || '') ? product.imageUrl : ''
-        };
-      }
-    } catch (error) {
-      console.error('[marketplace chat] gagal memuat konteks produk:', error);
+    if (thread.productId) {
+      const meta = productMeta.get(String(thread.productId));
+      const image = meta?.image ? `<img src="${escapeHtml(meta.image)}" alt="" />` : '';
+      contextEl.hidden = false;
+      contextEl.innerHTML = `<span class="chat-product-context-label">Produk ditanyakan</span><a href="${getProductDetailUrl(thread.productId)}" class="chat-product-context-link">${image}<span>${escapeHtml(thread.productName || meta?.name || 'Lihat produk')}</span></a>${thread.orderId ? `<span class="chat-product-context-label">Pesanan</span><span>${escapeHtml(thread.orderId)}</span>` : ''}`;
+    } else if (thread.orderId) {
+      contextEl.hidden = false;
+      contextEl.innerHTML = `<span class="chat-product-context-label">Pesanan</span><a href="pesanan.html?orderId=${encodeURIComponent(thread.orderId)}" class="chat-product-context-link"><span>${escapeHtml(thread.orderId)}</span></a>`;
+    } else {
+      contextEl.hidden = true;
+      contextEl.innerHTML = '';
     }
   }
-  renderProductContext(productContext);
 
-  let summaryUnsubscribe = () => {};
-  let messagesUnsubscribe = () => {};
-  let isMarkingRead = false;
-  summaryUnsubscribe = onSnapshot(summaryRef, (snapshot) => {
-    const summary = snapshot.exists() ? snapshot.data() : {};
-    if (!hasProductContextParam && summary.productId) {
-      productContext = {
-        productId: String(summary.productId),
-        productName: summary.productName || 'Produk yang ditanyakan',
-        productImage: summary.productImage || ''
-      };
-      renderProductContext(productContext);
+  function attachMessages(id) {
+    messagesUnsubscribe();
+    listeningId = id;
+    messagesUnsubscribe = onSnapshot(
+      query(collection(db, 'marketplace_chats', id, 'messages'), orderBy('createdAt', 'asc')),
+      (snapshot) => {
+        if (activeId !== id) return;
+        setStatus('');
+        const messages = snapshot.docs.map((messageDoc) => ({ id: messageDoc.id, ...messageDoc.data() }));
+        renderChatMessages(threadEl, messages, currentUserId);
+        if (messages.length) threadEl.scrollTop = threadEl.scrollHeight;
+      },
+      (error) => {
+        console.error('[marketplace chat] gagal memuat pesan:', error);
+        setStatus(`Pesan gagal dimuat (${error?.code || 'unknown'}).`);
+      }
+    );
+  }
+
+  function selectThread(id) {
+    const thread = findThread(id);
+    if (!thread) return;
+
+    messagesUnsubscribe();
+    messagesUnsubscribe = () => {};
+    listeningId = '';
+    activeId = id;
+    layout.dataset.view = 'conversation';
+    setStatus('');
+    input.disabled = false;
+    submitButton.disabled = false;
+    input.placeholder = 'Ketik pesan...';
+
+    if (thread.productId) loadProductMeta(thread.productId);
+    renderHeader();
+    renderList();
+
+    if (thread.isDraft) {
+      threadEl.innerHTML = '<div class="empty-state">Belum ada pesan. Tulis pertanyaan Anda di bawah.</div>';
+    } else {
+      threadEl.innerHTML = '<div class="empty-state">Memuat pesan...</div>';
+      attachMessages(id);
     }
-    const unread = Number(summary.unreadForUser || 0);
-    updateChatBadges(unread);
-    if (unread > 0 && !isMarkingRead) {
-      isMarkingRead = true;
-      updateDoc(summaryRef, { unreadForUser: 0 })
-        .catch((error) => console.error('[marketplace chat] gagal menandai pesan dibaca:', error))
-        .finally(() => { isMarkingRead = false; });
+    markActiveRead();
+  }
+
+  function markActiveRead() {
+    const thread = threads.find((item) => item.id === activeId);
+    if (!thread || isMarkingRead || Number(thread.unreadForUser || 0) <= 0) return;
+    isMarkingRead = true;
+    updateDoc(doc(db, 'marketplace_chats', thread.id), { unreadForUser: 0 })
+      .catch((error) => console.error('[marketplace chat] gagal menandai pesan dibaca:', error))
+      .finally(() => { isMarkingRead = false; });
+  }
+
+  async function startContextThread(context, fallbackName = '') {
+    const id = buildChatThreadId(currentUserId, context);
+    if (threads.some((thread) => thread.id === id)) {
+      selectThread(id);
+      return;
     }
-  }, (error) => {
-    console.error('[marketplace chat] gagal memuat ringkasan:', error);
-    if (statusEl) statusEl.textContent = `Chat gagal dimuat (${error?.code || 'unknown'}).`;
-  });
+    let productName = fallbackName;
+    if (context.productId) {
+      const meta = await loadProductMeta(context.productId);
+      if (meta?.name) productName = meta.name;
+    }
+    draft = {
+      id,
+      buyerId: currentUserId,
+      type: context.productId ? 'product' : context.orderId ? 'order' : 'general',
+      ...(context.productId ? { productId: String(context.productId), productName: productName || 'Produk yang ditanyakan' } : {}),
+      ...(context.orderId ? { orderId: String(context.orderId) } : {})
+    };
+    selectThread(id);
+  }
 
-  messagesUnsubscribe = onSnapshot(query(messagesRef, orderBy('createdAt', 'asc')), (snapshot) => {
-    if (statusEl) statusEl.textContent = '';
-    const messages = snapshot.docs.map((messageDoc) => ({ id: messageDoc.id, ...messageDoc.data() }));
-    renderChatMessages(threadEl, messages, currentUserId);
-  }, (error) => {
-    console.error('[marketplace chat] gagal memuat pesan:', error);
-    if (statusEl) statusEl.textContent = `Pesan gagal dimuat (${error?.code || 'unknown'}).`;
-  });
+  threadsUnsubscribe = onSnapshot(
+    query(collection(db, 'marketplace_chats'), where('buyerId', '==', currentUserId)),
+    (snapshot) => {
+      threads = snapshot.docs
+        .map((threadDoc) => ({ id: threadDoc.id, ...threadDoc.data() }))
+        .sort((a, b) => getCreatedAtMs(b.lastMessageAt || b.updatedAt) - getCreatedAtMs(a.lastMessageAt || a.updatedAt));
 
-  if (composer && input && submitButton) {
-    composer.addEventListener('submit', async (event) => {
+      if (draft && threads.some((thread) => thread.id === draft.id)) draft = null;
+      threads.forEach((thread) => { if (thread.productId) loadProductMeta(thread.productId); });
+      updateChatBadges(threads.reduce((total, thread) => total + Math.max(0, Number(thread.unreadForUser || 0)), 0));
+
+      if (activeId && listeningId !== activeId && threads.some((thread) => thread.id === activeId)) {
+        attachMessages(activeId);
+      }
+      renderList();
+      renderHeader();
+      markActiveRead();
+
+      if (!didInitialSelect) {
+        didInitialSelect = true;
+        if (productIdParam) {
+          startContextThread({ productId: productIdParam }, productNameParam);
+        } else if (orderIdParam) {
+          startContextThread({ orderId: orderIdParam });
+        } else if (threads.length && window.innerWidth >= 900) {
+          selectThread(threads[0].id);
+        }
+      }
+    },
+    (error) => {
+      console.error('[marketplace chat] gagal memuat daftar percakapan:', error);
+      listEl.innerHTML = `<p class="chat-list-empty">Daftar chat gagal dimuat (${escapeHtml(error?.code || 'unknown')}).</p>`;
+    }
+  );
+
+  newGeneralButton?.addEventListener('click', () => startContextThread({}));
+  backButton?.addEventListener('click', () => { layout.dataset.view = 'list'; });
+
+  input.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault();
-      const text = input.value.trim();
-      if (!text || submitButton.disabled) return;
-      const createdAt = Date.now();
-      const messageRef = doc(messagesRef);
-      const message = {
-        senderId: currentUserId,
-        senderRole: 'user',
-        text,
-        createdAt,
-        ...(productContext ? { productId: productContext.productId, productName: productContext.productName } : {}),
-        ...(orderIdParam ? { orderId: orderIdParam } : {})
-      };
-      const summary = {
+      composer.requestSubmit();
+    }
+  });
+
+  composer.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const text = input.value.trim();
+    const thread = activeId ? findThread(activeId) : null;
+    if (!thread || !text || submitButton.disabled) return;
+
+    const createdAt = Date.now();
+    const threadRef = doc(db, 'marketplace_chats', thread.id);
+    const messageRef = doc(collection(threadRef, 'messages'));
+    const context = {
+      ...(thread.productId ? { productId: String(thread.productId), productName: thread.productName || '' } : {}),
+      ...(thread.orderId ? { orderId: String(thread.orderId) } : {})
+    };
+
+    submitButton.disabled = true;
+    setStatus('Mengirim pesan...');
+    try {
+      const batch = writeBatch(db);
+      batch.set(messageRef, { senderId: currentUserId, senderRole: 'user', text, createdAt, ...context });
+      batch.set(threadRef, {
         buyerId: currentUserId,
         buyerName: currentUserName,
+        buyerEmail: currentUserEmail,
         participantIds: [currentUserId, 'admin'],
+        type: thread.type || (thread.productId ? 'product' : thread.orderId ? 'order' : 'general'),
+        ...context,
         lastMessage: text,
         lastMessageAt: createdAt,
         lastSenderRole: 'user',
         updatedAt: createdAt,
         unreadForAdmin: increment(1),
-        ...(productContext ? {
-          productId: productContext.productId,
-          productName: productContext.productName,
-          ...(productContext.productImage ? { productImage: productContext.productImage } : {})
-        } : {})
-      };
-      submitButton.disabled = true;
-      if (statusEl) statusEl.textContent = 'Mengirim pesan...';
-      try {
-        const batch = writeBatch(db);
-        batch.set(messageRef, message);
-        batch.set(summaryRef, summary, { merge: true });
-        await batch.commit();
-        input.value = '';
-        if (statusEl) statusEl.textContent = '';
-      } catch (error) {
-        console.error('[marketplace chat] pesan user gagal dikirim:', error);
-        if (statusEl) statusEl.textContent = `Pesan gagal terkirim: ${error?.code || 'unknown'}`;
-      } finally {
-        submitButton.disabled = false;
-        input.focus();
-      }
-    });
-  }
+        ...(thread.isDraft ? { createdAt } : {})
+      }, { merge: true });
+      await batch.commit();
+      input.value = '';
+      setStatus('');
+    } catch (error) {
+      console.error('[marketplace chat] pesan user gagal dikirim:', error);
+      setStatus(`Pesan gagal terkirim: ${error?.code || 'unknown'}`);
+    } finally {
+      submitButton.disabled = false;
+      input.focus();
+    }
+  });
 
   window.__marketplaceChatCleanup = () => {
-    summaryUnsubscribe();
+    threadsUnsubscribe();
     messagesUnsubscribe();
   };
 }
@@ -2209,7 +2395,7 @@ async function renderDashboard() {
   const [productsResult, ordersResult, chatResult] = await Promise.allSettled([
     getDocs(collection(db, 'marketplace_products')),
     userId ? getDocs(query(collection(db, 'marketplace_orders'), where('userId', '==', userId))) : Promise.resolve({ docs: [] }),
-    userId ? getDoc(doc(db, 'marketplace_chats', userId)) : Promise.resolve(null)
+    userId ? getDocs(query(collection(db, 'marketplace_chats'), where('buyerId', '==', userId))) : Promise.resolve({ docs: [] })
   ]);
 
   const products = productsResult.status === 'fulfilled'
@@ -2218,9 +2404,7 @@ async function renderDashboard() {
   const orders = ordersResult.status === 'fulfilled'
     ? ordersResult.value.docs.map((docSnap) => docSnap.data())
     : [];
-  const chatSummary = chatResult.status === 'fulfilled' && chatResult.value?.exists()
-    ? chatResult.value.data()
-    : {};
+  const chatDocs = chatResult.status === 'fulfilled' ? (chatResult.value?.docs || []) : [];
 
   [productsResult, ordersResult, chatResult].forEach((result) => {
     if (result.status === 'rejected') console.error('[marketplace] dashboard gagal memuat data pembeli:', result.reason);
@@ -2232,7 +2416,7 @@ async function renderDashboard() {
   const awaitingPaymentOrders = orders.filter((order) => String(order.status || '').toLowerCase() === 'awaiting_payment');
   const activeOrders = orders.filter((order) => ['paid', 'processing', 'shipped'].includes(String(order.status || '').toLowerCase()));
   const completedOrders = orders.filter((order) => String(order.status || '').toLowerCase() === 'completed');
-  const unreadMessages = Math.max(0, Number(chatSummary.unreadForUser || 0));
+  const unreadMessages = chatDocs.reduce((total, threadDoc) => total + Math.max(0, Number(threadDoc.data().unreadForUser || 0)), 0);
 
   const orderEl = document.querySelector('[data-stat-orders]');
   if (orderEl) orderEl.textContent = String(activeOrders.length);
@@ -2282,6 +2466,7 @@ async function renderDashboard() {
           </div>
         </div>
       `;
+      updateSidebarProfile();
       return;
     }
 
@@ -2312,8 +2497,15 @@ async function renderOrdersForBuyer() {
 
   const userId = auth.currentUser?.uid || user.uid || user.id || '';
   const pageStatus = document.querySelector('[data-orders-status]');
-  let orders = [];
+  const titleEl = document.querySelector('[data-orders-title]');
+  const eyebrowEl = document.querySelector('[data-orders-eyebrow]');
+  const backEl = document.querySelector('[data-orders-back]');
+  const requestedOrderId = (new URLSearchParams(window.location.search).get('orderId') || '').trim();
+  const isDetailMode = Boolean(requestedOrderId);
+
   let countdownInterval = null;
+  let detailUnsubscribe = null;
+  let stopPaymentPolling = false;
 
   const statusLabels = {
     awaiting_payment: ['Menunggu Pembayaran', 'bg-amber-100 text-amber-800'],
@@ -2326,45 +2518,55 @@ async function renderOrdersForBuyer() {
     payment_failed: ['Pembayaran Gagal', 'bg-rose-100 text-rose-800']
   };
 
-  const renderOrders = () => {
-    if (!orders.length) {
-      container.innerHTML = '<div class="commerce-empty">Belum ada pesanan. <a href="beli.html">Pilih barang dari katalog</a>.</div>';
-      return;
-    }
-    container.innerHTML = orders.map((order) => {
-      const [label, badgeClass] = statusLabels[order.status] || ['Status diperiksa admin', 'bg-slate-100 text-slate-700'];
-      const items = Array.isArray(order.items) ? order.items : [];
-      const shipping = order.shippingAddress || {};
-      const hasCoordinates = Number.isFinite(Number(shipping.latitude)) && Number.isFinite(Number(shipping.longitude)) && shipping.latitude !== '' && shipping.longitude !== '';
-      const mapUrl = hasCoordinates ? `https://www.google.com/maps/search/?api=1&query=${Number(shipping.latitude)},${Number(shipping.longitude)}` : '';
-      const canPay = order.status === 'awaiting_payment' && Number(order.paymentExpiresAt || 0) > Date.now();
-      const itemMarkup = items.map((item) => `<li>${escapeHtml(item.name || 'Produk')} × ${Math.max(1, Number(item.qty || 1))} <span>${formatCurrency(item.subtotal || 0)}</span></li>`).join('');
-      return `<article class="commerce-panel commerce-order-card" data-order-id="${escapeHtml(order.id)}">
-        <header class="commerce-order-header"><div><strong>${escapeHtml(order.orderCode || order.id)}</strong><p class="muted">${escapeHtml(order.createdAt ? new Date(getCreatedAtMs(order.createdAt)).toLocaleString('id-ID') : 'Tanggal belum tersedia')}</p></div><span class="commerce-status ${badgeClass}">${label}</span></header>
-        <ul class="commerce-order-items">${itemMarkup}</ul>
-        <div class="commerce-order-total"><span>Total</span><strong>${formatCurrency(order.totalAmount || 0)}</strong></div>
-        ${canPay ? `<p class="commerce-payment-countdown" data-payment-countdown="${Number(order.paymentExpiresAt)}"></p>` : ''}
-        <div class="commerce-order-shipping"><strong>Alamat pengiriman</strong><p>${escapeHtml(shipping.recipientName || '')} · ${escapeHtml(shipping.phone || '')}<br>${escapeHtml(shipping.address || '')}${shipping.city ? `, ${escapeHtml(shipping.city)}` : ''}${shipping.province ? `, ${escapeHtml(shipping.province)}` : ''}${shipping.postalCode ? ` ${escapeHtml(shipping.postalCode)}` : ''}${shipping.note ? `<br>Catatan: ${escapeHtml(shipping.note)}` : ''}</p>${mapUrl ? `<a href="${mapUrl}" target="_blank" rel="noopener noreferrer">Lihat di Google Maps</a>` : ''}</div>
-        ${order.trackingNumber ? `<p class="commerce-tracking"><strong>${escapeHtml(order.courier || 'Kurir')}:</strong> ${escapeHtml(order.trackingNumber)}</p>` : ''}
-        <footer class="commerce-order-actions">
-          ${canPay ? `<button class="btn btn-primary" type="button" data-pay-order="${escapeHtml(order.id)}">Bayar Sekarang</button><button class="btn btn-secondary" type="button" data-cancel-order="${escapeHtml(order.id)}">Batalkan</button>` : ''}
-          <a class="btn btn-secondary" href="chat.html?orderId=${encodeURIComponent(order.id)}">Tanya Admin</a>
-        </footer>
-      </article>`;
-    }).join('');
-    bindOrderActions();
-    updatePaymentCountdowns();
+  const setStatus = (message) => {
+    if (pageStatus) pageStatus.textContent = message || '';
   };
 
-  const loadOrders = async () => {
-    const snapshot = await getDocs(query(collection(db, 'marketplace_orders'), where('userId', '==', userId)));
-    orders = snapshot.docs
-      .map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }))
-      .sort((a, b) => getCreatedAtMs(b.createdAt) - getCreatedAtMs(a.createdAt));
-    renderOrders();
+  const formatOrderDate = (value) => {
+    const ms = getCreatedAtMs(value);
+    return ms ? new Date(ms).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' }) : 'Tanggal belum tersedia';
   };
 
-  async function bindOrderActions() {
+  const formatAddress = (shipping) => {
+    const parts = [
+      escapeHtml(shipping.address || ''),
+      shipping.city ? escapeHtml(shipping.city) : '',
+      shipping.province ? escapeHtml(shipping.province) : '',
+      shipping.postalCode ? escapeHtml(shipping.postalCode) : ''
+    ].filter(Boolean);
+    return parts.join(', ');
+  };
+
+  const getMapPoint = (shipping) => {
+    const latitude = Number(shipping.latitude);
+    const longitude = Number(shipping.longitude);
+    const valid = shipping.latitude !== '' && shipping.longitude !== '' &&
+      shipping.latitude !== null && shipping.longitude !== null &&
+      shipping.latitude !== undefined && shipping.longitude !== undefined &&
+      Number.isFinite(latitude) && latitude >= -90 && latitude <= 90 &&
+      Number.isFinite(longitude) && longitude >= -180 && longitude <= 180;
+    return valid ? { latitude, longitude } : null;
+  };
+
+  function updatePaymentCountdowns() {
+    if (countdownInterval) clearInterval(countdownInterval);
+    countdownInterval = null;
+    if (!container.querySelector('[data-payment-countdown]')) return;
+    const update = () => {
+      container.querySelectorAll('[data-payment-countdown]').forEach((element) => {
+        const remaining = Math.max(0, Number(element.dataset.paymentCountdown) - Date.now());
+        const minutes = Math.floor(remaining / 60000);
+        const seconds = Math.floor((remaining % 60000) / 1000);
+        element.textContent = remaining
+          ? `Selesaikan pembayaran dalam ${minutes}:${String(seconds).padStart(2, '0')}`
+          : 'Batas pembayaran lewat; memeriksa pelepasan stok...';
+      });
+    };
+    update();
+    countdownInterval = setInterval(update, 1000);
+  }
+
+  function bindOrderActions(onAfterCancel) {
     container.querySelectorAll('[data-pay-order]').forEach((button) => button.addEventListener('click', async () => {
       button.disabled = true;
       try {
@@ -2373,56 +2575,280 @@ async function renderOrdersForBuyer() {
         window.location.href = result.paymentUrl;
       } catch (error) {
         console.error('[marketplace] gagal membuka pembayaran ulang:', error);
-        if (pageStatus) pageStatus.textContent = `Pembayaran gagal dibuka (${error.code || 'unknown'}): ${error.message}`;
+        setStatus(`Pembayaran gagal dibuka (${error.code || 'unknown'}): ${error.message}`);
         button.disabled = false;
       }
     }));
+
     container.querySelectorAll('[data-cancel-order]').forEach((button) => button.addEventListener('click', async () => {
       if (!window.confirm('Batalkan pesanan ini dan lepaskan stok yang dicadangkan?')) return;
       button.disabled = true;
       try {
         await callMarketplaceApi('cancel-order', { orderId: button.dataset.cancelOrder });
-        await loadOrders();
+        setStatus('');
+        if (onAfterCancel) await onAfterCancel();
       } catch (error) {
         console.error('[marketplace] gagal membatalkan pesanan:', error);
-        if (pageStatus) pageStatus.textContent = `Pembatalan gagal (${error.code || 'unknown'}): ${error.message}`;
+        setStatus(`Pembatalan gagal (${error.code || 'unknown'}): ${error.message}`);
         button.disabled = false;
       }
     }));
   }
 
-  function updatePaymentCountdowns() {
-    if (countdownInterval) clearInterval(countdownInterval);
-    const update = () => {
-      container.querySelectorAll('[data-payment-countdown]').forEach((element) => {
-        const remaining = Math.max(0, Number(element.dataset.paymentCountdown) - Date.now());
-        const minutes = Math.floor(remaining / 60000);
-        const seconds = Math.floor((remaining % 60000) / 1000);
-        element.textContent = remaining ? `Selesaikan pembayaran dalam ${minutes}:${String(seconds).padStart(2, '0')}` : 'Batas pembayaran lewat; memeriksa pelepasan stok...';
-      });
-    };
-    update();
-    countdownInterval = setInterval(update, 1000);
+  /* =====================================================================
+   * MODE DETAIL  →  pesanan.html?orderId=MM-xxxxxx-xxxxxx
+   * Hanya menampilkan satu pesanan (mis. setelah kembali dari DOKU).
+   * ===================================================================== */
+  function getBanner(order) {
+    const status = order.status;
+    const paid = order.paymentStatus === 'PAID';
+    if (status === 'awaiting_payment') {
+      return { tone: 'pending', icon: 'schedule', title: 'Menunggu pembayaran', text: 'Kami sedang memeriksa pembayaran Anda. Jika sudah membayar, halaman ini akan diperbarui otomatis.' };
+    }
+    if (status === 'paid') {
+      return { tone: 'success', icon: 'check_circle', title: 'Pembayaran berhasil', text: 'Terima kasih! Pesanan Anda sudah dibayar dan menunggu diproses admin.' };
+    }
+    if (status === 'processing') {
+      return { tone: 'info', icon: 'inventory_2', title: 'Pesanan sedang diproses', text: 'Admin sedang menyiapkan barang Anda.' };
+    }
+    if (status === 'shipped') {
+      return { tone: 'info', icon: 'local_shipping', title: 'Pesanan dikirim', text: order.trackingNumber ? 'Pesanan sedang dalam perjalanan. Cek nomor resi di bawah.' : 'Pesanan sedang dalam perjalanan.' };
+    }
+    if (status === 'completed') {
+      return { tone: 'success', icon: 'task_alt', title: 'Pesanan selesai', text: 'Pesanan sudah diterima. Terima kasih sudah berbelanja!' };
+    }
+    if (status === 'cancelled') {
+      return { tone: 'neutral', icon: 'cancel', title: 'Pesanan dibatalkan', text: paid ? 'Pesanan dibatalkan. Refund diproses manual oleh admin; hubungi admin untuk info lebih lanjut.' : 'Pesanan ini dibatalkan dan stok sudah dilepas.' };
+    }
+    if (status === 'expired') {
+      return { tone: 'danger', icon: 'timer_off', title: 'Pembayaran kedaluwarsa', text: paid ? 'Pembayaran diterima setelah batas waktu. Hubungi admin untuk pemeriksaan.' : 'Batas waktu pembayaran terlewati. Silakan checkout ulang dari keranjang.' };
+    }
+    if (status === 'payment_failed') {
+      return { tone: 'danger', icon: 'error', title: 'Pembayaran gagal', text: 'Pembayaran tidak berhasil. Silakan checkout ulang dari keranjang.' };
+    }
+    return { tone: 'neutral', icon: 'info', title: 'Status sedang diperiksa', text: 'Hubungi admin jika status tidak kunjung berubah.' };
   }
 
-  container.innerHTML = '<p class="muted">Memuat pesanan...</p>';
-  try {
-    await callMarketplaceApi('release-expired-reservations');
-    const requestedOrderId = new URLSearchParams(window.location.search).get('orderId');
-    if (requestedOrderId) {
-      for (let attempt = 0; attempt < 3; attempt += 1) {
-        const result = await callMarketplaceApi('check-payment', { orderId: requestedOrderId });
-        if (result.order && result.order.status !== 'awaiting_payment') break;
-        if (attempt < 2) await new Promise((resolve) => setTimeout(resolve, 2500));
-      }
-    }
-    await loadOrders();
-  } catch (error) {
-    console.error('[marketplace] gagal memuat pesanan:', error);
-    if (pageStatus) pageStatus.textContent = `Gagal memuat pesanan (${error.code || 'unknown'}): ${error.message}`;
-    container.innerHTML = '<p class="commerce-error">Pesanan gagal dimuat. Muat ulang halaman untuk mencoba lagi.</p>';
+  function renderOrderDetail(order) {
+    const [label, badgeClass] = statusLabels[order.status] || ['Status diperiksa admin', 'bg-slate-100 text-slate-700'];
+    const banner = getBanner(order);
+    const items = Array.isArray(order.items) ? order.items : [];
+    const shipping = order.shippingAddress || {};
+    const point = getMapPoint(shipping);
+    const canPay = order.status === 'awaiting_payment' && Number(order.paymentExpiresAt || 0) > Date.now();
+    const history = Array.isArray(order.statusHistory) ? [...order.statusHistory].sort((a, b) => Number(a.at || 0) - Number(b.at || 0)) : [];
+
+    if (titleEl) titleEl.textContent = 'Detail Pesanan';
+
+    const itemsMarkup = items.map((item) => {
+      const image = safeMarketplaceImageUrl(item.image);
+      const thumb = image
+        ? `<img src="${escapeHtml(image)}" alt="${escapeHtml(item.name || 'Produk')}" />`
+        : '<span class="order-line-fallback">G</span>';
+      const name = item.productId
+        ? `<a href="${getProductDetailUrl(item.productId)}">${escapeHtml(item.name || 'Produk')}</a>`
+        : `<strong>${escapeHtml(item.name || 'Produk')}</strong>`;
+      return `<div class="order-line">${thumb}<div class="order-line-info">${name}<small>${formatCurrency(item.unitPrice || 0)} × ${Math.max(1, Number(item.qty || 1))}</small></div><strong>${formatCurrency(item.subtotal || 0)}</strong></div>`;
+    }).join('') || '<p class="muted">Rincian barang tidak tersedia.</p>';
+
+    const historyMarkup = history.length
+      ? `<ol class="order-timeline">${history.map((entry) => {
+          const [entryLabel] = statusLabels[entry.status] || [entry.status || '-'];
+          return `<li><strong>${escapeHtml(entryLabel)}</strong><small>${escapeHtml(formatOrderDate(entry.at))}</small></li>`;
+        }).join('')}</ol>`
+      : '<p class="muted">Belum ada riwayat status.</p>';
+
+    const paymentLabel = order.paymentStatus === 'PAID' ? 'Lunas' : order.paymentStatus === 'EXPIRED' ? 'Kedaluwarsa' : order.paymentStatus === 'FAILED' ? 'Gagal' : 'Belum dibayar';
+
+    container.innerHTML = `
+      <div class="order-banner tone-${banner.tone}" role="status">
+        <span class="material-symbols-outlined" aria-hidden="true">${banner.icon}</span>
+        <div>
+          <h3>${escapeHtml(banner.title)}</h3>
+          <p>${escapeHtml(banner.text)}</p>
+          ${canPay ? `<p class="commerce-payment-countdown" data-payment-countdown="${Number(order.paymentExpiresAt)}" style="margin-top:6px;font-weight:700;"></p>` : ''}
+        </div>
+      </div>
+
+      <div class="order-detail-head">
+        <div>
+          <strong>${escapeHtml(order.orderCode || order.id)}</strong>
+          <small>Dipesan ${escapeHtml(formatOrderDate(order.createdAt))}</small>
+        </div>
+        <span class="commerce-status ${badgeClass}">${escapeHtml(label)}</span>
+      </div>
+
+      <div class="order-detail-grid">
+        <div>
+          <section class="order-detail-card">
+            <h3>Barang dipesan</h3>
+            ${itemsMarkup}
+            <div style="margin-top:10px;">
+              <div class="order-sum-row"><span>Subtotal</span><span>${formatCurrency(order.subtotal || 0)}</span></div>
+              <div class="order-sum-row"><span>Ongkos kirim</span><span>${formatCurrency(order.shippingFee || 0)}</span></div>
+              <div class="order-sum-row is-total"><span>Total</span><span>${formatCurrency(order.totalAmount || 0)}</span></div>
+            </div>
+          </section>
+          <section class="order-detail-card">
+            <h3>Riwayat status</h3>
+            ${historyMarkup}
+          </section>
+        </div>
+
+        <div>
+          <section class="order-detail-card">
+            <h3>Pembayaran</h3>
+            <ul class="order-meta-list">
+              <li><span>Status bayar</span><strong>${escapeHtml(paymentLabel)}</strong></li>
+              ${order.paidAt ? `<li><span>Dibayar pada</span><strong>${escapeHtml(formatOrderDate(order.paidAt))}</strong></li>` : ''}
+              <li><span>Metode</span><strong>DOKU</strong></li>
+            </ul>
+          </section>
+          <section class="order-detail-card">
+            <h3>Alamat pengiriman</h3>
+            <address class="order-address">
+              <strong>${escapeHtml(shipping.recipientName || '-')}</strong><br>
+              ${escapeHtml(shipping.phone || '-')}<br>
+              ${formatAddress(shipping) || 'Alamat belum tersedia'}
+              ${shipping.note ? `<br><em>Catatan: ${escapeHtml(shipping.note)}</em>` : ''}
+            </address>
+            ${point ? `<div class="order-detail-map"><iframe title="Lokasi pengiriman" loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="https://maps.google.com/maps?q=${point.latitude},${point.longitude}&z=16&output=embed"></iframe></div><p style="margin:8px 0 0;"><a href="https://www.google.com/maps/search/?api=1&query=${point.latitude},${point.longitude}" target="_blank" rel="noopener noreferrer">Lihat di Google Maps</a></p>` : ''}
+          </section>
+          ${order.trackingNumber ? `<section class="order-detail-card"><h3>Pengiriman</h3><ul class="order-meta-list"><li><span>Kurir</span><strong>${escapeHtml(order.courier || '-')}</strong></li><li><span>No. resi</span><strong>${escapeHtml(order.trackingNumber)}</strong></li></ul></section>` : ''}
+        </div>
+      </div>
+
+      <div class="order-detail-actions">
+        ${canPay ? `<button class="btn btn-primary" type="button" data-pay-order="${escapeHtml(order.id)}">Bayar Sekarang</button><button class="btn btn-secondary" type="button" data-cancel-order="${escapeHtml(order.id)}">Batalkan Pesanan</button>` : ''}
+        <a class="btn btn-secondary" href="chat.html?orderId=${encodeURIComponent(order.id)}">Tanya Admin</a>
+        <a class="btn btn-soft" href="pesanan.html">Lihat semua pesanan</a>
+        <a class="btn btn-soft" href="beli.html">Lanjut belanja</a>
+      </div>
+    `;
+
+    bindOrderActions(null); // onSnapshot yang memperbarui tampilan setelah batal
+    updatePaymentCountdowns();
   }
-  window.addEventListener('beforeunload', () => { if (countdownInterval) clearInterval(countdownInterval); }, { once: true });
+
+  async function runDetailMode() {
+    if (eyebrowEl) eyebrowEl.textContent = 'Pesanan';
+    if (titleEl) titleEl.textContent = 'Detail Pesanan';
+    if (backEl) backEl.classList.add('is-visible');
+    container.innerHTML = '<p class="muted">Memuat detail pesanan...</p>';
+
+    // Lepas reservasi kedaluwarsa lebih dulu (gagal pun tidak masalah).
+    try {
+      await callMarketplaceApi('release-expired-reservations');
+    } catch (error) {
+      console.error('[marketplace] gagal melepas reservasi kedaluwarsa:', error);
+    }
+
+    const orderRef = doc(db, 'marketplace_orders', requestedOrderId);
+    let firstSnapshot = true;
+
+    detailUnsubscribe = onSnapshot(orderRef, (snapshot) => {
+      if (!snapshot.exists()) {
+        container.innerHTML = '<div class="commerce-empty">Pesanan tidak ditemukan. <a href="pesanan.html">Lihat semua pesanan</a></div>';
+        return;
+      }
+      const order = { id: snapshot.id, ...snapshot.data() };
+      if (order.userId && order.userId !== userId) {
+        container.innerHTML = '<div class="commerce-empty">Pesanan ini bukan milik akun Anda. <a href="pesanan.html">Lihat pesanan saya</a></div>';
+        return;
+      }
+      if (firstSnapshot) {
+        firstSnapshot = false;
+        setStatus('');
+      }
+      renderOrderDetail(order);
+    }, (error) => {
+      console.error('[marketplace] gagal memuat detail pesanan:', error);
+      setStatus(`Gagal memuat pesanan (${error?.code || 'unknown'}).`);
+      container.innerHTML = '<p class="commerce-error">Detail pesanan gagal dimuat. Muat ulang halaman untuk mencoba lagi.</p>';
+    });
+
+    // Setelah kembali dari DOKU, webhook bisa tiba beberapa detik kemudian.
+    // Tanya status ke DOKU beberapa kali sampai status berubah dari "menunggu".
+    (async () => {
+      for (let attempt = 0; attempt < 4 && !stopPaymentPolling; attempt += 1) {
+        try {
+          const result = await callMarketplaceApi('check-payment', { orderId: requestedOrderId });
+          if (result.order && result.order.status !== 'awaiting_payment') return;
+        } catch (error) {
+          console.error('[marketplace] pemeriksaan pembayaran gagal:', error);
+        }
+        await new Promise((resolve) => setTimeout(resolve, 3000));
+      }
+    })();
+  }
+
+  /* =====================================================================
+   * MODE DAFTAR  →  pesanan.html (tanpa parameter)
+   * ===================================================================== */
+  let orders = [];
+
+  const renderOrderList = () => {
+    if (!orders.length) {
+      container.innerHTML = '<div class="commerce-empty">Belum ada pesanan. <a href="beli.html">Pilih barang dari katalog</a>.</div>';
+      return;
+    }
+    container.innerHTML = orders.map((order) => {
+      const [label, badgeClass] = statusLabels[order.status] || ['Status diperiksa admin', 'bg-slate-100 text-slate-700'];
+      const items = Array.isArray(order.items) ? order.items : [];
+      const shipping = order.shippingAddress || {};
+      const point = getMapPoint(shipping);
+      const mapUrl = point ? `https://www.google.com/maps/search/?api=1&query=${point.latitude},${point.longitude}` : '';
+      const canPay = order.status === 'awaiting_payment' && Number(order.paymentExpiresAt || 0) > Date.now();
+      const itemMarkup = items.map((item) => `<li>${escapeHtml(item.name || 'Produk')} × ${Math.max(1, Number(item.qty || 1))} <span>${formatCurrency(item.subtotal || 0)}</span></li>`).join('');
+      return `<article class="commerce-panel commerce-order-card" data-order-id="${escapeHtml(order.id)}">
+        <header class="commerce-order-header"><div><strong>${escapeHtml(order.orderCode || order.id)}</strong><p class="muted">${escapeHtml(formatOrderDate(order.createdAt))}</p></div><span class="commerce-status ${badgeClass}">${label}</span></header>
+        <ul class="commerce-order-items">${itemMarkup}</ul>
+        <div class="commerce-order-total"><span>Total</span><strong>${formatCurrency(order.totalAmount || 0)}</strong></div>
+        ${canPay ? `<p class="commerce-payment-countdown" data-payment-countdown="${Number(order.paymentExpiresAt)}"></p>` : ''}
+        <div class="commerce-order-shipping"><strong>Alamat pengiriman</strong><p>${escapeHtml(shipping.recipientName || '')} · ${escapeHtml(shipping.phone || '')}<br>${formatAddress(shipping)}${shipping.note ? `<br>Catatan: ${escapeHtml(shipping.note)}` : ''}</p>${mapUrl ? `<a href="${mapUrl}" target="_blank" rel="noopener noreferrer">Lihat di Google Maps</a>` : ''}</div>
+        ${order.trackingNumber ? `<p class="commerce-tracking"><strong>${escapeHtml(order.courier || 'Kurir')}:</strong> ${escapeHtml(order.trackingNumber)}</p>` : ''}
+        <footer class="commerce-order-actions">
+          <a class="btn btn-soft" href="pesanan.html?orderId=${encodeURIComponent(order.id)}">Lihat detail</a>
+          ${canPay ? `<button class="btn btn-primary" type="button" data-pay-order="${escapeHtml(order.id)}">Bayar Sekarang</button><button class="btn btn-secondary" type="button" data-cancel-order="${escapeHtml(order.id)}">Batalkan</button>` : ''}
+          <a class="btn btn-secondary" href="chat.html?orderId=${encodeURIComponent(order.id)}">Tanya Admin</a>
+        </footer>
+      </article>`;
+    }).join('');
+    bindOrderActions(loadOrders);
+    updatePaymentCountdowns();
+  };
+
+  async function loadOrders() {
+    const snapshot = await getDocs(query(collection(db, 'marketplace_orders'), where('userId', '==', userId)));
+    orders = snapshot.docs
+      .map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }))
+      .sort((a, b) => getCreatedAtMs(b.createdAt) - getCreatedAtMs(a.createdAt));
+    renderOrderList();
+  }
+
+  async function runListMode() {
+    if (eyebrowEl) eyebrowEl.textContent = 'Riwayat Pesanan';
+    if (titleEl) titleEl.textContent = 'Pesanan Saya';
+    if (backEl) backEl.classList.remove('is-visible');
+    container.innerHTML = '<p class="muted">Memuat pesanan...</p>';
+    try {
+      await callMarketplaceApi('release-expired-reservations');
+      await loadOrders();
+    } catch (error) {
+      console.error('[marketplace] gagal memuat pesanan:', error);
+      setStatus(`Gagal memuat pesanan (${error.code || 'unknown'}): ${error.message}`);
+      container.innerHTML = '<p class="commerce-error">Pesanan gagal dimuat. Muat ulang halaman untuk mencoba lagi.</p>';
+    }
+  }
+
+  window.addEventListener('beforeunload', () => {
+    stopPaymentPolling = true;
+    if (countdownInterval) clearInterval(countdownInterval);
+    if (detailUnsubscribe) detailUnsubscribe();
+  }, { once: true });
+
+  if (isDetailMode) await runDetailMode();
+  else await runListMode();
 }
 
 async function renderProductsForBuyer() {

@@ -10,6 +10,40 @@
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="assets/style.css" />
     <link rel="stylesheet" href="assets/commerce.css" />
+    <style>
+      .chat-multi { display: grid; grid-template-columns: minmax(260px, 320px) minmax(0, 1fr); gap: 16px; align-items: stretch; }
+      .chat-list-panel { border: 1px solid #e2e8f0; border-radius: 14px; background: #fff; overflow: hidden; display: flex; flex-direction: column; min-height: 420px; max-height: 76vh; }
+      .chat-list-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 12px 14px; border-bottom: 1px solid #f1f5f9; }
+      .chat-list-head strong { font-size: 1rem; }
+      .chat-list { overflow-y: auto; flex: 1; }
+      .chat-list-empty { padding: 20px 16px; color: #64748b; font-size: 14px; line-height: 1.5; margin: 0; }
+      .chat-list-item { display: flex; gap: 12px; align-items: center; width: 100%; padding: 12px 14px; border: 0; border-bottom: 1px solid #f1f5f9; background: #fff; text-align: left; cursor: pointer; font: inherit; color: inherit; }
+      .chat-list-item:hover { background: #fff7fb; }
+      .chat-list-item.is-active { background: #fdf2f8; }
+      .chat-list-thumb { width: 48px; height: 48px; border-radius: 10px; background: #f1f5f9; overflow: hidden; display: grid; place-items: center; flex-shrink: 0; color: #be185d; font-weight: 800; }
+      .chat-list-thumb img { width: 100%; height: 100%; object-fit: cover; }
+      .chat-list-body { min-width: 0; flex: 1; }
+      .chat-list-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+      .chat-list-title { font-weight: 700; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .chat-list-time { font-size: 11px; color: #94a3b8; flex-shrink: 0; }
+      .chat-list-last { font-size: 12px; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+      .chat-list-badge { flex-shrink: 0; min-width: 20px; padding: 1px 6px; border-radius: 999px; background: #db2777; color: #fff; font-size: 11px; font-weight: 700; text-align: center; }
+      .chat-list-new { font-size: 10px; font-weight: 700; color: #be185d; background: #fce7f3; border-radius: 999px; padding: 1px 6px; }
+      .chat-multi .chat-conversation { min-width: 0; }
+      .chat-multi .chat-thread { min-height: 320px; max-height: 56vh; overflow-y: auto; }
+      .chat-conv-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+      .chat-conv-head h3 { margin: 0; font-size: 1.05rem; }
+      .chat-conv-head small { color: #64748b; }
+      .chat-back-btn { display: none; }
+      .chat-product-context-link img { width: 40px; height: 40px; border-radius: 8px; object-fit: cover; }
+      @media (max-width: 899px) {
+        .chat-multi { display: block; }
+        .chat-multi[data-view="list"] .chat-conversation { display: none; }
+        .chat-multi[data-view="conversation"] .chat-list-panel { display: none; }
+        .chat-back-btn { display: inline-flex; }
+        .chat-list-panel { max-height: none; }
+      }
+    </style>
   </head>
   <body data-page="chat.html">
     <header class="topbar">
@@ -49,21 +83,36 @@
         </aside>
 
         <div class="main-panel">
-          <section class="chat-shell">
+          <section class="chat-multi" data-chat-layout data-view="list">
+            <aside class="chat-list-panel" aria-label="Daftar percakapan">
+              <div class="chat-list-head">
+                <strong>Percakapan</strong>
+                <button class="btn btn-soft" type="button" data-chat-new-general>+ Pertanyaan umum</button>
+              </div>
+              <div class="chat-list" data-chat-list aria-live="polite">
+                <p class="chat-list-empty">Memuat percakapan...</p>
+              </div>
+            </aside>
+
             <div class="chat-conversation">
-              <div class="seller-row">
-                <span class="seller-meta"><span class="avatar">M</span> <span data-chat-contact>Marketplace Mantan</span></span>
-                <span class="condition">Toko Resmi</span>
+              <div class="chat-conv-head">
+                <button class="btn btn-secondary chat-back-btn" type="button" data-chat-back>‹ Daftar</button>
+                <div>
+                  <h3 data-chat-title>Pilih percakapan</h3>
+                  <small data-chat-contact>Marketplace Mantan · Toko Resmi</small>
+                </div>
               </div>
 
               <div class="chat-product-context" data-chat-product-context hidden></div>
 
-              <div class="chat-thread" data-chat-thread></div>
+              <div class="chat-thread" data-chat-thread>
+                <div class="empty-state">Pilih percakapan di daftar, atau tanyakan produk lewat tombol "Chat admin" di katalog.</div>
+              </div>
               <p class="muted" data-chat-status role="status" aria-live="polite"></p>
 
               <form class="chat-composer" data-chat-form>
-                <textarea rows="2" placeholder="Ketik pesan..." aria-label="Pesan ke Marketplace Mantan"></textarea>
-                <button class="btn btn-primary" type="submit">Kirim</button>
+                <textarea rows="2" placeholder="Pilih percakapan untuk mulai menulis..." aria-label="Pesan ke Marketplace Mantan" disabled></textarea>
+                <button class="btn btn-primary" type="submit" disabled>Kirim</button>
               </form>
             </div>
           </section>

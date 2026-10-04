@@ -8,10 +8,15 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
   <style>
     .material-symbols-outlined { font-family: 'Material Symbols Outlined'; font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24; }
-    .chat-admin-layout { display:grid; grid-template-columns: minmax(260px, 340px) minmax(0, 1fr); gap:16px; min-height:calc(100vh - 150px); }
+    .chat-admin-layout { display:grid; grid-template-columns: minmax(280px, 360px) minmax(0, 1fr); gap:16px; min-height:calc(100vh - 150px); }
     .chat-admin-panel { min-width:0; border:1px solid #e2e8f0; border-radius:12px; background:#fff; }
-    .chat-admin-thread { width:100%; border:0; border-bottom:1px solid #f1f5f9; background:#fff; text-align:left; }
-    .chat-admin-thread:hover,.chat-admin-thread[aria-current="true"] { background:#fff1f2; }
+    .chat-admin-list { max-height:calc(100vh - 230px); overflow-y:auto; }
+    .chat-admin-buyer { width:100%; border:0; border-bottom:1px solid #f1f5f9; background:#fff; text-align:left; cursor:pointer; }
+    .chat-admin-buyer:hover { background:#f8fafc; }
+    .chat-admin-thread { width:100%; border:0; border-bottom:1px solid #f1f5f9; background:#fafafa; text-align:left; cursor:pointer; }
+    .chat-admin-thread:hover,.chat-admin-thread.is-active { background:#fff1f2; }
+    .chat-admin-thumb { width:40px; height:40px; border-radius:8px; background:#f1f5f9; overflow:hidden; display:grid; place-items:center; flex-shrink:0; color:#be185d; }
+    .chat-admin-thumb img { width:100%; height:100%; object-fit:cover; }
     .chat-admin-conversation { display:flex; min-height:0; height:calc(100vh - 150px); flex-direction:column; }
     .chat-admin-messages { min-height:0; flex:1; overflow-y:auto; padding:18px; }
     .chat-admin-context img { width:52px; height:52px; border-radius:8px; object-fit:cover; }
@@ -20,17 +25,12 @@
     .chat-admin-bubble.admin { margin-left:auto; background:#db2777; color:white; border-bottom-right-radius:4px; }
     .chat-admin-date { display:flex; align-items:center; gap:12px; margin:12px 0; color:#64748b; font-size:12px; }
     .chat-admin-date::before,.chat-admin-date::after { content:''; height:1px; flex:1; background:#e2e8f0; }
-    #chatPage[data-view="conversation"] #adminThreadPanel { display:none; }
-    #chatPage[data-view="conversation"] #adminConversationPanel { display:flex; }
-    @media (min-width: 900px) {
-      #adminThreadPanel { display:block !important; }
-      #adminConversationPanel { display:flex !important; }
-    }
     @media (max-width: 899px) {
       .chat-admin-layout { display:block; min-height:0; }
-      #adminConversationPanel { display:none; height:calc(100dvh - 105px); }
+      .chat-admin-list { max-height:none; }
+      #adminConversationPanel { height:calc(100dvh - 105px); }
       #chatPage[data-view="threads"] #adminConversationPanel { display:none; }
-      #chatPage[data-view="conversation"] #adminConversationPanel { display:flex; }
+      #chatPage[data-view="conversation"] #adminThreadPanel { display:none; }
     }
   </style>
 </head>
@@ -41,15 +41,15 @@
     <main class="px-4 py-6 lg:px-8">
       <header class="mb-5">
         <h1 class="text-2xl font-bold text-slate-900">Chat Pembeli</h1>
-        <p class="mt-1 text-sm text-slate-500">Satu percakapan untuk setiap pembeli.</p>
+        <p class="mt-1 text-sm text-slate-500">Dikelompokkan per pembeli. Buka pembeli untuk melihat percakapan per produk.</p>
       </header>
       <div class="chat-admin-layout">
         <section id="adminThreadPanel" class="chat-admin-panel overflow-hidden" aria-label="Daftar pembeli">
           <div class="border-b border-slate-200 p-3">
-            <label class="sr-only" for="buyerSearch">Cari pembeli</label>
-            <input id="buyerSearch" type="search" placeholder="Cari nama pembeli..." class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-pink-200" />
+            <label class="sr-only" for="buyerSearch">Cari pembeli atau produk</label>
+            <input id="buyerSearch" type="search" placeholder="Cari nama pembeli atau produk..." class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-pink-200" />
           </div>
-          <div id="chatList" aria-live="polite">
+          <div id="chatList" class="chat-admin-list" aria-live="polite">
             <p class="p-5 text-sm text-slate-500">Memuat percakapan...</p>
           </div>
         </section>
@@ -67,12 +67,12 @@
           </header>
           <div id="productContext" class="chat-admin-context hidden border-b border-slate-200 bg-slate-50 px-4 py-3"></div>
           <div id="chatMessages" class="chat-admin-messages" aria-live="polite">
-            <p class="text-sm text-slate-500">Pilih percakapan di kiri.</p>
+            <p class="text-sm text-slate-500">Pilih pembeli, lalu pilih produk yang ditanyakan.</p>
           </div>
           <p id="chatError" class="px-4 text-sm text-rose-700" role="alert" aria-live="polite"></p>
           <form id="chatForm" class="flex items-end gap-2 border-t border-slate-200 p-3">
             <label class="sr-only" for="chatInput">Pesan balasan</label>
-            <textarea id="chatInput" rows="2" placeholder="Pilih pembeli untuk membalas..." disabled class="min-w-0 flex-1 resize-y rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-pink-200"></textarea>
+            <textarea id="chatInput" rows="2" placeholder="Pilih percakapan untuk membalas..." disabled class="min-w-0 flex-1 resize-y rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-pink-200"></textarea>
             <button id="sendButton" type="submit" disabled class="rounded-lg bg-pink-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-pink-500 disabled:cursor-not-allowed disabled:opacity-50">Kirim</button>
           </form>
         </section>
@@ -82,7 +82,7 @@
 
   <script type="module">
     import { auth, db, escapeHtml, requireAdmin } from '/admin/admin-firebase.js';
-    import { collection, doc, increment, onSnapshot, orderBy, query, updateDoc, writeBatch } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+    import { collection, doc, getDoc, increment, onSnapshot, orderBy, query, updateDoc, writeBatch } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
     const page = document.getElementById('chatPage');
     const chatList = document.getElementById('chatList');
@@ -96,11 +96,14 @@
     const headerEmail = document.getElementById('buyerEmail');
     const ordersLink = document.getElementById('buyerOrdersLink');
     const productContext = document.getElementById('productContext');
+
     let threads = [];
     let activeThread = null;
     let stopThreadListener = () => {};
     let stopMessagesListener = () => {};
     let didOpenUrlThread = false;
+    const expandedBuyers = new Set();
+    const productMeta = new Map();
 
     function timestampMs(value) {
       if (typeof value === 'number') return value;
@@ -119,30 +122,102 @@
       return new Date(time).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
     }
 
+    function safeImage(value) {
+      const src = String(value || '').trim();
+      return /^https:\/\//i.test(src) || /^data:image\/(?:jpeg|png|webp);base64,/i.test(src) ? src : '';
+    }
+
+    function buyerIdOf(thread) { return String(thread.buyerId || thread.id); }
+
+    function threadLabel(thread) {
+      if (thread.productId) return thread.productName || productMeta.get(String(thread.productId))?.name || 'Produk';
+      if (thread.orderId) return `Pesanan ${thread.orderId}`;
+      if (thread.id === buyerIdOf(thread)) return 'Percakapan lama';
+      return 'Pertanyaan umum';
+    }
+
+    async function loadProductMeta(productId) {
+      const key = String(productId || '');
+      if (!key || productMeta.has(key)) return;
+      productMeta.set(key, null);
+      try {
+        const snapshot = await getDoc(doc(db, 'marketplace_products', key));
+        if (snapshot.exists()) {
+          const data = snapshot.data() || {};
+          const firstImage = Array.isArray(data.images) ? data.images[0] : '';
+          productMeta.set(key, { name: String(data.name || ''), image: safeImage(data.imageUrl || data.image || firstImage) });
+        }
+      } catch (error) {
+        console.error('[marketplace chat admin] gagal memuat info produk:', key, error);
+      }
+      renderThreadList();
+      if (activeThread) renderHeader(activeThread);
+    }
+
+    function groupByBuyer() {
+      const groups = new Map();
+      threads.forEach((thread) => {
+        const buyerId = buyerIdOf(thread);
+        if (!groups.has(buyerId)) groups.set(buyerId, { buyerId, name: thread.buyerName || 'Pembeli', threads: [], unread: 0, lastAt: 0, lastMessage: '' });
+        const group = groups.get(buyerId);
+        group.threads.push(thread);
+        group.unread += Math.max(0, Number(thread.unreadForAdmin || 0));
+        if (thread.buyerName) group.name = thread.buyerName;
+        const at = timestampMs(thread.lastMessageAt || thread.updatedAt);
+        if (at >= group.lastAt) { group.lastAt = at; group.lastMessage = thread.lastMessage || ''; }
+      });
+      groups.forEach((group) => group.threads.sort((a, b) => timestampMs(b.lastMessageAt || b.updatedAt) - timestampMs(a.lastMessageAt || a.updatedAt)));
+      return [...groups.values()].sort((a, b) => b.lastAt - a.lastAt);
+    }
+
     function renderThreadList() {
       const search = (searchInput.value || '').trim().toLocaleLowerCase('id');
-      const filtered = threads.filter((thread) => String(thread.buyerName || '').toLocaleLowerCase('id').includes(search));
-      if (!filtered.length) {
-        chatList.innerHTML = `<p class="p-5 text-sm text-slate-500">${threads.length ? 'Tidak ada pembeli yang cocok.' : 'Belum ada percakapan.'}</p>`;
+      const groups = groupByBuyer().filter((group) => {
+        if (!search) return true;
+        if (group.name.toLocaleLowerCase('id').includes(search)) return true;
+        return group.threads.some((thread) => threadLabel(thread).toLocaleLowerCase('id').includes(search));
+      });
+
+      if (!groups.length) {
+        chatList.innerHTML = `<p class="p-5 text-sm text-slate-500">${threads.length ? 'Tidak ada hasil yang cocok.' : 'Belum ada percakapan.'}</p>`;
         return;
       }
 
-      chatList.innerHTML = filtered.map((thread) => {
-        const isActive = activeThread?.id === thread.id;
-        const unread = Math.max(0, Number(thread.unreadForAdmin || 0));
-        const prefix = thread.lastSenderRole === 'admin' ? 'Anda: ' : '';
-        return `<button type="button" data-thread-id="${escapeHtml(thread.id)}" aria-current="${isActive}" class="chat-admin-thread px-4 py-3 ${isActive ? 'bg-pink-50' : ''}">
-          <span class="flex min-w-0 items-center justify-between gap-3">
-            <strong class="truncate text-sm text-slate-900">${escapeHtml(thread.buyerName || 'Pembeli')}</strong>
-            <span class="shrink-0 text-[11px] text-slate-400">${escapeHtml(relativeTime(thread.lastMessageAt || thread.updatedAt))}</span>
-          </span>
-          <span class="mt-1 flex items-center justify-between gap-3">
-            <span class="truncate text-xs text-slate-500">${escapeHtml(prefix + (thread.lastMessage || 'Belum ada pesan'))}</span>
-            ${unread ? `<span class="shrink-0 rounded-full bg-pink-600 px-2 py-0.5 text-[10px] font-semibold text-white">${unread > 99 ? '99+' : unread}</span>` : ''}
-          </span>
-        </button>`;
+      chatList.innerHTML = groups.map((group) => {
+        const open = expandedBuyers.has(group.buyerId) || Boolean(search);
+        const threadsMarkup = open ? group.threads.map((thread) => {
+          const isActive = activeThread?.id === thread.id;
+          const unread = Math.max(0, Number(thread.unreadForAdmin || 0));
+          const meta = thread.productId ? productMeta.get(String(thread.productId)) : null;
+          const icon = thread.productId ? 'sell' : thread.orderId ? 'receipt_long' : 'help';
+          const thumb = meta?.image ? `<img src="${escapeHtml(meta.image)}" alt="" />` : `<span class="material-symbols-outlined" style="font-size:20px">${icon}</span>`;
+          const prefix = thread.lastSenderRole === 'admin' ? 'Anda: ' : '';
+          return `<button type="button" data-thread-id="${escapeHtml(thread.id)}" class="chat-admin-thread flex items-center gap-3 py-3 pl-6 pr-4 ${isActive ? 'is-active' : ''}">
+            <span class="chat-admin-thumb">${thumb}</span>
+            <span class="min-w-0 flex-1">
+              <span class="flex items-center justify-between gap-2"><strong class="truncate text-sm text-slate-900">${escapeHtml(threadLabel(thread))}</strong><span class="shrink-0 text-[11px] text-slate-400">${escapeHtml(relativeTime(thread.lastMessageAt || thread.updatedAt))}</span></span>
+              <span class="mt-0.5 flex items-center justify-between gap-2"><span class="truncate text-xs text-slate-500">${escapeHtml(prefix + (thread.lastMessage || 'Belum ada pesan'))}</span>${unread ? `<span class="shrink-0 rounded-full bg-pink-600 px-2 py-0.5 text-[10px] font-semibold text-white">${unread > 99 ? '99+' : unread}</span>` : ''}</span>
+            </span>
+          </button>`;
+        }).join('') : '';
+
+        return `<div>
+          <button type="button" data-buyer-id="${escapeHtml(group.buyerId)}" class="chat-admin-buyer flex items-center gap-3 px-4 py-3" aria-expanded="${open}">
+            <span class="material-symbols-outlined text-slate-400" style="font-size:20px">${open ? 'expand_more' : 'chevron_right'}</span>
+            <span class="min-w-0 flex-1">
+              <span class="flex items-center justify-between gap-2"><strong class="truncate text-sm text-slate-900">${escapeHtml(group.name)}</strong><span class="shrink-0 text-[11px] text-slate-400">${escapeHtml(relativeTime(group.lastAt))}</span></span>
+              <span class="mt-0.5 flex items-center justify-between gap-2"><span class="truncate text-xs text-slate-500">${group.threads.length} percakapan · ${escapeHtml(group.lastMessage || '')}</span>${group.unread ? `<span class="shrink-0 rounded-full bg-pink-600 px-2 py-0.5 text-[10px] font-semibold text-white">${group.unread > 99 ? '99+' : group.unread}</span>` : ''}</span>
+            </span>
+          </button>${threadsMarkup}</div>`;
       }).join('');
 
+      chatList.querySelectorAll('[data-buyer-id]').forEach((button) => {
+        button.addEventListener('click', () => {
+          const id = button.dataset.buyerId;
+          if (expandedBuyers.has(id)) expandedBuyers.delete(id); else expandedBuyers.add(id);
+          renderThreadList();
+        });
+      });
       chatList.querySelectorAll('[data-thread-id]').forEach((button) => {
         button.addEventListener('click', () => selectThread(button.dataset.threadId));
       });
@@ -150,22 +225,24 @@
 
     function renderHeader(thread) {
       headerName.textContent = thread.buyerName || 'Pembeli';
-      headerEmail.textContent = thread.buyerEmail || '';
-      ordersLink.href = `/admin/marketplace-orders.html?buyerId=${encodeURIComponent(thread.buyerId || thread.id)}`;
+      headerEmail.textContent = `${threadLabel(thread)}${thread.buyerEmail ? ` · ${thread.buyerEmail}` : ''}`;
+      ordersLink.href = `/admin/marketplace-orders.html?buyerId=${encodeURIComponent(buyerIdOf(thread))}`;
       ordersLink.classList.remove('pointer-events-none', 'text-slate-400');
       ordersLink.classList.add('text-slate-700');
       ordersLink.removeAttribute('aria-disabled');
 
-      const productId = thread.productId ? String(thread.productId) : '';
-      if (!productId) {
+      if (thread.productId) {
+        const meta = productMeta.get(String(thread.productId));
+        const image = meta?.image ? `<img src="${escapeHtml(meta.image)}" alt="" />` : '';
+        productContext.classList.remove('hidden');
+        productContext.innerHTML = `<div class="flex items-center gap-3">${image}<div class="min-w-0"><p class="text-[11px] font-semibold uppercase text-slate-500">Produk yang ditanyakan</p><a class="font-semibold text-pink-700 hover:underline" target="_blank" rel="noopener" href="/user/marketplace/product.html?id=${encodeURIComponent(String(thread.productId))}">${escapeHtml(thread.productName || meta?.name || 'Lihat produk')}</a></div></div>`;
+      } else if (thread.orderId) {
+        productContext.classList.remove('hidden');
+        productContext.innerHTML = `<p class="text-[11px] font-semibold uppercase text-slate-500">Terkait pesanan</p><a class="font-semibold text-pink-700 hover:underline" href="/admin/marketplace-orders.html?buyerId=${encodeURIComponent(buyerIdOf(thread))}">${escapeHtml(thread.orderId)}</a>`;
+      } else {
         productContext.classList.add('hidden');
         productContext.innerHTML = '';
-        return;
       }
-      const imageUrl = /^https?:\/\//i.test(thread.productImage || '') ? thread.productImage : '';
-      const image = imageUrl ? `<img src="${escapeHtml(imageUrl)}" alt="" />` : '';
-      productContext.classList.remove('hidden');
-      productContext.innerHTML = `<div class="flex items-center gap-3">${image}<div class="min-w-0"><p class="text-[11px] font-semibold uppercase text-slate-500">Produk terakhir ditanyakan</p><a class="font-semibold text-pink-700 hover:underline" href="/user/marketplace/product.html?id=${encodeURIComponent(productId)}">${escapeHtml(thread.productName || 'Lihat produk')}</a></div></div>`;
     }
 
     function renderMessages(messageDocs) {
@@ -188,12 +265,14 @@
       if (nearBottom) messagesEl.scrollTop = messagesEl.scrollHeight;
     }
 
-    async function selectThread(threadId) {
+    function selectThread(threadId) {
       const selected = threads.find((thread) => thread.id === threadId);
       if (!selected) return;
       stopThreadListener();
       stopMessagesListener();
       activeThread = selected;
+      expandedBuyers.add(buyerIdOf(selected));
+      if (selected.productId) loadProductMeta(selected.productId);
       page.dataset.view = 'conversation';
       errorEl.textContent = '';
       input.disabled = false;
@@ -202,14 +281,13 @@
       renderHeader(selected);
       renderThreadList();
       messagesEl.innerHTML = '<p class="text-sm text-slate-500">Memuat pesan...</p>';
-      history.replaceState(null, '', `/admin/marketplace-chat.html?userId=${encodeURIComponent(threadId)}`);
+      history.replaceState(null, '', `/admin/marketplace-chat.html?thread=${encodeURIComponent(threadId)}`);
 
       const summaryRef = doc(db, 'marketplace_chats', threadId);
       stopThreadListener = onSnapshot(summaryRef, (snapshot) => {
         if (!snapshot.exists() || activeThread?.id !== threadId) return;
         activeThread = { id: snapshot.id, ...snapshot.data() };
         renderHeader(activeThread);
-        renderThreadList();
         if (Number(activeThread.unreadForAdmin || 0) > 0) {
           updateDoc(summaryRef, { unreadForAdmin: 0 }).catch((error) => {
             console.error('[marketplace chat admin] gagal menandai pesan dibaca:', error);
@@ -223,6 +301,7 @@
 
       stopMessagesListener = onSnapshot(query(collection(summaryRef, 'messages'), orderBy('createdAt', 'asc')), (snapshot) => {
         renderMessages(snapshot.docs.map((messageDoc) => messageDoc.data()));
+        messagesEl.scrollTop = messagesEl.scrollHeight;
       }, (error) => {
         console.error('[marketplace chat admin] gagal memuat pesan:', error);
         errorEl.textContent = `Pesan gagal dimuat: ${error?.code || 'unknown'}`;
@@ -231,21 +310,34 @@
 
     async function boot() {
       await requireAdmin();
-      const requestedThreadId = new URLSearchParams(window.location.search).get('userId') || '';
+      const urlParams = new URLSearchParams(window.location.search);
+      const requestedThreadId = urlParams.get('thread') || '';
+      const requestedBuyerId = urlParams.get('userId') || '';
+
       onSnapshot(collection(db, 'marketplace_chats'), (snapshot) => {
         threads = snapshot.docs
           .map((threadDoc) => ({ id: threadDoc.id, ...threadDoc.data() }))
-          .filter((thread) => thread.buyerId === thread.id)
-          .sort((a, b) => timestampMs(b.lastMessageAt || b.updatedAt) - timestampMs(a.lastMessageAt || a.updatedAt));
-        renderThreadList();
-        if (requestedThreadId && !didOpenUrlThread && threads.some((thread) => thread.id === requestedThreadId)) {
-          didOpenUrlThread = true;
-          selectThread(requestedThreadId);
-        } else if (activeThread) {
+          .filter((thread) => thread.buyerId || thread.participantIds);
+        threads.forEach((thread) => { if (thread.productId) loadProductMeta(thread.productId); });
+
+        if (activeThread) {
           const updated = threads.find((thread) => thread.id === activeThread.id);
-          if (updated) {
-            activeThread = updated;
-            renderHeader(updated);
+          if (updated) { activeThread = updated; renderHeader(updated); }
+        }
+        renderThreadList();
+
+        if (!didOpenUrlThread) {
+          if (requestedThreadId && threads.some((thread) => thread.id === requestedThreadId)) {
+            didOpenUrlThread = true;
+            selectThread(requestedThreadId);
+          } else if (requestedBuyerId) {
+            const buyerThreads = threads
+              .filter((thread) => buyerIdOf(thread) === requestedBuyerId)
+              .sort((a, b) => timestampMs(b.lastMessageAt || b.updatedAt) - timestampMs(a.lastMessageAt || a.updatedAt));
+            if (buyerThreads.length) {
+              didOpenUrlThread = true;
+              selectThread(buyerThreads[0].id);
+            }
           }
         }
       }, (error) => {
@@ -268,8 +360,13 @@
       const text = input.value.trim();
       if (!activeThread || !text || sendButton.disabled) return;
       const createdAt = Date.now();
-      const messageRef = doc(collection(db, 'marketplace_chats', activeThread.id, 'messages'));
+      const buyerId = buyerIdOf(activeThread);
       const summaryRef = doc(db, 'marketplace_chats', activeThread.id);
+      const messageRef = doc(collection(summaryRef, 'messages'));
+      const context = {
+        ...(activeThread.productId ? { productId: String(activeThread.productId), productName: activeThread.productName || '' } : {}),
+        ...(activeThread.orderId ? { orderId: String(activeThread.orderId) } : {})
+      };
       const originalText = sendButton.textContent;
       sendButton.disabled = true;
       sendButton.textContent = 'Mengirim...';
@@ -281,12 +378,11 @@
           senderRole: 'admin',
           text,
           createdAt,
-          ...(activeThread.productId ? { productId: activeThread.productId, productName: activeThread.productName || '' } : {})
+          ...context
         });
         batch.set(summaryRef, {
-          buyerId: activeThread.buyerId || activeThread.id,
-          buyerName: activeThread.buyerName || 'Pembeli',
-          participantIds: [activeThread.buyerId || activeThread.id, 'admin'],
+          buyerId,
+          participantIds: [buyerId, 'admin'],
           lastMessage: text,
           lastMessageAt: createdAt,
           lastSenderRole: 'admin',

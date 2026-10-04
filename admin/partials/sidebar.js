@@ -66,9 +66,9 @@
             const unsubs = [];
             if (chatBadge) {
                 unsubs.push(onSnapshot(collection(db, 'marketplace_chats'), (snapshot) => {
+                    // Setiap thread (per produk) dihitung; tidak lagi dibatasi buyerId === id.
                     const unread = snapshot.docs.reduce((total, thread) => {
-                        const data = thread.data();
-                        return total + (data.buyerId === thread.id ? Math.max(0, Number(data.unreadForAdmin || 0)) : 0);
+                        return total + Math.max(0, Number(thread.data().unreadForAdmin || 0));
                     }, 0);
                     chatBadge.textContent = unread > 99 ? '99+' : String(unread);
                     chatBadge.classList.toggle('hidden', unread === 0);
