@@ -108,20 +108,6 @@
             <textarea name="description" rows="4" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-pink-200" placeholder="Jelaskan kondisi barang..."></textarea>
           </label>
 
-          <label class="block">
-            <span class="mb-1 block text-sm font-medium text-slate-700">Tipe cerita</span>
-            <select name="storyType" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-pink-200">
-              <option value="barang-kenangan">Barang kenangan</option>
-              <option value="souvenir">Souvenir</option>
-              <option value="vintage">Vintage</option>
-            </select>
-          </label>
-
-          <label class="block">
-            <span class="mb-1 block text-sm font-medium text-slate-700">Catatan cerita</span>
-            <input name="storyNote" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-pink-200" placeholder="Opsional" />
-          </label>
-
           <!-- FOTO -->
           <div class="md:col-span-2">
             <label class="block text-sm font-medium text-slate-700" for="photoInput">Foto produk <span class="font-normal text-slate-400">(maksimal 4, foto pertama jadi foto utama)</span></label>
@@ -144,7 +130,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
   <script type="module">
     import { db, escapeHtml, fileToDataUrl, prepareImageForUpload, requireAdmin } from '/admin/admin-firebase.js';
-    import { addDoc, collection, doc, getDoc, updateDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+    import { addDoc, collection, deleteField, doc, getDoc, updateDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
     const MAX_PHOTOS = 4;
     // Batas dokumen Firestore 1 MB. Foto pertama disimpan 3x (images, imageUrl, image).
@@ -170,9 +156,10 @@
     const mapResults = document.getElementById('mapResults');
     const mapSearchInput = document.getElementById('mapSearchInput');
 
-    let existingSold = 0;
     let images = [];
     let isSaving = false;
+    let isProcessing = false; // kunci saat foto sedang diproses
+    let searchToken = 0;      // cegah hasil pencarian lama menimpa yang baru
     const touched = { city: false, address: false };
 
     /* ---------- STOK ---------- */
@@ -219,6 +206,10 @@
       iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41]
     });
 
+    // Pastikan peta menghitung ulang ukuran setelah layout selesai (cegah tile abu-abu)
+    setTimeout(() => map.invalidateSize(), 250);
+    window.addEventListener('resize', () => map.invalidateSize());
+
     let marker = null;
     let reverseToken = 0;
 
@@ -248,6 +239,7 @@
     }
 
     function clearPoint() {
+      reverseToken++; // batalkan reverse geocode yang masih berjalan
       if (marker) { map.removeLayer(marker); marker = null; }
       latitudeInput.value = '';
       longitudeInput.value = '';
@@ -278,11 +270,13 @@
       if (!q) return;
       mapResults.classList.add('hidden');
       setMapStatus('Mencari lokasi...');
+      const token = ++searchToken;
       try {
         const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=5&countrycodes=id&accept-language=id&q=${encodeURIComponent(q)}`;
         const response = await fetch(url, { headers: { Accept: 'application/json' } });
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const results = await response.json();
+        if (token !== searchToken) return;
         if (!Array.isArray(results) || !results.length) {
           setMapStatus('Lokasi tidak ditemukan. Coba kata kunci lain atau klik langsung di peta.');
           return;
@@ -359,6 +353,10 @@
       const files = Array.from(photoInput.files || []);
       photoInput.value = '';
       if (!files.length) return;
+      if (isProcessing) {
+        updatePhotoStatus('Foto sebelumnya masih diproses, tunggu sebentar.');
+        return;
+      }
 
       const remaining = MAX_PHOTOS - images.length;
       if (remaining <= 0) {
@@ -366,27 +364,34 @@
         return;
       }
 
+      isProcessing = true;
+      submitButton.disabled = true;
       const selected = files.slice(0, remaining);
       photoStatus.textContent = 'Memproses foto...';
       const notes = [];
       if (files.length > remaining) notes.push(`Hanya ${remaining} foto pertama yang diambil.`);
 
-      for (const file of selected) {
-        try {
-          const prepared = await prepareImageForUpload(file);
-          const dataUrl = await fileToDataUrl(prepared);
-          if (estimateDocChars([...images, dataUrl]) > MAX_DOC_CHARS) {
-            notes.push(`"${file.name}" dilewati karena total ukuran foto terlalu besar.`);
-            continue;
+      try {
+        for (const file of selected) {
+          try {
+            const prepared = await prepareImageForUpload(file);
+            const dataUrl = await fileToDataUrl(prepared);
+            if (estimateDocChars([...images, dataUrl]) > MAX_DOC_CHARS) {
+              notes.push(`"${file.name}" dilewati karena total ukuran foto terlalu besar.`);
+              continue;
+            }
+            images.push(dataUrl);
+          } catch (error) {
+            console.error('[product form] foto gagal diproses:', error);
+            notes.push(`"${file.name}" gagal diproses.`);
           }
-          images.push(dataUrl);
-        } catch (error) {
-          console.error('[product form] foto gagal diproses:', error);
-          notes.push(`"${file.name}" gagal diproses.`);
         }
+      } finally {
+        isProcessing = false;
+        if (!isSaving) submitButton.disabled = false;
+        renderPreview();
+        updatePhotoStatus(notes.join(' '));
       }
-      renderPreview();
-      updatePhotoStatus(notes.join(' '));
     });
 
     /* ---------- LOAD DATA EDIT ---------- */
@@ -410,9 +415,8 @@
           return;
         }
         const data = productSnap.data();
-        existingSold = Number.isInteger(Number(data.sold)) ? Number(data.sold) : 0;
 
-        ['name', 'category', 'condition', 'description', 'storyType', 'storyNote', 'city', 'address'].forEach((key) => setFieldValue(key, data[key]));
+        ['name', 'category', 'condition', 'description', 'city', 'address'].forEach((key) => setFieldValue(key, data[key]));
         if (data.city) touched.city = true;
         if (data.address) touched.address = true;
 
@@ -441,6 +445,7 @@
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
       if (isSaving) return;
+      if (isProcessing) { formError.textContent = 'Foto masih diproses, tunggu sebentar lalu simpan lagi.'; return; }
       formError.textContent = '';
 
       const payload = Object.fromEntries(new FormData(form).entries());
@@ -450,7 +455,7 @@
 
       if (!name) { formError.textContent = 'Nama produk wajib diisi.'; form.elements.namedItem('name').focus(); return; }
       if (price <= 0) { formError.textContent = 'Harga harus lebih dari Rp 0.'; priceInput.focus(); return; }
-      if (!Number.isInteger(stock) || stock < 0) { formError.textContent = 'Stok harus berupa bilangan bulat minimal 0.'; stockInput.focus(); return; }
+      if (String(payload.stock ?? '').trim() === '' || !Number.isInteger(stock) || stock < 0) { formError.textContent = 'Stok harus berupa bilangan bulat minimal 0.'; stockInput.focus(); return; }
       if (!images.length) { formError.textContent = 'Tambahkan minimal 1 foto produk.'; photoInput.focus(); return; }
       if (estimateDocChars(images) > MAX_DOC_CHARS) {
         formError.textContent = 'Total ukuran foto terlalu besar untuk disimpan. Kurangi jumlah foto atau pakai foto lebih kecil.';
@@ -466,12 +471,9 @@
         condition: payload.condition,
         status: stock > 0 ? 'Tersedia' : 'Habis',
         stock,
-        sold: existingSold,
         description: String(payload.description || '').trim(),
         city: city || address || 'Jakarta',
         address: address || city || 'Jakarta',
-        storyType: payload.storyType || 'barang-kenangan',
-        storyNote: String(payload.storyNote || '').trim(),
         latitude: latitudeInput.value || '',
         longitude: longitudeInput.value || '',
         label: payload.category || 'barang',
@@ -490,9 +492,14 @@
       submitButton.textContent = 'Menyimpan...';
       try {
         if (productId) {
-          await updateDoc(doc(db, 'marketplace_products', productId), productData);
+          // Hapus sisa field cerita lama dari produk yang sudah ada
+          await updateDoc(doc(db, 'marketplace_products', productId), {
+            ...productData,
+            storyType: deleteField(),
+            storyNote: deleteField()
+          });
         } else {
-          await addDoc(collection(db, 'marketplace_products'), { ...productData, createdAt: Date.now() });
+          await addDoc(collection(db, 'marketplace_products'), { ...productData, sold: 0, createdAt: Date.now() });
         }
         window.location.href = '/admin/marketplace-products.html';
       } catch (error) {
