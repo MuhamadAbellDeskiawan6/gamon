@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Gamonlix - Film pendek karya anak Banua</title>
+<meta name="description" content="Gamonlix: tempat nonton film pendek karya anak Banua dan komunitas film Banua. Gratis, tanpa login."/>
+<meta name="robots" content="noindex"/>
+<link rel="icon" type="image/svg+xml" href="../../image/logo/Gamon%20Tawing.svg"/>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet"/>
+<style>
+:root{--sky:#d4e9f5;--ink:#0b2342;--deep:#07172c;--coral:#ff5c7a;--sun:#ffd66b;--white:#fff;--mute:#9fb6cf;--f-d:"Bricolage Grotesque","Inter",system-ui,sans-serif;--f-b:"Inter",system-ui,sans-serif}
+*{box-sizing:border-box;margin:0}
+html{scroll-behavior:smooth}
+body{font-family:var(--f-b);background:var(--deep);color:var(--white);line-height:1.6;overflow-x:hidden;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+img{-webkit-user-drag:none;user-drag:none;display:block;max-width:100%}
+input,textarea{-webkit-user-select:text;user-select:text}
+h1,h2,h3{font-family:var(--f-d);font-weight:800;letter-spacing:-.025em;line-height:1.08}
+:focus-visible{outline:3px solid var(--coral);outline-offset:3px}
+.wrap{width:min(1240px,calc(100% - 32px));margin:0 auto}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:12px 22px;border:2px solid var(--sun);border-radius:12px;background:var(--coral);color:var(--ink);font:600 1rem var(--f-b);cursor:pointer;box-shadow:4px 4px 0 var(--sun);transition:transform .12s,box-shadow .12s}
+.btn:hover{transform:translate(2px,2px);box-shadow:2px 2px 0 var(--sun)}
+.btn.alt{background:transparent;color:var(--white);border-color:var(--white);box-shadow:4px 4px 0 var(--white)}
+.btn.alt:hover{box-shadow:2px 2px 0 var(--white)}
+
+/* topbar */
+.top{position:sticky;top:0;z-index:30;background:rgba(7,23,44,.92);backdrop-filter:blur(8px);border-bottom:2px solid var(--ink)}
+.top .wrap{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 0}
+.logo{font:800 1.6rem var(--f-d);letter-spacing:-.03em;text-decoration:none;color:var(--white)}
+.logo b{color:var(--coral)}
+.search{flex:1;max-width:340px}
+.search input{width:100%;padding:10px 14px;border-radius:12px;border:2px solid var(--ink);background:var(--ink);color:var(--white);font:inherit}
+.search input:focus{border-color:var(--sun);outline:none}
+.back{color:var(--mute);text-decoration:none;font-weight:600;font-size:.92rem;white-space:nowrap}
+.back:hover{color:var(--white)}
+
+/* hero */
+.hero{position:relative;min-height:min(78vh,620px);display:flex;align-items:flex-end;overflow:hidden;border-bottom:2px solid var(--ink)}
+.hero-bg{position:absolute;inset:0;background-size:cover;background-position:center 20%;filter:blur(2px) brightness(.5);transform:scale(1.06)}
+.hero::after{content:"";position:absolute;inset:0;background:linear-gradient(0deg,var(--deep) 4%,rgba(7,23,44,.2) 60%,rgba(7,23,44,.65))}
+.hero .wrap{position:relative;z-index:2;display:grid;grid-template-columns:1fr 240px;gap:40px;align-items:end;padding:90px 0 48px}
+.hero h1{font-size:clamp(2.2rem,6.4vw,4.6rem)}
+.tag{display:inline-block;margin-bottom:14px;padding:4px 12px;border:2px solid var(--sun);border-radius:99px;color:var(--sun);font-weight:600;font-size:.82rem}
+.meta{margin:14px 0 0;color:var(--mute);font-size:.95rem;display:flex;gap:14px;flex-wrap:wrap}
+.hero p.syn{margin-top:14px;max-width:56ch;color:#d6e3f1}
+.hero .cta{display:flex;gap:14px;flex-wrap:wrap;margin-top:26px}
+.hero .pst{border:2px solid var(--ink);border-radius:16px;overflow:hidden;box-shadow:6px 6px 0 var(--coral);aspect-ratio:2/3;background:var(--ink);transform:rotate(2deg)}
+.hero .pst img{width:100%;height:100%;object-fit:cover}
+.hero.empty{min-height:360px}
+
+/* chips + rows */
+.chips{display:flex;gap:8px;flex-wrap:wrap;padding:26px 0 6px}
+.chip{padding:8px 16px;border:2px solid var(--ink);border-radius:99px;background:transparent;color:var(--white);font:600 .9rem var(--f-b);cursor:pointer}
+.chip:hover{background:var(--ink)}
+.chip[aria-pressed=true]{background:var(--sun);color:var(--ink);border-color:var(--sun)}
+.row{padding:26px 0 8px}
+.row h2{font-size:1.5rem;margin-bottom:14px}
+.track{display:flex;gap:16px;overflow-x:auto;padding:4px 4px 18px;scroll-snap-type:x proximity;scrollbar-width:thin;scrollbar-color:var(--coral) var(--ink)}
+.card{flex:none;width:176px;scroll-snap-align:start;background:none;border:0;color:inherit;text-align:left;cursor:pointer;font:inherit}
+.card .pst{aspect-ratio:2/3;border:2px solid var(--ink);border-radius:14px;overflow:hidden;background:var(--ink);box-shadow:4px 4px 0 var(--ink);transition:transform .18s,box-shadow .18s,border-color .18s}
+.card:hover .pst,.card:focus-visible .pst{transform:translateY(-5px) rotate(-1deg);box-shadow:6px 6px 0 var(--coral);border-color:var(--sun)}
+.card img{width:100%;height:100%;object-fit:cover}
+.card b{display:block;margin-top:10px;font-weight:600;line-height:1.3}
+.card small{color:var(--mute)}
+.state{padding:70px 0;text-align:center;color:var(--mute)}
+.state h2{color:var(--white);margin-bottom:8px}
+.skel .pst{background:linear-gradient(90deg,var(--ink),#12335a,var(--ink));background-size:200% 100%;animation:sh 1.4s infinite linear}
+@keyframes sh{to{background-position:-200% 0}}
+footer{padding:36px 0 54px;color:var(--mute);font-size:.9rem;border-top:2px solid var(--ink);margin-top:30px}
+footer p{max-width:70ch}
+
+/* player modal */
+.modal{position:fixed;inset:0;z-index:60;background:rgba(3,10,20,.94);display:none;overflow-y:auto;padding:20px 0}
+.modal.open{display:block}
+.mbox{width:min(980px,calc(100% - 24px));margin:0 auto}
+.mhead{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px}
+.x{width:44px;height:44px;border-radius:12px;border:2px solid var(--white);background:transparent;color:var(--white);font-size:1.4rem;cursor:pointer}
+.x:hover{background:var(--coral);color:var(--ink);border-color:var(--coral)}
+.screen{position:relative;aspect-ratio:16/9;background:#000;border:2px solid var(--sun);border-radius:16px;overflow:hidden;box-shadow:6px 6px 0 var(--coral)}
+.screen iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+.wm{position:absolute;z-index:3;pointer-events:none;color:rgba(255,255,255,.22);font:800 clamp(.8rem,2vw,1.2rem) var(--f-d);letter-spacing:.06em;text-shadow:0 0 2px rgba(0,0,0,.6);animation:wm 24s linear infinite;white-space:nowrap}
+@keyframes wm{0%{top:6%;left:4%}25%{top:10%;left:62%}50%{top:78%;left:58%}75%{top:74%;left:6%}100%{top:6%;left:4%}}
+.minfo{padding:22px 4px}
+.minfo h2{font-size:clamp(1.5rem,4vw,2.3rem)}
+.minfo p{margin-top:12px;color:#d6e3f1;max-width:70ch}
+.notice{margin-top:16px;padding:12px 16px;border:2px dashed var(--mute);border-radius:12px;color:var(--mute);font-size:.88rem}
+
+/* shield: dipakai saat tab disembunyikan / PrintScreen */
+.shield{position:fixed;inset:0;z-index:999;background:#000;display:none;place-items:center;text-align:center;color:var(--white);padding:24px}
+body.shielded .shield{display:grid}
+
+@media print{body{display:none!important}}
+@media(max-width:760px){
+ .hero .wrap{grid-template-columns:1fr;padding:70px 0 34px}
+ .hero .pst{display:none}
+ .search{max-width:none}
+ .back{display:none}
+ .card{width:140px}
+ .btn{flex:1}
+}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}.wm{animation:none;top:6%;left:4%}}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="logo" href="../../index.html">Gamon<b>lix</b></a>
+    <div class="search"><input id="q" type="search" placeholder="Cari judul atau genre..." aria-label="Cari film" autocomplete="off"/></div>
+    <a class="back" href="../../index.html">Ke Gamon Tawing</a>
+  </div>
+</header>
+
+<main>
+  <section class="hero empty" id="hero" aria-live="polite"></section>
+  <div class="wrap">
+    <div class="chips" id="chips" role="group" aria-label="Filter genre"></div>
+    <div id="rows"></div>
+  </div>
+</main>
+
+<footer>
+  <div class="wrap"><p>Gamonlix memutar film pendek karya anak Banua dan komunitas film Banua. Seluruh hak cipta tetap milik pembuat film. Dilarang merekam, menyalin, atau menyebarkan ulang tanpa izin. Bagian dari Gamon Tawing.</p></div>
+</footer>
+
+<div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="m-title">
+  <div class="mbox">
+    <div class="mhead"><span class="tag" id="m-genre" style="margin:0"></span><button class="x" id="m-close" aria-label="Tutup pemutar">&times;</button></div>
+    <div class="screen" id="screen"><span class="wm" id="wm">GAMONLIX</span></div>
+    <div class="minfo">
+      <h2 id="m-title"></h2>
+      <div class="meta" id="m-meta"></div>
+      <p id="m-syn"></p>
+      <div class="notice">Film ini dilindungi hak cipta. Merekam layar atau menyebarkan ulang tanpa izin pembuat film tidak diperbolehkan.</div>
+    </div>
+  </div>
+</div>
+
+<div class="shield" id="shield" aria-hidden="true"><div><h2>Konten disembunyikan</h2><p style="margin-top:8px;color:var(--mute)">Kembali ke tab ini untuk melanjutkan menonton.</p></div></div>
+
+<script type="module">
+import { db, FILMS } from "./firebase-config.js";
+import { collection, query, where, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+const safeImg = u => (typeof u === "string" && /^(data:image\/|https:\/\/)/.test(u)) ? u : "";
+const dur = m => { m = Number(m) || 0; if (!m) return ""; return m >= 60 ? Math.floor(m/60) + " j " + (m%60 ? (m%60) + " m" : "") : m + " menit"; };
+
+let films = [], genre = "Semua", keyword = "";
+
+/* ---------- data (hanya film yang tayang) ---------- */
+const q = query(collection(db, FILMS), where("active", "==", true));
+renderLoading();
+onSnapshot(q, snap => {
+  films = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+    .filter(f => f.youtubeId)
+    .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+  render();
+}, err => {
+  console.error(err);
+  $("#rows").innerHTML = '<div class="state"><h2>Film belum bisa dimuat</h2><p>Coba muat ulang halaman beberapa saat lagi.</p></div>';
+  $("#hero").innerHTML = "";
+});
+
+function renderLoading() {
+  $("#rows").innerHTML = '<div class="row skel"><div class="track">' +
+    Array(7).fill('<div class="card"><div class="pst"></div></div>').join("") + '</div></div>';
+}
+
+/* ---------- render ---------- */
+function render() {
+  renderHero();
+  renderChips();
+  const list = films.filter(f =>
+    (genre === "Semua" || f.genre === genre) &&
+    (!keyword || (f.title + " " + (f.genre || "")).toLowerCase().includes(keyword))
+  );
+  const rows = $("#rows");
+  if (!films.length) {
+    rows.innerHTML = '<div class="state"><h2>Belum ada film yang tayang</h2><p>Nantikan karya anak Banua segera hadir di sini.</p></div>';
+    return;
+  }
+  if (!list.length) {
+    rows.innerHTML = '<div class="state"><h2>Film tidak ditemukan</h2><p>Coba kata kunci atau genre lain.</p></div>';
+    return;
+  }
+  const groups = {};
+  if (genre === "Semua" && !keyword) groups["Baru ditambahkan"] = list.slice(0, 12);
+  list.forEach(f => (groups[f.genre || "Lainnya"] ||= []).push(f));
+  rows.innerHTML = Object.entries(groups).map(([name, items]) =>
+    '<section class="row"><h2>' + esc(name) + '</h2><div class="track">' +
+    items.map(card).join("") + '</div></section>').join("");
+}
+
+function card(f) {
+  return '<button class="card" data-id="' + esc(f.id) + '"><div class="pst"><img src="' + esc(safeImg(f.poster)) +
+    '" alt="Poster ' + esc(f.title) + '" draggable="false" loading="lazy"/></div><b>' + esc(f.title) +
+    '</b><small>' + esc([f.genre, dur(f.durationMin)].filter(Boolean).join(" · ")) + '</small></button>';
+}
+
+function renderHero() {
+  const h = $("#hero");
+  if (!films.length) { h.className = "hero empty"; h.innerHTML = '<div class="wrap" style="position:relative;z-index:2;padding:90px 0 48px"><h1>Gamon<span style="color:var(--coral)">lix</span></h1><p class="syn">Tempat nonton film pendek karya anak Banua.</p></div>'; return; }
+  const f = films[0];
+  h.className = "hero";
+  h.innerHTML =
+    '<div class="hero-bg" style="background-image:url(\'' + esc(safeImg(f.poster)) + '\')"></div>' +
+    '<div class="wrap"><div><span class="tag">Terbaru di Gamonlix</span><h1>' + esc(f.title) + '</h1>' +
+    '<div class="meta">' + [f.genre, dur(f.durationMin)].filter(Boolean).map(x => '<span>' + esc(x) + '</span>').join("") + '</div>' +
+    (f.synopsis ? '<p class="syn">' + esc(f.synopsis) + '</p>' : "") +
+    '<div class="cta"><button class="btn" data-id="' + esc(f.id) + '">&#9654; Tonton sekarang</button></div></div>' +
+    '<div class="pst"><img src="' + esc(safeImg(f.poster)) + '" alt="Poster ' + esc(f.title) + '" draggable="false"/></div></div>';
+}
+
+function renderChips() {
+  const gs = ["Semua", ...new Set(films.map(f => f.genre).filter(Boolean))];
+  if (!gs.includes(genre)) genre = "Semua";
+  $("#chips").innerHTML = gs.map(g => '<button class="chip" aria-pressed="' + (g === genre) + '" data-g="' + esc(g) + '">' + esc(g) + '</button>').join("");
+}
+
+/* ---------- interaksi ---------- */
+$("#chips").addEventListener("click", e => { const b = e.target.closest(".chip"); if (!b) return; genre = b.dataset.g; render(); });
+$("#q").addEventListener("input", e => { keyword = e.target.value.trim().toLowerCase(); render(); });
+document.addEventListener("click", e => { const b = e.target.closest("[data-id]"); if (b) openFilm(b.dataset.id); });
+
+/* ---------- pemutar ---------- */
+let frame = null;
+function openFilm(id) {
+  const f = films.find(x => x.id === id); if (!f) return;
+  $("#m-title").textContent = f.title;
+  $("#m-genre").textContent = f.genre || "Film";
+  $("#m-meta").innerHTML = [dur(f.durationMin)].filter(Boolean).map(x => "<span>" + esc(x) + "</span>").join("");
+  $("#m-syn").textContent = f.synopsis || "";
+  $("#wm").textContent = "GAMONLIX · " + Math.random().toString(36).slice(2, 8).toUpperCase();
+  frame = document.createElement("iframe");
+  frame.title = "Pemutar " + f.title;
+  frame.allow = "autoplay; encrypted-media; fullscreen; picture-in-picture";
+  frame.allowFullscreen = true;
+  frame.referrerPolicy = "strict-origin-when-cross-origin";
+  frame.src = "https://www.youtube-nocookie.com/embed/" + encodeURIComponent(f.youtubeId) +
+    "?autoplay=1&rel=0&modestbranding=1&playsinline=1&iv_load_policy=3&disablekb=0&enablejsapi=1&origin=" + encodeURIComponent(location.origin);
+  $("#screen").prepend(frame);
+  $("#modal").classList.add("open");
+  document.body.style.overflow = "hidden";
+  $("#m-close").focus();
+}
+function closeFilm() {
+  $("#modal").classList.remove("open");
+  document.body.style.overflow = "";
+  if (frame) { frame.remove(); frame = null; }
+}
+$("#m-close").onclick = closeFilm;
+document.addEventListener("keydown", e => { if (e.key === "Escape" && $("#modal").classList.contains("open")) closeFilm(); });
+$("#modal").addEventListener("click", e => { if (e.target === $("#modal")) closeFilm(); });
+
+/* ---------- perlindungan konten (pencegah, bukan jaminan) ---------- */
+const isField = t => t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA");
+document.addEventListener("contextmenu", e => { if (!isField(e.target)) e.preventDefault(); });
+document.addEventListener("dragstart", e => e.preventDefault());
+document.addEventListener("copy", e => { if (!isField(e.target)) e.preventDefault(); });
+
+function pauseVideo() {
+  if (frame && frame.contentWindow) {
+    try { frame.contentWindow.postMessage(JSON.stringify({ event: "command", func: "pauseVideo", args: [] }), "*"); } catch (_) {}
+  }
+}
+function shield(on) { document.body.classList.toggle("shielded", on); if (on) pauseVideo(); }
+
+// Tab disembunyikan / pindah aplikasi (umum terjadi saat merekam dengan aplikasi lain)
+document.addEventListener("visibilitychange", () => shield(document.hidden));
+
+// PrintScreen & pintasan penyimpanan/cetak/inspect
+document.addEventListener("keydown", e => {
+  const k = (e.key || "").toLowerCase();
+  if (k === "printscreen") {
+    shield(true);
+    try { navigator.clipboard.writeText(""); } catch (_) {}
+    setTimeout(() => shield(false), 1500);
+  }
+  if (e.metaKey && e.shiftKey && ["3","4","5"].includes(k)) { shield(true); setTimeout(() => shield(false), 1500); }
+  if ((e.ctrlKey || e.metaKey) && ["s","p","u"].includes(k) && !isField(e.target)) e.preventDefault();
+  if (k === "f12" || ((e.ctrlKey || e.metaKey) && e.shiftKey && ["i","j","c"].includes(k))) e.preventDefault();
+});
+document.addEventListener("keyup", e => { if ((e.key || "").toLowerCase() === "printscreen") { try { navigator.clipboard.writeText(""); } catch (_) {} } });
+</script>
+</body>
+</html>

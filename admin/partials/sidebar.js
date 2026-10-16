@@ -9,6 +9,8 @@
         { href: '/admin/dashboard.html', label: 'Dashboard', icon: 'dashboard' },
         { href: '/admin/match-confirm.html', label: 'Kelola Match Confirm', icon: 'favorite' },
         { href: '/admin/ldr-frames.html', label: 'Frame Foto LDR', icon: 'photo_library' },
+        { section: 'Gamonlix' },
+        { href: '/admin/gamonlix-film.html', label: 'Film Gamonlix', icon: 'movie' },
         { section: 'Marketplace Mantan' },
         { href: '/admin/marketplace.html', label: 'Ringkasan Marketplace', icon: 'storefront' },
         {
