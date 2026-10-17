@@ -2,13 +2,73 @@ const admin = require("firebase-admin");
 const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path");
+
 const SESSION_TIME_LIMIT_SECONDS = 60;
 const LDR_PAYMENT_AMOUNT = 2000;
-const DOKU_CLIENT_ID = String(process.env.DOKU_CLIENT_ID || '').trim();
-const DOKU_SECRET_KEY = String(process.env.DOKU_SECRET_KEY || '').trim();
-const DOKU_BASE_URL = String(process.env.DOKU_BASE_URL || '').trim().replace(/\/$/, '');
-const SITE_URL = String(process.env.SITE_URL || '').trim().replace(/\/$/, '');
-const DOKU_NOTIFICATION_URL = SITE_URL ? `${SITE_URL}/api/doku-notify` : '';
+
+const DOKU_PRODUCTION_URL = "https://api.doku.com";
+const DOKU_SANDBOX_URL = "https://api-sandbox.doku.com";
+
+function cleanEnv(name) {
+  return String(process.env[name] || "").trim();
+}
+
+function stripTrailingSlash(value) {
+  return String(value || "").trim().replace(/\/+$/, "");
+}
+
+// Menentukan SITE_URL: prioritas env SITE_URL, lalu header request, lalu VERCEL_URL.
+function resolveSiteUrl(req) {
+  const fromEnv = stripTrailingSlash(cleanEnv("SITE_URL"));
+  if (fromEnv) {
+    return /^https?:\/\//i.test(fromEnv) ? fromEnv : `https://${fromEnv}`;
+  }
+
+  const host = String(req?.headers?.["x-forwarded-host"] || req?.headers?.host || "").split(",")[0].trim();
+  if (host) {
+    const isLocal = /^(localhost|127\.0\.0\.1)(:\d+)?$/i.test(host);
+    const proto = String(req?.headers?.["x-forwarded-proto"] || (isLocal ? "http" : "https")).split(",")[0].trim();
+    return `${proto}://${host}`;
+  }
+
+  const vercelUrl = cleanEnv("VERCEL_PROJECT_PRODUCTION_URL") || cleanEnv("VERCEL_URL");
+  if (vercelUrl) {
+    return `https://${vercelUrl.replace(/^https?:\/\//i, "")}`;
+  }
+
+  return "";
+}
+
+// Dibaca saat request (bukan saat modul di-load) supaya env selalu terbaru.
+function getDokuConfig(req) {
+  const clientId = cleanEnv("DOKU_CLIENT_ID");
+  const secretKey = cleanEnv("DOKU_SECRET_KEY");
+  const siteUrl = resolveSiteUrl(req);
+
+  let baseUrl = stripTrailingSlash(cleanEnv("DOKU_BASE_URL"));
+  let baseUrlSource = "env";
+  if (!baseUrl) {
+    const dokuEnv = cleanEnv("DOKU_ENV").toLowerCase();
+    baseUrl = dokuEnv === "sandbox" ? DOKU_SANDBOX_URL : DOKU_PRODUCTION_URL;
+    baseUrlSource = dokuEnv === "sandbox" ? "default-sandbox" : "default-production";
+  }
+
+  const missing = [];
+  if (!clientId) missing.push("DOKU_CLIENT_ID");
+  if (!secretKey) missing.push("DOKU_SECRET_KEY");
+  if (!siteUrl) missing.push("SITE_URL");
+
+  return {
+    clientId,
+    secretKey,
+    baseUrl,
+    baseUrlSource,
+    siteUrl,
+    notificationUrl: siteUrl ? `${siteUrl}/api/doku-notify` : "",
+    environment: baseUrl.includes("sandbox") ? "sandbox" : "production",
+    missing,
+  };
+}
 
 function getFirebaseAdmin() {
   if (!admin.apps.length) {
@@ -138,17 +198,6 @@ async function listFramesHandler(req, res) {
       .get();
     const rawFrames = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
     console.log("[LDR frames] Jumlah dokumen mentah:", rawFrames.length);
-    console.log("[LDR frames] Contoh dokumen mentah:", rawFrames.slice(0, 2).map((frame) => ({
-      id: frame.id,
-      fields: Object.keys(frame),
-      values: Object.fromEntries(Object.entries(frame).map(([key, value]) => {
-        if (typeof value === "string" && value.length > 200) {
-          return [key, `${value.slice(0, 200)}... [${value.length} karakter]`];
-        }
-        return [key, value];
-      })),
-      fieldTypes: Object.fromEntries(Object.entries(frame).map(([key, value]) => [key, typeof value])),
-    })));
 
     const frames = rawFrames
       .filter((frame) => frame.isActive)
@@ -161,7 +210,7 @@ async function listFramesHandler(req, res) {
 
     return res.status(200).json({ success: true, frames });
   } catch (error) {
-    console.error("[LDR frames] Query photobox_frames gagal. Kemungkinan penyebab termasuk dokumen tanpa createdAt yang membuat orderBy gagal, atau kredensial/permission Firebase Admin.", error);
+    console.error("[LDR frames] Query ldr_frames gagal. Kemungkinan: dokumen tanpa createdAt (orderBy gagal), atau kredensial/permission Firebase Admin.", error);
     return res.status(500).json({
       success: false,
       frames: [],
@@ -178,16 +227,16 @@ function getDokuTimestamp() {
   return new Date().toISOString().split(".")[0] + "Z";
 }
 
-function createDokuSignature({ orderId, timestamp, digest }) {
+function createDokuSignature({ config, orderId, timestamp, digest }) {
   const component = [
-    `Client-Id:${DOKU_CLIENT_ID}`,
+    `Client-Id:${config.clientId}`,
     `Request-Id:${orderId}`,
     `Request-Timestamp:${timestamp}`,
     "Request-Target:/checkout/v1/payment",
     `Digest:${digest}`,
   ].join("\n");
 
-  return crypto.createHmac("sha256", DOKU_SECRET_KEY).update(component).digest("base64");
+  return crypto.createHmac("sha256", config.secretKey).update(component).digest("base64");
 }
 
 async function createPaymentHandler(req, res, body = {}) {
@@ -196,9 +245,24 @@ async function createPaymentHandler(req, res, body = {}) {
   }
 
   try {
-    if (!DOKU_CLIENT_ID || !DOKU_SECRET_KEY || !DOKU_BASE_URL || !SITE_URL) {
-      return res.status(503).json({ success: false, message: "Konfigurasi DOKU atau SITE_URL belum lengkap di server." });
+    const config = getDokuConfig(req);
+    if (config.missing.length) {
+      // Hanya nama variabel yang di-log/dikirim, bukan nilainya.
+      console.error("[LDR payment] Env belum lengkap:", config.missing);
+      return res.status(503).json({
+        success: false,
+        message: `Konfigurasi server belum lengkap. Variabel kosong: ${config.missing.join(", ")}`,
+        missing: config.missing,
+      });
     }
+
+    console.log("[LDR payment] Konfigurasi DOKU:", {
+      environment: config.environment,
+      baseUrl: config.baseUrl,
+      baseUrlSource: config.baseUrlSource,
+      siteUrl: config.siteUrl,
+      siteUrlFromEnv: !!cleanEnv("SITE_URL"),
+    });
 
     const sessionId = String(body.sessionId || body.code || "").trim().toUpperCase();
     if (!/^[A-Z0-9]{6}$/.test(sessionId)) {
@@ -237,38 +301,38 @@ async function createPaymentHandler(req, res, body = {}) {
 
     const orderId = generateLdrOrderId(sessionId);
     const now = Date.now();
-      await db.runTransaction(async (transaction) => {
-        const currentSessionSnapshot = await transaction.get(sessionRef);
-        const currentSessionData = currentSessionSnapshot.data() || {};
-        if (currentSessionData.paymentStatus === "PAID") {
-          throw new Error("Sesi ini sudah dibayar.");
-        }
-        if (currentSessionData.paymentStatus === "PENDING" && currentSessionData.paymentOrderId) {
-          throw new Error("Pembayaran sedang diproses di tab lain.");
-        }
+    await db.runTransaction(async (transaction) => {
+      const currentSessionSnapshot = await transaction.get(sessionRef);
+      const currentSessionData = currentSessionSnapshot.data() || {};
+      if (currentSessionData.paymentStatus === "PAID") {
+        throw new Error("Sesi ini sudah dibayar.");
+      }
+      if (currentSessionData.paymentStatus === "PENDING" && currentSessionData.paymentOrderId) {
+        throw new Error("Pembayaran sedang diproses di tab lain.");
+      }
 
-        transaction.set(db.collection("ldr_order").doc(orderId), {
-          orderId,
-          product: "foto-ldr",
-          sessionId,
-          amount: LDR_PAYMENT_AMOUNT,
-          status: "PENDING",
-          paymentStatus: "PENDING",
-          paymentEnvironment: "production",
-          resultImage: currentSessionData.resultImage || sessionData.resultImage,
-          frameId: currentSessionData.selectedFrameId || sessionData.selectedFrameId || null,
-          createdAt: now,
-          updatedAt: now,
-        });
-        transaction.update(sessionRef, {
-          paymentOrderId: orderId,
-          paymentStatus: "PENDING",
-          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        });
+      transaction.set(db.collection("ldr_order").doc(orderId), {
+        orderId,
+        product: "foto-ldr",
+        sessionId,
+        amount: LDR_PAYMENT_AMOUNT,
+        status: "PENDING",
+        paymentStatus: "PENDING",
+        paymentEnvironment: config.environment,
+        resultImage: currentSessionData.resultImage || sessionData.resultImage,
+        frameId: currentSessionData.selectedFrameId || sessionData.selectedFrameId || null,
+        createdAt: now,
+        updatedAt: now,
       });
+      transaction.update(sessionRef, {
+        paymentOrderId: orderId,
+        paymentStatus: "PENDING",
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    });
 
     const timestamp = getDokuTimestamp();
-    const returnUrl = `${SITE_URL}/foto-ldr.html?sessionId=${encodeURIComponent(sessionId)}&orderId=${encodeURIComponent(orderId)}`;
+    const returnUrl = `${config.siteUrl}/foto-ldr.html?sessionId=${encodeURIComponent(sessionId)}&orderId=${encodeURIComponent(orderId)}`;
     const requestBody = {
       order: {
         amount: LDR_PAYMENT_AMOUNT,
@@ -281,18 +345,18 @@ async function createPaymentHandler(req, res, body = {}) {
         payment_method_types: ["QRIS"],
       },
       additional_info: {
-        override_notification_url: DOKU_NOTIFICATION_URL,
+        override_notification_url: config.notificationUrl,
       },
     };
     const jsonBody = JSON.stringify(requestBody);
     const digest = crypto.createHash("sha256").update(jsonBody).digest("base64");
-    const signature = createDokuSignature({ orderId, timestamp, digest });
+    const signature = createDokuSignature({ config, orderId, timestamp, digest });
 
     console.log("[LDR payment] Membuat checkout DOKU:", { orderId, sessionId, amount: LDR_PAYMENT_AMOUNT });
-    const response = await fetch(`${DOKU_BASE_URL}/checkout/v1/payment`, {
+    const response = await fetch(`${config.baseUrl}/checkout/v1/payment`, {
       method: "POST",
       headers: {
-        "Client-Id": DOKU_CLIENT_ID,
+        "Client-Id": config.clientId,
         "Request-Id": orderId,
         "Request-Timestamp": timestamp,
         "Request-Target": "/checkout/v1/payment",
@@ -311,14 +375,23 @@ async function createPaymentHandler(req, res, body = {}) {
     }
 
     if (!response.ok || !payload.response?.payment?.url) {
+      console.error("[LDR payment] DOKU menolak/gagal:", {
+        status: response.status,
+        body: rawText.slice(0, 2000),
+      });
+      const errorMessage = payload.message || payload.error?.message || payload.error || "DOKU tidak mengembalikan URL checkout.";
       await db.collection("ldr_order").doc(orderId).set({
         status: "FAILED",
         paymentStatus: "FAILED",
-        paymentError: payload.message || payload.error || "DOKU tidak mengembalikan URL checkout.",
+        paymentError: typeof errorMessage === "string" ? errorMessage : JSON.stringify(errorMessage),
         updatedAt: Date.now(),
       }, { merge: true });
       await sessionRef.set({ paymentStatus: "FAILED", updatedAt: Date.now() }, { merge: true });
-      return res.status(response.status || 502).json(payload);
+      return res.status(response.ok ? 502 : (response.status || 502)).json({
+        success: false,
+        message: typeof errorMessage === "string" ? errorMessage : "DOKU menolak permintaan pembayaran.",
+        detail: payload,
+      });
     }
 
     await db.collection("ldr_order").doc(orderId).set({
