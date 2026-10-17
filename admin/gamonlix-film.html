@@ -21,7 +21,7 @@
         <header class="mb-6 flex flex-wrap items-center justify-between gap-3">
             <div>
                 <h2 class="text-2xl font-bold text-slate-900">Film Gamonlix</h2>
-                <p class="text-sm text-slate-500">Kelola daftar film pendek karya anak Banua yang tayang di Gamonlix.</p>
+                <p class="text-sm text-slate-500">Kelola film pendek karya anak Banua, data sutradara, statistik, dan diskusi.</p>
             </div>
             <a href="/user/gamonlix/index.html" target="_blank" rel="noopener"
                class="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100">
@@ -54,6 +54,18 @@
                            class="w-full rounded-lg border border-slate-300 px-4 py-2 focus:border-pink-500 focus:outline-none focus:ring-2 focus:ring-pink-200">
                 </label>
 
+                <label class="block">
+                    <span class="mb-1 block text-sm font-medium text-slate-700">Tahun rilis <span class="font-normal text-slate-400">(opsional)</span></span>
+                    <input id="fYear" type="number" min="1900" max="2100" inputmode="numeric" placeholder="Contoh: 2026"
+                           class="w-full rounded-lg border border-slate-300 px-4 py-2 focus:border-pink-500 focus:outline-none focus:ring-2 focus:ring-pink-200">
+                </label>
+
+                <label class="block">
+                    <span class="mb-1 block text-sm font-medium text-slate-700">Komunitas / rumah produksi <span class="font-normal text-slate-400">(opsional)</span></span>
+                    <input id="fCom" maxlength="80" placeholder="Contoh: Komunitas Film Banjarbaru"
+                           class="w-full rounded-lg border border-slate-300 px-4 py-2 focus:border-pink-500 focus:outline-none focus:ring-2 focus:ring-pink-200">
+                </label>
+
                 <label class="block md:col-span-2">
                     <span class="mb-1 block text-sm font-medium text-slate-700">Link YouTube</span>
                     <input id="fYt" type="url" placeholder="https://www.youtube.com/watch?v=..."
@@ -79,7 +91,46 @@
                               class="w-full rounded-lg border border-slate-300 px-4 py-2 focus:border-pink-500 focus:outline-none focus:ring-2 focus:ring-pink-200"></textarea>
                 </label>
 
-                <div class="flex items-center gap-3 md:col-span-2">
+                <!-- SUTRADARA -->
+                <fieldset class="grid gap-4 rounded-xl border border-slate-200 bg-slate-50 p-4 md:col-span-2 md:grid-cols-2">
+                    <legend class="px-2 text-sm font-bold text-slate-800">Data sutradara <span class="font-normal text-slate-400">(opsional)</span></legend>
+                    <label class="block">
+                        <span class="mb-1 block text-sm font-medium text-slate-700">Nama sutradara</span>
+                        <input id="fDirName" maxlength="80" placeholder="Contoh: Rahmat Hidayat"
+                               class="w-full rounded-lg border border-slate-300 bg-white px-4 py-2 focus:border-pink-500 focus:outline-none focus:ring-2 focus:ring-pink-200">
+                    </label>
+                    <label class="block">
+                        <span class="mb-1 block text-sm font-medium text-slate-700">Link profil (Instagram/YouTube/web)</span>
+                        <input id="fDirLink" type="url" placeholder="https://instagram.com/..."
+                               class="w-full rounded-lg border border-slate-300 bg-white px-4 py-2 focus:border-pink-500 focus:outline-none focus:ring-2 focus:ring-pink-200">
+                    </label>
+                    <label class="block md:col-span-2">
+                        <span class="mb-1 block text-sm font-medium text-slate-700">Profil singkat</span>
+                        <textarea id="fDirBio" rows="3" maxlength="500" placeholder="Latar belakang, karya sebelumnya, atau komunitas sutradara"
+                                  class="w-full rounded-lg border border-slate-300 bg-white px-4 py-2 focus:border-pink-500 focus:outline-none focus:ring-2 focus:ring-pink-200"></textarea>
+                    </label>
+                    <div class="md:col-span-2">
+                        <span class="mb-1 block text-sm font-medium text-slate-700">Foto sutradara</span>
+                        <div class="flex flex-wrap items-center gap-4">
+                            <div id="dirPreview" class="grid h-20 w-20 flex-none place-items-center overflow-hidden rounded-full border-2 border-dashed border-slate-300 bg-white p-1 text-center text-[10px] text-slate-400">Belum ada</div>
+                            <div class="min-w-[220px] flex-1">
+                                <input id="fDirPhoto" type="file" accept="image/jpeg,image/png,image/webp"
+                                       class="block w-full text-sm text-slate-600 file:mr-4 file:cursor-pointer file:rounded-lg file:border-0 file:bg-slate-700 file:px-4 file:py-2 file:font-semibold file:text-white hover:file:bg-slate-800">
+                                <p class="mt-2 text-xs text-slate-500">Maksimal 8 MB. Otomatis dipotong persegi 240x240.</p>
+                                <label class="mt-2 inline-flex cursor-pointer items-center gap-2 text-xs text-slate-600"><input id="fDirPhotoClear" type="checkbox"> Hapus foto sutradara</label>
+                            </div>
+                        </div>
+                    </div>
+                </fieldset>
+
+                <label class="block">
+                    <span class="mb-1 block text-sm font-medium text-slate-700">Jumlah tonton awal (dummy)</span>
+                    <input id="fBase" type="number" min="0" max="10000000" inputmode="numeric" value="1000"
+                           class="w-full rounded-lg border border-slate-300 px-4 py-2 focus:border-pink-500 focus:outline-none focus:ring-2 focus:ring-pink-200">
+                    <span class="mt-1 block text-xs text-slate-500">Angka tampil = dummy + kunjungan nyata. Default 1.000.</span>
+                </label>
+
+                <div class="flex items-center gap-3 self-center">
                     <label class="relative inline-flex cursor-pointer items-center">
                         <input id="fActive" type="checkbox" class="peer sr-only" checked aria-label="Tayangkan film">
                         <span class="h-6 w-11 rounded-full bg-slate-300 transition peer-checked:bg-emerald-500 peer-focus-visible:ring-2 peer-focus-visible:ring-pink-500 peer-focus-visible:ring-offset-2 after:absolute after:left-0.5 after:top-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:shadow after:transition peer-checked:after:translate-x-5"></span>
@@ -103,20 +154,31 @@
                 <span id="count" class="rounded-full bg-pink-100 px-2.5 py-0.5 text-xs font-bold text-pink-700">0</span>
             </div>
             <div class="overflow-x-auto rounded-xl border border-slate-200">
-                <table class="w-full min-w-[760px] text-left text-sm">
+                <table class="w-full min-w-[980px] text-left text-sm">
                     <thead class="bg-slate-100 text-xs uppercase tracking-wide text-slate-500">
                         <tr>
-                            <th class="px-4 py-3">Poster</th><th class="px-4 py-3">Judul</th><th class="px-4 py-3">Genre</th>
-                            <th class="px-4 py-3">Durasi</th><th class="px-4 py-3">YouTube</th><th class="px-4 py-3">Tayang</th><th class="px-4 py-3">Aksi</th>
+                            <th class="px-4 py-3">Poster</th><th class="px-4 py-3">Judul</th><th class="px-4 py-3">Sutradara</th><th class="px-4 py-3">Genre</th>
+                            <th class="px-4 py-3">Durasi</th><th class="px-4 py-3">Statistik</th><th class="px-4 py-3">YouTube</th><th class="px-4 py-3">Tayang</th><th class="px-4 py-3">Aksi</th>
                         </tr>
                     </thead>
                     <tbody id="rows" class="divide-y divide-slate-100">
-                        <tr><td colspan="7" class="px-4 py-10 text-center text-slate-400">Memuat...</td></tr>
+                        <tr><td colspan="9" class="px-4 py-10 text-center text-slate-400">Memuat...</td></tr>
                     </tbody>
                 </table>
             </div>
         </section>
     </main>
+</div>
+
+<!-- MODERASI DISKUSI -->
+<div id="cModal" hidden class="fixed inset-0 z-40 grid place-items-center bg-slate-900/60 p-4" role="dialog" aria-modal="true" aria-labelledby="cTitle">
+    <div class="flex max-h-[85vh] w-full max-w-xl flex-col rounded-2xl bg-white shadow-xl">
+        <div class="flex items-center justify-between gap-3 border-b border-slate-200 p-4">
+            <h3 id="cTitle" class="text-base font-bold text-slate-900">Diskusi</h3>
+            <button id="cClose" type="button" class="cursor-pointer rounded-lg border border-slate-300 px-3 py-1 text-sm font-semibold text-slate-700 hover:bg-slate-100">Tutup</button>
+        </div>
+        <ul id="cList" class="divide-y divide-slate-100 overflow-y-auto p-2"></ul>
+    </div>
 </div>
 
 <div id="toast" role="status" aria-live="polite"
@@ -130,7 +192,8 @@
 
     const FILMS = 'gamonlixFilms';
     const $ = (s) => document.querySelector(s);
-    let films = [], editingId = null, posterData = '';
+    const nf = (n) => (Number(n) || 0).toLocaleString('id-ID');
+    let films = [], editingId = null, posterData = '', dirPhotoData = '';
 
     /* ---------- sesi admin (sama seperti halaman admin lain) ---------- */
     window.handleLogout = async () => {
@@ -160,23 +223,30 @@
             renderRows();
         }, (err) => {
             console.error(err);
-            $('#rows').innerHTML = '<tr><td colspan="7" class="px-4 py-10 text-center text-rose-600">Gagal memuat data. Periksa Firestore Rules untuk gamonlixFilms.</td></tr>';
+            $('#rows').innerHTML = '<tr><td colspan="9" class="px-4 py-10 text-center text-rose-600">Gagal memuat data. Periksa Firestore Rules untuk gamonlixFilms.</td></tr>';
         });
     }
 
     function renderRows() {
         $('#count').textContent = films.length;
         if (!films.length) {
-            $('#rows').innerHTML = '<tr><td colspan="7" class="px-4 py-10 text-center text-slate-400">Belum ada film. Tambahkan lewat form di atas.</td></tr>';
+            $('#rows').innerHTML = '<tr><td colspan="9" class="px-4 py-10 text-center text-slate-400">Belum ada film. Tambahkan lewat form di atas.</td></tr>';
             return;
         }
         $('#rows').innerHTML = films.map((f) => {
             const img = typeof f.poster === 'string' && /^(data:image\/|https:\/\/)/.test(f.poster) ? f.poster : '';
+            const base = f.viewBase ?? 1000, real = Number(f.views) || 0;
             return `<tr data-id="${esc(f.id)}" class="align-middle">
                 <td class="px-4 py-3">${img ? `<img src="${esc(img)}" alt="Poster ${esc(f.title)}" class="h-[69px] w-[46px] rounded-md border border-slate-200 object-cover">` : '-'}</td>
                 <td class="px-4 py-3 font-semibold text-slate-900">${esc(f.title)}</td>
+                <td class="px-4 py-3">${f.directorName ? esc(f.directorName) : '<span class="text-slate-400">-</span>'}</td>
                 <td class="px-4 py-3"><span class="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-800">${esc(f.genre)}</span></td>
                 <td class="whitespace-nowrap px-4 py-3">${esc(f.durationMin)} mnt</td>
+                <td class="whitespace-nowrap px-4 py-3 text-xs text-slate-600" title="Dummy ${nf(base)} + nyata ${nf(real)}">
+                    <div><b>${nf(base + real)}</b> tonton</div>
+                    <div class="text-slate-400">${nf(real)} nyata</div>
+                    <div class="text-pink-600">&#9829; ${nf(Math.max(0, Number(f.likes) || 0))}</div>
+                </td>
                 <td class="px-4 py-3"><a class="text-pink-600 underline" href="https://www.youtube.com/watch?v=${encodeURIComponent(f.youtubeId || '')}" target="_blank" rel="noopener">${esc(f.youtubeId)}</a></td>
                 <td class="px-4 py-3">
                     <label class="relative inline-flex cursor-pointer items-center">
@@ -185,6 +255,7 @@
                     </label>
                 </td>
                 <td class="px-4 py-3"><div class="flex gap-2">
+                    <button type="button" data-act="chat" class="cursor-pointer rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100">Diskusi</button>
                     <button type="button" data-act="edit" class="cursor-pointer rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100">Edit</button>
                     <button type="button" data-act="del" class="cursor-pointer rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-100">Hapus</button>
                 </div></td>
@@ -196,6 +267,7 @@
         const b = e.target.closest('button[data-act]'); if (!b) return;
         const id = b.closest('tr').dataset.id, f = films.find((x) => x.id === id); if (!f) return;
         if (b.dataset.act === 'edit') startEdit(f);
+        if (b.dataset.act === 'chat') openComments(f);
         if (b.dataset.act === 'del') {
             if (!confirm(`Hapus film "${f.title}"? Tindakan ini tidak bisa dibatalkan.`)) return;
             try { await deleteDoc(doc(db, FILMS, id)); if (editingId === id) resetForm(); toast('Film dihapus'); }
@@ -214,6 +286,34 @@
         }
     });
 
+    /* ---------- moderasi diskusi ---------- */
+    let unsubC = null, cFilm = null;
+    function openComments(f) {
+        cFilm = f.id; $('#cTitle').textContent = 'Diskusi: ' + f.title;
+        $('#cList').innerHTML = '<li class="p-4 text-center text-sm text-slate-400">Memuat...</li>';
+        $('#cModal').hidden = false;
+        if (unsubC) unsubC();
+        unsubC = onSnapshot(query(collection(db, FILMS, f.id, 'comments'), orderBy('createdAt', 'desc')), (snap) => {
+            $('#cList').innerHTML = snap.empty
+                ? '<li class="p-4 text-center text-sm text-slate-400">Belum ada komentar.</li>'
+                : snap.docs.map((d) => { const c = d.data();
+                    return `<li class="flex items-start justify-between gap-3 p-3" data-cid="${esc(d.id)}">
+                        <div class="min-w-0"><p class="text-sm font-semibold text-slate-900">${esc(c.name)} <span class="ml-1 text-xs font-normal text-slate-400">${esc(new Date(c.createdAt || 0).toLocaleString('id-ID'))}</span></p>
+                        <p class="mt-0.5 whitespace-pre-wrap break-words text-sm text-slate-700">${esc(c.text)}</p></div>
+                        <button type="button" data-cdel class="flex-none cursor-pointer rounded-lg border border-rose-200 bg-rose-50 px-3 py-1 text-xs font-semibold text-rose-600 hover:bg-rose-100">Hapus</button></li>`; }).join('');
+        }, (err) => { console.error(err); $('#cList').innerHTML = '<li class="p-4 text-center text-sm text-rose-600">Gagal memuat komentar. Periksa Firestore Rules.</li>'; });
+    }
+    function closeComments() { if (unsubC) { unsubC(); unsubC = null; } cFilm = null; $('#cModal').hidden = true; }
+    $('#cClose').addEventListener('click', closeComments);
+    $('#cModal').addEventListener('click', (e) => { if (e.target === $('#cModal')) closeComments(); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('#cModal').hidden) closeComments(); });
+    $('#cList').addEventListener('click', async (e) => {
+        const b = e.target.closest('[data-cdel]'); if (!b || !cFilm) return;
+        if (!confirm('Hapus komentar ini?')) return;
+        try { await deleteDoc(doc(db, FILMS, cFilm, 'comments', b.closest('li').dataset.cid)); toast('Komentar dihapus'); }
+        catch (err) { console.error(err); toast('Gagal menghapus: ' + (err.code || err.message)); }
+    });
+
     /* ---------- helper ---------- */
     function ytId(url) {
         try {
@@ -229,18 +329,18 @@
         } catch (_) { return ''; }
     }
 
-    // Potong ke 2:3 (400x600) lalu kompres JPEG, aman untuk batas 1 MB dokumen Firestore.
-    function shrink(file) {
+    // Potong (cover) ke ukuran W x H lalu kompres JPEG, aman untuk batas 1 MB dokumen Firestore.
+    function shrink(file, W, H, quality) {
         return new Promise((resolve, reject) => {
             const img = new Image(), url = URL.createObjectURL(file);
             img.onload = () => {
-                const W = 400, H = 600, c = document.createElement('canvas'); c.width = W; c.height = H;
+                const c = document.createElement('canvas'); c.width = W; c.height = H;
                 const x = c.getContext('2d'), r = Math.max(W / img.width, H / img.height);
                 const w = img.width * r, h = img.height * r;
                 x.fillStyle = '#0b2342'; x.fillRect(0, 0, W, H);
                 x.drawImage(img, (W - w) / 2, (H - h) / 2, w, h);
                 URL.revokeObjectURL(url);
-                resolve(c.toDataURL('image/jpeg', 0.82));
+                resolve(c.toDataURL('image/jpeg', quality));
             };
             img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('File gambar tidak valid')); };
             img.src = url;
@@ -261,29 +361,47 @@
         $('#preview').innerHTML = src ? `<img src="${esc(src)}" alt="Pratinjau poster" class="h-full w-full object-cover">` : 'Belum ada poster';
         $('#preview').classList.toggle('p-2', !src);
     }
+    function showDirPreview(src) {
+        $('#dirPreview').innerHTML = src ? `<img src="${esc(src)}" alt="Pratinjau foto sutradara" class="h-full w-full rounded-full object-cover">` : 'Belum ada';
+    }
+    const okImg = (u) => typeof u === 'string' && /^(data:image\/|https:\/\/)/.test(u);
 
     /* ---------- form ---------- */
-    $('#fPoster').addEventListener('change', async (e) => {
-        const file = e.target.files[0]; if (!file) return;
-        if (file.size > 8 * 1024 * 1024) { say('Ukuran poster maksimal 8 MB.', true); e.target.value = ''; return; }
-        try { posterData = await shrink(file); showPreview(posterData); say(''); }
-        catch (err) { say(err.message, true); }
+    async function pickImage(e, w, h, q) {
+        const file = e.target.files[0]; if (!file) return '';
+        if (file.size > 8 * 1024 * 1024) { say('Ukuran gambar maksimal 8 MB.', true); e.target.value = ''; return ''; }
+        try { const d = await shrink(file, w, h, q); say(''); return d; }
+        catch (err) { say(err.message, true); return ''; }
+    }
+    $('#fPoster').addEventListener('change', async (e) => { const d = await pickImage(e, 400, 600, 0.82); if (d) { posterData = d; showPreview(d); } });
+    $('#fDirPhoto').addEventListener('change', async (e) => {
+        const d = await pickImage(e, 240, 240, 0.82);
+        if (d) { dirPhotoData = d; showDirPreview(d); $('#fDirPhotoClear').checked = false; }
+    });
+    $('#fDirPhotoClear').addEventListener('change', (e) => {
+        if (e.target.checked) { dirPhotoData = ''; $('#fDirPhoto').value = ''; showDirPreview(''); }
+        else { const old = editingId && films.find((x) => x.id === editingId); showDirPreview(old && okImg(old.directorPhoto) ? old.directorPhoto : ''); }
     });
     $('#fActive').addEventListener('change', (e) => { $('#fActiveLabel').textContent = e.target.checked ? 'Tayang' : 'Tidak tayang'; });
 
     function startEdit(f) {
-        editingId = f.id; posterData = '';
+        editingId = f.id; posterData = ''; dirPhotoData = '';
         $('#fTitle').value = f.title || ''; $('#fGenre').value = f.genre || 'Lainnya'; $('#fDur').value = f.durationMin || '';
+        $('#fYear').value = f.year || ''; $('#fCom').value = f.community || '';
         $('#fYt').value = f.youtubeUrl || ('https://www.youtube.com/watch?v=' + (f.youtubeId || '')); $('#fSyn').value = f.synopsis || '';
+        $('#fDirName').value = f.directorName || ''; $('#fDirLink').value = f.directorLink || ''; $('#fDirBio').value = f.directorBio || '';
+        $('#fBase').value = f.viewBase ?? 1000;
         $('#fActive').checked = !!f.active; $('#fActiveLabel').textContent = f.active ? 'Tayang' : 'Tidak tayang';
         $('#fPoster').value = ''; showPreview(f.poster);
+        $('#fDirPhoto').value = ''; $('#fDirPhotoClear').checked = false; showDirPreview(okImg(f.directorPhoto) ? f.directorPhoto : '');
         $('#formTitle').textContent = 'Edit film'; $('#btnSave').textContent = 'Simpan perubahan'; $('#btnCancel').hidden = false;
-        say('Poster lama tetap dipakai kecuali kamu memilih poster baru.');
+        say('Poster dan foto lama tetap dipakai kecuali kamu memilih yang baru.');
         window.scrollTo({ top: 0, behavior: 'smooth' }); $('#fTitle').focus({ preventScroll: true });
     }
     function resetForm() {
-        editingId = null; posterData = ''; $('#filmForm').reset();
-        $('#fActive').checked = true; $('#fActiveLabel').textContent = 'Tayang'; showPreview('');
+        editingId = null; posterData = ''; dirPhotoData = ''; $('#filmForm').reset();
+        $('#fBase').value = 1000;
+        $('#fActive').checked = true; $('#fActiveLabel').textContent = 'Tayang'; showPreview(''); showDirPreview('');
         $('#formTitle').textContent = 'Tambah film'; $('#btnSave').textContent = 'Simpan film'; $('#btnCancel').hidden = true; say('');
     }
     $('#btnCancel').addEventListener('click', resetForm);
@@ -292,22 +410,32 @@
         e.preventDefault();
         const title = $('#fTitle').value.trim(), dur = parseInt($('#fDur').value, 10), id = ytId($('#fYt').value);
         const old = editingId ? films.find((x) => x.id === editingId) : null;
+        const year = parseInt($('#fYear').value, 10), base = parseInt($('#fBase').value, 10);
+        const dirLink = $('#fDirLink').value.trim();
         if (!title) return say('Judul film wajib diisi.', true);
         if (!(dur >= 1)) return say('Durasi harus berupa angka menit (minimal 1).', true);
         if (!id) return say('Link YouTube tidak valid. Gunakan link watch, youtu.be, embed, atau shorts.', true);
+        if (dirLink && !/^https:\/\//i.test(dirLink)) return say('Link profil sutradara harus diawali https://', true);
+        if (!(base >= 0)) return say('Jumlah tonton awal harus berupa angka (minimal 0).', true);
         const poster = posterData || (old && old.poster) || '';
         if (!poster) return say('Poster film wajib diunggah.', true);
+        const directorPhoto = $('#fDirPhotoClear').checked ? '' : (dirPhotoData || (old && old.directorPhoto) || '');
 
         const data = {
             title, genre: $('#fGenre').value, durationMin: dur,
+            year: year >= 1900 ? year : null, community: $('#fCom').value.trim(),
             youtubeUrl: $('#fYt').value.trim(), youtubeId: id,
             synopsis: $('#fSyn').value.trim(), poster,
+            directorName: $('#fDirName').value.trim(), directorBio: $('#fDirBio').value.trim(),
+            directorLink: dirLink, directorPhoto,
+            viewBase: base,
             active: $('#fActive').checked, updatedAt: Date.now()
         };
         const btn = $('#btnSave'); btn.disabled = true; say('Menyimpan...');
         try {
+            // views & likes sengaja tidak ditimpa saat edit (dihitung dari pengunjung)
             if (editingId) await updateDoc(doc(db, FILMS, editingId), data);
-            else await addDoc(collection(db, FILMS), { ...data, createdAt: Date.now() });
+            else await addDoc(collection(db, FILMS), { ...data, views: 0, likes: 0, createdAt: Date.now() });
             toast(editingId ? 'Perubahan disimpan' : 'Film ditambahkan');
             resetForm();
         } catch (err) {
