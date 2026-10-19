@@ -6,9 +6,18 @@ const SESSION_TIME_LIMIT_SECONDS = 60;
 const LDR_PAYMENT_AMOUNT = 2000;
 const DOKU_CLIENT_ID = String(process.env.DOKU_CLIENT_ID || '').trim();
 const DOKU_SECRET_KEY = String(process.env.DOKU_SECRET_KEY || '').trim();
-const DOKU_BASE_URL = String(process.env.DOKU_BASE_URL || '').trim().replace(/\/$/, '');
-const SITE_URL = String(process.env.SITE_URL || '').trim().replace(/\/$/, '');
-const DOKU_NOTIFICATION_URL = SITE_URL ? `${SITE_URL}/api/doku-notify` : '';
+const DOKU_BASE_URL = String(process.env.DOKU_BASE_URL || 'https://api.doku.com').trim().replace(/\/$/, '');
+const SITE_URL_ENV = String(
+  process.env.SITE_URL ||
+  (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : '')
+).trim().replace(/\/$/, '');
+
+function resolveSiteUrl(req) {
+  if (SITE_URL_ENV) return SITE_URL_ENV;
+  const host = String(req?.headers?.["x-forwarded-host"] || req?.headers?.host || "").split(",")[0].trim();
+  if (!host || /^(localhost|127\.)/.test(host)) return "";
+  return `https://${host}`;
+}
 
 function getFirebaseAdmin() {
   if (!admin.apps.length) {
@@ -161,7 +170,7 @@ async function listFramesHandler(req, res) {
 
     return res.status(200).json({ success: true, frames });
   } catch (error) {
-    console.error("[LDR frames] Query photobox_frames gagal. Kemungkinan penyebab termasuk dokumen tanpa createdAt yang membuat orderBy gagal, atau kredensial/permission Firebase Admin.", error);
+    console.error("[LDR frames] Query ldr_frames gagal. Kemungkinan penyebab termasuk dokumen tanpa createdAt yang membuat orderBy gagal, atau kredensial/permission Firebase Admin.", error);
     return res.status(500).json({
       success: false,
       frames: [],
@@ -196,8 +205,20 @@ async function createPaymentHandler(req, res, body = {}) {
   }
 
   try {
-    if (!DOKU_CLIENT_ID || !DOKU_SECRET_KEY || !DOKU_BASE_URL || !SITE_URL) {
-      return res.status(503).json({ success: false, message: "Konfigurasi DOKU atau SITE_URL belum lengkap di server." });
+    const SITE_URL = resolveSiteUrl(req);
+    const DOKU_NOTIFICATION_URL = SITE_URL ? `${SITE_URL}/api/doku-notify` : "";
+    const missingConfig = [
+      !DOKU_CLIENT_ID && "DOKU_CLIENT_ID",
+      !DOKU_SECRET_KEY && "DOKU_SECRET_KEY",
+      !DOKU_BASE_URL && "DOKU_BASE_URL",
+      !SITE_URL && "SITE_URL",
+    ].filter(Boolean);
+    if (missingConfig.length) {
+      console.error("[LDR payment] Env belum lengkap:", missingConfig);
+      return res.status(503).json({
+        success: false,
+        message: `Konfigurasi server belum lengkap: ${missingConfig.join(", ")}.`,
+      });
     }
 
     const sessionId = String(body.sessionId || body.code || "").trim().toUpperCase();
@@ -311,6 +332,10 @@ async function createPaymentHandler(req, res, body = {}) {
     }
 
     if (!response.ok || !payload.response?.payment?.url) {
+      console.error("[LDR payment] DOKU menolak/tidak mengembalikan URL checkout:", {
+        status: response.status,
+        body: rawText.slice(0, 2000),
+      });
       await db.collection("ldr_order").doc(orderId).set({
         status: "FAILED",
         paymentStatus: "FAILED",
