@@ -433,6 +433,85 @@
 }
 #aboutModalBox .about-detail-btn:hover { background: rgba(255,255,255,0.18); transform: scale(1.04); }
 #aboutModalBox .about-detail-btn:active { transform: scale(.96); }
+    /* ══════════════════════════════════════════════════════════
+       TOMBOL GESER "HITUNG PENTOL"
+       Awalnya hanya ikon + panah. Klik panah (atau hover di desktop)
+       → tombol meluas & muncul tulisan. Murni CSS (checkbox), tanpa JS.
+       ══════════════════════════════════════════════════════════ */
+    .pentol-dock {
+        position: relative;
+        display: inline-flex; align-items: center; gap: 4px;
+        padding: 4px;
+        border-radius: 999px;
+        background: rgba(255,255,255,0.08);
+        border: 1px solid rgba(255,255,255,0.20);
+        backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+        box-shadow: 0 4px 18px rgba(1,10,23,0.25);
+        transition: background .25s ease, box-shadow .25s ease;
+    }
+    .pentol-dock:hover { background: rgba(255,255,255,0.14); box-shadow: 0 6px 24px rgba(1,10,23,0.35); }
+
+    /* checkbox disembunyikan secara visual, tetap bisa difokus keyboard */
+    .pentol-check {
+        position: absolute; opacity: 0; width: 1px; height: 1px;
+        margin: 0; pointer-events: none;
+    }
+
+    /* Tombol utama (ikon + tulisan) */
+    .pentol-link {
+        display: inline-flex; align-items: center;
+        height: 40px; padding: 0 10px;
+        border-radius: 999px;
+        color: #fff; text-decoration: none; font-weight: 600;
+        background: linear-gradient(135deg, rgba(249,216,197,0.35), rgba(247,217,232,0.25));
+        transition: background .25s ease, transform .2s ease;
+    }
+    .pentol-link:hover { background: linear-gradient(135deg, rgba(249,216,197,0.5), rgba(247,217,232,0.4)); }
+    .pentol-link:active { transform: scale(.96); }
+    .pentol-link .material-symbols-outlined { font-size: 22px; }
+
+    /* Tulisan: tersembunyi dulu, lalu meluncur keluar */
+    .pentol-text {
+        max-width: 0; opacity: 0; overflow: hidden; white-space: nowrap;
+        font-size: 14px; letter-spacing: 0.01em;
+        transition: max-width .35s ease, opacity .25s ease, margin-left .35s ease;
+    }
+
+    /* Tombol panah */
+    .pentol-arrow {
+        width: 34px; height: 34px; border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        color: rgba(255,255,255,0.85); cursor: pointer;
+        transition: background .2s ease, transform .35s ease;
+        animation: pentolNudge 1.8s infinite ease-in-out;
+    }
+    .pentol-arrow:hover { background: rgba(255,255,255,0.14); }
+    .pentol-arrow .material-symbols-outlined { font-size: 22px; }
+    @keyframes pentolNudge {
+        0%,100% { transform: translateX(0); }
+        50%     { transform: translateX(4px); }
+    }
+
+    /* ── Keadaan TERBUKA (klik panah / hover desktop) ── */
+    .pentol-check:checked ~ .pentol-link .pentol-text,
+    .pentol-dock:hover .pentol-text {
+        max-width: 140px; opacity: 1; margin-left: 8px; margin-right: 4px;
+    }
+    .pentol-check:checked ~ .pentol-arrow,
+    .pentol-dock:hover .pentol-arrow {
+        animation: none; transform: rotate(180deg);
+    }
+
+    /* Fokus keyboard */
+    .pentol-check:focus-visible ~ .pentol-arrow {
+        outline: 2px solid rgba(255,255,255,0.7); outline-offset: 2px;
+    }
+
+    /* Hormati pengguna yang mematikan animasi */
+    @media (prefers-reduced-motion: reduce) {
+        .pentol-arrow { animation: none; }
+        .pentol-text, .pentol-arrow { transition: none; }
+    }
 </style>
 </head>
 <body class="text-white/90 selection:bg-primary-container">
@@ -469,7 +548,7 @@
 
 <main class="relative z-10 pt-24 pb-32 w-full">
 
-    <!-- Hero -->
+       <!-- Hero -->
     <header class="text-center mb-10">
         <div class="mx-auto mb-0 max-w-xs overflow-hidden">
             <img src="image/logo/Gamon%20Tawing.png" alt="Gamon Tawing Curhat" class="mx-auto h-56 w-auto object-cover object-top" style="filter: drop-shadow(0 0 36px rgba(255,255,255,0.55));" />
@@ -494,6 +573,18 @@
                 <span class="material-symbols-outlined text-lg">photo_camera_front</span>
                 LDR Foto
             </a>
+
+            <!-- Tombol geser: Hitung Pentol (ikon dulu, klik panah untuk melihat tulisan) -->
+            <div class="pentol-dock">
+                <input type="checkbox" id="pentolToggle" class="pentol-check" aria-label="Tampilkan tombol Hitung Pentol" />
+                <a href="hitung-pentol.html" class="pentol-link" title="Hitung Pentol" aria-label="Hitung Pentol">
+                    <span class="material-symbols-outlined">kebab_dining</span>
+                    <span class="pentol-text">Hitung Pentol</span>
+                </a>
+                <label for="pentolToggle" class="pentol-arrow" title="Geser untuk membuka">
+                    <span class="material-symbols-outlined">chevron_right</span>
+                </label>
+            </div>
         </div>
 
         <!-- Penanda: halaman ini bisa digulir untuk melihat cerita -->
