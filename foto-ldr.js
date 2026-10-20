@@ -21,6 +21,7 @@ const state = {
   sessionData: null,
   unsubscribe: null,
   cameraStream: null,
+  remoteStream: null,
   micEnabled: true,
   myPhoto: null,
   partnerPhoto: null,
@@ -40,6 +41,7 @@ const state = {
   rtcCandidateSentCount: 0,
   rtcCandidateReceivedCount: 0,
   pendingRemoteCandidates: [],
+  pendingRemoteCandidateKeys: new Set(),
   countdownTimer: null,
   sessionTimeLimitTimer: null,
   sessionTimeLimitStartedAt: null,
@@ -67,6 +69,11 @@ const state = {
   restoringPayment: false,
   restoringSessionSnapshot: false,
 };
+
+// Antrean kandidat ICE (dikirim per batch agar tidak ada request paralel yang saling menimpa)
+let iceQueue = [];
+let iceFlushTimer = null;
+let partnerAudioUnlockBound = false;
 
 const $ = (id) => document.getElementById(id);
 
@@ -157,14 +164,16 @@ function attachVideoStream(videoEl, stream, { muted = true } = {}) {
   }
 
   configureVideoElement(videoEl, { muted });
-  videoEl.srcObject = stream;
+  if (videoEl.srcObject !== stream) {
+    videoEl.srcObject = stream;
+  }
 
   if (videoEl.play) {
-    videoEl.play().catch(() => {
-      console.warn("Video autoplay/play gagal untuk elemen kamera.", { element: videoEl.id, muted });
-      if (videoEl === partnerVideo) {
-        showToast("Audio partner tidak bisa diputar otomatis. Ketuk layar untuk mengaktifkan suara.");
+    videoEl.play().catch((error) => {
+      if (error?.name === "AbortError") {
+        return;
       }
+      console.warn("Video autoplay/play gagal untuk elemen kamera.", { element: videoEl.id, muted });
     });
   }
 }
@@ -875,23 +884,61 @@ function listenSession() {
   });
 }
 
+// Putar video partner. Jika autoplay bersuara diblokir browser, putar tanpa suara
+// dulu agar gambar tetap tampil, lalu aktifkan suara pada sentuhan pertama.
+function playPartnerVideo() {
+  if (!partnerVideo) {
+    return;
+  }
+
+  configureVideoElement(partnerVideo, { muted: false });
+  const playPromise = partnerVideo.play ? partnerVideo.play() : null;
+  if (!playPromise || typeof playPromise.catch !== "function") {
+    return;
+  }
+
+  playPromise.catch((error) => {
+    if (error?.name === "AbortError") {
+      return;
+    }
+
+    console.warn("Autoplay partner bersuara diblokir, putar tanpa suara dulu.", error?.name);
+    partnerVideo.muted = true;
+    partnerVideo.play().catch(() => {});
+    showToast("Ketuk layar untuk mengaktifkan suara pasangan.");
+
+    if (partnerAudioUnlockBound) {
+      return;
+    }
+    partnerAudioUnlockBound = true;
+    const unlock = () => {
+      partnerAudioUnlockBound = false;
+      partnerVideo.muted = false;
+      partnerVideo.play().catch(() => {});
+    };
+    document.addEventListener("pointerdown", unlock, { once: true });
+  });
+}
+
 function setPartnerRemoteStream(stream) {
+  const partnerPlaceholder = document.querySelector(".partner-placeholder");
+
   if (!stream) {
     if (partnerVideo) {
       partnerVideo.srcObject = null;
-      configureVideoElement(partnerVideo, { muted: false });
+      partnerVideo.classList.remove("active");
     }
-    partnerVideo.classList.remove("active");
-    const partnerPlaceholder = document.querySelector(".partner-placeholder");
     if (partnerPlaceholder) {
       partnerPlaceholder.style.display = "grid";
     }
     return;
   }
 
-  attachVideoStream(partnerVideo, stream, { muted: false });
+  if (partnerVideo.srcObject !== stream) {
+    partnerVideo.srcObject = stream;
+  }
+  playPartnerVideo();
   partnerVideo.classList.add("active");
-  const partnerPlaceholder = document.querySelector(".partner-placeholder");
   if (partnerPlaceholder) {
     partnerPlaceholder.style.display = "none";
   }
@@ -1108,6 +1155,45 @@ async function persistSignalingPatch(patch, label = "mengupdate sesi") {
   return payload;
 }
 
+// ---- Pengiriman kandidat ICE per batch ----
+async function flushIceCandidates() {
+  iceFlushTimer = null;
+  if (!state.sessionId || !iceQueue.length) {
+    return;
+  }
+
+  const batch = iceQueue;
+  iceQueue = [];
+  const field = state.role === "user1" ? "rtcCandidatesUser1" : "rtcCandidatesUser2";
+
+  try {
+    await persistSignalingPatch({ [field]: batch }, "mengirim kandidat ICE");
+    state.rtcCandidateSentCount += batch.length;
+    updateRtcDebugInfo();
+    console.log("[LDR signaling] ICE candidate batch write success", {
+      sessionId: state.sessionId,
+      role: state.role,
+      count: batch.length,
+    });
+  } catch (error) {
+    console.error("[LDR signaling] Gagal mengirim kandidat ICE, mencoba lagi:", error);
+    if (!state.sessionId) {
+      return;
+    }
+    iceQueue = [...batch, ...iceQueue];
+    if (!iceFlushTimer) {
+      iceFlushTimer = setTimeout(flushIceCandidates, 1000);
+    }
+  }
+}
+
+function queueIceCandidate(candidate) {
+  iceQueue.push(candidate);
+  if (!iceFlushTimer) {
+    iceFlushTimer = setTimeout(flushIceCandidates, 250);
+  }
+}
+
 function getRtcPayloadFingerprint(payload) {
   if (!payload || typeof payload !== "object") {
     return null;
@@ -1154,8 +1240,8 @@ function getPcDebugId(pc = state.rtcPeerConnection) {
   return pc.__gamonDebugId;
 }
 
-function syncLocalTracksToPeerConnection() {
-  const pc = state.rtcPeerConnection;
+function syncLocalTracksToPeerConnection(targetPc = state.rtcPeerConnection) {
+  const pc = targetPc;
   const stream = state.cameraStream;
 
   if (!pc || !stream) {
@@ -1210,6 +1296,11 @@ function resetPeerConnection() {
     state.reconnectTimer = null;
   }
 
+  clearTimeout(iceFlushTimer);
+  iceFlushTimer = null;
+  iceQueue = [];
+
+  state.remoteStream = null;
   state.rtcPcDebugId = null;
   state.rtcOfferApplied = false;
   state.rtcAnswerApplied = false;
@@ -1222,6 +1313,7 @@ function resetPeerConnection() {
   state.rtcCandidateSentCount = 0;
   state.rtcCandidateReceivedCount = 0;
   state.pendingRemoteCandidates = [];
+  state.pendingRemoteCandidateKeys.clear();
   setPartnerRemoteStream(null);
   updateRtcDebugInfo();
 }
@@ -1250,7 +1342,13 @@ async function ensurePeerConnection() {
   }
 
   state.rtcPeerConnectionPromise = (async () => {
-    await loadIceServers();
+    // Jika TURN gagal dimuat, tetap lanjut dengan STUN fallback
+    try {
+      await loadIceServers();
+    } catch (error) {
+      console.warn("[LDR TURN] Memakai STUN fallback karena TURN gagal dimuat.", error);
+    }
+
     const pc = new RTCPeerConnection({
       iceServers: getIceServers(),
       iceTransportPolicy: "all",
@@ -1267,7 +1365,6 @@ async function ensurePeerConnection() {
     });
 
     pc.ontrack = (event) => {
-      const stream = event.streams?.[0];
       const remoteTrack = event.track;
       const baseMeta = {
         pcDebugId,
@@ -1307,6 +1404,10 @@ async function ensurePeerConnection() {
             muted: remoteTrack.muted,
             enabled: remoteTrack.enabled,
           });
+          // Beberapa browser (Safari) baru siap memutar setelah track unmute
+          if (partnerVideo.srcObject) {
+            playPartnerVideo();
+          }
         });
 
         remoteTrack.addEventListener("ended", () => {
@@ -1321,58 +1422,54 @@ async function ensurePeerConnection() {
         });
       }
 
-      if (stream) {
-        setPartnerRemoteStream(stream);
+      // Audio dan video datang sebagai dua event terpisah. Pakai satu MediaStream
+      // yang sama agar srcObject tidak diganti-ganti (penyebab play() ter-abort).
+      let remoteStream = event.streams?.[0] || null;
+      if (!remoteStream) {
+        if (!state.remoteStream) {
+          state.remoteStream = new MediaStream();
+        }
+        remoteStream = state.remoteStream;
+        if (remoteTrack && !remoteStream.getTracks().includes(remoteTrack)) {
+          remoteStream.addTrack(remoteTrack);
+        }
+      }
+
+      const isNewStream = state.remoteStream !== remoteStream;
+      state.remoteStream = remoteStream;
+      setPartnerRemoteStream(remoteStream);
+      if (isNewStream) {
         showToast("Kamera pasangan terhubung.");
       }
     };
 
-    pc.onicecandidate = async (event) => {
+    pc.onicecandidate = (event) => {
       console.log("[LDR signaling] ICE candidate callback fired", {
         pcDebugId,
         sessionId: state.sessionId,
         role: state.role,
         hasCandidate: !!event.candidate,
-        candidate: event.candidate ? event.candidate.toJSON() : null,
+        candidateType: event.candidate?.type || null,
         iceGatheringState: pc.iceGatheringState,
         signalingState: pc.signalingState,
       });
 
-      if (!event.candidate || !state.sessionId) {
+      if (!event.candidate) {
+        // Gathering selesai: kirim sisa antrean sekarang
+        clearTimeout(iceFlushTimer);
+        iceFlushTimer = null;
+        void flushIceCandidates();
         return;
       }
 
-      const candidate = {
+      if (!state.sessionId) {
+        return;
+      }
+
+      queueIceCandidate({
         ...event.candidate.toJSON(),
         from: state.role,
-      };
-
-      console.log("[LDR signaling] ICE candidate generated", {
-        pcDebugId,
-        sessionId: state.sessionId,
-        role: state.role,
-        iceGatheringState: pc.iceGatheringState,
-        candidate,
       });
-
-      try {
-        const candidateField = state.role === "user1" ? "rtcCandidatesUser1" : "rtcCandidatesUser2";
-        const existing = Array.isArray(state.sessionData?.[candidateField]) ? state.sessionData[candidateField] : [];
-        const response = await persistSignalingPatch({ [candidateField]: [...existing, candidate] }, "mengirim kandidat ICE");
-        console.log("[LDR signaling] ICE candidate write success", {
-          pcDebugId,
-          sessionId: state.sessionId,
-          role: state.role,
-          candidateField,
-          response,
-        });
-
-        state.rtcCandidateSentCount += 1;
-        updateRtcDebugInfo();
-      } catch (error) {
-        console.error("[LDR signaling] Gagal mengirim kandidat ICE:", error);
-        showToast("Koneksi kamera pasangan gagal mengirim kandidat ICE. Coba lagi atau cek permission Firestore dan koneksi jaringan.");
-      }
     };
 
     pc.onicegatheringstatechange = () => {
@@ -1397,41 +1494,41 @@ async function ensurePeerConnection() {
 
     pc.oniceconnectionstatechange = () => {
       updateRtcDebugInfo();
+      const iceState = pc.iceConnectionState;
       console.warn("ICE state berubah:", {
         role: state.role,
-        state: pc.iceConnectionState,
+        state: iceState,
         connection: pc.connectionState,
         sessionId: state.sessionId,
       });
 
-      if (pc.iceConnectionState === "failed" || pc.iceConnectionState === "disconnected") {
+      if (iceState === "connected" || iceState === "completed") {
+        clearTimeout(state.reconnectTimer);
+        state.reconnectTimer = null;
+        return;
+      }
+
+      // Hanya user1 (pembuat offer) yang memulai ICE restart agar tidak terjadi glare
+      if ((iceState === "failed" || iceState === "disconnected") && state.role === "user1" && !state.reconnectTimer) {
         setSessionStatusText("Menyambungkan ulang...");
-        showToast("Koneksi WebRTC terputus. Mencoba kembali ke server ICE...");
-        if (!state.reconnectTimer) {
-          state.reconnectTimer = setTimeout(async () => {
-            state.reconnectTimer = null;
-            if (!state.sessionId) {
-              return;
-            }
+        // "disconnected" sering pulih sendiri, jadi beri jeda; "failed" langsung restart
+        const delay = iceState === "failed" ? 0 : 4000;
+        state.reconnectTimer = setTimeout(async () => {
+          state.reconnectTimer = null;
+          if (!state.sessionId || state.rtcPeerConnection !== pc) {
+            return;
+          }
+          if (["connected", "completed"].includes(pc.iceConnectionState)) {
+            return;
+          }
 
-            try {
-              if (pc.restartIce) {
-                pc.restartIce();
-              }
-
-              if (state.role === "user1" && state.sessionData?.user2) {
-                state.rtcOfferApplied = false;
-                await startRtcOffer();
-              } else if (state.role === "user2" && state.sessionData?.rtcOffer) {
-                state.rtcOfferApplied = false;
-                await startRtcAnswer(state.sessionData.rtcOffer);
-              }
-            } catch (error) {
-              console.error("Reconnect WebRTC gagal:", error);
-              showToast("Reconnect WebRTC gagal. Pastikan jaringan stabil dan koneksi TURN/STUN tersedia.");
-            }
-          }, 1500);
-        }
+          try {
+            await startRtcOffer({ iceRestart: true });
+          } catch (error) {
+            console.error("Reconnect WebRTC gagal:", error);
+            showToast("Reconnect WebRTC gagal. Pastikan jaringan stabil dan koneksi TURN/STUN tersedia.");
+          }
+        }, delay);
       }
     };
 
@@ -1444,11 +1541,13 @@ async function ensurePeerConnection() {
       }
 
       if (pc.connectionState === "failed" || pc.connectionState === "closed") {
-        setPartnerRemoteStream(null);
+        if (pc.connectionState === "closed") {
+          setPartnerRemoteStream(null);
+        }
       }
     };
 
-    syncLocalTracksToPeerConnection();
+    syncLocalTracksToPeerConnection(pc);
     state.rtcPeerConnection = pc;
     updateRtcDebugInfo();
     return pc;
@@ -1489,30 +1588,44 @@ function getRemoteCandidateList(data = {}) {
   });
 }
 
+function getCandidateKey(candidate) {
+  return `${candidate.sdpMid || "default"}:${candidate.sdpMLineIndex ?? 0}:${candidate.usernameFragment || ""}:${candidate.candidate}`;
+}
+
+function queuePendingCandidates(candidates) {
+  for (const candidate of candidates) {
+    if (!candidate || !candidate.candidate) {
+      continue;
+    }
+
+    const key = getCandidateKey(candidate);
+    if (state.rtcCandidateKeys.has(key) || state.pendingRemoteCandidateKeys.has(key)) {
+      continue;
+    }
+
+    state.pendingRemoteCandidateKeys.add(key);
+    state.pendingRemoteCandidates.push(candidate);
+  }
+}
+
 async function applyRemoteCandidates(candidates = []) {
   if (!Array.isArray(candidates)) {
     return;
   }
 
-  if (!state.rtcPeerConnection) {
-    state.pendingRemoteCandidates.push(...candidates.filter(Boolean));
+  if (!state.rtcPeerConnection || !state.rtcPeerConnection.remoteDescription) {
+    queuePendingCandidates(candidates);
     return;
   }
 
-  if (!state.rtcPeerConnection.remoteDescription) {
-    state.pendingRemoteCandidates.push(...candidates.filter(Boolean));
-    return;
-  }
-
-  const items = [...state.pendingRemoteCandidates, ...candidates];
+  // Gabungkan antrean lama dengan kandidat baru (tanpa duplikat)
+  queuePendingCandidates(candidates);
+  const items = state.pendingRemoteCandidates;
   state.pendingRemoteCandidates = [];
+  state.pendingRemoteCandidateKeys.clear();
 
   for (const candidate of items) {
-    if (!candidate || !candidate.candidate) {
-      continue;
-    }
-
-    const key = `${candidate.sdpMid || "default"}:${candidate.sdpMLineIndex ?? 0}:${candidate.candidate}`;
+    const key = getCandidateKey(candidate);
     if (state.rtcCandidateKeys.has(key)) {
       continue;
     }
@@ -1520,7 +1633,8 @@ async function applyRemoteCandidates(candidates = []) {
     state.rtcCandidateKeys.add(key);
 
     try {
-      await state.rtcPeerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+      const { from, ...init } = candidate;
+      await state.rtcPeerConnection.addIceCandidate(new RTCIceCandidate(init));
       state.rtcCandidateReceivedCount += 1;
       updateRtcDebugInfo();
     } catch (error) {
@@ -1529,13 +1643,14 @@ async function applyRemoteCandidates(candidates = []) {
   }
 }
 
-async function startRtcOffer() {
+async function startRtcOffer({ iceRestart = false } = {}) {
   console.log("[LDR signaling] startRtcOffer invoked", {
     sessionId: state.sessionId,
     role: state.role,
     hasCamera: !!state.cameraStream,
     rtcOfferApplied: state.rtcOfferApplied,
     lastSentOfferHash: state.lastSentOfferHash,
+    iceRestart,
   });
 
   if (!state.sessionId || !state.cameraStream || state.isNegotiating) {
@@ -1556,9 +1671,10 @@ async function startRtcOffer() {
       senderCountBeforeOffer,
       iceGatheringState: pc.iceGatheringState,
       signalingState: pc.signalingState,
+      iceRestart,
     });
 
-    const offer = await pc.createOffer();
+    const offer = await pc.createOffer(iceRestart ? { iceRestart: true } : undefined);
     await pc.setLocalDescription(offer);
     const offerPayload = { type: offer.type, sdp: offer.sdp };
     const offerHash = getRtcPayloadFingerprint(offerPayload);
@@ -1577,6 +1693,8 @@ async function startRtcOffer() {
 
     state.lastSentOfferHash = offerHash;
     state.rtcOfferApplied = true;
+    // Offer baru membatalkan answer lama
+    state.lastAppliedAnswerHash = null;
 
     const response = await persistSignalingPatch({ rtcOffer: offerPayload, rtcAnswer: null }, "membuat offer WebRTC");
     console.log("[LDR signaling] offer write success", { sessionId: state.sessionId, role: state.role, response, offerHash });
@@ -1630,8 +1748,7 @@ async function startRtcAnswer(offer) {
     await pc.setRemoteDescription(new RTCSessionDescription(offer));
 
     if (state.pendingRemoteCandidates.length) {
-      await applyRemoteCandidates(state.pendingRemoteCandidates);
-      state.pendingRemoteCandidates = [];
+      await applyRemoteCandidates([]);
     }
 
     const answer = await pc.createAnswer();
@@ -1649,7 +1766,8 @@ async function startRtcAnswer(offer) {
     state.lastAnsweredOfferHash = offerHash;
     state.rtcAnswerApplied = true;
 
-    const response = await persistSignalingPatch({ rtcAnswer: answerPayload, rtcOffer: null }, "membuat answer WebRTC");
+    // Jangan hapus rtcOffer di sini; biarkan user1 yang mengelola offer
+    const response = await persistSignalingPatch({ rtcAnswer: answerPayload }, "membuat answer WebRTC");
     console.log("[LDR signaling] answer write success", {
       sessionId: state.sessionId,
       role: state.role,
@@ -1721,17 +1839,23 @@ async function handleRtcFlow(data) {
   if (state.role === "user1" && data.rtcAnswer) {
     const answerHash = getRtcPayloadFingerprint(data.rtcAnswer);
     if (answerHash && answerHash !== state.lastAppliedAnswerHash) {
-      state.lastAppliedAnswerHash = answerHash;
-      state.rtcAnswerApplied = true;
       try {
         const pc = await ensurePeerConnection();
+
+        // Answer hanya valid jika kita sedang menunggu answer untuk offer kita
+        if (pc.signalingState !== "have-local-offer") {
+          return;
+        }
+
+        state.lastAppliedAnswerHash = answerHash;
+        state.rtcAnswerApplied = true;
         await pc.setRemoteDescription(new RTCSessionDescription(data.rtcAnswer));
 
         if (state.pendingRemoteCandidates.length) {
-          await applyRemoteCandidates(state.pendingRemoteCandidates);
-          state.pendingRemoteCandidates = [];
+          await applyRemoteCandidates([]);
         }
       } catch (error) {
+        state.lastAppliedAnswerHash = null;
         state.rtcAnswerApplied = false;
         console.error("[LDR signaling] Penerapan remote answer gagal:", error);
         showToast("Pasangan sudah mengirim jawaban WebRTC, tapi jawaban gagal dipasang. Coba ulang.");
@@ -2583,10 +2707,7 @@ micToggleBtn.addEventListener("click", async () => {
   }
 
   if (partnerVideo && partnerVideo.srcObject) {
-    partnerVideo.muted = false;
-    partnerVideo.play().catch(() => {
-      showToast("Audio partner belum bisa diputar otomatis. Ketuk layar untuk mengaktifkan suara.");
-    });
+    playPartnerVideo();
   }
 });
 

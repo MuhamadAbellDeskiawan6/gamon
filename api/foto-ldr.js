@@ -126,6 +126,7 @@ async function getIceServersHandler(req, res) {
     }
 
     console.log("[LDR TURN] AKTIF: kredensial TURN berhasil diambil dari Metered.");
+    res.setHeader("Cache-Control", "no-store");
     return res.status(200).json({ success: true, turnConfigured: true, iceServers });
   } catch (error) {
     console.error("[LDR TURN] TIDAK AKTIF: gagal mengambil kredensial Metered.", error.message);
@@ -258,35 +259,35 @@ async function createPaymentHandler(req, res, body = {}) {
 
     const orderId = generateLdrOrderId(sessionId);
     const now = Date.now();
-      await db.runTransaction(async (transaction) => {
-        const currentSessionSnapshot = await transaction.get(sessionRef);
-        const currentSessionData = currentSessionSnapshot.data() || {};
-        if (currentSessionData.paymentStatus === "PAID") {
-          throw new Error("Sesi ini sudah dibayar.");
-        }
-        if (currentSessionData.paymentStatus === "PENDING" && currentSessionData.paymentOrderId) {
-          throw new Error("Pembayaran sedang diproses di tab lain.");
-        }
+    await db.runTransaction(async (transaction) => {
+      const currentSessionSnapshot = await transaction.get(sessionRef);
+      const currentSessionData = currentSessionSnapshot.data() || {};
+      if (currentSessionData.paymentStatus === "PAID") {
+        throw new Error("Sesi ini sudah dibayar.");
+      }
+      if (currentSessionData.paymentStatus === "PENDING" && currentSessionData.paymentOrderId) {
+        throw new Error("Pembayaran sedang diproses di tab lain.");
+      }
 
-        transaction.set(db.collection("ldr_order").doc(orderId), {
-          orderId,
-          product: "foto-ldr",
-          sessionId,
-          amount: LDR_PAYMENT_AMOUNT,
-          status: "PENDING",
-          paymentStatus: "PENDING",
-          paymentEnvironment: "production",
-          resultImage: currentSessionData.resultImage || sessionData.resultImage,
-          frameId: currentSessionData.selectedFrameId || sessionData.selectedFrameId || null,
-          createdAt: now,
-          updatedAt: now,
-        });
-        transaction.update(sessionRef, {
-          paymentOrderId: orderId,
-          paymentStatus: "PENDING",
-          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        });
+      transaction.set(db.collection("ldr_order").doc(orderId), {
+        orderId,
+        product: "foto-ldr",
+        sessionId,
+        amount: LDR_PAYMENT_AMOUNT,
+        status: "PENDING",
+        paymentStatus: "PENDING",
+        paymentEnvironment: "production",
+        resultImage: currentSessionData.resultImage || sessionData.resultImage,
+        frameId: currentSessionData.selectedFrameId || sessionData.selectedFrameId || null,
+        createdAt: now,
+        updatedAt: now,
       });
+      transaction.update(sessionRef, {
+        paymentOrderId: orderId,
+        paymentStatus: "PENDING",
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    });
 
     const timestamp = getDokuTimestamp();
     const returnUrl = `${SITE_URL}/foto-ldr.html?sessionId=${encodeURIComponent(sessionId)}&orderId=${encodeURIComponent(orderId)}`;
@@ -539,8 +540,6 @@ async function updateSessionHandler(req, res, body = {}) {
     const firebaseAdmin = getFirebaseAdmin();
     const db = firebaseAdmin.firestore();
     const ref = db.collection("fotoLdrSessions").doc(code);
-    const snapshot = await ref.get();
-    const existing = snapshot.exists ? snapshot.data() || {} : {};
     const updates = { updatedAt: admin.firestore.FieldValue.serverTimestamp() };
 
     if (field && (field === "user1Photo" || field === "user2Photo")) {
@@ -571,49 +570,34 @@ async function updateSessionHandler(req, res, body = {}) {
       updates.action = action;
     }
 
-    if (rtcOffer && typeof rtcOffer === "object") {
+    // null harus diteruskan agar offer/answer lama benar-benar terhapus
+    if (rtcOffer === null) {
+      updates.rtcOffer = null;
+    } else if (rtcOffer && typeof rtcOffer === "object") {
       updates.rtcOffer = rtcOffer;
     }
 
-    if (rtcAnswer && typeof rtcAnswer === "object") {
+    if (rtcAnswer === null) {
+      updates.rtcAnswer = null;
+    } else if (rtcAnswer && typeof rtcAnswer === "object") {
       updates.rtcAnswer = rtcAnswer;
     }
 
-    const appendUniqueArray = (fieldName, incoming) => {
+    // Atomic union: request kandidat ICE paralel tidak lagi saling menimpa
+    const unionCandidates = (fieldName, incoming) => {
       if (!Array.isArray(incoming)) {
         return;
       }
 
-      const base = Array.isArray(existing[fieldName]) ? existing[fieldName] : [];
-      const seen = new Set(base.map((item) => JSON.stringify(item)));
-      const merged = [...base];
-
-      for (const item of incoming) {
-        if (!item) {
-          continue;
-        }
-
-        const key = JSON.stringify(item);
-        if (!seen.has(key)) {
-          seen.add(key);
-          merged.push(item);
-        }
+      const items = incoming.filter((item) => item && typeof item === "object" && item.candidate);
+      if (items.length) {
+        updates[fieldName] = admin.firestore.FieldValue.arrayUnion(...items);
       }
-
-      updates[fieldName] = merged;
     };
 
-    if (Array.isArray(rtcCandidates)) {
-      appendUniqueArray("rtcCandidates", rtcCandidates);
-    }
-
-    if (Array.isArray(rtcCandidatesUser1)) {
-      appendUniqueArray("rtcCandidatesUser1", rtcCandidatesUser1);
-    }
-
-    if (Array.isArray(rtcCandidatesUser2)) {
-      appendUniqueArray("rtcCandidatesUser2", rtcCandidatesUser2);
-    }
+    unionCandidates("rtcCandidates", rtcCandidates);
+    unionCandidates("rtcCandidatesUser1", rtcCandidatesUser1);
+    unionCandidates("rtcCandidatesUser2", rtcCandidatesUser2);
 
     if (countdownStartedAt !== undefined && countdownStartedAt !== null) {
       updates.countdownStartedAt = Number(countdownStartedAt);
@@ -635,7 +619,14 @@ async function updateSessionHandler(req, res, body = {}) {
       updates.captureTriggerId = String(captureTriggerId);
     }
 
-    await ref.update(updates);
+    try {
+      await ref.update(updates);
+    } catch (error) {
+      if (error && (error.code === 5 || /NOT_FOUND/i.test(String(error.message || "")))) {
+        return res.status(404).json({ success: false, message: "Sesi tidak ditemukan." });
+      }
+      throw error;
+    }
 
     return res.status(200).json({ success: true, code });
   } catch (error) {
