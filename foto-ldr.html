@@ -5,9 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Foto LDR | Gamon Tawing</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
+    <!-- Percepat koneksi ke Firebase/Firestore -->
+    <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin />
+    <link rel="preconnect" href="https://www.gstatic.com" crossorigin />
+    <link rel="dns-prefetch" href="https://firestore.googleapis.com" />
+
     <link rel="stylesheet" href="/foto-ldr.css" />
-    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 
     <style>
       /* ===== Tambahan: logo header ===== */
@@ -36,7 +40,8 @@
         position: relative; transition: transform .3s ease;
       }
       .frame-slide.is-active { transform: scale(1.04); }
-      .frame-slide img { width: 100%; height: 100%; object-fit: cover; display: block; }
+      .frame-slide img { width: 100%; height: 100%; object-fit: cover; display: block; opacity: 0; transition: opacity .25s ease; }
+      .frame-slide img.loaded { opacity: 1; }
       .frame-slide.skeleton { animation: ldrPulse 1.3s ease-in-out infinite; }
       .frame-slide .frame-name {
         position: absolute; left: 0; right: 0; bottom: 0; padding: 18px 8px 6px;
@@ -53,6 +58,7 @@
       @media (prefers-reduced-motion: reduce) {
         .frame-carousel { scroll-behavior: auto; }
         .frame-slide, .frame-slide.skeleton { transition: none; animation: none; }
+        .frame-slide img { transition: none; }
       }
 
       /* ===== Tambahan: responsive ===== */
@@ -310,9 +316,20 @@
 
     <div id="toast" class="toast"></div>
 
-    <script src="/foto-ldr.js"></script>
-
-    <!-- Carousel preview frame (tambahan, berdiri sendiri, tidak mengubah foto-ldr.js) -->
+    <!--
+      ==========================================================
+      Carousel preview frame - versi CEPAT
+      Dijalankan SEBELUM Firebase SDK & foto-ldr.js dimuat:
+        1) Preview dari cache (localStorage) tampil seketika.
+        2) Fetch Firestore REST LANGSUNG jalan (tanpa menunggu
+           DOMContentLoaded / SDK), hanya field name + previewImage
+           + createdAt (tanpa frameImage yang besar).
+        3) Jika REST gagal, tunggu SDK lalu fallback ke SDK, dan
+           fallback terakhir ke #frameGrid (cara lama).
+      PENTING: Firestore Rules harus mengizinkan read publik untuk
+      koleksi ldr_frames (lihat match /ldr_frames/{frameId}).
+      ==========================================================
+    -->
     <script>
       (function () {
         var carousel = document.getElementById('frameCarousel');
@@ -321,11 +338,18 @@
         var frameGrid = document.getElementById('frameGrid');
         if (!carousel || !dotsHost) return;
 
+        var CACHE_KEY = 'ldr_preview_cache_v2';
+        var COLLECTION = 'ldr_frames';
+        var DEFAULT_PROJECT_ID = 'gamon-tawing';
+        var DEFAULT_API_KEY = 'AIzaSyC247K8yyL67aWV95KNQy8CkMZsjgGCudQ'; // Web API key Firebase (memang publik)
+        var AUTO_MS = 3000;
+
         var frames = [];
+        var signature = '';
         var index = 0;
         var timer = null;
         var paused = false;
-        var AUTO_MS = 3000;
+        var gotRemote = false;
 
         function escapeAttr(s) {
           return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
@@ -333,23 +357,75 @@
           });
         }
 
+        /* ---------- cache ---------- */
+        function readCache() {
+          try {
+            var raw = localStorage.getItem(CACHE_KEY);
+            if (!raw) return null;
+            var data = JSON.parse(raw);
+            return Array.isArray(data) && data.length ? data : null;
+          } catch (e) { return null; }
+        }
+        function writeCache(list) {
+          try { localStorage.setItem(CACHE_KEY, JSON.stringify(list)); }
+          catch (e) {
+            // Kuota penuh: hapus cache lama supaya tidak menggantung
+            try { localStorage.removeItem(CACHE_KEY); } catch (e2) {}
+          }
+        }
+        function makeSignature(list) {
+          return list.map(function (f) {
+            var s = f.src || '';
+            return (f.id || f.name || '') + ':' + s.length + ':' + s.slice(-24);
+          }).join('|');
+        }
+
+        /* ---------- render ---------- */
         function render() {
           if (!frames.length) return;
           carousel.innerHTML = frames.map(function (f, i) {
             return '<div class="frame-slide' + (i === 0 ? ' is-active' : '') + '" data-i="' + i + '">' +
-              '<img src="' + escapeAttr(f.src) + '" alt="' + escapeAttr(f.name || 'Frame ' + (i + 1)) + '" loading="lazy" />' +
+              '<img src="' + escapeAttr(f.src) + '" alt="' + escapeAttr(f.name || 'Frame ' + (i + 1)) + '"' +
+              ' decoding="async"' + (i < 4 ? ' fetchpriority="high"' : ' loading="lazy"') + ' />' +
               (f.name ? '<div class="frame-name">' + escapeAttr(f.name) + '</div>' : '') +
               '</div>';
           }).join('');
+
+          // fade-in saat gambar siap (aman untuk gambar yang sudah complete)
+          carousel.querySelectorAll('img').forEach(function (img) {
+            if (img.complete) img.classList.add('loaded');
+            else {
+              img.addEventListener('load', function () { img.classList.add('loaded'); }, { once: true });
+              img.addEventListener('error', function () { img.classList.add('loaded'); }, { once: true });
+            }
+          });
+
           dotsHost.innerHTML = frames.map(function (_, i) {
             return '<button type="button" aria-label="Frame ' + (i + 1) + '" data-i="' + i + '"' +
               (i === 0 ? ' class="active"' : '') + '></button>';
           }).join('');
+          if (showcase) showcase.hidden = false;
           index = 0;
           carousel.scrollLeft = 0;
           start();
         }
 
+        function applyFrames(list, persist) {
+          list = (list || []).filter(function (f) { return f && f.src; });
+          if (!list.length) return false;
+          var sig = makeSignature(list);
+          if (sig === signature) {
+            if (persist) writeCache(list);
+            return true; // tidak ada perubahan, hindari render ulang/kedip
+          }
+          frames = list;
+          signature = sig;
+          render();
+          if (persist) writeCache(list);
+          return true;
+        }
+
+        /* ---------- carousel behaviour ---------- */
         function setActive(i) {
           index = i;
           var slides = carousel.querySelectorAll('.frame-slide');
@@ -376,7 +452,6 @@
         }
         function stop() { if (timer) { clearInterval(timer); timer = null; } }
 
-        // Sinkronkan titik indikator saat digeser manual
         var scrollTimeout;
         carousel.addEventListener('scroll', function () {
           clearTimeout(scrollTimeout);
@@ -409,35 +484,127 @@
           if (e.key === 'ArrowLeft') goTo(index - 1);
         });
 
+        document.addEventListener('visibilitychange', function () { if (!document.hidden) start(); });
+
         // API publik: window.setLdrCarouselFrames([{src:'...', name:'...'}])
         window.setLdrCarouselFrames = function (list) {
-          frames = (list || []).filter(function (f) { return f && f.src; });
-          if (frames.length) render();
-          else if (showcase) showcase.hidden = true;
+          gotRemote = true;
+          if (!applyFrames(list, true) && showcase) showcase.hidden = true;
         };
 
-        // Ambil otomatis dari daftar frame yang dimuat foto-ldr.js (#frameGrid)
-        function harvestFromGrid() {
-          if (!frameGrid) return;
-          var imgs = frameGrid.querySelectorAll('img');
-          var list = [];
-          imgs.forEach(function (img, i) {
-            var src = img.currentSrc || img.src;
-            if (src) list.push({ src: src, name: img.alt || ('Frame ' + (i + 1)) });
-          });
-          if (list.length && JSON.stringify(list.map(function (x) { return x.src; })) !==
-              JSON.stringify(frames.map(function (x) { return x.src; }))) {
-            frames = list;
-            render();
-          }
-        }
-        if (frameGrid && 'MutationObserver' in window) {
-          new MutationObserver(harvestFromGrid).observe(frameGrid, { childList: true, subtree: true, attributes: true, attributeFilter: ['src'] });
-          harvestFromGrid();
+        /* ---------- 1) tampilkan cache SEKETIKA ---------- */
+        var cached = readCache();
+        if (cached) applyFrames(cached, false);
+
+        /* ---------- 2) ambil data terbaru (ringan) ---------- */
+        function sortFrames(list) {
+          return list.sort(function (a, b) { return (a.createdAt || 0) - (b.createdAt || 0); });
         }
 
-        document.addEventListener('visibilitychange', function () { if (!document.hidden) start(); });
+        function fetchViaRest(projectId, apiKey) {
+          var url = 'https://firestore.googleapis.com/v1/projects/' + encodeURIComponent(projectId) +
+            '/databases/(default)/documents:runQuery' + (apiKey ? '?key=' + encodeURIComponent(apiKey) : '');
+          var body = {
+            structuredQuery: {
+              from: [{ collectionId: COLLECTION }],
+              where: { fieldFilter: { field: { fieldPath: 'isActive' }, op: 'EQUAL', value: { booleanValue: true } } },
+              // Field mask: JANGAN ambil frameImage (besar), cukup previewImage
+              select: { fields: [{ fieldPath: 'name' }, { fieldPath: 'previewImage' }, { fieldPath: 'createdAt' }] }
+            }
+          };
+          var ctrl = ('AbortController' in window) ? new AbortController() : null;
+          var abortTimer = ctrl ? setTimeout(function () { ctrl.abort(); }, 12000) : null;
+          return fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+            signal: ctrl ? ctrl.signal : undefined
+          }).then(function (res) {
+            if (abortTimer) clearTimeout(abortTimer);
+            if (!res.ok) throw new Error('REST ' + res.status);
+            return res.json();
+          }).then(function (rows) {
+            var list = [];
+            (rows || []).forEach(function (row) {
+              if (!row || !row.document) return;
+              var f = row.document.fields || {};
+              var src = f.previewImage && f.previewImage.stringValue;
+              if (!src) return;
+              var created = f.createdAt && (f.createdAt.integerValue || f.createdAt.doubleValue);
+              list.push({
+                id: row.document.name.split('/').pop(),
+                src: src,
+                name: (f.name && f.name.stringValue) || '',
+                createdAt: created ? Number(created) : 0
+              });
+            });
+            return sortFrames(list);
+          });
+        }
+
+        function fetchViaSdk() {
+          if (!window.firebase || !firebase.apps || !firebase.apps.length) return Promise.reject(new Error('no sdk'));
+          return firebase.firestore().collection(COLLECTION).where('isActive', '==', true).get().then(function (snap) {
+            var list = [];
+            snap.forEach(function (doc) {
+              var d = doc.data() || {};
+              var src = d.previewImage || d.frameImage;
+              if (src) list.push({ id: doc.id, src: src, name: d.name || '', createdAt: Number(d.createdAt) || 0 });
+            });
+            return sortFrames(list);
+          });
+        }
+
+        // Tunggu SDK siap (maks ~6 detik) untuk fallback
+        function waitForSdk(tries) {
+          return new Promise(function (resolve, reject) {
+            (function check(n) {
+              if (window.firebase && firebase.apps && firebase.apps.length) return resolve();
+              if (n <= 0) return reject(new Error('sdk timeout'));
+              setTimeout(function () { check(n - 1); }, 300);
+            })(tries);
+          });
+        }
+
+        function loadRemote() {
+          // REST langsung jalan memakai config bawaan, tidak menunggu SDK
+          fetchViaRest(DEFAULT_PROJECT_ID, DEFAULT_API_KEY)
+            .catch(function () {
+              return waitForSdk(20).then(fetchViaSdk);
+            })
+            .then(function (list) {
+              if (list && list.length) { gotRemote = true; applyFrames(list, true); }
+              else if (!cached && showcase) showcase.hidden = true;
+            })
+            .catch(function () {
+              // gagal total: cache (kalau ada) tetap tampil; kalau tidak, andalkan #frameGrid
+            });
+        }
+
+        // Langsung jalan, paralel dengan download Firebase SDK
+        loadRemote();
+
+        /* ---------- 3) fallback terakhir: ambil dari #frameGrid ---------- */
+        function harvestFromGrid() {
+          if (gotRemote || !frameGrid) return;
+          var list = [];
+          frameGrid.querySelectorAll('img').forEach(function (img, i) {
+            var src = img.currentSrc || img.src;
+            if (src) list.push({ id: 'grid' + i, src: src, name: img.alt || ('Frame ' + (i + 1)) });
+          });
+          if (list.length) applyFrames(list, false);
+        }
+        if (frameGrid && 'MutationObserver' in window) {
+          new MutationObserver(harvestFromGrid).observe(frameGrid, {
+            childList: true, subtree: true, attributes: true, attributeFilter: ['src']
+          });
+        }
       })();
     </script>
+
+    <!-- Firebase SDK dipindah ke bawah agar tidak memblokir render halaman -->
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+    <script src="/foto-ldr.js"></script>
   </body>
 </html>
