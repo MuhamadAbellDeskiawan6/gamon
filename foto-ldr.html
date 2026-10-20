@@ -2,20 +2,112 @@
 <html lang="id">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Foto LDR | Gamon Tawing</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="stylesheet" href="/foto-ldr.css" />
     <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+
+    <style>
+      /* ===== Tambahan: logo header ===== */
+      .brand-wrap { display: flex; align-items: center; gap: 10px; min-width: 0; }
+      .brand-logo { width: 34px; height: 34px; object-fit: contain; flex-shrink: 0; border-radius: 8px; }
+      .brand-text { display: flex; flex-direction: column; line-height: 1.2; min-width: 0; text-align: left; }
+      .brand-text strong, .brand-text span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+      /* ===== Tambahan: carousel preview frame ===== */
+      .frame-showcase { width: 100%; max-width: 100%; margin: 20px 0 8px; }
+      .frame-showcase-title {
+        display: flex; align-items: center; justify-content: space-between;
+        margin: 0 4px 10px; font-size: 14px;
+      }
+      .frame-showcase-title span { opacity: .65; font-size: 12px; }
+      .frame-carousel {
+        display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory;
+        -webkit-overflow-scrolling: touch; scrollbar-width: none;
+        padding: 4px 4px 10px; scroll-behavior: smooth;
+      }
+      .frame-carousel::-webkit-scrollbar { display: none; }
+      .frame-slide {
+        flex: 0 0 clamp(120px, 38vw, 170px); aspect-ratio: 9 / 16;
+        scroll-snap-align: center; border-radius: 14px; overflow: hidden;
+        background: rgba(128,128,128,.15); box-shadow: 0 4px 14px rgba(0,0,0,.18);
+        position: relative; transition: transform .3s ease;
+      }
+      .frame-slide.is-active { transform: scale(1.04); }
+      .frame-slide img { width: 100%; height: 100%; object-fit: cover; display: block; }
+      .frame-slide.skeleton { animation: ldrPulse 1.3s ease-in-out infinite; }
+      .frame-slide .frame-name {
+        position: absolute; left: 0; right: 0; bottom: 0; padding: 18px 8px 6px;
+        font-size: 11px; color: #fff; text-align: center;
+        background: linear-gradient(transparent, rgba(0,0,0,.6));
+      }
+      .frame-dots { display: flex; justify-content: center; gap: 6px; margin-top: 4px; }
+      .frame-dots button {
+        width: 7px; height: 7px; border-radius: 50%; border: 0; padding: 0;
+        background: rgba(128,128,128,.45); cursor: pointer; transition: all .25s;
+      }
+      .frame-dots button.active { width: 18px; border-radius: 6px; background: currentColor; }
+      @keyframes ldrPulse { 0%,100% { opacity: .55; } 50% { opacity: 1; } }
+      @media (prefers-reduced-motion: reduce) {
+        .frame-carousel { scroll-behavior: auto; }
+        .frame-slide, .frame-slide.skeleton { transition: none; animation: none; }
+      }
+
+      /* ===== Tambahan: responsive ===== */
+      html, body { max-width: 100%; overflow-x: hidden; }
+      .ldr-app { width: 100%; max-width: 100%; margin-inline: auto;
+        padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right);
+        padding-bottom: env(safe-area-inset-bottom); }
+      .ldr-topbar { padding-top: max(env(safe-area-inset-top), 0px); }
+      .ldr-main { width: 100%; }
+      video, canvas, img { max-width: 100%; }
+      .result-frame canvas { width: 100%; height: auto; }
+      .camera-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+      .capture-header { flex-wrap: wrap; gap: 8px; }
+      .capture-header-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+      .capture-actions, .result-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+      .capture-actions > button, .result-actions > button { flex: 1 1 140px; }
+      .rtc-debug-text { overflow-wrap: anywhere; font-size: 11px; }
+      .room-code { max-width: 100%; }
+
+      @media (min-width: 768px) {
+        .ldr-main { max-width: 720px; margin-inline: auto; }
+        .frame-slide { flex-basis: 160px; }
+        .frame-carousel { justify-content: flex-start; }
+      }
+      @media (min-width: 1100px) {
+        .ldr-main { max-width: 860px; }
+        .frame-slide { flex-basis: 180px; }
+      }
+      @media (max-width: 480px) {
+        .hero-block h1 { font-size: clamp(24px, 7.5vw, 32px); }
+        .hero-block p { font-size: 14px; }
+        .camera-grid { gap: 8px; }
+        .capture-header { flex-direction: column; align-items: stretch; }
+        .capture-header-actions > button { flex: 1; }
+        .room-code { font-size: clamp(28px, 11vw, 40px); letter-spacing: .12em; }
+      }
+      @media (max-width: 340px) {
+        .camera-grid { grid-template-columns: 1fr; }
+      }
+      @media (max-height: 520px) and (orientation: landscape) {
+        .camera-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .hero-block { display: none; }
+      }
+    </style>
   </head>
   <body>
     <div class="ldr-app">
       <header class="ldr-topbar">
         <button class="nav-btn" type="button" onclick="location.href='/'">←</button>
         <div class="brand-wrap">
-          <strong>Gamon Tawing</strong>
-          <span>Foto LDR</span>
+          <img class="brand-logo" src="/favicon.svg" alt="Logo Gamon Tawing" width="34" height="34" />
+          <div class="brand-text">
+            <strong>Gamon Tawing</strong>
+            <span>Foto LDR</span>
+          </div>
         </div>
         <button class="nav-btn" type="button" id="helpBtn">?</button>
       </header>
@@ -34,6 +126,21 @@
               Fitur virtual LDR yang simpel: buat sesi, gabung, ambil satu foto masing-masing,
               lalu hasilnya langsung bisa ditampilkan dan diunduh.
             </p>
+          </div>
+
+          <!-- Preview frame (carousel otomatis) -->
+          <div class="frame-showcase" id="frameShowcase" aria-label="Preview frame">
+            <div class="frame-showcase-title">
+              <strong>Preview Frame</strong>
+              <span>Geser untuk melihat</span>
+            </div>
+            <div id="frameCarousel" class="frame-carousel" tabindex="0">
+              <div class="frame-slide skeleton"></div>
+              <div class="frame-slide skeleton"></div>
+              <div class="frame-slide skeleton"></div>
+              <div class="frame-slide skeleton"></div>
+            </div>
+            <div id="frameDots" class="frame-dots"></div>
           </div>
 
           <div class="action-card">
@@ -204,5 +311,133 @@
     <div id="toast" class="toast"></div>
 
     <script src="/foto-ldr.js"></script>
+
+    <!-- Carousel preview frame (tambahan, berdiri sendiri, tidak mengubah foto-ldr.js) -->
+    <script>
+      (function () {
+        var carousel = document.getElementById('frameCarousel');
+        var dotsHost = document.getElementById('frameDots');
+        var showcase = document.getElementById('frameShowcase');
+        var frameGrid = document.getElementById('frameGrid');
+        if (!carousel || !dotsHost) return;
+
+        var frames = [];
+        var index = 0;
+        var timer = null;
+        var paused = false;
+        var AUTO_MS = 3000;
+
+        function escapeAttr(s) {
+          return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+            return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+          });
+        }
+
+        function render() {
+          if (!frames.length) return;
+          carousel.innerHTML = frames.map(function (f, i) {
+            return '<div class="frame-slide' + (i === 0 ? ' is-active' : '') + '" data-i="' + i + '">' +
+              '<img src="' + escapeAttr(f.src) + '" alt="' + escapeAttr(f.name || 'Frame ' + (i + 1)) + '" loading="lazy" />' +
+              (f.name ? '<div class="frame-name">' + escapeAttr(f.name) + '</div>' : '') +
+              '</div>';
+          }).join('');
+          dotsHost.innerHTML = frames.map(function (_, i) {
+            return '<button type="button" aria-label="Frame ' + (i + 1) + '" data-i="' + i + '"' +
+              (i === 0 ? ' class="active"' : '') + '></button>';
+          }).join('');
+          index = 0;
+          carousel.scrollLeft = 0;
+          start();
+        }
+
+        function setActive(i) {
+          index = i;
+          var slides = carousel.querySelectorAll('.frame-slide');
+          var dots = dotsHost.querySelectorAll('button');
+          slides.forEach(function (s, k) { s.classList.toggle('is-active', k === i); });
+          dots.forEach(function (d, k) { d.classList.toggle('active', k === i); });
+        }
+
+        function goTo(i) {
+          var slides = carousel.querySelectorAll('.frame-slide');
+          if (!slides.length) return;
+          i = (i + slides.length) % slides.length;
+          var s = slides[i];
+          var left = s.offsetLeft - (carousel.clientWidth - s.clientWidth) / 2;
+          carousel.scrollTo({ left: left, behavior: 'smooth' });
+          setActive(i);
+        }
+
+        function start() {
+          stop();
+          if (frames.length < 2) return;
+          if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+          timer = setInterval(function () { if (!paused && !document.hidden) goTo(index + 1); }, AUTO_MS);
+        }
+        function stop() { if (timer) { clearInterval(timer); timer = null; } }
+
+        // Sinkronkan titik indikator saat digeser manual
+        var scrollTimeout;
+        carousel.addEventListener('scroll', function () {
+          clearTimeout(scrollTimeout);
+          scrollTimeout = setTimeout(function () {
+            var slides = carousel.querySelectorAll('.frame-slide');
+            var center = carousel.scrollLeft + carousel.clientWidth / 2;
+            var best = 0, bestDist = Infinity;
+            slides.forEach(function (s, k) {
+              var d = Math.abs(s.offsetLeft + s.clientWidth / 2 - center);
+              if (d < bestDist) { bestDist = d; best = k; }
+            });
+            setActive(best);
+          }, 80);
+        }, { passive: true });
+
+        dotsHost.addEventListener('click', function (e) {
+          var b = e.target.closest('button[data-i]');
+          if (b) goTo(parseInt(b.getAttribute('data-i'), 10));
+        });
+
+        ['mouseenter', 'touchstart', 'focusin'].forEach(function (ev) {
+          carousel.addEventListener(ev, function () { paused = true; }, { passive: true });
+        });
+        ['mouseleave', 'touchend', 'focusout'].forEach(function (ev) {
+          carousel.addEventListener(ev, function () { setTimeout(function () { paused = false; }, 1500); }, { passive: true });
+        });
+
+        carousel.addEventListener('keydown', function (e) {
+          if (e.key === 'ArrowRight') goTo(index + 1);
+          if (e.key === 'ArrowLeft') goTo(index - 1);
+        });
+
+        // API publik: window.setLdrCarouselFrames([{src:'...', name:'...'}])
+        window.setLdrCarouselFrames = function (list) {
+          frames = (list || []).filter(function (f) { return f && f.src; });
+          if (frames.length) render();
+          else if (showcase) showcase.hidden = true;
+        };
+
+        // Ambil otomatis dari daftar frame yang dimuat foto-ldr.js (#frameGrid)
+        function harvestFromGrid() {
+          if (!frameGrid) return;
+          var imgs = frameGrid.querySelectorAll('img');
+          var list = [];
+          imgs.forEach(function (img, i) {
+            var src = img.currentSrc || img.src;
+            if (src) list.push({ src: src, name: img.alt || ('Frame ' + (i + 1)) });
+          });
+          if (list.length && JSON.stringify(list.map(function (x) { return x.src; })) !==
+              JSON.stringify(frames.map(function (x) { return x.src; }))) {
+            frames = list;
+            render();
+          }
+        }
+        if (frameGrid && 'MutationObserver' in window) {
+          new MutationObserver(harvestFromGrid).observe(frameGrid, { childList: true, subtree: true, attributes: true, attributeFilter: ['src'] });
+          harvestFromGrid();
+        }
+
+        document.addEventListener('visibilitychange', function () { if (!document.hidden) start(); });
+      })();
+    </script>
   </body>
 </html>
