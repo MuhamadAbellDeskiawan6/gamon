@@ -3676,6 +3676,331 @@ function bindLogoutButtons() {
     });
   });
 }
+/* =========================================================================
+ * JUAL BARANG (sisi user)
+ * Koleksi: marketplace_sell_requests  |  Pengaturan lokasi: marketplace_settings/cod_location
+ * Nama field HARUS sama dengan firestore.rules (requestCode, sellerName, sellerEmail,
+ * sellerPhone, name, askingPrice, dst). Foto disimpan sebagai data URL di dokumen.
+ * ========================================================================= */
+const SELL_COLLECTION = 'marketplace_sell_requests';
+const SELL_DEFAULT_MAPS_URL = 'https://maps.app.goo.gl/fFKAgcK87iMCH85e6';
+const SELL_MAX_PHOTOS = 3;
+const SELL_MAX_SOURCE_BYTES = 5 * 1024 * 1024;
+const SELL_MAX_PHOTO_CHARS = 190000; // rules: maksimal 200.000 karakter per foto
+const SELL_MAX_ACTIVE_REQUESTS = 5;
+const SELL_CATEGORIES = ['pakaian', 'aksesori', 'barang'];
+const SELL_CONDITIONS = ['Baru', 'Seperti baru', 'Bekas, masih bagus', 'Bekas, ada cacat'];
+const SELL_PHOTO_STEPS = [
+  { targetWidth: 720, targetHeight: 720, quality: 0.65 },
+  { targetWidth: 560, targetHeight: 560, quality: 0.55 },
+  { targetWidth: 420, targetHeight: 420, quality: 0.45 },
+  { targetWidth: 340, targetHeight: 340, quality: 0.4 }
+];
+const SELL_STATUS = {
+  pending: { label: 'Menunggu tinjauan', color: '#92400e', bg: '#fef3c7', hint: 'Pengajuanmu sudah masuk. Admin akan meninjau lalu menghubungimu lewat Chat Admin atau WhatsApp.' },
+  approved: { label: 'Disetujui', color: '#166534', bg: '#dcfce7', hint: 'Pengajuan disetujui. Datang ke lokasi COD sesuai jadwal, barang dicek bersama lalu dibayar tunai.' },
+  rejected: { label: 'Ditolak', color: '#991b1b', bg: '#fee2e2', hint: 'Pengajuan belum bisa kami terima. Lihat catatan admin di bawah atau tanya lewat Chat Admin.' },
+  completed: { label: 'Selesai', color: '#1e40af', bg: '#dbeafe', hint: 'Transaksi selesai. Terima kasih sudah menjual barangmu!' },
+  cancelled: { label: 'Dibatalkan', color: '#475569', bg: '#e2e8f0', hint: 'Pengajuan ini dibatalkan.' }
+};
+
+async function sellCompressPhoto(file) {
+  for (const step of SELL_PHOTO_STEPS) {
+    const compressed = await prepareImageForUpload(file, step);
+    const dataUrl = await fileToDataUrl(compressed);
+    if (dataUrl.length <= SELL_MAX_PHOTO_CHARS) return dataUrl;
+  }
+  throw new Error(`Foto "${file.name}" terlalu detail untuk dikompres. Pilih foto lain.`);
+}
+
+function sellNormalizePhone(value) {
+  const digits = String(value || '').replace(/[\s.\-()]/g, '');
+  return /^(\+62|62|0)8\d{7,12}$/.test(digits) ? digits : '';
+}
+
+function sellBuildRequestCode() {
+  return `JB-${Date.now().toString(36).toUpperCase()}${Math.random().toString(36).slice(2, 5).toUpperCase()}`;
+}
+
+async function renderSellPage() {
+  const user = requireAuth();
+  if (!user) return;
+
+  const form = document.querySelector('[data-sell-form]');
+  const listEl = document.querySelector('[data-sell-list]');
+  if (!form || !listEl) return;
+
+  const firebaseUser = auth.currentUser || await waitForMarketplaceFirebaseUser();
+  if (!firebaseUser) {
+    window.location.href = getAuthTarget();
+    return;
+  }
+  const userId = firebaseUser.uid;
+
+  const statusEl = form.querySelector('[data-sell-status]');
+  const submitBtn = form.querySelector('[data-sell-submit]');
+  const picker = form.querySelector('[data-sell-photo-picker]');
+  const addBtn = form.querySelector('[data-sell-photo-add]');
+  const fileInput = form.querySelector('.sell-photo-input');
+  const codEl = document.querySelector('[data-cod-location]');
+
+  let photos = [];
+  let requests = [];
+  let busy = false;
+
+  const setStatus = (message, ok = false) => {
+    if (!statusEl) return;
+    statusEl.textContent = message || '';
+    statusEl.classList.toggle('is-ok', Boolean(ok));
+  };
+
+  bindPriceFieldFormatting(form);
+  const phoneField = form.querySelector('[name="contactPhone"]');
+  if (phoneField && !phoneField.value) phoneField.value = user.phone || '';
+
+  /* ---------- Lokasi COD (diatur admin) ---------- */
+  const renderCod = (data) => {
+    if (!codEl) return;
+    const mapsUrl = /^https:\/\//i.test(String(data?.mapsUrl || '')) ? data.mapsUrl : SELL_DEFAULT_MAPS_URL;
+    const address = String(data?.address || '').trim() || 'Alamat lengkap akan diinfokan admin. Lihat titik lokasi di Google Maps.';
+    const hours = String(data?.hours || '').trim();
+    const note = String(data?.note || '').trim();
+    codEl.innerHTML = `<strong>Lokasi COD</strong>
+      <p>${escapeHtml(address)}</p>
+      ${hours ? `<p>Jam buka: ${escapeHtml(hours)}</p>` : ''}
+      ${note ? `<p>${escapeHtml(note)}</p>` : ''}
+      <a href="${escapeHtml(mapsUrl)}" target="_blank" rel="noopener noreferrer">Buka di Google Maps</a>`;
+  };
+  renderCod(null);
+  getDoc(doc(db, 'marketplace_settings', 'cod_location'))
+    .then((snap) => renderCod(snap.exists() ? snap.data() : null))
+    .catch((error) => console.error('[marketplace jual] gagal memuat lokasi COD:', error));
+
+  /* ---------- Foto ---------- */
+  const renderPhotos = () => {
+    picker.querySelectorAll('.sell-photo-item').forEach((node) => node.remove());
+    photos.forEach((photo, index) => {
+      const item = document.createElement('div');
+      item.className = 'sell-photo-item';
+      item.innerHTML = `<img src="${escapeHtml(photo)}" alt="Foto ${index + 1}" /><button class="sell-photo-remove" type="button" data-sell-photo-remove="${index}" aria-label="Hapus foto ${index + 1}">&times;</button>`;
+      picker.insertBefore(item, addBtn);
+    });
+    addBtn.disabled = photos.length >= SELL_MAX_PHOTOS;
+  };
+
+  addBtn.addEventListener('click', () => {
+    if (!addBtn.disabled && !busy) fileInput.click();
+  });
+
+  picker.addEventListener('click', (event) => {
+    const remove = event.target.closest('[data-sell-photo-remove]');
+    if (!remove) return;
+    photos.splice(Number(remove.dataset.sellPhotoRemove), 1);
+    renderPhotos();
+  });
+
+  fileInput.addEventListener('change', async () => {
+    const files = Array.from(fileInput.files || []);
+    fileInput.value = '';
+    if (!files.length) return;
+
+    const slots = SELL_MAX_PHOTOS - photos.length;
+    if (files.length > slots) showToast(`Maksimal ${SELL_MAX_PHOTOS} foto. Sisanya diabaikan.`, 'info');
+
+    busy = true;
+    addBtn.disabled = true;
+    setStatus('Memproses foto...', true);
+    try {
+      for (const file of files.slice(0, slots)) {
+        if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+          showPopup(`"${file.name}" bukan JPG, PNG, atau WebP.`, 'Format tidak didukung', 'error');
+          continue;
+        }
+        if (file.size > SELL_MAX_SOURCE_BYTES) {
+          showPopup(`"${file.name}" lebih dari 5 MB. Pilih foto yang lebih kecil.`, 'Foto terlalu besar', 'error');
+          continue;
+        }
+        photos.push(await sellCompressPhoto(file));
+      }
+      setStatus('');
+    } catch (error) {
+      console.error('[marketplace jual] kompres foto gagal:', error);
+      setStatus('');
+      showPopup(error.message || 'Foto gagal diproses.', 'Foto gagal', 'error');
+    } finally {
+      busy = false;
+      renderPhotos();
+    }
+  });
+  renderPhotos();
+
+  /* ---------- Kirim pengajuan ---------- */
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (busy) return;
+
+    const data = new FormData(form);
+    const name = String(data.get('itemName') || '').trim();
+    const category = String(data.get('category') || '');
+    const condition = String(data.get('condition') || '');
+    const askingPrice = Math.trunc(Number(String(data.get('price') || '').replace(/\D/g, '')));
+    const sellerPhone = sellNormalizePhone(data.get('contactPhone'));
+    const description = String(data.get('description') || '').trim();
+    const storyNote = String(data.get('storyNote') || '').trim();
+    const visitPlan = String(data.get('visitPlan') || '').trim();
+    const agreed = form.querySelector('[name="agree"]').checked;
+
+    const fail = (message) => {
+      setStatus(message);
+      showPopup(message, 'Data belum lengkap', 'error');
+    };
+
+    if (name.length < 3 || name.length > 80) return fail('Nama barang harus 3–80 karakter.');
+    if (!SELL_CATEGORIES.includes(category)) return fail('Pilih kategori yang valid.');
+    if (!SELL_CONDITIONS.includes(condition)) return fail('Pilih kondisi yang valid.');
+    if (!askingPrice || askingPrice < 1000 || askingPrice > 1000000000) return fail('Harga harapan harus antara Rp 1.000 dan Rp 1.000.000.000.');
+    if (!sellerPhone) return fail('Nomor HP/WhatsApp tidak valid. Contoh: 08123456789.');
+    if (description.length < 10 || description.length > 600) return fail('Deskripsi barang harus 10–600 karakter.');
+    if (storyNote.length > 300) return fail('Cerita singkat maksimal 300 karakter.');
+    if (visitPlan.length < 2 || visitPlan.length > 150) return fail('Isi kapan kamu bisa datang ke lokasi.');
+    if (!photos.length) return fail('Tambahkan minimal 1 foto barang.');
+    if (photos.some((p) => p.length > SELL_MAX_PHOTO_CHARS)) return fail('Ada foto yang terlalu besar. Hapus lalu pilih foto lain.');
+    if (!agreed) return fail('Centang pernyataan persetujuan dulu.');
+
+    const activeCount = requests.filter((r) => r.status === 'pending' || r.status === 'approved').length;
+    if (activeCount >= SELL_MAX_ACTIVE_REQUESTS) {
+      return fail(`Kamu masih punya ${activeCount} pengajuan aktif. Tunggu diproses atau batalkan salah satunya.`);
+    }
+
+    setStatus('');
+    busy = true;
+    setButtonLoading(submitBtn, true, 'Mengirim...');
+    try {
+      const now = Date.now();
+      const ref = doc(collection(db, SELL_COLLECTION));
+      // Hanya field yang diizinkan firestore.rules, tidak boleh ada field tambahan.
+      await withTimeout(setDoc(ref, {
+        requestCode: sellBuildRequestCode(),
+        userId,
+        sellerName: getSafeUserName(user.name || firebaseUser.displayName).slice(0, 120),
+        sellerEmail: String(user.email || firebaseUser.email || '').slice(0, 180),
+        sellerPhone,
+        name,
+        category,
+        condition,
+        askingPrice,
+        description,
+        storyNote,
+        visitPlan,
+        photos: [...photos],
+        status: 'pending',
+        adminNote: '',
+        createdAt: now,
+        updatedAt: now
+      }), 30000, 'Pengiriman pengajuan');
+
+      form.reset();
+      if (phoneField) phoneField.value = sellerPhone;
+      photos = [];
+      renderPhotos();
+      setStatus('Pengajuan terkirim. Pantau statusnya di bagian "Pengajuan saya".', true);
+      showPopup('Pengajuan berhasil dikirim. Admin akan meninjau dan menghubungimu.', 'Pengajuan terkirim', 'success');
+      listEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } catch (error) {
+      console.error('[marketplace jual] gagal mengirim pengajuan:', error);
+      const message = error?.code === 'permission-denied'
+        ? 'Pengajuan ditolak server (permission-denied). Pastikan kamu login sebagai user biasa (bukan akun admin) dan data sesuai aturan.'
+        : (error?.message || 'Pengajuan gagal dikirim. Coba lagi.');
+      setStatus(message);
+      showPopup(message, 'Gagal mengirim', 'error');
+    } finally {
+      busy = false;
+      setButtonLoading(submitBtn, false);
+    }
+  });
+
+  /* ---------- Daftar pengajuan saya ---------- */
+  const formatDate = (value) => {
+    const ms = getCreatedAtMs(value);
+    return ms ? new Date(ms).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' }) : '';
+  };
+
+  const renderRequests = () => {
+    if (!requests.length) {
+      listEl.innerHTML = '<p class="muted">Belum ada pengajuan. Isi form di atas untuk mulai menjual.</p>';
+      return;
+    }
+    listEl.innerHTML = requests.map((item) => {
+      const st = SELL_STATUS[item.status] || SELL_STATUS.pending;
+      const firstPhoto = safeMarketplaceImageUrl(Array.isArray(item.photos) ? item.photos[0] : '');
+      const thumb = firstPhoto
+        ? `<img src="${escapeHtml(firstPhoto)}" alt="${escapeHtml(item.name)}" />`
+        : escapeHtml((item.name || 'B').charAt(0).toUpperCase());
+      const canCancel = item.status === 'pending'; // sesuai rules: user hanya bisa membatalkan saat pending
+      const notes = [
+        item.visitSchedule ? `<strong>Jadwal datang:</strong> ${escapeHtml(item.visitSchedule)}` : '',
+        Number(item.agreedPrice) > 0 ? `<strong>Harga disepakati:</strong> ${formatCurrency(item.agreedPrice)}` : '',
+        item.adminNote ? `<strong>Catatan admin:</strong> ${escapeHtml(item.adminNote)}` : ''
+      ].filter(Boolean);
+      return `<article class="sell-card" data-sell-id="${escapeHtml(item.id)}">
+        <div class="sell-card-thumb">${thumb}</div>
+        <div>
+          <div class="sell-card-head">
+            <h3>${escapeHtml(item.name)}</h3>
+            <span class="condition" style="background:${st.bg};color:${st.color};">${escapeHtml(st.label)}</span>
+          </div>
+          <p class="sell-card-meta">${escapeHtml(item.requestCode || '')} · ${escapeHtml(productLabel(item.category))} · ${escapeHtml(item.condition || '')} · Harapan ${formatCurrency(item.askingPrice)} · ${escapeHtml(formatDate(item.createdAt))}</p>
+          <p class="sell-card-hint">${escapeHtml(st.hint)}</p>
+          ${notes.length ? `<div class="sell-card-note">${notes.join('<br>')}</div>` : ''}
+          <div class="sell-card-actions">
+            <a class="btn btn-secondary" href="chat.html">Chat Admin</a>
+            ${canCancel ? `<button class="btn btn-secondary" type="button" data-sell-cancel="${escapeHtml(item.id)}">Batalkan</button>` : ''}
+          </div>
+        </div>
+      </article>`;
+    }).join('');
+  };
+
+  listEl.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-sell-cancel]');
+    if (!button) return;
+    const id = button.dataset.sellCancel;
+    showConfirm({
+      title: 'Batalkan pengajuan?',
+      message: 'Pengajuan ini akan dibatalkan dan tidak diproses admin.',
+      confirmText: 'Ya, batalkan',
+      cancelText: 'Kembali',
+      tone: 'warning',
+      onConfirm: async () => {
+        try {
+          await updateDoc(doc(db, SELL_COLLECTION, id), { status: 'cancelled', updatedAt: Date.now() });
+          showToast('Pengajuan dibatalkan.', 'success');
+        } catch (error) {
+          console.error('[marketplace jual] gagal membatalkan:', error);
+          showPopup(error?.message || 'Pengajuan gagal dibatalkan.', 'Gagal', 'error');
+        }
+      }
+    });
+  });
+
+  const unsubscribe = onSnapshot(
+    query(collection(db, SELL_COLLECTION), where('userId', '==', userId)),
+    (snapshot) => {
+      requests = snapshot.docs
+        .map((d) => ({ id: d.id, ...d.data() }))
+        .sort((a, b) => getCreatedAtMs(b.createdAt) - getCreatedAtMs(a.createdAt));
+      renderRequests();
+    },
+    (error) => {
+      console.error('[marketplace jual] gagal memuat daftar pengajuan:', error);
+      listEl.innerHTML = `<p class="muted" style="color:#b91c1c;">Daftar pengajuan gagal dimuat (${escapeHtml(error?.code || 'unknown')}).</p>`;
+    }
+  );
+
+  window.__marketplaceSellCleanup = unsubscribe;
+}
+
+/* ======================= end jual barang ======================= */
 
 async function init() {
   ensureDemoData();
@@ -3685,17 +4010,17 @@ async function init() {
   bindHeaderActionsMenu();
   bindPasswordToggles();
   hydrateUserProfileUI();
-
+ 
   onAuthStateChanged(auth, async (firebaseUser) => {
     try {
       if (firebaseUser && String(firebaseUser.email || '').toLowerCase() !== ADMIN_ACCOUNT_EMAIL) {
         await syncCurrentUserFromFirebase(firebaseUser, localStorage.getItem('gamon_marketplace_remember_me') === '1');
         hydrateUserProfileUI();
-
+ 
         if (!window.__marketplaceCartUnsubscribe) {
           window.__marketplaceCartUnsubscribe = subscribeToCartBadge();
         }
-
+ 
         if (!window.__marketplaceGlobalChatUnsubscribe) {
           const currentUserId = getCurrentUserIdentifier();
           if (currentUserId) {
@@ -3707,61 +4032,68 @@ async function init() {
       console.error('[marketplace] gagal menyinkronkan sesi pembeli:', error);
     }
   });
-
+ 
   const page = document.body.dataset.page;
   bindKineticHeroIfNeeded();
   bindBrandScrollToTop();
-
+ 
   if (page === 'login' || page === 'register') {
     bindAuthPage();
     return;
   }
-
+ 
   if (page === 'dashboard.html') {
     await renderDashboard();
     return;
   }
-
+ 
   if (page === 'beli.html') {
     await renderProductsForBuyer();
     return;
   }
-
+ 
   if (page === 'pesanan.html') {
     await renderOrdersForBuyer();
     return;
   }
-
+ 
   if (page === 'keranjang.html') {
     await renderCartPage();
     return;
   }
-
+ 
+  if (page === 'jual.html') {
+    await renderSellPage();
+    return;
+  }
+ 
   if (page === 'profil.html') {
     renderProfile();
     return;
   }
-
+ 
   if (page === 'chat.html') {
     await renderChat();
     return;
   }
-
+ 
   if (page === 'product.html' || page === 'user-product.html') {
     await renderProductDetail();
     return;
   }
-
+ 
   await renderHomeProducts();
   await refreshMarketplaceLandingMetrics();
 }
-
+ 
 document.addEventListener('DOMContentLoaded', init);
-
+ 
 window.addEventListener('beforeunload', () => {
   if (window.__marketplaceChatCleanup) window.__marketplaceChatCleanup();
   if (window.__marketplaceHomeProductsCleanup) window.__marketplaceHomeProductsCleanup();
   if (window.__marketplaceBuyerProductsCleanup) window.__marketplaceBuyerProductsCleanup();
   if (window.__marketplaceGlobalChatUnsubscribe) window.__marketplaceGlobalChatUnsubscribe();
   if (window.__marketplaceCartUnsubscribe) window.__marketplaceCartUnsubscribe();
+  if (window.__marketplaceSellCleanup) window.__marketplaceSellCleanup();
 });
+ 

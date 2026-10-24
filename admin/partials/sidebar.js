@@ -18,6 +18,7 @@
             alsoActive: ['/admin/marketplace-product-form.html']
         },
         { href: '/admin/marketplace-orders.html', label: 'Pesanan Marketplace', icon: 'receipt_long', orders: true },
+        { href: '/admin/marketplace-sell.html', label: 'Penjualan dari User', icon: 'sell', sell: true },
         { href: '/admin/marketplace-chat.html', label: 'Chat Pembeli', icon: 'chat', chat: true }
     ];
 
@@ -35,7 +36,9 @@
             ? '<span data-admin-chat-unread class="hidden rounded-full bg-rose-600 px-2 py-0.5 text-[10px] font-bold text-white"></span>'
             : item.orders
                 ? '<span data-admin-orders-unread class="hidden rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-bold text-white"></span>'
-                : '';
+                : item.sell
+                    ? '<span data-admin-sell-pending class="hidden rounded-full bg-violet-600 px-2 py-0.5 text-[10px] font-bold text-white"></span>'
+                    : '';
         const icon = item.icon ? `<span class="material-symbols-outlined" style="font-size:20px">${item.icon}</span>` : '';
         return `<a href="${item.href}" class="${classes}"${isActive ? ' aria-current="page"' : ''}><span class="flex items-center gap-2">${icon}<span>${item.label}</span></span>${badge}</a>`;
     }).join('');
@@ -58,11 +61,12 @@
 
     const chatBadge = document.querySelector('[data-admin-chat-unread]');
     const ordersBadge = document.querySelector('[data-admin-orders-unread]');
-    if (chatBadge || ordersBadge) {
+    const sellBadge = document.querySelector('[data-admin-sell-pending]');
+    if (chatBadge || ordersBadge || sellBadge) {
         import('/admin/admin-firebase.js').then(async ({ db, requireAdmin }) => {
             const access = await requireAdmin();
             if (!access) return;
-            const { collection, onSnapshot } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+            const { collection, onSnapshot, query, where, getCountFromServer } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
             const unsubs = [];
             if (chatBadge) {
                 unsubs.push(onSnapshot(collection(db, 'marketplace_chats'), (snapshot) => {
@@ -81,7 +85,17 @@
                     ordersBadge.classList.toggle('hidden', pending === 0);
                 }, (error) => console.error('[marketplace orders admin] gagal memperbarui badge sidebar:', error)));
             }
+            if (sellBadge) {
+                // Dihitung di server supaya foto (base64) tidak ikut terunduh hanya untuk badge.
+                getCountFromServer(query(collection(db, 'marketplace_sell_requests'), where('status', '==', 'pending')))
+                    .then((snap) => {
+                        const pending = snap.data().count;
+                        sellBadge.textContent = pending > 99 ? '99+' : String(pending);
+                        sellBadge.classList.toggle('hidden', pending === 0);
+                    })
+                    .catch((error) => console.error('[marketplace sell admin] gagal memuat badge sidebar:', error));
+            }
             window.addEventListener('beforeunload', () => unsubs.forEach((unsubscribe) => unsubscribe()), { once: true });
-        }).catch((error) => console.error('[marketplace chat admin] badge sidebar gagal dimulai:', error));
+        }).catch((error) => console.error('[marketplace admin] badge sidebar gagal dimulai:', error));
     }
 })();

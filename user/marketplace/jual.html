@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Jual Barang — Marketplace Mantan</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="assets/style.css" />
+    <link rel="stylesheet" href="assets/commerce.css" />
+    <style>
+      /* Gaya khusus halaman Jual Barang. Semua class diawali "sell-" agar tidak bentrok dengan style.css */
+      .sell-steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin:18px 0 0;padding:0;list-style:none;counter-reset:sell}
+      .sell-steps li{counter-increment:sell;padding:14px 16px;border:1px solid rgba(148,163,184,.35);border-radius:14px;background:#fff}
+      .sell-steps li::before{content:counter(sell);display:grid;place-items:center;width:30px;height:30px;margin-bottom:10px;border-radius:50%;background:#111827;color:#fff;font-weight:700;font-size:.9rem}
+      .sell-steps strong{display:block;margin-bottom:4px}
+      .sell-steps span{font-size:.92rem;color:#475569}
+
+      .sell-location{margin-top:18px;padding:16px 18px;border:1px dashed #94a3b8;border-radius:14px;background:#f8fafc}
+      .sell-location strong{display:block;margin-bottom:6px}
+      .sell-location p{margin:0 0 4px;color:#334155}
+      .sell-location a{font-weight:600}
+
+      .sell-form{display:grid;gap:16px}
+      .sell-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+      .sell-field{display:grid;gap:6px;min-width:0}
+      .sell-field.is-wide{grid-column:1 / -1}
+      .sell-field label{font-weight:600;font-size:.94rem}
+      .sell-field small{color:#64748b}
+      .sell-field input[type="text"],
+      .sell-field input[type="tel"],
+      .sell-field select,
+      .sell-field textarea{width:100%;padding:11px 12px;border:1px solid #cbd5e1;border-radius:12px;background:#fff;font:inherit;color:inherit}
+      .sell-field textarea{min-height:104px;resize:vertical}
+      .sell-field input:focus-visible,.sell-field select:focus-visible,.sell-field textarea:focus-visible{outline:3px solid #93c5fd;outline-offset:1px}
+
+      .sell-photo-picker{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-start}
+      .sell-photo-add{display:grid;place-items:center;align-content:center;gap:4px;width:112px;height:112px;border:2px dashed #94a3b8;border-radius:14px;background:#f8fafc;color:#334155;font-family:inherit;font-weight:600;font-size:.85rem;cursor:pointer;text-align:center}
+      .sell-photo-add:hover{background:#eef2f7}
+      .sell-photo-add[disabled]{opacity:.5;cursor:not-allowed}
+      .sell-photo-item{position:relative;width:112px;height:112px;border-radius:14px;overflow:hidden;border:1px solid #cbd5e1;background:#f1f5f9}
+      .sell-photo-item img{width:100%;height:100%;object-fit:cover;display:block}
+      .sell-photo-remove{position:absolute;top:6px;right:6px;width:26px;height:26px;border:0;border-radius:50%;background:rgba(15,23,42,.8);color:#fff;font-size:16px;line-height:1;cursor:pointer}
+      .sell-photo-input{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+
+      .sell-agree{display:flex;gap:10px;align-items:flex-start;padding:14px 16px;border-radius:14px;background:#f8fafc;border:1px solid #e2e8f0;cursor:pointer}
+      .sell-agree input{margin-top:4px;width:18px;height:18px;flex:none}
+      .sell-agree span{font-size:.93rem;color:#334155}
+
+      .sell-status{min-height:1.2em;margin:0;font-weight:600;color:#b91c1c}
+      .sell-status.is-ok{color:#15803d}
+      .sell-actions{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+
+      .sell-list{display:grid;gap:14px}
+      .sell-card{display:grid;grid-template-columns:96px minmax(0,1fr);gap:14px;padding:14px;border:1px solid #e2e8f0;border-radius:16px;background:#fff}
+      .sell-card-thumb{width:96px;height:96px;border-radius:12px;overflow:hidden;background:#f1f5f9;display:grid;place-items:center;font-weight:800;font-size:1.6rem;color:#64748b}
+      .sell-card-thumb img{width:100%;height:100%;object-fit:cover}
+      .sell-card-head{display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;align-items:flex-start}
+      .sell-card-head h3{margin:0;font-size:1.05rem}
+      .sell-card-meta{margin:4px 0 0;color:#64748b;font-size:.88rem}
+      .sell-card-hint{margin:10px 0 0;color:#334155;font-size:.93rem}
+      .sell-card-note{margin:10px 0 0;padding:10px 12px;border-radius:10px;background:#fffbeb;border:1px solid #fde68a;color:#78350f;font-size:.92rem}
+      .sell-card-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+
+      @media (max-width:720px){
+        .sell-grid{grid-template-columns:1fr}
+        .sell-card{grid-template-columns:72px minmax(0,1fr)}
+        .sell-card-thumb{width:72px;height:72px}
+      }
+      @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+    </style>
+  </head>
+  <body data-page="jual.html">
+    <header class="topbar">
+      <div class="container nav">
+        <a href="../../index.html" class="brand" aria-label="Home">
+          <span class="brand-mark">G</span>
+          <span>Marketplace Mantan</span>
+        </a>
+
+        <div class="nav-actions">
+          <a class="btn btn-secondary" href="keranjang.html" data-cart-link aria-label="Keranjang"><span class="material-symbols-outlined" aria-hidden="true">shopping_cart</span> <span data-cart-count hidden>0</span></a>
+          <a class="btn btn-secondary" href="profil.html">Profil</a>
+          <a class="btn btn-primary" href="../../index.html" data-logout-button>Keluar</a>
+        </div>
+      </div>
+    </header>
+
+    <main class="container user-layout">
+      <div class="user-shell">
+        <aside class="sidebar">
+          <div class="profile-box">
+            <div class="avatar-lg" data-user-avatar></div>
+            <div>
+              <strong style="display:block; color: var(--primary-strong);" data-user-name>Pengguna</strong>
+              <small class="muted">Pembeli &amp; penjual</small>
+            </div>
+          </div>
+
+          <nav aria-label="Sidebar navigasi">
+            <a href="dashboard.html"><span class="material-symbols-outlined" style="font-size:17px;vertical-align:middle;">dashboard</span> Dashboard</a>
+            <a href="beli.html"><span class="material-symbols-outlined" style="font-size:17px;vertical-align:middle;">shopping_cart</span> Katalog</a>
+            <a href="keranjang.html"><span class="material-symbols-outlined" style="font-size:17px;vertical-align:middle;">shopping_bag</span> Keranjang <span data-cart-count hidden>0</span></a>
+            <a href="pesanan.html"><span class="material-symbols-outlined" style="font-size:17px;vertical-align:middle;">receipt_long</span> Pesanan Saya</a>
+            <a class="active" href="jual.html"><span class="material-symbols-outlined" style="font-size:17px;vertical-align:middle;">sell</span> Jual Barang</a>
+            <a href="chat.html"><span class="material-symbols-outlined" style="font-size:17px;vertical-align:middle;">chat</span> Chat Admin</a>
+            <a href="profil.html"><span class="material-symbols-outlined" style="font-size:17px;vertical-align:middle;">person</span> Profil</a>
+          </nav>
+          <a class="logout-link" href="../../index.html" data-logout-button>↩ Keluar</a>
+        </aside>
+
+        <div class="main-panel">
+          <section class="panel">
+            <span class="eyebrow">Jual barang</span>
+            <h2 style="margin-top: 12px; font-size: 2rem;">Jual barang kenanganmu</h2>
+            <p class="muted" style="margin-top: 8px; max-width: 62ch;">
+              Kirim pengajuan dulu. Kalau disetujui, kamu datang langsung ke lokasi kami. Barang dicek bersama, harga disepakati, dan pembayaran dilakukan tunai di tempat (COD).
+            </p>
+
+            <ol class="sell-steps">
+              <li><strong>Isi pengajuan</strong><span>Foto, kondisi, dan harga yang kamu harapkan.</span></li>
+              <li><strong>Admin meninjau</strong><span>Statusnya muncul di bawah. Kami hubungi lewat Chat Admin bila perlu.</span></li>
+              <li><strong>Datang ke lokasi</strong><span>Bawa barang sesuai jadwal yang disepakati.</span></li>
+              <li><strong>Cek &amp; bayar di tempat</strong><span>Kondisi dicek bersama, harga final disepakati, lalu dibayar tunai.</span></li>
+            </ol>
+
+            <!-- EDIT BAGIAN INI: isi alamat, jam, dan link Google Maps lokasi COD kamu -->
+            <div class="sell-location" data-cod-location>
+  <strong>Lokasi COD</strong>
+  <p>Memuat lokasi...</p>
+  <a href="https://maps.app.goo.gl/fFKAgcK87iMCH85e6" target="_blank" rel="noopener noreferrer">Buka di Google Maps</a>
+</div>
+          </section>
+
+          <section class="panel">
+            <h2 style="font-size: 1.5rem; margin-bottom: 16px;">Form pengajuan</h2>
+
+            <form class="sell-form" data-sell-form novalidate>
+              <div class="sell-grid">
+                <div class="sell-field is-wide">
+                  <label for="sellItemName">Nama barang</label>
+                  <input id="sellItemName" name="itemName" type="text" maxlength="80" placeholder="Contoh: Hoodie abu-abu ukuran L" required />
+                </div>
+
+                <div class="sell-field">
+                  <label for="sellCategory">Kategori</label>
+                  <select id="sellCategory" name="category" required>
+                    <option value="pakaian">Pakaian</option>
+                    <option value="aksesori">Aksesori</option>
+                    <option value="barang" selected>Barang lain</option>
+                  </select>
+                </div>
+
+                <div class="sell-field">
+                  <label for="sellCondition">Kondisi</label>
+                  <select id="sellCondition" name="condition" required>
+                    <option value="Baru">Baru (belum dipakai)</option>
+                    <option value="Seperti baru">Seperti baru</option>
+                    <option value="Bekas, masih bagus" selected>Bekas, masih bagus</option>
+                    <option value="Bekas, ada cacat">Bekas, ada cacat</option>
+                  </select>
+                </div>
+
+                <div class="sell-field">
+                  <label for="sellPrice">Harga yang kamu harapkan</label>
+                  <input id="sellPrice" name="price" type="text" inputmode="numeric" placeholder="Rp 150.000" required />
+                  <small>Harga final disepakati setelah barang dicek di lokasi.</small>
+                </div>
+
+                <div class="sell-field">
+                  <label for="sellPhone">Nomor HP / WhatsApp</label>
+                  <input id="sellPhone" name="contactPhone" type="tel" inputmode="tel" maxlength="20" placeholder="08xxxxxxxxxx" required />
+                </div>
+
+                <div class="sell-field is-wide">
+                  <label for="sellDescription">Deskripsi barang</label>
+                  <textarea id="sellDescription" name="description" maxlength="600" placeholder="Merek, ukuran, lama dipakai, kelengkapan, dan cacat jika ada." required></textarea>
+                </div>
+
+                <div class="sell-field is-wide">
+                  <label for="sellStory">Cerita singkat <span class="muted">(opsional)</span></label>
+                  <textarea id="sellStory" name="storyNote" maxlength="300" style="min-height:72px;" placeholder="Barang ini pemberian siapa, atau kenangan apa yang melekat."></textarea>
+                </div>
+
+                <div class="sell-field is-wide">
+                  <label for="sellVisit">Kapan kamu bisa datang?</label>
+                  <input id="sellVisit" name="visitPlan" type="text" maxlength="150" placeholder="Contoh: Sabtu sore atau Minggu pagi" required />
+                </div>
+
+                <div class="sell-field is-wide">
+                  <label id="sellPhotoLabel">Foto barang <span class="muted">(1–3 foto, JPG/PNG/WebP)</span></label>
+                  <div class="sell-photo-picker" data-sell-photo-picker aria-labelledby="sellPhotoLabel">
+                    <button class="sell-photo-add" type="button" data-sell-photo-add>
+                      <span class="material-symbols-outlined" aria-hidden="true">add_a_photo</span>
+                      <span>Tambah foto</span>
+                    </button>
+                    <input class="sell-photo-input" type="file" name="photos" accept="image/jpeg,image/png,image/webp" multiple tabindex="-1" aria-hidden="true" />
+                  </div>
+                  <small>Foto dikompres otomatis di perangkatmu sebelum dikirim.</small>
+                </div>
+              </div>
+
+              <label class="sell-agree">
+                <input type="checkbox" name="agree" />
+                <span>Barang ini milikku, legal, dan bukan barang terlarang (senjata, obat-obatan, hasil curian, atau barang palsu). Aku bersedia barangnya dicek langsung di lokasi dan paham harga final bisa berbeda dari harga harapan.</span>
+              </label>
+
+              <p class="sell-status" data-sell-status role="alert" aria-live="polite"></p>
+
+              <div class="sell-actions">
+                <button class="btn btn-primary" type="submit" data-sell-submit>Kirim pengajuan</button>
+                <a class="btn btn-secondary" href="chat.html">Tanya admin dulu</a>
+              </div>
+            </form>
+          </section>
+
+          <section class="panel">
+            <h2 style="font-size: 1.5rem; margin-bottom: 16px;">Pengajuan saya</h2>
+            <div class="sell-list" data-sell-list><p class="muted">Memuat pengajuan...</p></div>
+          </section>
+        </div>
+      </div>
+    </main>
+    <script type="module" src="assets/app.js"></script>
+  </body>
+</html>

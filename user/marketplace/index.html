@@ -4,7 +4,7 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
 <title>Marketplace Mantan</title>
-<meta name="description" content="Marketplace Mantan, jual barang pemberian mantan dengan cara yang aman, tenang, dan lebih berharga."/>
+<meta name="description" content="Marketplace Mantan: beli barang pilihan dengan aman, atau jual barang kenanganmu lewat pengajuan dan COD langsung di lokasi kami."/>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
@@ -28,6 +28,7 @@ a{color:inherit}
 .mm-btn,.topbar .btn,.mobile-menu-actions .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:12px 20px;border:2px solid var(--ink);border-radius:12px;background:var(--coral);color:var(--ink);font:600 1rem var(--f-b);text-decoration:none;cursor:pointer;box-shadow:4px 4px 0 var(--ink);transition:transform .12s,box-shadow .12s}
 .mm-btn:hover,.topbar .btn:hover,.mobile-menu-actions .btn:hover{transform:translate(2px,2px);box-shadow:2px 2px 0 var(--ink)}
 .mm-btn.alt,.topbar .btn-secondary,.mobile-menu-actions .btn-secondary{background:var(--white)}
+.mm-btn.sun{background:var(--sun)}
 .topbar .btn-primary,.mobile-menu-actions .btn-primary{background:var(--coral)}
 
 /* Header */
@@ -71,6 +72,7 @@ a{color:inherit}
 /* Section */
 .mm-band{padding:72px 0;border-top:2px solid var(--ink)}
 .mm-band.white{background:var(--white)}
+.mm-band.sunny{background:#fff0bf}
 .mm-band.dark{background:var(--ink);color:var(--white)}
 .mm-band.dark h2,.mm-band.dark h3{color:var(--white)}
 .mm-head{display:flex;justify-content:space-between;align-items:flex-end;gap:24px;flex-wrap:wrap;margin-bottom:34px}
@@ -114,6 +116,30 @@ a{color:inherit}
 #explore [class*="dot"]{background:var(--white)!important;border:2px solid var(--ink)!important;box-shadow:none!important}
 #explore [class*="dot"].active,#explore [class*="dot"][aria-current="true"],#explore [class*="dot"][aria-selected="true"]{background:var(--ink)!important}
 
+/* Section Jual Barang */
+.mm-sell{display:grid;grid-template-columns:.9fr 1.1fr;gap:40px;align-items:start}
+.mm-sell-intro h2{font-size:clamp(1.9rem,4.8vw,3rem);margin-bottom:16px}
+.mm-sell-intro .mm-sell-lead{color:var(--mute);font-size:1.05rem;max-width:46ch}
+.mm-sell-list{display:grid;gap:10px;margin:22px 0 0;padding:0;list-style:none}
+.mm-sell-list li{display:flex;gap:10px;align-items:flex-start;font-weight:600;font-size:.98rem}
+.mm-sell-list .material-symbols-outlined{flex:none;display:grid;place-items:center;width:28px;height:28px;border:2px solid var(--ink);border-radius:50%;background:var(--white);font-size:18px}
+.mm-sell-steps{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;margin:0;padding:0;counter-reset:sellstep}
+.mm-sell-step{list-style:none;counter-increment:sellstep;padding:22px;border:2px solid var(--ink);border-radius:20px;background:var(--white);box-shadow:5px 5px 0 var(--ink)}
+.mm-sell-step:nth-child(odd){transform:rotate(-.6deg)}
+.mm-sell-step:nth-child(even){transform:rotate(.6deg)}
+.mm-sell-step::before{content:counter(sellstep);display:grid;place-items:center;width:40px;height:40px;margin-bottom:12px;border:2px solid var(--ink);border-radius:12px;background:var(--coral);font:800 1.1rem var(--f-d)}
+.mm-sell-step:nth-child(2)::before{background:var(--sun)}
+.mm-sell-step:nth-child(3)::before{background:var(--sky)}
+.mm-sell-step:nth-child(4)::before{background:var(--sun)}
+.mm-sell-step h3{font-size:1.2rem;margin-bottom:6px}
+.mm-sell-step p{color:var(--mute);font-size:.94rem}
+.mm-sell-foot{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:34px}
+.mm-sell-box{padding:20px 22px;border:2px solid var(--ink);border-radius:18px;background:var(--white);box-shadow:5px 5px 0 var(--ink)}
+.mm-sell-box h3{font-size:1.15rem;margin-bottom:8px;display:flex;align-items:center;gap:8px}
+.mm-sell-box p,.mm-sell-box li{color:var(--mute);font-size:.94rem}
+.mm-sell-box ul{margin:0;padding-left:18px;display:grid;gap:2px}
+.mm-sell-box a.mm-link{display:inline-flex;align-items:center;gap:6px;margin-top:10px;font-weight:700;text-underline-offset:4px}
+
 /* Value */
 .mm-values{display:grid;grid-template-columns:repeat(3,1fr);gap:22px}
 .mm-value{padding:28px;border:2px solid var(--ink);border-radius:20px;background:var(--white);box-shadow:6px 6px 0 var(--ink)}
@@ -127,6 +153,8 @@ a{color:inherit}
 .mm-value p{color:var(--mute)}
 
 /* Cara kerja */
+.mm-track{margin:0 0 16px;font:800 1.25rem var(--f-d);color:var(--sun);display:flex;align-items:center;gap:8px}
+.mm-track.second{margin-top:48px}
 .mm-flow{display:grid;grid-template-columns:repeat(4,1fr);position:relative;counter-reset:s;margin:0;padding:0}
 .mm-flow::before{content:"";position:absolute;left:0;right:0;top:22px;border-top:2px dashed var(--sun)}
 .mm-flow li{list-style:none;counter-increment:s;position:relative;padding-right:22px}
@@ -135,6 +163,7 @@ a{color:inherit}
 .mm-flow p{color:#b8cce2;font-size:.95rem}
 .mm-warn{margin-top:44px;padding:20px 24px;border:2px solid var(--sun);border-radius:16px;background:rgba(255,214,107,.1);color:#e6eef7;box-shadow:5px 5px 0 var(--sun)}
 .mm-warn strong{color:var(--sun)}
+.mm-warn p+p{margin-top:10px}
 
 /* Ulasan */
 .review-empty-state{padding:40px 24px;border:2px dashed var(--ink);border-radius:20px;background:var(--white);text-align:center}
@@ -159,6 +188,8 @@ footer{padding:28px 0 calc(40px + env(safe-area-inset-bottom,0px));border-top:2p
  .mobile-menu-actions{display:grid;gap:10px}
  .mm-hero .kinetic-hero-shell{grid-template-columns:1fr;gap:34px;padding:36px 16px 56px!important}
  .mm-sticker{order:-1;width:150px;padding:18px;border-radius:20px;box-shadow:5px 5px 0 var(--ink);justify-self:start}
+ .mm-sell{grid-template-columns:1fr;gap:30px}
+ .mm-sell-foot{grid-template-columns:1fr}
  .mm-values{grid-template-columns:1fr}
  .mm-value:nth-child(n){transform:none}
  .mm-flow{grid-template-columns:1fr;gap:26px}
@@ -167,7 +198,11 @@ footer{padding:28px 0 calc(40px + env(safe-area-inset-bottom,0px));border-top:2p
  .mm-flow li::before{position:absolute;left:0;top:0;margin:0}
  .mm-band{padding:52px 0}
 }
-@media(max-width:520px){.mm-cta .mm-btn{width:100%}}
+@media(max-width:520px){
+ .mm-cta .mm-btn{width:100%}
+ .mm-sell-steps{grid-template-columns:1fr}
+ .mm-sell-step:nth-child(n){transform:none}
+}
 @media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}html{scroll-behavior:auto}}
 </style>
 </head>
@@ -182,6 +217,7 @@ footer{padding:28px 0 calc(40px + env(safe-area-inset-bottom,0px));border-top:2p
     <nav class="nav-links" aria-label="Navigasi utama">
       <a href="../../index.html">Gamon</a>
       <a href="#explore">Jelajahi</a>
+      <a href="#sell">Jual Barang</a>
       <a href="keranjang.html" data-cart-link>Keranjang <span data-cart-count hidden>0</span></a>
       <a href="#why">Kenapa Kami</a>
       <a href="#how">Cara Kerja</a>
@@ -198,6 +234,7 @@ footer{padding:28px 0 calc(40px + env(safe-area-inset-bottom,0px));border-top:2p
         <nav class="mobile-nav-links" aria-label="Navigasi utama mobile">
           <a href="../../index.html">Gamon</a>
           <a href="#explore">Jelajahi</a>
+          <a href="#sell">Jual Barang</a>
           <a href="#why">Kenapa Kami</a>
           <a href="#how">Cara Kerja</a>
           <a href="#reviews">Ulasan</a>
@@ -224,17 +261,18 @@ footer{padding:28px 0 calc(40px + env(safe-area-inset-bottom,0px));border-top:2p
       <canvas class="kinetic-grid-canvas" aria-hidden="true"></canvas>
 
       <div class="kinetic-hero-content">
-        <span class="mm-eyebrow">Toko resmi</span>
+        <span class="mm-eyebrow">Beli &amp; jual</span>
         <h1>
           Marketplace<br />
           <span class="hl">Mantan</span>
         </h1>
         <p class="mm-lead">
-          Marketplace Mantan adalah toko online resmi yang menghadirkan barang pilihan dengan proses belanja yang sederhana, aman, dan terstruktur. Semua produk dikelola langsung oleh admin toko. Bayar aman lewat DOKU, lalu barang diantar ke tempatmu dengan gratis ongkir.
+          Marketplace Mantan adalah toko online resmi yang menghadirkan barang pilihan dengan proses belanja yang sederhana, aman, dan terstruktur. Belanja dengan bayar aman lewat DOKU dan gratis ongkir. Punya barang kenangan yang ingin dilepas? Ajukan penjualannya, lalu datang langsung ke lokasi kami dan dibayar tunai di tempat.
         </p>
 
         <div class="mm-cta">
           <a class="mm-btn" href="register.html">Mulai belanja</a>
+          <a class="mm-btn sun" href="#sell">Jual barangmu</a>
           <a class="mm-btn alt" href="#explore">Lihat katalog</a>
         </div>
 
@@ -243,6 +281,7 @@ footer{padding:28px 0 calc(40px + env(safe-area-inset-bottom,0px));border-top:2p
           <span class="mm-pill"><span class="material-symbols-outlined" style="font-size:16px">sell</span> <span data-metric-buyers>0 terjual</span></span>
           <span class="mm-pill"><span class="material-symbols-outlined" style="font-size:16px">lock</span> Bayar via DOKU</span>
           <span class="mm-pill"><span class="material-symbols-outlined" style="font-size:16px">local_shipping</span> Gratis ongkir</span>
+          <span class="mm-pill"><span class="material-symbols-outlined" style="font-size:16px">payments</span> Jual &amp; COD</span>
         </div>
       </div>
 
@@ -279,6 +318,68 @@ footer{padding:28px 0 calc(40px + env(safe-area-inset-bottom,0px));border-top:2p
     </div>
   </section>
 
+  <section id="sell" class="mm-band sunny">
+    <div class="mm-wrap">
+      <div class="mm-sell">
+        <div class="mm-sell-intro">
+          <span class="mm-eyebrow">Jual barang</span>
+          <h2>Punya barang kenangan? Kamu juga bisa jual.</h2>
+          <p class="mm-sell-lead">
+            Sekarang Marketplace Mantan bukan cuma untuk membeli. Kirim pengajuan lewat form, tunggu admin menyetujui, lalu datang langsung ke lokasi kami. Barang dicek bersama, harga disepakati, dan kamu dibayar tunai di tempat.
+          </p>
+
+          <ul class="mm-sell-list">
+            <li><span class="material-symbols-outlined" aria-hidden="true">check</span> Cukup isi form: foto, kondisi, dan harga harapan</li>
+            <li><span class="material-symbols-outlined" aria-hidden="true">check</span> Tanpa kirim paket, kamu datang langsung ke lokasi</li>
+            <li><span class="material-symbols-outlined" aria-hidden="true">check</span> Dibayar tunai (COD) setelah barang dicek bersama</li>
+            <li><span class="material-symbols-outlined" aria-hidden="true">check</span> Pantau status pengajuan di akunmu</li>
+          </ul>
+
+          <div class="mm-cta">
+            <a class="mm-btn" href="jual.html">Ajukan jual barang</a>
+            <a class="mm-btn alt" href="#how">Lihat cara kerja</a>
+          </div>
+        </div>
+
+        <ol class="mm-sell-steps">
+          <li class="mm-sell-step">
+            <h3>Isi pengajuan</h3>
+            <p>Masuk ke akunmu, buka halaman Jual Barang, lalu isi nama barang, kondisi, harga harapan, dan unggah 1 sampai 3 foto.</p>
+          </li>
+          <li class="mm-sell-step">
+            <h3>Admin meninjau</h3>
+            <p>Admin memeriksa pengajuanmu. Statusnya bisa dipantau di halaman Jual Barang, dan kami menghubungimu lewat Chat Admin bila perlu.</p>
+          </li>
+          <li class="mm-sell-step">
+            <h3>Datang ke lokasi</h3>
+            <p>Kalau disetujui, bawa barangmu ke lokasi COD sesuai jadwal yang disepakati dengan admin.</p>
+          </li>
+          <li class="mm-sell-step">
+            <h3>Cek &amp; dibayar tunai</h3>
+            <p>Kondisi barang dicek bersama, harga final disepakati, lalu pembayaran diterima tunai di tempat.</p>
+          </li>
+        </ol>
+      </div>
+
+      <div class="mm-sell-foot">
+        <div class="mm-sell-box">
+          <h3><span class="material-symbols-outlined" aria-hidden="true">location_on</span> Lokasi COD</h3>
+          <p>Alamat lengkap dan jam buka ada di halaman Jual Barang setelah kamu masuk. Kamu juga bisa langsung melihat lokasinya di peta.</p>
+          <a class="mm-link" href="https://maps.app.goo.gl/fFKAgcK87iMCH85e6" target="_blank" rel="noopener noreferrer">Buka di Google Maps <span class="material-symbols-outlined" style="font-size:18px" aria-hidden="true">arrow_outward</span></a>
+        </div>
+        <div class="mm-sell-box">
+          <h3><span class="material-symbols-outlined" aria-hidden="true">block</span> Barang yang tidak diterima</h3>
+          <ul>
+            <li>Senjata dan obat-obatan</li>
+            <li>Barang hasil curian</li>
+            <li>Barang palsu atau bukan milikmu</li>
+          </ul>
+          <p style="margin-top:8px">Harga final bisa berbeda dari harga harapan, tergantung hasil pengecekan di lokasi.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <section id="why" class="mm-band">
     <div class="mm-wrap">
       <div class="mm-head">
@@ -301,8 +402,8 @@ footer{padding:28px 0 calc(40px + env(safe-area-inset-bottom,0px));border-top:2p
         </div>
         <div class="mm-value">
           <div class="big">03</div>
-          <h3>Diantar, gratis ongkir</h3>
-          <p>Barang dikirim sampai ke alamatmu tanpa biaya pengiriman tambahan.</p>
+          <h3>Bisa beli, bisa jual</h3>
+          <p>Barang dibeli dikirim gratis ongkir ke alamatmu. Barang yang ingin kamu lepas bisa diajukan dan dijual lewat COD di lokasi kami.</p>
         </div>
       </div>
     </div>
@@ -313,10 +414,11 @@ footer{padding:28px 0 calc(40px + env(safe-area-inset-bottom,0px));border-top:2p
       <div class="mm-head">
         <div>
           <span class="mm-eyebrow">Cara kerja</span>
-          <h2>4 langkah sederhana</h2>
+          <h2>Beli atau jual, tinggal 4 langkah</h2>
         </div>
       </div>
 
+      <p class="mm-track"><span class="material-symbols-outlined" aria-hidden="true">shopping_cart</span> Kalau kamu membeli</p>
       <ol class="mm-flow">
         <li>
           <h3>Daftar &amp; login</h3>
@@ -336,9 +438,31 @@ footer{padding:28px 0 calc(40px + env(safe-area-inset-bottom,0px));border-top:2p
         </li>
       </ol>
 
+      <p class="mm-track second"><span class="material-symbols-outlined" aria-hidden="true">sell</span> Kalau kamu menjual</p>
+      <ol class="mm-flow">
+        <li>
+          <h3>Kirim pengajuan</h3>
+          <p>Isi form di halaman Jual Barang lengkap dengan foto, kondisi, dan harga harapan.</p>
+        </li>
+        <li>
+          <h3>Tunggu persetujuan</h3>
+          <p>Admin meninjau pengajuanmu dan menentukan jadwal kedatangan.</p>
+        </li>
+        <li>
+          <h3>Datang ke lokasi</h3>
+          <p>Bawa barangmu ke lokasi COD sesuai jadwal yang disepakati.</p>
+        </li>
+        <li>
+          <h3>Dibayar tunai</h3>
+          <p>Setelah barang dicek dan harga disepakati, kamu menerima pembayaran tunai di tempat.</p>
+        </li>
+      </ol>
+
       <div class="mm-warn">
-        <strong>Catatan penting:</strong>
-        Semua pembayaran dilakukan lewat sistem Marketplace Mantan menggunakan DOKU, bukan COD. Jangan transfer uang ke rekening pribadi atau di luar platform, jangan bagikan kode OTP atau PIN kepada siapa pun, dan pastikan alamat pengiriman yang kamu isi sudah benar.
+        <p><strong>Catatan untuk pembeli:</strong>
+        Semua pembayaran belanja dilakukan lewat sistem Marketplace Mantan menggunakan DOKU, bukan COD. Jangan transfer uang ke rekening pribadi atau di luar platform, jangan bagikan kode OTP atau PIN kepada siapa pun, dan pastikan alamat pengiriman yang kamu isi sudah benar.</p>
+        <p><strong>Catatan untuk penjual:</strong>
+        Pembayaran penjualan hanya dilakukan tunai di lokasi COD resmi setelah pengajuanmu disetujui dan barang dicek bersama. Datanglah sesuai jadwal yang disepakati lewat sistem, dan jangan menyerahkan barang kepada pihak yang mengaku sebagai admin di luar lokasi tersebut.</p>
       </div>
     </div>
   </section>

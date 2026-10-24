@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Penjualan dari User - Admin Gamon</title>
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+  <style>
+    .material-symbols-outlined { font-family: 'Material Symbols Outlined'; font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24; }
+  </style>
+</head>
+<body class="bg-slate-100 min-h-screen text-slate-800">
+  <div class="min-h-screen lg:grid lg:grid-cols-[260px_minmax(0,1fr)]">
+    <div data-admin-sidebar></div>
+    <script src="/admin/partials/sidebar.js"></script>
+
+    <main class="px-4 py-8 lg:px-8">
+      <div class="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h2 class="text-2xl font-bold text-slate-900">Penjualan dari User</h2>
+          <p class="mt-1 text-sm text-slate-500">Tinjau pengajuan jual barang, atur jadwal COD, dan kelola lokasi COD.</p>
+        </div>
+        <a href="/admin/marketplace.html" class="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50">← Ringkasan Marketplace</a>
+      </div>
+
+      <p id="pageStatus" class="mb-4 text-sm text-rose-700" role="status" aria-live="polite"></p>
+
+      <!-- STATISTIK -->
+      <div class="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Menunggu tinjauan</p>
+          <p id="statPending" class="mt-2 text-3xl font-bold text-amber-600">-</p>
+        </div>
+        <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Disetujui</p>
+          <p id="statApproved" class="mt-2 text-3xl font-bold text-emerald-600">-</p>
+        </div>
+        <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Selesai</p>
+          <p id="statCompleted" class="mt-2 text-3xl font-bold text-blue-600">-</p>
+        </div>
+        <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Total pengajuan</p>
+          <p id="statTotal" class="mt-2 text-3xl font-bold text-slate-900">-</p>
+        </div>
+      </div>
+
+      <!-- LOKASI COD -->
+      <form id="codForm" class="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <h3 class="font-bold text-slate-900">Lokasi COD</h3>
+        <p class="mt-1 text-xs text-slate-500">Ditampilkan ke user di halaman Jual Barang.</p>
+        <div class="mt-4 grid gap-4 md:grid-cols-2">
+          <label class="grid gap-1 text-sm font-medium text-slate-700 md:col-span-2">Alamat lengkap
+            <textarea id="codAddress" rows="2" maxlength="300" class="rounded-xl border border-slate-300 px-3 py-2 text-sm font-normal" placeholder="Nama tempat, jalan, kelurahan, kota"></textarea>
+          </label>
+          <label class="grid gap-1 text-sm font-medium text-slate-700">Jam buka
+            <input id="codHours" type="text" maxlength="120" class="rounded-xl border border-slate-300 px-3 py-2 text-sm font-normal" placeholder="Senin–Sabtu, 10.00–18.00 WITA" />
+          </label>
+          <label class="grid gap-1 text-sm font-medium text-slate-700">Link Google Maps (https)
+            <input id="codMapsUrl" type="url" class="rounded-xl border border-slate-300 px-3 py-2 text-sm font-normal" value="https://maps.app.goo.gl/fFKAgcK87iMCH85e6" />
+          </label>
+          <label class="grid gap-1 text-sm font-medium text-slate-700 md:col-span-2">Catatan tambahan (opsional)
+            <input id="codNote" type="text" maxlength="200" class="rounded-xl border border-slate-300 px-3 py-2 text-sm font-normal" placeholder="Contoh: Hubungi dulu sebelum datang" />
+          </label>
+        </div>
+        <div class="mt-4 flex flex-wrap items-center gap-3">
+          <button type="submit" class="rounded-xl bg-pink-600 px-4 py-2 text-sm font-semibold text-white hover:bg-pink-700">Simpan lokasi</button>
+          <a id="codMapsOpen" href="https://maps.app.goo.gl/fFKAgcK87iMCH85e6" target="_blank" rel="noopener noreferrer" class="text-sm font-semibold text-pink-600 hover:underline">Buka di Google Maps</a>
+        </div>
+      </form>
+
+      <!-- FILTER -->
+      <div class="mb-4 flex flex-wrap gap-3">
+        <select id="sellFilter" class="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm">
+          <option value="all">Semua status</option>
+          <option value="pending">Menunggu tinjauan</option>
+          <option value="approved">Disetujui</option>
+          <option value="completed">Selesai</option>
+          <option value="rejected">Ditolak</option>
+          <option value="cancelled">Dibatalkan</option>
+        </select>
+        <input id="sellSearch" type="search" placeholder="Cari kode / nama barang / penjual / HP" class="min-w-[220px] flex-1 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm" />
+      </div>
+
+      <!-- DAFTAR PENGAJUAN -->
+      <div id="sellList" class="space-y-4">
+        <p class="text-sm text-slate-400">Memuat pengajuan...</p>
+      </div>
+    </main>
+  </div>
+
+  <div id="lightbox" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/80 p-4">
+    <img id="lightboxImg" alt="Foto barang" class="max-h-full max-w-full rounded-xl" />
+  </div>
+  <div id="toast" class="fixed bottom-5 right-5 z-50 hidden rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white shadow-lg"></div>
+
+  <script type="module">
+    import { db, escapeHtml, formatRupiah, formatDate, requireAdmin } from '/admin/admin-firebase.js';
+    import {
+      collection, doc, onSnapshot, query, orderBy, limit,
+      updateDoc, deleteDoc, getDoc, setDoc
+    } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+    const SELL_COL = 'marketplace_sell_requests';
+    const DEFAULT_MAPS = 'https://maps.app.goo.gl/fFKAgcK87iMCH85e6';
+    const STATUS = {
+      pending: ['Menunggu tinjauan', 'bg-amber-100 text-amber-800'],
+      approved: ['Disetujui', 'bg-emerald-100 text-emerald-800'],
+      rejected: ['Ditolak', 'bg-rose-100 text-rose-800'],
+      completed: ['Selesai', 'bg-blue-100 text-blue-800'],
+      cancelled: ['Dibatalkan', 'bg-slate-200 text-slate-700']
+    };
+    const CATEGORY = { pakaian: 'Pakaian', aksesori: 'Aksesori', barang: 'Barang lain' };
+
+    const $ = (id) => document.getElementById(id);
+    const money = (value) => formatRupiah(Math.round(Number(value) || 0));
+    const safeImg = (value) => /^data:image\/(?:jpeg|png|webp);base64,/i.test(String(value || '')) ? value : '';
+    const waNumber = (phone) => {
+      const digits = String(phone || '').replace(/\D/g, '');
+      return digits.startsWith('0') ? `62${digits.slice(1)}` : digits;
+    };
+
+    let requests = [];
+    let renderPending = false;
+    let toastTimer;
+
+    function toast(message) {
+      const el = $('toast');
+      el.textContent = message;
+      el.classList.remove('hidden');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => el.classList.add('hidden'), 3000);
+    }
+
+    /* ---------------- Statistik + daftar ---------------- */
+    function renderStats() {
+      const count = (status) => requests.filter((item) => item.status === status).length;
+      $('statPending').textContent = count('pending');
+      $('statApproved').textContent = count('approved');
+      $('statCompleted').textContent = count('completed');
+      $('statTotal').textContent = requests.length;
+    }
+
+    function renderList() {
+      renderStats();
+      const filter = $('sellFilter').value;
+      const term = $('sellSearch').value.trim().toLowerCase();
+      const rows = requests.filter((item) =>
+        (filter === 'all' || item.status === filter) &&
+        (!term || [item.name, item.sellerName, item.sellerEmail, item.sellerPhone, item.requestCode]
+          .some((value) => String(value || '').toLowerCase().includes(term)))
+      );
+
+      const list = $('sellList');
+      if (!rows.length) {
+        list.innerHTML = '<div class="rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-400">Tidak ada pengajuan.</div>';
+        return;
+      }
+
+      list.innerHTML = rows.map((item) => {
+        const [label, badge] = STATUS[item.status] || STATUS.pending;
+        const photos = (Array.isArray(item.photos) ? item.photos : []).map(safeImg).filter(Boolean)
+          .map((src) => `<img src="${escapeHtml(src)}" data-zoom class="h-24 w-24 cursor-zoom-in rounded-xl border border-slate-200 object-cover" alt="Foto barang" />`).join('');
+        const wa = waNumber(item.sellerPhone);
+        const waText = encodeURIComponent(`Halo ${item.sellerName || ''}, kami dari Marketplace Mantan terkait pengajuan jual "${item.name}" (${item.requestCode || ''}).`);
+        const statusOptions = Object.entries(STATUS)
+          .map(([value, [text]]) => `<option value="${value}" ${value === item.status ? 'selected' : ''}>${text}</option>`).join('');
+
+        return `<article class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm" data-card data-id="${escapeHtml(item.id)}">
+          <div class="flex flex-wrap items-start justify-between gap-2">
+            <div>
+              <h3 class="text-base font-bold text-slate-900">${escapeHtml(item.name)}</h3>
+              <p class="text-xs text-slate-500">${escapeHtml(item.requestCode || '')} · ${escapeHtml(CATEGORY[item.category] || 'Barang')} · ${escapeHtml(item.condition || '-')} · diajukan ${escapeHtml(formatDate(item.createdAt))}</p>
+            </div>
+            <span class="rounded-full px-3 py-1 text-[11px] font-semibold ${badge}">${escapeHtml(label)}</span>
+          </div>
+          ${photos ? `<div class="mt-3 flex flex-wrap gap-2">${photos}</div>` : ''}
+          <div class="mt-4 grid gap-3 text-sm text-slate-700 md:grid-cols-2">
+            <div>
+              <p class="text-[11px] font-semibold uppercase text-slate-400">Penjual</p>
+              <p class="font-medium">${escapeHtml(item.sellerName || '-')}</p>
+              <p class="text-xs text-slate-500">${escapeHtml(item.sellerEmail || '')}</p>
+              <p class="mt-1">${escapeHtml(item.sellerPhone || '-')}
+                ${wa ? `<a href="https://wa.me/${wa}?text=${waText}" target="_blank" rel="noopener noreferrer" class="ml-2 text-xs font-semibold text-emerald-600 hover:underline">Chat WhatsApp</a>` : ''}</p>
+            </div>
+            <div>
+              <p class="text-[11px] font-semibold uppercase text-slate-400">Harga harapan</p>
+              <p class="text-lg font-bold text-slate-900">${money(item.askingPrice)}</p>
+              <p class="text-xs text-slate-500">Bisa datang: ${escapeHtml(item.visitPlan || '-')}</p>
+            </div>
+            <div class="md:col-span-2">
+              <p class="text-[11px] font-semibold uppercase text-slate-400">Deskripsi</p>
+              <p class="whitespace-pre-line">${escapeHtml(item.description)}</p>
+            </div>
+            ${item.storyNote ? `<div class="md:col-span-2"><p class="text-[11px] font-semibold uppercase text-slate-400">Cerita</p><p class="whitespace-pre-line">${escapeHtml(item.storyNote)}</p></div>` : ''}
+          </div>
+          <div class="mt-4 grid gap-3 border-t border-slate-100 pt-4 md:grid-cols-3">
+            <label class="grid gap-1 text-xs font-semibold text-slate-600">Status
+              <select data-f="status" class="rounded-xl border border-slate-300 px-3 py-2 text-sm font-normal">${statusOptions}</select></label>
+            <label class="grid gap-1 text-xs font-semibold text-slate-600">Jadwal datang
+              <input data-f="visitSchedule" type="text" maxlength="150" value="${escapeHtml(item.visitSchedule || '')}" placeholder="Sabtu, 25 Okt, 15.00 WITA" class="rounded-xl border border-slate-300 px-3 py-2 text-sm font-normal" /></label>
+            <label class="grid gap-1 text-xs font-semibold text-slate-600">Harga disepakati (Rp)
+              <input data-f="agreedPrice" type="text" inputmode="numeric" value="${Number(item.agreedPrice) > 0 ? escapeHtml(String(item.agreedPrice)) : ''}" placeholder="150000" class="rounded-xl border border-slate-300 px-3 py-2 text-sm font-normal" /></label>
+            <label class="grid gap-1 text-xs font-semibold text-slate-600 md:col-span-3">Catatan untuk user
+              <textarea data-f="adminNote" rows="2" maxlength="400" class="rounded-xl border border-slate-300 px-3 py-2 text-sm font-normal">${escapeHtml(item.adminNote || '')}</textarea></label>
+          </div>
+          <div class="mt-4 flex flex-wrap gap-2">
+            <button type="button" data-act="save" class="rounded-xl bg-pink-600 px-4 py-2 text-sm font-semibold text-white hover:bg-pink-700">Simpan</button>
+            <button type="button" data-act="approve" class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-100">Setujui</button>
+            <button type="button" data-act="reject" class="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-semibold text-rose-600 hover:bg-rose-100">Tolak</button>
+            <button type="button" data-act="complete" class="rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-100">Tandai selesai</button>
+            <button type="button" data-act="delete" class="ml-auto rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-500 hover:bg-slate-100">Hapus</button>
+          </div>
+        </article>`;
+      }).join('');
+    }
+
+    function safeRender() {
+      // Jangan menimpa isian admin yang sedang diketik.
+      const active = document.activeElement;
+      if (active && $('sellList').contains(active) && /^(INPUT|TEXTAREA|SELECT)$/.test(active.tagName)) {
+        renderPending = true;
+        renderStats();
+        return;
+      }
+      renderPending = false;
+      renderList();
+    }
+
+    /* ---------------- Lokasi COD ---------------- */
+    async function initCodForm() {
+      const codRef = doc(db, 'marketplace_settings', 'cod_location');
+      try {
+        const snap = await getDoc(codRef);
+        if (snap.exists()) {
+          const data = snap.data();
+          $('codAddress').value = data.address || '';
+          $('codHours').value = data.hours || '';
+          $('codMapsUrl').value = data.mapsUrl || DEFAULT_MAPS;
+          $('codNote').value = data.note || '';
+          $('codMapsOpen').href = /^https:\/\//i.test(data.mapsUrl || '') ? data.mapsUrl : DEFAULT_MAPS;
+        }
+      } catch (error) {
+        console.error('[marketplace sell admin] gagal memuat lokasi COD:', error);
+        toast(`Lokasi COD gagal dimuat: ${error.code || 'unknown'}`);
+      }
+
+      $('codForm').addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const mapsUrl = $('codMapsUrl').value.trim();
+        if (!/^https:\/\//i.test(mapsUrl)) {
+          toast('Link Google Maps harus diawali https://');
+          return;
+        }
+        try {
+          await setDoc(codRef, {
+            address: $('codAddress').value.trim(),
+            hours: $('codHours').value.trim(),
+            mapsUrl,
+            note: $('codNote').value.trim(),
+            updatedAt: Date.now()
+          }, { merge: true });
+          $('codMapsOpen').href = mapsUrl;
+          toast('Lokasi COD disimpan.');
+        } catch (error) {
+          console.error('[marketplace sell admin] gagal menyimpan lokasi COD:', error);
+          toast(`Gagal menyimpan: ${error.code || error.message}`);
+        }
+      });
+    }
+
+    /* ---------------- Aksi pada pengajuan ---------------- */
+    function initActions() {
+      $('sellList').addEventListener('focusout', () => {
+        setTimeout(() => { if (renderPending) safeRender(); }, 150);
+      });
+      $('sellFilter').addEventListener('change', renderList);
+      $('sellSearch').addEventListener('input', renderList);
+
+      $('sellList').addEventListener('click', async (event) => {
+        const zoom = event.target.closest('[data-zoom]');
+        if (zoom) {
+          $('lightboxImg').src = zoom.src;
+          $('lightbox').classList.replace('hidden', 'flex');
+          return;
+        }
+
+        const button = event.target.closest('[data-act]');
+        if (!button) return;
+        const card = button.closest('[data-card]');
+        const id = card.dataset.id;
+        const act = button.dataset.act;
+
+        if (act === 'delete') {
+          if (!window.confirm('Hapus pengajuan ini secara permanen?')) return;
+          try {
+            await deleteDoc(doc(db, SELL_COL, id));
+            toast('Pengajuan dihapus.');
+          } catch (error) {
+            console.error('[marketplace sell admin] gagal menghapus:', error);
+            toast(`Gagal menghapus: ${error.code || error.message}`);
+          }
+          return;
+        }
+
+        const field = (name) => card.querySelector(`[data-f="${name}"]`);
+        if (act === 'approve') field('status').value = 'approved';
+        if (act === 'reject') field('status').value = 'rejected';
+        if (act === 'complete') field('status').value = 'completed';
+
+        const status = field('status').value;
+        const visitSchedule = field('visitSchedule').value.trim();
+        const agreedPrice = Number(field('agreedPrice').value.replace(/\D/g, '')) || null;
+        if (status === 'approved' && !visitSchedule && !window.confirm('Jadwal datang masih kosong. Tetap setujui?')) return;
+
+        button.disabled = true;
+        try {
+          await updateDoc(doc(db, SELL_COL, id), {
+            status,
+            visitSchedule,
+            agreedPrice,
+            adminNote: field('adminNote').value.trim(),
+            reviewedAt: Date.now(),
+            updatedAt: Date.now()
+          });
+          toast('Perubahan disimpan.');
+        } catch (error) {
+          console.error('[marketplace sell admin] gagal menyimpan:', error);
+          toast(`Gagal menyimpan: ${error.code || error.message}`);
+        } finally {
+          button.disabled = false;
+        }
+      });
+
+      $('lightbox').addEventListener('click', () => $('lightbox').classList.replace('flex', 'hidden'));
+    }
+
+    /* ---------------- Boot ---------------- */
+    async function boot() {
+      await requireAdmin();
+      initActions();
+      initCodForm();
+
+      onSnapshot(query(collection(db, SELL_COL), orderBy('createdAt', 'desc'), limit(150)), (snapshot) => {
+        requests = snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
+        $('pageStatus').textContent = '';
+        safeRender();
+      }, (error) => {
+        console.error('[marketplace sell admin] pengajuan gagal dimuat:', error);
+        $('pageStatus').textContent = `Pengajuan gagal dimuat (${error.code || 'unknown'}). Periksa firestore.rules untuk marketplace_sell_requests.`;
+        $('sellList').innerHTML = '';
+      });
+    }
+
+    boot();
+  </script>
+</body>
+</html>
