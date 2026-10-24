@@ -34,15 +34,18 @@
             <div class="avatar-lg" data-user-avatar></div>
             <div>
               <strong style="display:block; color: var(--primary-strong);" data-user-name>Pengguna</strong>
-              <small class="muted">Pembeli</small>
+              <small class="muted">Pembeli &amp; penjual</small>
             </div>
           </div>
 
+          <!-- Menu ini juga dibuat ulang oleh renderUserSidebar() di assets/app.js.
+               Isi statis di bawah hanya cadangan kalau JavaScript belum jalan. -->
           <nav aria-label="Sidebar navigasi">
             <a class="active" href="dashboard.html"><span class="material-symbols-outlined" style="font-size:17px;vertical-align:middle;">dashboard</span> Dashboard</a>
             <a href="beli.html"><span class="material-symbols-outlined" style="font-size:17px;vertical-align:middle;">shopping_cart</span> Katalog</a>
             <a href="keranjang.html"><span class="material-symbols-outlined" style="font-size:17px;vertical-align:middle;">shopping_bag</span> Keranjang <span data-cart-count hidden>0</span></a>
             <a href="pesanan.html"><span class="material-symbols-outlined" style="font-size:17px;vertical-align:middle;">receipt_long</span> Pesanan Saya</a>
+            <a href="jual.html"><span class="material-symbols-outlined" style="font-size:17px;vertical-align:middle;">sell</span> Jual Barang</a>
             <a href="chat.html"><span class="material-symbols-outlined" style="font-size:17px;vertical-align:middle;">chat</span> Chat Admin</a>
             <a href="profil.html"><span class="material-symbols-outlined" style="font-size:17px;vertical-align:middle;">person</span> Profil</a>
           </nav>
@@ -60,6 +63,7 @@
                 <input type="text" placeholder="Cari barang, nama seller, atau kategori" />
               </div>
               <a class="btn btn-primary" href="beli.html">Lihat katalog</a>
+              <a class="btn btn-secondary" href="jual.html">Jual barang</a>
             </div>
           </section>
 

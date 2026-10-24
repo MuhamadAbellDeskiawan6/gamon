@@ -4002,8 +4002,43 @@ async function renderSellPage() {
 
 /* ======================= end jual barang ======================= */
 
+/* =========================================================================
+ * SIDEBAR USER (satu sumber untuk semua halaman user)
+ * Tambah halaman baru cukup menambah satu baris di USER_SIDEBAR_LINKS.
+ * ========================================================================= */
+const USER_SIDEBAR_LINKS = [
+  { href: 'dashboard.html', icon: 'dashboard', label: 'Dashboard' },
+  { href: 'beli.html', icon: 'shopping_cart', label: 'Katalog' },
+  { href: 'keranjang.html', icon: 'shopping_bag', label: 'Keranjang', cartBadge: true },
+  { href: 'pesanan.html', icon: 'receipt_long', label: 'Pesanan Saya' },
+  { href: 'jual.html', icon: 'sell', label: 'Jual Barang' },
+  { href: 'chat.html', icon: 'chat', label: 'Chat Admin' },
+  { href: 'profil.html', icon: 'person', label: 'Profil' }
+];
+
+function renderUserSidebar() {
+  const sidebar = document.querySelector('.sidebar');
+  const nav = sidebar ? sidebar.querySelector('nav') : null;
+  if (!nav) return;
+
+  const page = document.body.dataset.page || '';
+  // Halaman detail produk dianggap bagian dari Katalog.
+  const activeHref = (page === 'product.html' || page === 'user-product.html') ? 'beli.html' : page;
+
+  nav.innerHTML = USER_SIDEBAR_LINKS.map((item) => {
+    const isActive = item.href === activeHref;
+    return `<a class="${isActive ? 'active' : ''}" href="${item.href}"${isActive ? ' aria-current="page"' : ''}>`
+      + `<span class="material-symbols-outlined" style="font-size:17px;vertical-align:middle;">${item.icon}</span> ${item.label}`
+      + `${item.cartBadge ? ' <span data-cart-count hidden>0</span>' : ''}</a>`;
+  }).join('');
+
+  const roleLabel = sidebar.querySelector('.profile-box small');
+  if (roleLabel) roleLabel.textContent = 'Pembeli & penjual';
+}
+
 async function init() {
   ensureDemoData();
+   renderUserSidebar();   
   handleSidebarState();
   bindLogoutButtons();
   bindMobileSidebar();
