@@ -2,7 +2,7 @@ import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 import { getAdminAuth, getAdminDb } from './lib/firebase-admin.js';
-import { applyMarketplacePayment, releaseExpiredReservations, releaseOrderStock } from './lib/marketplace-orders.js';
+import { applyMarketplacePayment, reconcilePaidOrdersStock, releaseExpiredReservations, releaseOrderStock, syncPaidOrdersCart } from './lib/marketplace-orders.js';
 
 const PAYMENT_WINDOW_MS = 60 * 60 * 1000;
 const DEFAULT_SITE_URL = 'https://gamon-tawing.vercel.app';
@@ -34,9 +34,8 @@ async function requireBuyer(req, res) {
   }
 }
 
-// Fallback khusus development: kalau server lokal tidak memuat file env,
-// baca variabel DOKU langsung dari file env di folder proyek.
-// Tidak berjalan di production (Vercel) dan hanya mengisi variabel yang masih kosong.
+// Fallback khusus development: baca variabel DOKU dari file env di folder proyek.
+// Tidak berjalan di production (Vercel).
 let localEnvLoaded = false;
 function loadLocalEnvFallback() {
   if (localEnvLoaded) return;
@@ -134,6 +133,30 @@ function cleanText(value, maxLength = 500) {
   return String(value ?? '').replace(/[\u0000-\u001f\u007f]/g, ' ').trim().slice(0, maxLength);
 }
 
+// DOKU hanya menerima: a-z A-Z 0-9 spasi . - / + , = _ : ' @ % ( )
+function dokuSafeText(value, maxLength = 100, fallback = '-') {
+  const cleaned = String(value ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[\r\n\t]+/g, ' ')
+    .replace(/[^A-Za-z0-9.\-\/+,=_:'@%() ]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, maxLength)
+    .trim();
+  return cleaned || fallback;
+}
+
+function dokuSafePhone(value) {
+  const phone = String(value ?? '').replace(/[^0-9+]/g, '').slice(0, 20);
+  return phone || '0000000000';
+}
+
+function dokuSafeEmail(value) {
+  const email = String(value ?? '').trim().replace(/[^A-Za-z0-9.\-+_@%]/g, '');
+  return email.includes('@') ? email.slice(0, 120) : 'pembeli@gamon-tawing.vercel.app';
+}
+
 function readShippingAddress(profile) {
   const saved = profile?.shipping || {};
   const latitudeValue = saved.latitude ?? profile?.latitude;
@@ -178,17 +201,21 @@ function getShippingFee() {
 async function createDokuPayment(order, config) {
   const requestId = crypto.randomUUID();
   const timestamp = new Date().toISOString().split('.')[0] + 'Z';
-  const lineItems = order.items.map((item) => ({ name: item.name.slice(0, 100), price: item.unitPrice, quantity: item.qty }));
+
+  const lineItems = order.items.map((item) => ({
+    name: dokuSafeText(item.name, 100, 'Produk'),
+    price: item.unitPrice,
+    quantity: item.qty
+  }));
   if (order.shippingFee > 0) lineItems.push({ name: 'Ongkos kirim', price: order.shippingFee, quantity: 1 });
 
-  // Default QRIS seperti Foto LDR. DOKU_PAYMENT_METHODS=ALL membuka semua metode,
+  // Default QRIS. DOKU_PAYMENT_METHODS=ALL membuka semua metode,
   // atau isi daftar dipisah koma, mis. "QRIS,VIRTUAL_ACCOUNT_BCA".
   const rawMethods = String(process.env.DOKU_PAYMENT_METHODS || 'QRIS').trim();
   const paymentMethods = rawMethods.toUpperCase() === 'ALL'
     ? []
     : rawMethods.split(',').map((value) => value.trim()).filter(Boolean);
 
-  // Sama seperti Foto LDR: callback_url dan return_url sama-sama ke halaman pesanan.
   const returnUrl = `${config.returnBaseUrl}/user/marketplace/pesanan.html?orderId=${encodeURIComponent(order.orderId)}`;
 
   const payment = { payment_due_date: 60, return_url: returnUrl };
@@ -204,10 +231,10 @@ async function createDokuPayment(order, config) {
     },
     payment,
     customer: {
-      name: order.buyerName,
-      email: order.buyerEmail,
-      phone: order.buyerPhone,
-      address: order.shippingAddress.address
+      name: dokuSafeText(order.buyerName, 100, 'Pembeli'),
+      email: dokuSafeEmail(order.buyerEmail),
+      phone: dokuSafePhone(order.buyerPhone),
+      address: dokuSafeText(order.shippingAddress.address, 200, 'Alamat pengiriman')
     },
     additional_info: {
       override_notification_url: `${config.siteUrl}/api/doku-notify`
@@ -231,6 +258,7 @@ async function createDokuPayment(order, config) {
   const paymentUrl = payload?.response?.payment?.url;
   if (!response.ok || typeof paymentUrl !== 'string' || !/^https:\/\//i.test(paymentUrl)) {
     console.error('[marketplace] respons DOKU:', response.status, JSON.stringify(payload).slice(0, 1500));
+    console.error('[marketplace] body yang dikirim ke DOKU:', jsonBody.slice(0, 1500));
     throw Object.assign(new Error(payload?.error_messages?.join?.(', ') || payload?.message || payload?.error || `DOKU menolak checkout (${response.status}).`), {
       code: 'doku-checkout-failed',
       dokuRequestId: requestId
@@ -239,7 +267,32 @@ async function createDokuPayment(order, config) {
   return { paymentUrl, requestId };
 }
 
-async function reserveOrderForBuyer(claims) {
+// Tutup checkout lama milik pembeli yang belum dibayar, supaya tidak menumpuk.
+async function cancelStaleAwaitingOrders(userId) {
+  const snapshot = await getAdminDb()
+    .collection('marketplace_orders')
+    .where('userId', '==', userId)
+    .where('status', '==', 'awaiting_payment')
+    .get();
+
+  for (const orderDoc of snapshot.docs) {
+    try {
+      await releaseOrderStock(orderDoc.id, {
+        status: 'cancelled',
+        paymentStatus: 'UNPAID',
+        by: 'system',
+        reason: 'Diganti checkout baru.'
+      });
+    } catch (error) {
+      console.error('[marketplace] gagal menutup checkout lama:', orderDoc.id, error.message);
+    }
+  }
+}
+
+// Membuat pesanan "menunggu pembayaran".
+// STOK TIDAK DIKURANGI DI SINI dan keranjang TIDAK dikosongkan.
+// Stok baru dikurangi saat pembayaran sukses (applyMarketplacePayment).
+async function createPendingOrder(claims) {
   const db = getAdminDb();
   const userId = String(claims.uid);
   const now = Date.now();
@@ -290,8 +343,7 @@ async function reserveOrderForBuyer(claims) {
         return;
       }
       const product = snapshot.data() || {};
-      const rawStock = product.stock;
-      const stock = Number.isInteger(Number(rawStock)) && Number(rawStock) >= 0 ? Number(rawStock) : 1;
+      const stock = Number.isInteger(Number(product.stock)) && Number(product.stock) >= 0 ? Number(product.stock) : 1;
       const unitPrice = Number(product.price);
       if (!Number.isSafeInteger(unitPrice) || unitPrice < 0) {
         conflicts.push({ productId, name: cleanText(product.name || 'Produk', 120), stock, requested: qty, reason: 'Harga produk tidak valid' });
@@ -350,6 +402,9 @@ async function reserveOrderForBuyer(claims) {
       trackingNumber: '',
       courier: '',
       statusHistory: [{ status: 'awaiting_payment', at: now, by: userId }],
+      // Penanda alur baru: stok baru dipotong ketika pembayaran sukses.
+      stockMode: 'on_payment',
+      stockDeducted: false,
       stockReleased: false,
       needsAttention: Boolean(shippingAddress.outsideIndonesia),
       ...(shippingAddress.outsideIndonesia ? { attentionReason: 'Alamat pengiriman berada di luar wilayah Indonesia; validasi biaya dan layanan kurir.' } : {}),
@@ -357,18 +412,9 @@ async function reserveOrderForBuyer(claims) {
       updatedAt: now
     };
 
-    productSnapshots.forEach((snapshot, index) => {
-      const product = snapshot.data() || {};
-      const stock = Number.isInteger(Number(product.stock)) && Number(product.stock) >= 0 ? Number(product.stock) : 1;
-      const nextStock = stock - combined.get(productIds[index]);
-      transaction.update(productRefs[index], {
-        stock: nextStock,
-        status: nextStock > 0 ? 'Tersedia' : 'Habis',
-        updatedAt: now
-      });
-    });
+    // TIDAK ADA transaction.update ke marketplace_products di sini.
+    // TIDAK ADA pengosongan keranjang di sini.
     transaction.create(orderRef, order);
-    transaction.set(cartRef, { items: [], updatedAt: now });
     return { order };
   });
 }
@@ -383,11 +429,13 @@ async function checkout(req, res, claims) {
 
   try {
     await releaseExpiredReservations();
-    const reservation = await reserveOrderForBuyer(claims);
+    await cancelStaleAwaitingOrders(String(claims.uid));
+    const reservation = await createPendingOrder(claims);
     if (reservation.stockConflict) {
       return responseError(res, 409, 'insufficient-stock', 'Sebagian barang tidak lagi memiliki stok yang cukup.', reservation.conflicts);
     }
     const order = reservation.order;
+    console.log('[marketplace] pesanan dibuat tanpa memotong stok:', { orderId: order.orderId, stockMode: order.stockMode });
     try {
       const doku = await createDokuPayment(order, config);
       await getAdminDb().collection('marketplace_orders').doc(order.orderId).set({
@@ -395,7 +443,14 @@ async function checkout(req, res, claims) {
         dokuRequestId: doku.requestId,
         updatedAt: Date.now()
       }, { merge: true });
-      return res.status(200).json({ success: true, orderId: order.orderId, orderCode: order.orderCode, paymentUrl: doku.paymentUrl, warning: order.shippingAddress.outsideIndonesia ? 'Koordinat berada di luar Indonesia; konfirmasi layanan pengiriman.' : '' });
+      return res.status(200).json({
+        success: true,
+        orderId: order.orderId,
+        orderCode: order.orderCode,
+        paymentUrl: doku.paymentUrl,
+        stockMode: order.stockMode,
+        warning: order.shippingAddress.outsideIndonesia ? 'Koordinat berada di luar Indonesia; konfirmasi layanan pengiriman.' : ''
+      });
     } catch (error) {
       console.error('[marketplace] pembuatan pembayaran DOKU gagal:', { orderId: order.orderId, code: error.code || 'unknown', message: error.message });
       try {
@@ -411,10 +466,9 @@ async function checkout(req, res, claims) {
           reason: 'DOKU gagal membuat invoice.'
         });
       } catch (releaseError) {
-        console.error('[marketplace] gagal melepas reservasi setelah error DOKU:', releaseError);
+        console.error('[marketplace] gagal menutup pesanan setelah error DOKU:', releaseError);
       }
-      // Sertakan pesan asli dari DOKU agar mudah didiagnosis saat testing.
-      return responseError(res, 502, error.code || 'doku-checkout-failed', `Pembayaran gagal disiapkan: ${cleanText(error.message, 300)}. Stok telah dilepas jika reservasi sudah dibuat.`);
+      return responseError(res, 502, error.code || 'doku-checkout-failed', `Pembayaran gagal disiapkan: ${cleanText(error.message, 300)}.`);
     }
   } catch (error) {
     console.error('[marketplace] checkout gagal:', { code: error.code || 'unknown', message: error.message });
@@ -433,7 +487,7 @@ async function payAgain(req, res, claims) {
   if (order.status !== 'awaiting_payment') return responseError(res, 409, 'invalid-order-state', 'Pesanan ini tidak menunggu pembayaran.');
   if (Number(order.paymentExpiresAt || 0) <= Date.now()) {
     await releaseOrderStock(orderId, { status: 'expired', paymentStatus: 'EXPIRED', by: 'system', reason: 'Batas pembayaran terlewati.' });
-    return responseError(res, 409, 'payment-expired', 'Batas pembayaran telah lewat dan stok sudah dilepas.');
+    return responseError(res, 409, 'payment-expired', 'Batas pembayaran telah lewat.');
   }
   if (!/^https:\/\//i.test(String(order.paymentUrl || ''))) return responseError(res, 409, 'payment-link-unavailable', 'Link pembayaran tidak tersedia. Hubungi admin.');
   return res.status(200).json({ success: true, orderId, paymentUrl: order.paymentUrl });
@@ -448,7 +502,35 @@ async function cancelOrder(req, res, claims) {
   if (snapshot.data()?.status !== 'awaiting_payment') return responseError(res, 409, 'invalid-order-state', 'Hanya pesanan yang menunggu pembayaran yang dapat dibatalkan.');
   const result = await releaseOrderStock(orderId, { status: 'cancelled', paymentStatus: 'UNPAID', by: claims.uid, reason: 'Dibatalkan pembeli.' });
   if (result.needsAttention) return responseError(res, 409, 'payment-raced-with-cancel', 'Pembayaran telah berubah status saat pembatalan; hubungi admin untuk pemeriksaan.');
-  return res.status(200).json({ success: true, orderId, stockReleased: result.released || result.alreadyReleased });
+  return res.status(200).json({ success: true, orderId, released: Boolean(result.released || result.alreadyReleased) });
+}
+
+// Tanya status ke DOKU lalu terapkan hasilnya (bayar sukses / expired / gagal).
+async function queryDokuAndApply(req, orderId) {
+  const config = getDokuConfig(req);
+  const path = `/orders/v1/status/${encodeURIComponent(orderId)}`;
+  const timestamp = new Date().toISOString().split('.')[0] + 'Z';
+  const requestId = crypto.randomUUID();
+  const response = await fetch(`${config.baseUrl}${path}`, {
+    method: 'GET',
+    headers: createDokuHeaders({ ...config, requestId, timestamp, path })
+  });
+  const raw = await response.text();
+  let payload = {};
+  try { payload = JSON.parse(raw); } catch (error) { payload = { raw: raw.slice(0, 1000) }; }
+  if (!response.ok) {
+    throw Object.assign(new Error(payload.message || `DOKU status check gagal (${response.status}).`), { code: 'doku-status-failed' });
+  }
+  const status = String(payload.transaction?.status || payload.order?.status || payload.status || '').toUpperCase();
+  // Hanya status SUCCESS/PAID dari DOKU yang boleh memotong stok.
+  if (['SUCCESS', 'PAID'].includes(status)) {
+    await applyMarketplacePayment({ orderId, amount: payload.order?.amount ?? payload.amount, requestId: payload.transaction?.request_id || requestId });
+  } else if (status === 'EXPIRED') {
+    await releaseOrderStock(orderId, { status: 'expired', paymentStatus: 'EXPIRED', by: 'doku-check', reason: 'DOKU mengembalikan status EXPIRED.' });
+  } else if (['FAILED', 'CANCELLED', 'DENIED'].includes(status)) {
+    await releaseOrderStock(orderId, { status: 'payment_failed', paymentStatus: 'FAILED', by: 'doku-check', reason: `DOKU mengembalikan status ${status}.` });
+  }
+  return status || 'PENDING';
 }
 
 async function checkPayment(req, res, claims) {
@@ -459,41 +541,65 @@ async function checkPayment(req, res, claims) {
   let snapshot = await orderRef.get();
   if (!snapshot.exists || snapshot.data()?.userId !== claims.uid) return responseError(res, 404, 'not-found', 'Pesanan tidak ditemukan.');
   let order = snapshot.data() || {};
+
   if (order.status === 'awaiting_payment' && Number(order.paymentExpiresAt || 0) <= Date.now()) {
     await releaseOrderStock(orderId, { status: 'expired', paymentStatus: 'EXPIRED', by: 'system', reason: 'Batas pembayaran terlewati.' });
     snapshot = await orderRef.get();
     return res.status(200).json({ success: true, order: { id: orderId, ...snapshot.data() } });
   }
-  if (order.status !== 'awaiting_payment') return res.status(200).json({ success: true, order: { id: orderId, ...order } });
+
+  if (order.status !== 'awaiting_payment') {
+    // Sudah dibayar (mis. lewat webhook): pastikan STOK terpotong dan keranjang bersih.
+    await reconcilePaidOrdersStock(claims.uid).catch((error) => console.error('[marketplace] rekonsiliasi stok gagal:', error.message));
+    await syncPaidOrdersCart(claims.uid).catch((error) => console.error('[marketplace] sync keranjang gagal:', error.message));
+    snapshot = await orderRef.get();
+    return res.status(200).json({ success: true, order: { id: orderId, ...(snapshot.data() || order) } });
+  }
 
   try {
-    const config = getDokuConfig(req);
-    const path = `/orders/v1/status/${encodeURIComponent(orderId)}`;
-    const timestamp = new Date().toISOString().split('.')[0] + 'Z';
-    const requestId = crypto.randomUUID();
-    const response = await fetch(`${config.baseUrl}${path}`, {
-      method: 'GET',
-      headers: createDokuHeaders({ ...config, requestId, timestamp, path })
-    });
-    const raw = await response.text();
-    let payload = {};
-    try { payload = JSON.parse(raw); } catch (error) { payload = { raw: raw.slice(0, 1000) }; }
-    if (!response.ok) throw Object.assign(new Error(payload.message || `DOKU status check gagal (${response.status}).`), { code: 'doku-status-failed' });
-    const status = String(payload.transaction?.status || payload.order?.status || payload.status || '').toUpperCase();
-    if (['SUCCESS', 'PAID'].includes(status)) {
-      await applyMarketplacePayment({ orderId, amount: payload.order?.amount ?? payload.amount, requestId: payload.transaction?.request_id || requestId });
-    } else if (status === 'EXPIRED') {
-      await releaseOrderStock(orderId, { status: 'expired', paymentStatus: 'EXPIRED', by: 'doku-check', reason: 'DOKU mengembalikan status EXPIRED.' });
-    } else if (['FAILED', 'CANCELLED', 'DENIED'].includes(status)) {
-      await releaseOrderStock(orderId, { status: 'payment_failed', paymentStatus: 'FAILED', by: 'doku-check', reason: `DOKU mengembalikan status ${status}.` });
-    }
+    const dokuStatus = await queryDokuAndApply(req, orderId);
+    await reconcilePaidOrdersStock(claims.uid).catch((error) => console.error('[marketplace] rekonsiliasi stok gagal:', error.message));
+    await syncPaidOrdersCart(claims.uid).catch((error) => console.error('[marketplace] sync keranjang gagal:', error.message));
     snapshot = await orderRef.get();
     order = snapshot.data() || {};
-    return res.status(200).json({ success: true, order: { id: orderId, ...order }, dokuStatus: status || 'PENDING' });
+    return res.status(200).json({ success: true, order: { id: orderId, ...order }, dokuStatus });
   } catch (error) {
     console.error('[marketplace] pemeriksaan status DOKU gagal:', { orderId, code: error.code || 'unknown', message: error.message });
     return responseError(res, 502, error.code || 'doku-status-failed', 'Status pembayaran belum bisa diperiksa. Coba lagi sebentar.');
   }
+}
+
+// Dipanggil saat halaman keranjang/pesanan dibuka:
+// 1) cek ke DOKU untuk pesanan yang masih menunggu bayar (webhook bisa terlambat / tidak sampai ke localhost),
+// 2) bersihkan keranjang dari barang yang sudah dibayar.
+async function syncCart(req, res, claims) {
+  const uid = String(claims.uid);
+  try {
+    const pending = await getAdminDb()
+      .collection('marketplace_orders')
+      .where('userId', '==', uid)
+      .where('status', '==', 'awaiting_payment')
+      .get();
+    const live = pending.docs
+      .filter((document) => Number(document.data()?.paymentExpiresAt || 0) > Date.now())
+      .slice(0, 3);
+    for (const document of live) {
+      try {
+        await queryDokuAndApply(req, document.id);
+      } catch (error) {
+        console.warn('[marketplace] cek DOKU untuk sync-cart dilewati:', document.id, error.message);
+      }
+    }
+  } catch (error) {
+    console.warn('[marketplace] gagal membaca pesanan tertunda:', error.message);
+  }
+  // Perbaiki stok yang belum terpotong untuk pesanan yang sudah dibayar, lalu bersihkan keranjang.
+  const stock = await reconcilePaidOrdersStock(uid).catch((error) => {
+    console.error('[marketplace] rekonsiliasi stok gagal:', error.message);
+    return { checked: 0, fixed: 0 };
+  });
+  const result = await syncPaidOrdersCart(uid);
+  return res.status(200).json({ success: true, ...result, stockFixed: stock.fixed });
 }
 
 export default async function handler(req, res) {
@@ -507,6 +613,7 @@ export default async function handler(req, res) {
     if (action === 'pay-again') return await payAgain(req, res, claims);
     if (action === 'cancel-order') return await cancelOrder(req, res, claims);
     if (action === 'check-payment') return await checkPayment(req, res, claims);
+    if (action === 'sync-cart') return await syncCart(req, res, claims);
     if (action === 'release-expired-reservations') {
       const result = await releaseExpiredReservations();
       return res.status(200).json({ success: true, ...result });

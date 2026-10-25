@@ -1,6 +1,6 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut, sendPasswordResetEmail } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
-import { getFirestore, collection, doc, setDoc, getDoc, getDocs, query, where, orderBy, onSnapshot, updateDoc, writeBatch, increment, deleteField } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+import { getFirestore, collection, doc, setDoc, getDoc, getDocs, query, where, orderBy, onSnapshot, updateDoc, writeBatch, increment, deleteField, runTransaction } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
 const firebaseConfig = {
   apiKey: 'AIzaSyC247K8yyL67aWV95KNQy8CkMZsjgGCudQ',
@@ -834,33 +834,49 @@ async function getMarketplaceCartUserId() {
   return firebaseUser.uid;
 }
 
+// Ubah isi keranjang secara atomik berdasarkan data TERBARU di server.
+// updater(items) mengembalikan array baru, atau null untuk tidak mengubah apa pun.
+async function updateCartItems(userId, updater) {
+  const cartRef = doc(db, 'marketplace_carts', userId);
+  return runTransaction(db, async (transaction) => {
+    const snapshot = await transaction.get(cartRef);
+    const current = snapshot.exists() && Array.isArray(snapshot.data().items) ? snapshot.data().items : [];
+    const next = updater(current);
+    if (next === null) return current;
+    transaction.set(cartRef, { items: next, updatedAt: Date.now() });
+    return next;
+  });
+}
+
 async function addProductToCart(productId, quantity = 1, openCart = false) {
   try {
     const userId = await getMarketplaceCartUserId();
     if (!userId) return;
-    const productRef = doc(db, 'marketplace_products', String(productId));
-    const productSnapshot = await getDoc(productRef);
+    const productSnapshot = await getDoc(doc(db, 'marketplace_products', String(productId)));
     if (!productSnapshot.exists()) throw new Error('Produk sudah tidak tersedia.');
     const product = productSnapshot.data();
     const stockValue = Number(product.stock);
     const stock = Number.isInteger(stockValue) && stockValue >= 0 ? stockValue : 1;
     if (!stock) throw new Error('Stok produk habis.');
 
-    const cartRef = doc(db, 'marketplace_carts', userId);
-    const cartSnapshot = await getDoc(cartRef);
-    const items = cartSnapshot.exists() && Array.isArray(cartSnapshot.data().items) ? cartSnapshot.data().items : [];
-    const index = items.findIndex((item) => String(item.productId) === String(productId));
-    const previousQty = index >= 0 ? Number(items[index].qty || 0) : 0;
     const requestedQty = Math.max(1, Math.min(99, Math.trunc(Number(quantity) || 1)));
-    const nextQty = Math.min(stock, previousQty + requestedQty);
-    const nextItems = [...items];
-    if (index >= 0) nextItems[index] = { productId: String(productId), qty: nextQty };
-    else {
-      if (items.length >= 30) throw new Error('Keranjang maksimal 30 jenis barang.');
-      nextItems.push({ productId: String(productId), qty: nextQty });
-    }
+    let previousQty = 0;
+    let nextQty = 0;
 
-    await setDoc(cartRef, { items: nextItems, updatedAt: Date.now() });
+    await updateCartItems(userId, (items) => {
+      const index = items.findIndex((item) => String(item.productId) === String(productId));
+      previousQty = index >= 0 ? Number(items[index].qty || 0) : 0;
+      nextQty = Math.min(stock, previousQty + requestedQty);
+      const nextItems = [...items];
+      if (index >= 0) {
+        nextItems[index] = { productId: String(productId), qty: nextQty };
+      } else {
+        if (items.length >= 30) throw new Error('Keranjang maksimal 30 jenis barang.');
+        nextItems.push({ productId: String(productId), qty: nextQty });
+      }
+      return nextItems;
+    });
+
     if (nextQty < previousQty + requestedQty) showToast(`Jumlah dibatasi ke stok tersedia: ${stock}.`, 'info');
     else showToast('Barang ditambahkan ke keranjang.', 'success');
     if (openCart) window.location.href = 'keranjang.html';
@@ -1898,6 +1914,127 @@ async function callMarketplaceApi(action, body = {}) {
   return result;
 }
 
+// Minta server membersihkan keranjang untuk pesanan yang sudah dibayar. Gagal pun tidak masalah.
+async function syncPaidCart() {
+  try {
+    await callMarketplaceApi('sync-cart');
+  } catch (error) {
+    console.warn('[marketplace] sinkron keranjang dilewati:', error?.message || error);
+  }
+}
+
+/* =========================================================================
+ * OVERLAY LOADING CHECKOUT
+ * ========================================================================= */
+function ensureCheckoutOverlayStyles() {
+  if (document.getElementById('checkout-overlay-styles')) return;
+  const style = document.createElement('style');
+  style.id = 'checkout-overlay-styles';
+  style.textContent = `
+    .checkout-overlay{position:fixed;inset:0;z-index:9999;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(23,26,30,.55);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)}
+    .checkout-overlay.show{display:flex;animation:coFade .2s ease}
+    .checkout-overlay-card{width:min(420px,100%);background:#fff;border-radius:22px;padding:28px 24px;box-shadow:0 24px 60px rgba(0,0,0,.25);text-align:center}
+    .checkout-spinner{width:64px;height:64px;margin:0 auto 16px;border-radius:50%;border:5px solid #fde4ee;border-top-color:#ec4f86;animation:coSpin .9s linear infinite}
+    .checkout-overlay-card h3{margin:0 0 4px;font-size:1.15rem;color:#2a1f3d}
+    .checkout-overlay-card p{margin:0;font-size:.9rem;color:#6b6078}
+    .checkout-progress{height:6px;border-radius:999px;background:#f3e8ee;overflow:hidden;margin:18px 0 14px}
+    .checkout-progress span{display:block;height:100%;width:8%;border-radius:inherit;background:linear-gradient(90deg,#f472a6,#8b5cf6);transition:width .6s ease}
+    .checkout-steps{list-style:none;margin:0;padding:0;text-align:left;display:grid;gap:10px}
+    .checkout-steps li{display:flex;align-items:center;gap:10px;font-size:.92rem;color:#a79bb2;transition:color .3s}
+    .checkout-steps .dot{width:22px;height:22px;border-radius:50%;border:2px solid #e5d9e2;display:grid;place-items:center;font-size:12px;line-height:1;flex:none;color:#fff;transition:background .3s,border-color .3s}
+    .checkout-steps li.active{color:#2a1f3d;font-weight:600}
+    .checkout-steps li.active .dot{border-color:#ec4f86;border-top-color:transparent;animation:coSpin .8s linear infinite}
+    .checkout-steps li.done{color:#15803d}
+    .checkout-steps li.done .dot{background:#22c55e;border-color:#22c55e}
+    .checkout-note{margin-top:16px;font-size:.8rem;color:#8a7f96}
+    .co-btn-spinner{display:inline-block;width:14px;height:14px;margin-right:8px;vertical-align:-2px;border-radius:50%;border:2px solid rgba(255,255,255,.45);border-top-color:#fff;animation:coSpin .8s linear infinite}
+    @keyframes coSpin{to{transform:rotate(360deg)}}
+    @keyframes coFade{from{opacity:0}to{opacity:1}}
+    @media (prefers-reduced-motion:reduce){.checkout-spinner,.checkout-steps li.active .dot,.co-btn-spinner{animation-duration:2.4s}.checkout-progress span{transition:none}}
+  `;
+  document.head.appendChild(style);
+}
+
+function createCheckoutOverlay() {
+  ensureCheckoutOverlayStyles();
+  let root = document.querySelector('[data-checkout-overlay]');
+  if (!root) {
+    root = document.createElement('div');
+    root.className = 'checkout-overlay';
+    root.setAttribute('data-checkout-overlay', '');
+    root.setAttribute('role', 'alertdialog');
+    root.setAttribute('aria-modal', 'true');
+    root.setAttribute('aria-live', 'polite');
+    root.innerHTML = `
+      <div class="checkout-overlay-card">
+        <div class="checkout-spinner" aria-hidden="true"></div>
+        <h3 data-co-title>Menyiapkan pembayaran</h3>
+        <p data-co-sub>Mohon tunggu sebentar, kami sedang memproses pesanan Anda.</p>
+        <div class="checkout-progress" aria-hidden="true"><span data-co-bar></span></div>
+        <ul class="checkout-steps">
+          <li data-co-step><span class="dot"></span>Memeriksa stok barang</li>
+          <li data-co-step><span class="dot"></span>Membuat pesanan Anda</li>
+          <li data-co-step><span class="dot"></span>Menghubungkan ke DOKU</li>
+          <li data-co-step><span class="dot"></span>Mengalihkan ke halaman pembayaran</li>
+        </ul>
+        <p class="checkout-note">Jangan tutup atau refresh halaman ini.</p>
+      </div>
+    `;
+    document.body.appendChild(root);
+  }
+
+  const title = root.querySelector('[data-co-title]');
+  const sub = root.querySelector('[data-co-sub]');
+  const bar = root.querySelector('[data-co-bar]');
+  const items = [...root.querySelectorAll('[data-co-step]')];
+  let timers = [];
+
+  const clearTimers = () => {
+    timers.forEach((timer) => clearTimeout(timer));
+    timers = [];
+  };
+
+  const setStep = (index) => {
+    items.forEach((item, itemIndex) => {
+      const done = itemIndex < index;
+      item.classList.toggle('done', done);
+      item.classList.toggle('active', itemIndex === index);
+      const dot = item.querySelector('.dot');
+      if (dot) dot.textContent = done ? '✓' : '';
+    });
+    bar.style.width = `${Math.round(((index + 0.5) / items.length) * 100)}%`;
+  };
+
+  return {
+    show() {
+      clearTimers();
+      title.textContent = 'Menyiapkan pembayaran';
+      sub.textContent = 'Mohon tunggu sebentar, kami sedang memproses pesanan Anda.';
+      setStep(0);
+      root.classList.add('show');
+      document.body.style.overflow = 'hidden';
+      // Server memproses dalam satu panggilan; langkah dimajukan agar user melihat progres.
+      timers.push(setTimeout(() => setStep(1), 1400));
+      timers.push(setTimeout(() => setStep(2), 3200));
+    },
+    finish() {
+      clearTimers();
+      title.textContent = 'Mengalihkan ke DOKU...';
+      sub.textContent = 'Pesanan siap. Anda akan dibawa ke halaman pembayaran.';
+      setStep(3);
+      bar.style.width = '96%';
+    },
+    hide() {
+      clearTimers();
+      root.classList.remove('show');
+      document.body.style.overflow = '';
+    }
+  };
+}
+
+/* =========================================================================
+ * HALAMAN KERANJANG  (ganti seluruh fungsi renderCartPage lama)
+ * ========================================================================= */
 async function renderCartPage() {
   const container = document.querySelector('[data-cart-content]');
   if (!container) return;
@@ -1908,16 +2045,20 @@ async function renderCartPage() {
 
   const cartRef = doc(db, 'marketplace_carts', userId);
   let profile = user;
-  try {
-    const [profileSnapshot] = await Promise.all([
-      getDoc(doc(db, 'marketplace_users', userId)),
-      callMarketplaceApi('release-expired-reservations').catch((error) => {
-        console.error('[marketplace] gagal melepas reservasi kedaluwarsa saat buka keranjang:', error);
-      })
-    ]);
-    if (profileSnapshot.exists()) profile = { ...user, ...profileSnapshot.data() };
-  } catch (error) {
-    console.error('[marketplace] gagal memuat alamat profil untuk keranjang:', error);
+
+  // Bersihkan keranjang dari barang yang sudah dibayar SEBELUM menampilkan isi keranjang.
+  // Dibatasi 8 detik agar halaman tidak menggantung bila DOKU lambat.
+  const [profileResult] = await Promise.allSettled([
+    getDoc(doc(db, 'marketplace_users', userId)),
+    withTimeout(syncPaidCart(), 8000, 'Sinkron keranjang').catch(() => null),
+    callMarketplaceApi('release-expired-reservations').catch((error) => {
+      console.error('[marketplace] gagal melepas reservasi kedaluwarsa saat buka keranjang:', error);
+    })
+  ]);
+  if (profileResult.status === 'fulfilled' && profileResult.value.exists()) {
+    profile = { ...user, ...profileResult.value.data() };
+  } else if (profileResult.status === 'rejected') {
+    console.error('[marketplace] gagal memuat alamat profil untuk keranjang:', profileResult.reason);
   }
 
   const shipping = getShippingAddressFromUser(profile);
@@ -1930,10 +2071,33 @@ async function renderCartPage() {
   }
 
   let renderSequence = 0;
+  let checkoutInFlight = false;
+  let lastSync = { addressComplete: shipping.complete, hasInvalidItems: true };
+  let lastSyncAt = Date.now();
+  const checkoutOverlay = createCheckoutOverlay();
+
   const showCartError = (message) => {
     const errorEl = document.querySelector('[data-cart-error]');
     if (errorEl) errorEl.textContent = message || '';
   };
+
+  // Status tombol dihitung dari data terakhir; tidak menimpa tombol saat checkout berjalan.
+  function syncCheckoutButton(addressComplete, hasInvalidItems) {
+    lastSync = { addressComplete, hasInvalidItems };
+    const button = document.querySelector('[data-checkout]');
+    if (!button || checkoutInFlight) return;
+    button.disabled = !addressComplete || hasInvalidItems;
+    button.removeAttribute('aria-busy');
+    button.textContent = 'Bayar dengan DOKU';
+    button.title = !addressComplete ? 'Lengkapi alamat pengiriman di Profil.' : hasInvalidItems ? 'Hapus barang habis atau periksa stok.' : '';
+  }
+
+  // Kembalikan seluruh UI checkout ke kondisi normal (gagal, timeout, atau kembali dari DOKU).
+  function resetCheckoutUi() {
+    checkoutInFlight = false;
+    checkoutOverlay.hide();
+    syncCheckoutButton(lastSync.addressComplete, lastSync.hasInvalidItems);
+  }
 
   const renderCartContents = async (cartSnapshot) => {
     const sequence = ++renderSequence;
@@ -1942,6 +2106,7 @@ async function renderCartPage() {
       container.innerHTML = '<div class="commerce-empty">Keranjang masih kosong. <a href="beli.html">Lihat katalog</a></div>';
       const totalEl = document.querySelector('[data-cart-total]');
       if (totalEl) totalEl.textContent = formatCurrency(0);
+      showCartError('');
       syncCheckoutButton(shipping.complete, true);
       return;
     }
@@ -1957,18 +2122,25 @@ async function renderCartPage() {
         return { productId: String(item.productId), qty: Number(item.qty || 1), product: null, stock: 0 };
       }
     }));
+    // Snapshot yang lebih baru sudah masuk (mis. keranjang dibersihkan server): jangan render data lama.
     if (sequence !== renderSequence) return;
 
-    let changed = false;
-    const correctedItems = resolved.map((item) => {
-      if (!item.product || item.stock === 0) return { productId: item.productId, qty: item.qty };
-      const qty = Math.max(1, Math.min(99, item.stock, item.qty));
-      if (qty !== item.qty) changed = true;
-      return { productId: item.productId, qty };
-    });
-    if (changed) {
-      await setDoc(cartRef, { items: correctedItems, updatedAt: Date.now() });
-      showCartError('Jumlah di keranjang disesuaikan karena stok barang berubah.');
+    const stockById = new Map(resolved.map((item) => [item.productId, item]));
+    const needsCorrection = resolved.some((item) => item.product && item.stock > 0 && Math.max(1, Math.min(99, item.stock, item.qty)) !== item.qty);
+    if (needsCorrection) {
+      try {
+        // Koreksi dilakukan di atas data keranjang TERBARU (transaksi), bukan data snapshot lama,
+        // sehingga barang yang baru dihapus/dibayar tidak bisa "hidup kembali".
+        await updateCartItems(userId, (items) => items.map((item) => {
+          const info = stockById.get(String(item.productId));
+          if (!info || !info.product || info.stock <= 0) return item;
+          return { productId: String(item.productId), qty: Math.max(1, Math.min(99, info.stock, Number(item.qty || 1))) };
+        }));
+        showCartError('Jumlah di keranjang disesuaikan karena stok barang berubah.');
+      } catch (error) {
+        console.error('[marketplace] gagal menyesuaikan jumlah keranjang:', error);
+      }
+      return; // onSnapshot akan memanggil render ulang dengan data yang sudah benar
     }
 
     const total = resolved.reduce((sum, item) => item.product && item.stock > 0
@@ -2000,35 +2172,28 @@ async function renderCartPage() {
     syncCheckoutButton(shipping.complete, !resolved.length || hasUnavailable);
   };
 
-  function syncCheckoutButton(addressComplete, hasInvalidItems) {
-    const button = document.querySelector('[data-checkout]');
-    if (!button) return;
-    button.disabled = !addressComplete || hasInvalidItems;
-    const reason = !addressComplete ? 'Lengkapi alamat pengiriman di Profil.' : hasInvalidItems ? 'Hapus barang habis atau periksa stok.' : '';
-    button.title = reason;
-  }
-
   container.addEventListener('click', async (event) => {
+    if (checkoutInFlight) return;
     const row = event.target.closest('[data-cart-item]');
     if (!row) return;
     const productId = row.dataset.cartItem;
     try {
-      const snapshot = await getDoc(cartRef);
-      const items = snapshot.exists() && Array.isArray(snapshot.data().items) ? snapshot.data().items : [];
-      const current = items.find((item) => String(item.productId) === productId);
-      if (!current) return;
       if (event.target.closest('[data-cart-remove]')) {
-        await setDoc(cartRef, { items: items.filter((item) => String(item.productId) !== productId), updatedAt: Date.now() });
-      } else {
-        const step = Number(event.target.closest('[data-cart-step]')?.dataset.cartStep || 0);
-        if (!step) return;
-        const productSnapshot = await getDoc(doc(db, 'marketplace_products', productId));
-        const rawStock = productSnapshot.exists() ? Number(productSnapshot.data().stock) : 0;
-        const stock = Number.isInteger(rawStock) && rawStock >= 0 ? rawStock : (productSnapshot.exists() ? 1 : 0);
-        const nextQty = Math.max(1, Math.min(99, stock, Number(current.qty || 1) + step));
-        if (stock <= 0) return;
-        await setDoc(cartRef, { items: items.map((item) => String(item.productId) === productId ? { productId, qty: nextQty } : item), updatedAt: Date.now() });
+        await updateCartItems(userId, (items) => items.filter((item) => String(item.productId) !== productId));
+        return;
       }
+      const step = Number(event.target.closest('[data-cart-step]')?.dataset.cartStep || 0);
+      if (!step) return;
+      const productSnapshot = await getDoc(doc(db, 'marketplace_products', productId));
+      const rawStock = productSnapshot.exists() ? Number(productSnapshot.data().stock) : 0;
+      const stock = Number.isInteger(rawStock) && rawStock >= 0 ? rawStock : (productSnapshot.exists() ? 1 : 0);
+      if (stock <= 0) return;
+      await updateCartItems(userId, (items) => {
+        if (!items.some((item) => String(item.productId) === productId)) return null;
+        return items.map((item) => String(item.productId) === productId
+          ? { productId, qty: Math.max(1, Math.min(99, stock, Number(item.qty || 1) + step)) }
+          : item);
+      });
     } catch (error) {
       console.error('[marketplace] gagal mengubah keranjang:', error);
       showCartError(`Keranjang gagal diperbarui: ${error?.code || error.message || 'unknown'}`);
@@ -2037,21 +2202,53 @@ async function renderCartPage() {
 
   const checkoutButton = document.querySelector('[data-checkout]');
   checkoutButton?.addEventListener('click', async () => {
-    if (checkoutButton.disabled) return;
-    checkoutButton.disabled = true;
-    checkoutButton.textContent = 'Menyiapkan pembayaran...';
+    if (checkoutInFlight || checkoutButton.disabled) return;
+
+    checkoutInFlight = true;
     showCartError('');
+    checkoutButton.disabled = true;
+    checkoutButton.setAttribute('aria-busy', 'true');
+    checkoutButton.innerHTML = '<span class="co-btn-spinner" aria-hidden="true"></span>Memproses...';
+    checkoutOverlay.show();
+
     try {
-      const result = await callMarketplaceApi('checkout', { shippingAddress: shipping });
-      if (!result.paymentUrl || !/^https:\/\//i.test(result.paymentUrl)) throw new Error('DOKU tidak mengembalikan link pembayaran HTTPS.');
+      const result = await withTimeout(
+        callMarketplaceApi('checkout', { shippingAddress: shipping }),
+        60000,
+        'Checkout'
+      );
+      if (!result.paymentUrl || !/^https:\/\//i.test(result.paymentUrl)) {
+        throw new Error('DOKU tidak mengembalikan link pembayaran HTTPS.');
+      }
+
+      checkoutOverlay.finish();
+      // Pengaman: jika redirect tertahan, jangan biarkan layar loading menggantung.
+      setTimeout(() => {
+        if (checkoutInFlight) resetCheckoutUi();
+      }, 15000);
       window.location.href = result.paymentUrl;
     } catch (error) {
       console.error('[marketplace] checkout gagal:', error);
       const stockIssues = Array.isArray(error.details) ? error.details.map((item) => `${item.name || 'Produk'}: stok ${item.stock ?? 0}`).join(' · ') : '';
       showCartError(`Checkout gagal (${error.code || 'unknown'}): ${error.message}${stockIssues ? ` ${stockIssues}` : ''}`);
-      checkoutButton.disabled = false;
-      checkoutButton.textContent = 'Bayar dengan DOKU';
+      resetCheckoutUi();
     }
+  });
+
+  // Dipanggil saat user kembali ke halaman ini (tombol Back dari DOKU, pindah tab, dll).
+  // Cek pembayaran + bersihkan keranjang; onSnapshot yang akan memperbarui tampilan.
+  const refreshAfterReturn = () => {
+    if (Date.now() - lastSyncAt < 5000) return;
+    lastSyncAt = Date.now();
+    syncPaidCart();
+  };
+
+  window.addEventListener('pageshow', (event) => {
+    if (event.persisted || checkoutInFlight) resetCheckoutUi();
+    if (event.persisted) refreshAfterReturn();
+  });
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && !checkoutInFlight) refreshAfterReturn();
   });
 
   const unsubscribe = onSnapshot(cartRef, (snapshot) => {
@@ -2767,18 +2964,20 @@ async function renderOrdersForBuyer() {
       container.innerHTML = '<p class="commerce-error">Detail pesanan gagal dimuat. Muat ulang halaman untuk mencoba lagi.</p>';
     });
 
-    // Setelah kembali dari DOKU, webhook bisa tiba beberapa detik kemudian.
+       // Setelah kembali dari DOKU, webhook bisa tiba beberapa detik kemudian.
     // Tanya status ke DOKU beberapa kali sampai status berubah dari "menunggu".
     (async () => {
       for (let attempt = 0; attempt < 4 && !stopPaymentPolling; attempt += 1) {
         try {
           const result = await callMarketplaceApi('check-payment', { orderId: requestedOrderId });
-          if (result.order && result.order.status !== 'awaiting_payment') return;
+          if (result.order && result.order.status !== 'awaiting_payment') break;
         } catch (error) {
           console.error('[marketplace] pemeriksaan pembayaran gagal:', error);
         }
         await new Promise((resolve) => setTimeout(resolve, 3000));
       }
+      // Apa pun hasilnya, pastikan keranjang bersih dari barang yang sudah dibayar.
+      await syncPaidCart();
     })();
   }
 
@@ -2826,7 +3025,7 @@ async function renderOrdersForBuyer() {
     renderOrderList();
   }
 
-  async function runListMode() {
+    async function runListMode() {
     if (eyebrowEl) eyebrowEl.textContent = 'Riwayat Pesanan';
     if (titleEl) titleEl.textContent = 'Pesanan Saya';
     if (backEl) backEl.classList.remove('is-visible');
@@ -2834,6 +3033,20 @@ async function renderOrdersForBuyer() {
     try {
       await callMarketplaceApi('release-expired-reservations');
       await loadOrders();
+
+      // Pesanan "menunggu pembayaran" bisa saja sebenarnya sudah dibayar
+      // (webhook terlambat). Cek ke DOKU lalu muat ulang bila statusnya berubah.
+      const awaiting = orders
+        .filter((order) => order.status === 'awaiting_payment' && Number(order.paymentExpiresAt || 0) > Date.now())
+        .slice(0, 3);
+      if (awaiting.length) {
+        const results = await Promise.allSettled(awaiting.map((order) => callMarketplaceApi('check-payment', { orderId: order.id })));
+        const changed = results.some((result) => result.status === 'fulfilled' && result.value?.order && result.value.order.status !== 'awaiting_payment');
+        if (changed) {
+          await syncPaidCart();
+          await loadOrders();
+        }
+      }
     } catch (error) {
       console.error('[marketplace] gagal memuat pesanan:', error);
       setStatus(`Gagal memuat pesanan (${error.code || 'unknown'}): ${error.message}`);
@@ -2847,6 +3060,8 @@ async function renderOrdersForBuyer() {
     if (detailUnsubscribe) detailUnsubscribe();
   }, { once: true });
 
+  // Bersihkan keranjang dulu, lalu tampilkan halaman (hanya SATU kali).
+  await syncPaidCart();
   if (isDetailMode) await runDetailMode();
   else await runListMode();
 }
@@ -4130,5 +4345,6 @@ window.addEventListener('beforeunload', () => {
   if (window.__marketplaceGlobalChatUnsubscribe) window.__marketplaceGlobalChatUnsubscribe();
   if (window.__marketplaceCartUnsubscribe) window.__marketplaceCartUnsubscribe();
   if (window.__marketplaceSellCleanup) window.__marketplaceSellCleanup();
+  if (window.__marketplaceCartCleanup) window.__marketplaceCartCleanup();
 });
  
