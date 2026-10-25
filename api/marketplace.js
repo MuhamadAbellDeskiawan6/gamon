@@ -2,6 +2,7 @@ import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 import { getAdminAuth, getAdminDb } from './lib/firebase-admin.js';
+import { FieldValue } from 'firebase-admin/firestore';
 import { applyMarketplacePayment, reconcilePaidOrdersStock, releaseExpiredReservations, releaseOrderStock, syncPaidOrdersCart } from './lib/marketplace-orders.js';
 
 const PAYMENT_WINDOW_MS = 60 * 60 * 1000;
@@ -602,11 +603,185 @@ async function syncCart(req, res, claims) {
   return res.status(200).json({ success: true, ...result, stockFixed: stock.fixed });
 }
 
+function maskBuyerName(name) {
+  const parts = cleanText(name, 120).split(/\s+/).filter(Boolean);
+  if (!parts.length) return 'Pembeli';
+  if (parts.length === 1) return parts[0].slice(0, 20);
+  return `${parts[0].slice(0, 20)} ${parts[1].charAt(0).toUpperCase()}.`;
+}
+
+// Pembeli menekan "Pesanan Diterima". Hanya dari status 'shipped'.
+async function confirmReceived(req, res, claims) {
+  const orderId = String(req.body?.orderId || '').trim();
+  if (!orderId) return responseError(res, 400, 'order-id-required', 'Kode pesanan wajib diisi.');
+  const db = getAdminDb();
+  const orderRef = db.collection('marketplace_orders').doc(orderId);
+
+  const outcome = await db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(orderRef);
+    if (!snapshot.exists || snapshot.data()?.userId !== claims.uid) {
+      return { status: 404, code: 'not-found', message: 'Pesanan tidak ditemukan.' };
+    }
+    const order = snapshot.data() || {};
+    if (order.status === 'completed') return { ok: true, already: true };
+    if (order.status !== 'shipped') {
+      return { status: 409, code: 'invalid-order-state', message: 'Pesanan baru bisa dikonfirmasi setelah berstatus Dikirim.' };
+    }
+    const now = Date.now();
+    const history = Array.isArray(order.statusHistory) ? order.statusHistory : [];
+    transaction.update(orderRef, {
+      status: 'completed',
+      receivedAt: now,
+      completedAt: now,
+      updatedAt: now,
+      updatedBy: claims.uid,
+      statusHistory: [...history, { status: 'completed', at: now, by: claims.uid, note: 'Dikonfirmasi diterima oleh pembeli.' }]
+    });
+    return { ok: true };
+  });
+
+  if (!outcome.ok) return responseError(res, outcome.status, outcome.code, outcome.message);
+  return res.status(200).json({ success: true, orderId, already: Boolean(outcome.already) });
+}
+
+// Pembeli mengirim ulasan untuk satu produk di pesanan yang sudah selesai.
+async function submitReview(req, res, claims) {
+  const orderId = String(req.body?.orderId || '').trim();
+  const productId = String(req.body?.productId || '').trim();
+  const rating = Number(req.body?.rating);
+  const comment = cleanText(req.body?.comment, 500);
+  if (!orderId || !productId) return responseError(res, 400, 'invalid-request', 'Kode pesanan dan produk wajib diisi.');
+  if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
+    return responseError(res, 400, 'invalid-rating', 'Rating harus 1 sampai 5 bintang.');
+  }
+
+  const db = getAdminDb();
+  const orderRef = db.collection('marketplace_orders').doc(orderId);
+  const reviewId = `${orderId}__${productId}`.replace(/[^A-Za-z0-9_-]/g, '_');
+  const reviewRef = db.collection('marketplace_reviews').doc(reviewId);
+  const productRef = db.collection('marketplace_products').doc(productId);
+
+  const outcome = await db.runTransaction(async (transaction) => {
+    const [orderSnap, reviewSnap, productSnap] = await Promise.all([
+      transaction.get(orderRef), transaction.get(reviewRef), transaction.get(productRef)
+    ]);
+    if (!orderSnap.exists || orderSnap.data()?.userId !== claims.uid) {
+      return { status: 404, code: 'not-found', message: 'Pesanan tidak ditemukan.' };
+    }
+    const order = orderSnap.data() || {};
+    if (order.status !== 'completed') {
+      return { status: 409, code: 'order-not-completed', message: 'Ulasan hanya bisa dikirim setelah pesanan diterima.' };
+    }
+    const item = (Array.isArray(order.items) ? order.items : []).find((entry) => String(entry.productId) === productId);
+    if (!item) return { status: 400, code: 'product-not-in-order', message: 'Produk ini tidak ada di pesanan.' };
+    if (reviewSnap.exists) {
+      return { status: 409, code: 'already-reviewed', message: 'Kamu sudah memberi ulasan untuk produk ini.' };
+    }
+
+    const now = Date.now();
+    transaction.create(reviewRef, {
+      reviewId,
+      orderId,
+      orderCode: String(order.orderCode || orderId),
+      productId,
+      productName: cleanText(item.name || 'Produk', 120),
+      productImage: getSafeThumbnail(item.image),
+      userId: claims.uid,
+      buyerName: maskBuyerName(order.buyerName),
+      rating,
+      comment,
+      createdAt: now,
+      updatedAt: now
+    });
+    // Agregat rating di dokumen produk (opsional dipakai di halaman produk).
+    if (productSnap.exists) {
+      transaction.update(productRef, {
+        ratingSum: FieldValue.increment(rating),
+        ratingCount: FieldValue.increment(1)
+      });
+    }
+    return { ok: true };
+  });
+
+  if (!outcome.ok) return responseError(res, outcome.status, outcome.code, outcome.message);
+  return res.status(200).json({ success: true, reviewId });
+}
+
+/* =========================================================================
+ * JUMLAH DILIHAT PRODUK (publik, tanpa login)
+ * Disimpan di marketplace_product_stats/{productId}.views
+ * ========================================================================= */
+const VIEW_SERVER_WINDOW_MS = 5 * 60 * 1000;
+const recentViewKeys = new Map(); // best-effort per instance serverless
+
+function seenViewRecently(key) {
+  const now = Date.now();
+  const last = recentViewKeys.get(key);
+  if (last && now - last < VIEW_SERVER_WINDOW_MS) return true;
+  recentViewKeys.set(key, now);
+  if (recentViewKeys.size > 5000) {
+    for (const [storedKey, time] of recentViewKeys) {
+      if (now - time >= VIEW_SERVER_WINDOW_MS) recentViewKeys.delete(storedKey);
+    }
+  }
+  return false;
+}
+
+function getClientIp(req) {
+  const forwarded = String(req.headers?.['x-forwarded-for'] || '').split(',')[0].trim();
+  return forwarded || String(req.socket?.remoteAddress || 'unknown');
+}
+
+function readViewCount(statsSnapshot) {
+  if (!statsSnapshot || !statsSnapshot.exists) return 0;
+  const value = Number(statsSnapshot.data()?.views);
+  return Number.isSafeInteger(value) && value > 0 ? value : 0;
+}
+
+async function viewProduct(req, res) {
+  const productId = String(req.body?.productId || '').trim();
+  if (!productId || productId.length > 200 || productId.includes('/')) {
+    return responseError(res, 400, 'invalid-product', 'Produk tidak valid.');
+  }
+
+  const db = getAdminDb();
+  const productSnapshot = await db.collection('marketplace_products').doc(productId).get();
+  if (!productSnapshot.exists) return responseError(res, 404, 'not-found', 'Produk tidak ditemukan.');
+
+  const statsRef = db.collection('marketplace_product_stats').doc(productId);
+
+  // Pengaman tambahan: IP yang sama pada produk yang sama dalam 5 menit tidak dihitung lagi.
+  if (seenViewRecently(`${getClientIp(req)}|${productId}`)) {
+    const current = await statsRef.get();
+    return res.status(200).json({ success: true, counted: false, views: readViewCount(current) });
+  }
+
+  const views = await db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(statsRef);
+    const next = readViewCount(snapshot) + 1;
+    transaction.set(statsRef, { productId, views: next, updatedAt: Date.now() }, { merge: true });
+    return next;
+  });
+
+  return res.status(200).json({ success: true, counted: true, views });
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return responseError(res, 405, 'method-not-allowed', 'Method not allowed.');
+  const action = String(req.query?.action || '').trim().toLowerCase();
+
+  // Aksi publik (tanpa login): mencatat jumlah dilihat produk.
+  if (action === 'view-product') {
+    try {
+      return await viewProduct(req, res);
+    } catch (error) {
+      console.error('[marketplace] gagal mencatat view produk:', { code: error.code || 'unknown', message: error.message });
+      return responseError(res, 500, error.code || 'view-failed', 'Jumlah dilihat gagal dicatat.');
+    }
+  }
+
   const claims = await requireBuyer(req, res);
   if (!claims) return;
-  const action = String(req.query?.action || '').trim().toLowerCase();
 
   try {
     if (action === 'checkout') return await checkout(req, res, claims);
@@ -614,6 +789,8 @@ export default async function handler(req, res) {
     if (action === 'cancel-order') return await cancelOrder(req, res, claims);
     if (action === 'check-payment') return await checkPayment(req, res, claims);
     if (action === 'sync-cart') return await syncCart(req, res, claims);
+    if (action === 'confirm-received') return await confirmReceived(req, res, claims);
+    if (action === 'submit-review') return await submitReview(req, res, claims);
     if (action === 'release-expired-reservations') {
       const result = await releaseExpiredReservations();
       return res.status(200).json({ success: true, ...result });

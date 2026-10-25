@@ -1,6 +1,7 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut, sendPasswordResetEmail } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
-import { getFirestore, collection, doc, setDoc, getDoc, getDocs, query, where, orderBy, onSnapshot, updateDoc, writeBatch, increment, deleteField, runTransaction } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+import { getFirestore, collection, doc, setDoc, getDoc, getDocs, query, where, orderBy, limit, onSnapshot, updateDoc, writeBatch, increment, deleteField, runTransaction } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
 
 const firebaseConfig = {
   apiKey: 'AIzaSyC247K8yyL67aWV95KNQy8CkMZsjgGCudQ',
@@ -2763,7 +2764,7 @@ async function renderOrdersForBuyer() {
     countdownInterval = setInterval(update, 1000);
   }
 
-  function bindOrderActions(onAfterCancel) {
+    function bindOrderActions(onAfter) {
     container.querySelectorAll('[data-pay-order]').forEach((button) => button.addEventListener('click', async () => {
       button.disabled = true;
       try {
@@ -2783,12 +2784,35 @@ async function renderOrdersForBuyer() {
       try {
         await callMarketplaceApi('cancel-order', { orderId: button.dataset.cancelOrder });
         setStatus('');
-        if (onAfterCancel) await onAfterCancel();
+        if (onAfter) await onAfter();
       } catch (error) {
         console.error('[marketplace] gagal membatalkan pesanan:', error);
         setStatus(`Pembatalan gagal (${error.code || 'unknown'}): ${error.message}`);
         button.disabled = false;
       }
+    }));
+
+    container.querySelectorAll('[data-confirm-received]').forEach((button) => button.addEventListener('click', () => {
+      showConfirm({
+        title: 'Pesanan sudah diterima?',
+        message: 'Pastikan barang sudah sampai dan sesuai. Setelah dikonfirmasi, pesanan ditandai selesai dan kamu bisa memberi ulasan.',
+        confirmText: 'Ya, sudah diterima',
+        cancelText: 'Belum',
+        tone: 'warning',
+        onConfirm: async () => {
+          button.disabled = true;
+          try {
+            await callMarketplaceApi('confirm-received', { orderId: button.dataset.confirmReceived });
+            setStatus('');
+            showToast('Terima kasih! Pesanan ditandai selesai. Yuk beri ulasan.', 'success');
+            if (onAfter) await onAfter();
+          } catch (error) {
+            console.error('[marketplace] gagal konfirmasi pesanan diterima:', error);
+            setStatus(`Konfirmasi gagal (${error.code || 'unknown'}): ${error.message}`);
+            button.disabled = false;
+          }
+        }
+      });
     }));
   }
 
@@ -2808,11 +2832,11 @@ async function renderOrdersForBuyer() {
     if (status === 'processing') {
       return { tone: 'info', icon: 'inventory_2', title: 'Pesanan sedang diproses', text: 'Admin sedang menyiapkan barang Anda.' };
     }
-    if (status === 'shipped') {
-      return { tone: 'info', icon: 'local_shipping', title: 'Pesanan dikirim', text: order.trackingNumber ? 'Pesanan sedang dalam perjalanan. Cek nomor resi di bawah.' : 'Pesanan sedang dalam perjalanan.' };
+        if (status === 'shipped') {
+      return { tone: 'info', icon: 'local_shipping', title: 'Pesanan dikirim', text: (order.trackingNumber ? 'Pesanan sedang dalam perjalanan. Cek nomor resi di bawah. ' : 'Pesanan sedang dalam perjalanan. ') + 'Setelah barang sampai, tekan "Pesanan Diterima".' };
     }
     if (status === 'completed') {
-      return { tone: 'success', icon: 'task_alt', title: 'Pesanan selesai', text: 'Pesanan sudah diterima. Terima kasih sudah berbelanja!' };
+      return { tone: 'success', icon: 'task_alt', title: 'Pesanan selesai', text: 'Pesanan sudah diterima. Terima kasih sudah berbelanja! Jangan lupa beri ulasan untuk barang yang kamu beli.' };
     }
     if (status === 'cancelled') {
       return { tone: 'neutral', icon: 'cancel', title: 'Pesanan dibatalkan', text: paid ? 'Pesanan dibatalkan. Refund diproses manual oleh admin; hubungi admin untuk info lebih lanjut.' : 'Pesanan ini dibatalkan dan stok sudah dilepas.' };
@@ -2824,6 +2848,116 @@ async function renderOrdersForBuyer() {
       return { tone: 'danger', icon: 'error', title: 'Pembayaran gagal', text: 'Pembayaran tidak berhasil. Silakan checkout ulang dari keranjang.' };
     }
     return { tone: 'neutral', icon: 'info', title: 'Status sedang diperiksa', text: 'Hubungi admin jika status tidak kunjung berubah.' };
+  }
+
+    const reviewDrafts = new Map();   // draft ulasan agar tidak hilang saat tampilan dirender ulang
+  let currentOrder = null;
+  let orderReviews = new Map();     // productId -> ulasan
+  let reviewsUnsubscribe = null;
+
+  const starsText = (count) => '★'.repeat(count) + '☆'.repeat(5 - count);
+
+  function renderReviewSection(order) {
+    if (order.status !== 'completed') return '';
+    const items = (Array.isArray(order.items) ? order.items : []).filter((item) => item.productId);
+    if (!items.length) return '';
+
+    const rows = items.map((item) => {
+      const productId = String(item.productId);
+      const review = orderReviews.get(productId);
+      const image = safeMarketplaceImageUrl(item.image);
+      const thumb = image
+        ? `<img src="${escapeHtml(image)}" alt="${escapeHtml(item.name || 'Produk')}" />`
+        : '<span class="order-line-fallback">G</span>';
+      const head = `<div class="review-item-head">${thumb}<strong>${escapeHtml(item.name || 'Produk')}</strong></div>`;
+
+      if (review) {
+        const rating = Math.max(1, Math.min(5, Number(review.rating) || 1));
+        return `<div class="review-item">${head}<div class="review-done">
+          <span class="review-stars-static" aria-label="Rating ${rating} dari 5">${starsText(rating)}</span>
+          <p>${escapeHtml(review.comment || '(tanpa komentar)')}</p>
+          <small>Ulasan terkirim ${escapeHtml(formatOrderDate(review.createdAt))}</small>
+        </div></div>`;
+      }
+
+      const draft = reviewDrafts.get(productId) || { rating: 0, comment: '' };
+      const stars = [1, 2, 3, 4, 5].map((n) =>
+        `<button type="button" class="review-star ${n <= draft.rating ? 'is-on' : ''}" data-star="${n}" aria-label="${n} bintang">★</button>`
+      ).join('');
+      return `<div class="review-item">${head}
+        <form class="review-form" data-review-form="${escapeHtml(productId)}">
+          <div class="review-stars" role="group" aria-label="Pilih rating">${stars}</div>
+          <textarea data-review-comment maxlength="500" placeholder="Ceritakan kondisi barang, kesesuaian dengan deskripsi, dan pengalamanmu...">${escapeHtml(draft.comment)}</textarea>
+          <div class="review-form-foot">
+            <small data-review-count>${draft.comment.length}/500</small>
+            <button class="btn btn-primary" type="submit">Kirim ulasan</button>
+          </div>
+          <p class="commerce-error" data-review-error></p>
+        </form></div>`;
+    }).join('');
+
+    return `<section class="order-detail-card" id="ulasan"><h3>Ulasan produk</h3>
+      <p class="muted" style="margin:0 0 6px;font-size:14px;">Bagikan pengalamanmu agar pembeli lain terbantu. Ulasan akan tampil di beranda.</p>
+      ${rows}</section>`;
+  }
+
+  function bindReviewHandlers() {
+    container.addEventListener('click', (event) => {
+      const star = event.target.closest('[data-star]');
+      const form = star ? star.closest('[data-review-form]') : null;
+      if (!form) return;
+      const productId = form.dataset.reviewForm;
+      const rating = Number(star.dataset.star);
+      const draft = reviewDrafts.get(productId) || { rating: 0, comment: '' };
+      reviewDrafts.set(productId, { ...draft, rating });
+      form.querySelectorAll('[data-star]').forEach((button) => button.classList.toggle('is-on', Number(button.dataset.star) <= rating));
+      const errorEl = form.querySelector('[data-review-error]');
+      if (errorEl) errorEl.textContent = '';
+    });
+
+    container.addEventListener('input', (event) => {
+      const area = event.target.closest('[data-review-comment]');
+      const form = area ? area.closest('[data-review-form]') : null;
+      if (!form) return;
+      const productId = form.dataset.reviewForm;
+      const draft = reviewDrafts.get(productId) || { rating: 0, comment: '' };
+      reviewDrafts.set(productId, { ...draft, comment: area.value });
+      const counter = form.querySelector('[data-review-count]');
+      if (counter) counter.textContent = `${area.value.length}/500`;
+    });
+
+    container.addEventListener('submit', async (event) => {
+      const form = event.target.closest('[data-review-form]');
+      if (!form) return;
+      event.preventDefault();
+      const productId = form.dataset.reviewForm;
+      const draft = reviewDrafts.get(productId) || { rating: 0, comment: '' };
+      const errorEl = form.querySelector('[data-review-error]');
+      const button = form.querySelector('button[type="submit"]');
+      if (draft.rating < 1) {
+        if (errorEl) errorEl.textContent = 'Pilih rating bintang 1-5 dulu.';
+        return;
+      }
+      button.disabled = true;
+      button.textContent = 'Mengirim...';
+      if (errorEl) errorEl.textContent = '';
+      try {
+        await callMarketplaceApi('submit-review', {
+          orderId: requestedOrderId,
+          productId,
+          rating: draft.rating,
+          comment: draft.comment.trim()
+        });
+        reviewDrafts.delete(productId);
+        showToast('Ulasan terkirim. Terima kasih!', 'success');
+        // Tampilan diperbarui otomatis oleh listener ulasan.
+      } catch (error) {
+        console.error('[marketplace] gagal mengirim ulasan:', error);
+        if (errorEl) errorEl.textContent = error.message || 'Ulasan gagal dikirim.';
+        button.disabled = false;
+        button.textContent = 'Kirim ulasan';
+      }
+    });
   }
 
   function renderOrderDetail(order) {
@@ -2883,9 +3017,10 @@ async function renderOrdersForBuyer() {
             <div style="margin-top:10px;">
               <div class="order-sum-row"><span>Subtotal</span><span>${formatCurrency(order.subtotal || 0)}</span></div>
               <div class="order-sum-row"><span>Ongkos kirim</span><span>${formatCurrency(order.shippingFee || 0)}</span></div>
-              <div class="order-sum-row is-total"><span>Total</span><span>${formatCurrency(order.totalAmount || 0)}</span></div>
+                            <div class="order-sum-row is-total"><span>Total</span><span>${formatCurrency(order.totalAmount || 0)}</span></div>
             </div>
           </section>
+          ${renderReviewSection(order)}
           <section class="order-detail-card">
             <h3>Riwayat status</h3>
             ${historyMarkup}
@@ -2916,6 +3051,7 @@ async function renderOrdersForBuyer() {
       </div>
 
       <div class="order-detail-actions">
+              ${order.status === 'shipped' ? `<button class="btn btn-primary" type="button" data-confirm-received="${escapeHtml(order.id)}">Pesanan Diterima</button>` : ''}
         ${canPay ? `<button class="btn btn-primary" type="button" data-pay-order="${escapeHtml(order.id)}">Bayar Sekarang</button><button class="btn btn-secondary" type="button" data-cancel-order="${escapeHtml(order.id)}">Batalkan Pesanan</button>` : ''}
         <a class="btn btn-secondary" href="chat.html?orderId=${encodeURIComponent(order.id)}">Tanya Admin</a>
         <a class="btn btn-soft" href="pesanan.html">Lihat semua pesanan</a>
@@ -2957,12 +3093,23 @@ async function renderOrdersForBuyer() {
         firstSnapshot = false;
         setStatus('');
       }
+            currentOrder = order;
       renderOrderDetail(order);
     }, (error) => {
       console.error('[marketplace] gagal memuat detail pesanan:', error);
       setStatus(`Gagal memuat pesanan (${error?.code || 'unknown'}).`);
       container.innerHTML = '<p class="commerce-error">Detail pesanan gagal dimuat. Muat ulang halaman untuk mencoba lagi.</p>';
     });
+
+        bindReviewHandlers();
+    reviewsUnsubscribe = onSnapshot(
+      query(collection(db, 'marketplace_reviews'), where('orderId', '==', requestedOrderId)),
+      (snapshot) => {
+        orderReviews = new Map(snapshot.docs.map((reviewDoc) => [String(reviewDoc.data().productId), { id: reviewDoc.id, ...reviewDoc.data() }]));
+        if (currentOrder) renderOrderDetail(currentOrder);
+      },
+      (error) => console.error('[marketplace] gagal memuat ulasan pesanan:', error)
+    );
 
        // Setelah kembali dari DOKU, webhook bisa tiba beberapa detik kemudian.
     // Tanya status ke DOKU beberapa kali sampai status berubah dari "menunggu".
@@ -3008,6 +3155,8 @@ async function renderOrdersForBuyer() {
         ${order.trackingNumber ? `<p class="commerce-tracking"><strong>${escapeHtml(order.courier || 'Kurir')}:</strong> ${escapeHtml(order.trackingNumber)}</p>` : ''}
         <footer class="commerce-order-actions">
           <a class="btn btn-soft" href="pesanan.html?orderId=${encodeURIComponent(order.id)}">Lihat detail</a>
+                    ${order.status === 'shipped' ? `<button class="btn btn-primary" type="button" data-confirm-received="${escapeHtml(order.id)}">Pesanan Diterima</button>` : ''}
+          ${order.status === 'completed' ? `<a class="btn btn-primary" href="pesanan.html?orderId=${encodeURIComponent(order.id)}">Beri / lihat ulasan</a>` : ''}
           ${canPay ? `<button class="btn btn-primary" type="button" data-pay-order="${escapeHtml(order.id)}">Bayar Sekarang</button><button class="btn btn-secondary" type="button" data-cancel-order="${escapeHtml(order.id)}">Batalkan</button>` : ''}
           <a class="btn btn-secondary" href="chat.html?orderId=${encodeURIComponent(order.id)}">Tanya Admin</a>
         </footer>
@@ -3058,6 +3207,7 @@ async function renderOrdersForBuyer() {
     stopPaymentPolling = true;
     if (countdownInterval) clearInterval(countdownInterval);
     if (detailUnsubscribe) detailUnsubscribe();
+        if (reviewsUnsubscribe) reviewsUnsubscribe();
   }, { once: true });
 
   // Bersihkan keranjang dulu, lalu tampilkan halaman (hanya SATU kali).
@@ -3701,6 +3851,74 @@ function renderProductGallery(images, name) {
   });
 }
 
+/* =========================================================================
+ * JUMLAH DILIHAT PRODUK
+ * - Satu browser dihitung 1 view per produk per 30 menit.
+ * - Berlaku untuk pengunjung login maupun tanpa login.
+ * ========================================================================= */
+const PRODUCT_VIEW_STORAGE_KEY = 'gamon_marketplace_viewed_products';
+const PRODUCT_VIEW_WINDOW_MS = 30 * 60 * 1000;
+
+function shouldCountProductView(productId) {
+  const viewed = readStorage(PRODUCT_VIEW_STORAGE_KEY, {});
+  const last = Number(viewed?.[productId] || 0);
+  return !(last && Date.now() - last < PRODUCT_VIEW_WINDOW_MS);
+}
+
+function markProductViewed(productId) {
+  try {
+    const viewed = readStorage(PRODUCT_VIEW_STORAGE_KEY, {}) || {};
+    const now = Date.now();
+    Object.keys(viewed).forEach((key) => {
+      if (now - Number(viewed[key] || 0) >= PRODUCT_VIEW_WINDOW_MS) delete viewed[key];
+    });
+    viewed[productId] = now;
+    writeStorage(PRODUCT_VIEW_STORAGE_KEY, viewed);
+  } catch (error) {
+    // Penyimpanan browser bisa diblokir (mode privat); abaikan saja.
+  }
+}
+
+async function fetchProductViews(productId) {
+  try {
+    const snapshot = await getDoc(doc(db, 'marketplace_product_stats', String(productId)));
+    const value = snapshot.exists() ? Number(snapshot.data().views) : 0;
+    return Number.isFinite(value) && value >= 0 ? value : 0;
+  } catch (error) {
+    console.warn('[marketplace] gagal membaca jumlah dilihat:', error);
+    return null;
+  }
+}
+
+// Mengembalikan jumlah dilihat terbaru, atau null jika gagal dibaca.
+async function trackProductView(productId) {
+  const id = String(productId || '');
+  if (!id) return null;
+  if (!shouldCountProductView(id)) return fetchProductViews(id);
+
+  try {
+    const response = await fetch('/api/marketplace?action=view-product', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ productId: id }),
+      keepalive: true
+    });
+    const result = await response.json().catch(() => ({}));
+    if (response.ok && result.success !== false) {
+      markProductViewed(id);
+      const views = Number(result.views);
+      if (Number.isFinite(views) && views >= 0) return views;
+    }
+  } catch (error) {
+    console.warn('[marketplace] gagal mencatat view produk:', error);
+  }
+  return fetchProductViews(id);
+}
+
+function formatViewCount(value) {
+  return `Dilihat ${Number(value || 0).toLocaleString('id-ID')} kali`;
+}
+
 async function renderProductDetail() {
   const page = document.body.dataset.page;
   if (page !== 'product.html' && page !== 'user-product.html') return;
@@ -3724,7 +3942,8 @@ async function renderProductDetail() {
   let product = null;
   try {
     const snapshot = await getDoc(doc(db, 'marketplace_products', productId));
-    product = snapshot.exists() ? snapshot.data() : null;
+    // id dokumen ikut disertakan supaya keranjang, chat, dan view memakai id yang benar.
+    product = snapshot.exists() ? { id: snapshot.id, ...snapshot.data() } : null;
   } catch (error) {
     product = null;
   }
@@ -3847,6 +4066,12 @@ async function renderProductDetail() {
       }
       addProductToCart(normalized.id, quantity, button === buyButton);
     });
+  });
+
+  // Jumlah dilihat: dicatat untuk pengunjung login maupun tanpa login.
+  const viewsEl = document.querySelector('[data-detail-views-count]');
+  trackProductView(productId).then((views) => {
+    if (viewsEl && views !== null) viewsEl.textContent = formatViewCount(views);
   });
 }
 
@@ -4251,6 +4476,54 @@ function renderUserSidebar() {
   if (roleLabel) roleLabel.textContent = 'Pembeli & penjual';
 }
 
+/* =========================================================================
+ * TESTIMONI DI BERANDA (membaca marketplace_reviews, publik)
+ * ========================================================================= */
+async function renderHomeReviews() {
+  const list = document.querySelector('[data-review-list]');
+  if (!list) return;
+  const emptyEl = document.querySelector('[data-review-empty]');
+  const summaryEl = document.querySelector('[data-review-summary]');
+
+  try {
+    const snapshot = await getDocs(query(collection(db, 'marketplace_reviews'), orderBy('createdAt', 'desc'), limit(60)));
+    const reviews = snapshot.docs
+      .map((reviewDoc) => ({ id: reviewDoc.id, ...reviewDoc.data() }))
+      .filter((review) => Number.isInteger(Number(review.rating)) && Number(review.rating) >= 1 && Number(review.rating) <= 5);
+    if (!reviews.length) return; // biarkan tampilan "belum ada testimoni"
+
+    const average = reviews.reduce((sum, review) => sum + Number(review.rating), 0) / reviews.length;
+    if (summaryEl) {
+      summaryEl.innerHTML = `<strong>${average.toFixed(1)}</strong><span class="mm-review-stars" aria-hidden="true">${'★'.repeat(Math.round(average))}${'☆'.repeat(5 - Math.round(average))}</span><span>dari ${reviews.length} ulasan terbaru</span>`;
+      summaryEl.hidden = false;
+    }
+
+    list.innerHTML = reviews.slice(0, 9).map((review) => {
+      const rating = Number(review.rating);
+      const image = safeMarketplaceImageUrl(review.productImage);
+      const thumb = image
+        ? `<img src="${escapeHtml(image)}" alt="${escapeHtml(review.productName || 'Produk')}" loading="lazy" />`
+        : `<span>${escapeHtml(String(review.productName || 'P').charAt(0).toUpperCase())}</span>`;
+      const date = getCreatedAtMs(review.createdAt)
+        ? new Date(getCreatedAtMs(review.createdAt)).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
+        : '';
+      return `<article class="mm-review">
+        <div class="mm-review-product">
+          <span class="mm-review-thumb">${thumb}</span>
+          <a href="${getProductDetailUrl(review.productId)}">${escapeHtml(review.productName || 'Produk')}</a>
+        </div>
+        <div class="mm-review-stars" role="img" aria-label="Rating ${rating} dari 5">${'★'.repeat(rating)}${'☆'.repeat(5 - rating)}</div>
+        <p class="mm-review-text">${review.comment ? escapeHtml(review.comment) : '<em>Pembeli tidak menulis komentar.</em>'}</p>
+        <div class="mm-review-foot"><strong>${escapeHtml(review.buyerName || 'Pembeli')}</strong><span>${escapeHtml(date)}</span></div>
+      </article>`;
+    }).join('');
+    list.hidden = false;
+    if (emptyEl) emptyEl.hidden = true;
+  } catch (error) {
+    console.error('[marketplace] gagal memuat testimoni:', error);
+  }
+}
+
 async function init() {
   ensureDemoData();
    renderUserSidebar();   
@@ -4334,6 +4607,7 @@ async function init() {
  
   await renderHomeProducts();
   await refreshMarketplaceLandingMetrics();
+  renderHomeReviews();
 }
  
 document.addEventListener('DOMContentLoaded', init);

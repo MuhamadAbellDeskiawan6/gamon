@@ -55,6 +55,8 @@ a{color:inherit}
 .price{font:800 clamp(1.7rem,4vw,2.2rem) var(--f-d)!important;color:var(--ink)!important;letter-spacing:-.02em}
 .condition,.meta-tag{display:inline-flex;align-items:center;padding:5px 14px;border:2px solid var(--ink)!important;border-radius:999px!important;background:var(--sun)!important;color:var(--ink)!important;font:600 .85rem var(--f-b)!important;box-shadow:none!important}
 .meta-tag{background:var(--white)!important}
+.meta-tag.views-tag{gap:6px;background:var(--sky)!important}
+.meta-tag.views-tag .material-symbols-outlined{font-size:18px}
 .listing-meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px}
 
 .commerce-quantity{display:inline-flex;align-items:center;gap:6px;padding:4px;border:2px solid var(--ink)!important;border-radius:14px!important;background:var(--white)!important;box-shadow:3px 3px 0 var(--ink)!important}
@@ -154,6 +156,10 @@ a{color:inherit}
             <!-- Tag cerita dinonaktifkan. Elemen dipertahankan (tersembunyi) agar app.js tidak error jika masih mengisinya. -->
             <span class="meta-tag" data-detail-story hidden></span>
             <span class="meta-tag" data-detail-status>Ready</span>
+            <span class="meta-tag views-tag" title="Berapa kali halaman produk ini dikunjungi">
+              <span class="material-symbols-outlined" aria-hidden="true">visibility</span>
+              <span data-detail-views-count aria-live="polite">Dilihat … kali</span>
+            </span>
           </div>
         </div>
       </div>
