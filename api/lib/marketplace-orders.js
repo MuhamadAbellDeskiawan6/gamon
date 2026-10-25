@@ -1,4 +1,10 @@
+import fs from 'fs';
+import path from 'path';
 import { getAdminDb } from './firebase-admin.js';
+
+const DEFAULT_ADMIN_EMAIL = 'muhamadabelldeskiawan@gmail.com';
+const DEFAULT_SITE_URL = 'https://gamon-tawing.vercel.app';
+const DEFAULT_MAIL_FROM = 'Marketplace Mantan <onboarding@resend.dev>';
 
 function makeError(message, code = 'marketplace-order-error') {
   const error = new Error(message);
@@ -22,6 +28,190 @@ function toMillis(value) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+/* =========================================================================
+ * EMAIL NOTIFIKASI ADMIN (Resend, gratis)
+ * ========================================================================= */
+
+// Di production (Vercel) variabel dibaca dari environment. Saat development lokal,
+// jika belum ada di process.env, dibaca dari file .env.* di folder proyek.
+function readEnv(name) {
+  const direct = String(process.env[name] || '').trim();
+  if (direct) return direct;
+  if (process.env.VERCEL_ENV === 'production' || process.env.NODE_ENV === 'production') return '';
+  for (const file of ['.env.local', '.env.development.local', '.env.development', '.env']) {
+    try {
+      const content = fs.readFileSync(path.join(process.cwd(), file), 'utf8');
+      for (const line of content.split(/\r?\n/)) {
+        const match = line.match(/^\s*(?:export\s+)?([A-Z0-9_]+)\s*=\s*(.*)\s*$/);
+        if (!match || match[1] !== name) continue;
+        let value = match[2].trim();
+        if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+          value = value.slice(1, -1);
+        }
+        if (value) {
+          process.env[name] = value;
+          return value;
+        }
+      }
+    } catch (error) {
+      // file tidak ada: lanjut ke file berikutnya
+    }
+  }
+  return '';
+}
+
+function mailEscape(value) {
+  return String(value ?? '').replace(/[&<>"']/g, (char) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[char]));
+}
+
+function rupiah(value) {
+  return `Rp ${Number(value || 0).toLocaleString('id-ID')}`;
+}
+
+function buildAdminEmail(order, siteUrl) {
+  const code = order.orderCode || order.orderId || '-';
+  const items = Array.isArray(order.items) ? order.items : [];
+  const shipping = order.shippingAddress || {};
+  const addressLine = [shipping.address, shipping.city, shipping.province, shipping.postalCode].filter(Boolean).join(', ');
+  const lat = Number(shipping.latitude);
+  const lng = Number(shipping.longitude);
+  const mapsUrl = shipping.mapsUrl || (Number.isFinite(lat) && Number.isFinite(lng) ? `https://www.google.com/maps/search/?api=1&query=${lat},${lng}` : '');
+  const adminUrl = `${siteUrl}/admin/marketplace-orders.html`;
+
+  const itemRows = items.map((item) => `
+    <tr>
+      <td style="padding:8px;border-bottom:1px solid #eee;">${mailEscape(item.name || 'Produk')}</td>
+      <td style="padding:8px;border-bottom:1px solid #eee;text-align:center;">${Math.max(1, asInt(item.qty, 1))}</td>
+      <td style="padding:8px;border-bottom:1px solid #eee;text-align:right;">${rupiah(item.unitPrice)}</td>
+      <td style="padding:8px;border-bottom:1px solid #eee;text-align:right;">${rupiah(item.subtotal)}</td>
+    </tr>`).join('');
+
+  const attention = order.needsAttention
+    ? `<p style="background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;padding:10px;border-radius:8px;"><strong>Perlu dicek:</strong> ${mailEscape(order.attentionReason || 'Pesanan ditandai perlu perhatian.')}</p>`
+    : '';
+
+  const html = `
+  <div style="font-family:Arial,Helvetica,sans-serif;max-width:620px;margin:0 auto;color:#222;">
+    <h2 style="margin:0 0 4px;">Pesanan baru sudah dibayar</h2>
+    <p style="margin:0 0 16px;color:#555;">Segera siapkan dan kirim barangnya.</p>
+    ${attention}
+    <p style="margin:0 0 4px;"><strong>Kode pesanan:</strong> ${mailEscape(code)}</p>
+    <p style="margin:0 0 16px;"><strong>Total dibayar:</strong> ${rupiah(order.totalAmount)}</p>
+
+    <h3 style="margin:16px 0 6px;">Barang</h3>
+    <table style="width:100%;border-collapse:collapse;font-size:14px;">
+      <thead><tr style="background:#f7f7f7;">
+        <th style="padding:8px;text-align:left;">Produk</th>
+        <th style="padding:8px;">Qty</th>
+        <th style="padding:8px;text-align:right;">Harga</th>
+        <th style="padding:8px;text-align:right;">Subtotal</th>
+      </tr></thead>
+      <tbody>${itemRows}</tbody>
+    </table>
+    <p style="text-align:right;margin:8px 0 0;">Ongkir: ${rupiah(order.shippingFee)} &nbsp;|&nbsp; <strong>Total: ${rupiah(order.totalAmount)}</strong></p>
+
+    <h3 style="margin:20px 0 6px;">Pembeli</h3>
+    <p style="margin:0;">${mailEscape(order.buyerName || '-')}<br>
+      ${mailEscape(order.buyerEmail || '-')}<br>
+      ${mailEscape(order.buyerPhone || shipping.phone || '-')}</p>
+
+    <h3 style="margin:20px 0 6px;">Alamat pengiriman</h3>
+    <p style="margin:0;"><strong>${mailEscape(shipping.recipientName || '-')}</strong> (${mailEscape(shipping.phone || '-')})<br>
+      ${mailEscape(addressLine || '-')}
+      ${shipping.note ? `<br><em>Catatan: ${mailEscape(shipping.note)}</em>` : ''}</p>
+    ${mapsUrl ? `<p style="margin:6px 0 0;"><a href="${mailEscape(mapsUrl)}">Lihat titik di Google Maps</a></p>` : ''}
+
+    <p style="margin:24px 0 0;">
+      <a href="${mailEscape(adminUrl)}" style="background:#ec4f86;color:#fff;text-decoration:none;padding:10px 16px;border-radius:8px;display:inline-block;">Buka halaman pesanan admin</a>
+    </p>
+  </div>`;
+
+  const text = [
+    `Pesanan baru sudah dibayar: ${code}`,
+    `Total: ${rupiah(order.totalAmount)}`,
+    '',
+    'Barang:',
+    ...items.map((item) => `- ${item.name || 'Produk'} x${Math.max(1, asInt(item.qty, 1))} = ${rupiah(item.subtotal)}`),
+    '',
+    `Pembeli: ${order.buyerName || '-'} | ${order.buyerEmail || '-'} | ${order.buyerPhone || shipping.phone || '-'}`,
+    `Alamat: ${shipping.recipientName || '-'} (${shipping.phone || '-'}), ${addressLine || '-'}`,
+    mapsUrl ? `Maps: ${mapsUrl}` : '',
+    `Admin: ${adminUrl}`
+  ].filter((line) => line !== undefined).join('\n');
+
+  return { subject: `Pesanan baru dibayar ${code} - ${rupiah(order.totalAmount)}`, html, text };
+}
+
+/**
+ * Kirim email ke admin untuk pesanan yang sudah dibayar. Maksimal SATU email per pesanan
+ * (flag `adminEmailSent`). Tidak pernah melempar error: kegagalan email tidak boleh
+ * menggagalkan pembayaran/stok.
+ */
+async function notifyAdminNewOrder(orderId) {
+  try {
+    const apiKey = readEnv('RESEND_API_KEY');
+    if (!apiKey) {
+      console.warn('[marketplace] RESEND_API_KEY belum diatur; email notifikasi admin dilewati.');
+      return { sent: false, reason: 'no-api-key' };
+    }
+
+    const db = getAdminDb();
+    const orderRef = db.collection('marketplace_orders').doc(String(orderId));
+
+    // "Klaim" dulu supaya webhook & check-payment yang bersamaan tidak mengirim dobel.
+    const order = await db.runTransaction(async (transaction) => {
+      const snapshot = await transaction.get(orderRef);
+      if (!snapshot.exists) return null;
+      const data = snapshot.data() || {};
+      if (data.adminEmailSent === true) return null;
+      if (data.paymentStatus !== 'PAID') return null;
+      const claimedAt = asInt(data.adminEmailClaimAt);
+      if (claimedAt && Date.now() - claimedAt < 60 * 1000) return null;
+      transaction.update(orderRef, { adminEmailClaimAt: Date.now() });
+      return { id: snapshot.id, ...data };
+    });
+    if (!order) return { sent: false, reason: 'already-sent-or-not-paid' };
+
+    const adminEmail = readEnv('ADMIN_NOTIFY_EMAIL') || DEFAULT_ADMIN_EMAIL;
+    const from = readEnv('MAIL_FROM') || DEFAULT_MAIL_FROM;
+    let siteUrl = readEnv('SITE_URL').replace(/\/$/, '');
+    if (!/^https:\/\//i.test(siteUrl)) siteUrl = DEFAULT_SITE_URL;
+
+    const email = buildAdminEmail(order, siteUrl);
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 10000);
+
+    try {
+      const response = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ from, to: [adminEmail], subject: email.subject, html: email.html, text: email.text }),
+        signal: controller.signal
+      });
+      if (!response.ok) {
+        const detail = (await response.text()).slice(0, 500);
+        throw new Error(`Resend ${response.status}: ${detail}`);
+      }
+      await orderRef.update({ adminEmailSent: true, adminEmailSentAt: Date.now(), adminEmailError: '' });
+      console.log('[marketplace] email notifikasi admin terkirim:', orderId);
+      return { sent: true };
+    } catch (error) {
+      console.error('[marketplace] gagal kirim email admin:', orderId, error.message);
+      await orderRef.update({ adminEmailError: String(error.message || '').slice(0, 500), adminEmailClaimAt: 0 }).catch(() => {});
+      return { sent: false, reason: 'send-failed' };
+    } finally {
+      clearTimeout(timer);
+    }
+  } catch (error) {
+    console.error('[marketplace] notifikasi admin error:', error.message);
+    return { sent: false, reason: 'error' };
+  }
+}
+
+/* ========================================================================= */
+
 /**
  * Apakah pesanan ini SAAT INI memegang stok (stok sudah terpotong dari produk)?
  * - Pesanan baru (stockMode 'on_payment'): stok terpotong setelah pembayaran sukses.
@@ -34,7 +224,7 @@ function holdsStock(order) {
   return !order.stockReleased;
 }
 
-/** Pesanan berstatus bayar, mode on_payment, tetapi stok belum dipotong. */
+/** Pesanan mode on_payment yang stoknya belum dipotong. */
 function needsStockDeduction(order) {
   return order.stockMode === 'on_payment'
     && order.stockDeducted !== true
@@ -147,15 +337,11 @@ export async function releaseExpiredReservations() {
 }
 
 /**
- * Dipanggil saat DOKU memastikan pembayaran SUKSES (webhook atau check-payment).
- * - Memotong stok (pesanan stockMode 'on_payment') dan menambah "terjual".
- * - Membersihkan keranjang.
- *
- * IDEMPOTEN BERDASARKAN FLAG `stockDeducted`, BUKAN `paymentStatus`.
- * Jadi walaupun pesanan sudah berstatus PAID (mis. ditandai oleh webhook versi lama
- * yang tidak memotong stok), pemanggilan ini tetap memotong stok sekali saja.
+ * Transaksi inti pembayaran sukses. Idempoten berdasarkan flag `stockDeducted`
+ * (bukan `paymentStatus`), sehingga pesanan yang sudah PAID tetapi stoknya belum
+ * terpotong tetap diperbaiki sekali.
  */
-export async function applyMarketplacePayment({ orderId, amount, requestId, paymentStatus = 'PAID' }) {
+async function applyPaymentTransaction({ orderId, amount, requestId }) {
   const db = getAdminDb();
   const orderRef = db.collection('marketplace_orders').doc(String(orderId));
   return db.runTransaction(async (transaction) => {
@@ -203,7 +389,6 @@ export async function applyMarketplacePayment({ orderId, amount, requestId, paym
     const items = Array.isArray(order.items) ? order.items : [];
     const productRefs = items.map((item) => db.collection('marketplace_products').doc(String(item.productId)));
     const cartRef = order.userId ? db.collection('marketplace_carts').doc(String(order.userId)) : null;
-    // Keranjang hanya disentuh bila belum pernah disinkronkan untuk pesanan ini.
     const touchCart = Boolean(cartRef) && order.cartSynced !== true;
 
     // SEMUA READ DULU
@@ -276,10 +461,34 @@ export async function applyMarketplacePayment({ orderId, amount, requestId, paym
 }
 
 /**
- * PERBAIKAN OTOMATIS: cari pesanan yang sudah PAID tetapi stoknya belum dipotong
- * (mis. ditandai paid oleh webhook versi lama), lalu potong stoknya sekali.
- * Aman dipanggil berulang karena applyMarketplacePayment idempoten lewat `stockDeducted`.
- * userId opsional: isi untuk membatasi ke satu pembeli, kosongkan untuk semua pembeli.
+ * Dipanggil saat DOKU memastikan pembayaran SUKSES (webhook, check-payment, sync-cart).
+ * Memotong stok, membersihkan keranjang, lalu mengirim email notifikasi ke admin.
+ */
+export async function applyMarketplacePayment(args) {
+  const result = await applyPaymentTransaction(args);
+
+  // Email admin: dicoba setelah transaksi selesai, dan tidak pernah menggagalkan pembayaran.
+  try {
+    if (result.paid) {
+      await notifyAdminNewOrder(args.orderId);
+    } else if (result.duplicate) {
+      // Coba ulang jika email sebelumnya gagal, tapi hanya untuk pembayaran 2 jam terakhir.
+      const order = result.order || {};
+      const paidAt = toMillis(order.paidAt);
+      if (order.adminEmailSent !== true && paidAt > 0 && Date.now() - paidAt < 2 * 60 * 60 * 1000) {
+        await notifyAdminNewOrder(args.orderId);
+      }
+    }
+  } catch (error) {
+    console.error('[marketplace] notifikasi admin dilewati:', error.message);
+  }
+
+  return result;
+}
+
+/**
+ * PERBAIKAN OTOMATIS: cari pesanan PAID yang stoknya belum dipotong, lalu potong sekali.
+ * userId opsional: isi untuk membatasi ke satu pembeli.
  */
 export async function reconcilePaidOrdersStock(userId = '') {
   const db = getAdminDb();
@@ -308,8 +517,7 @@ export async function reconcilePaidOrdersStock(userId = '') {
 
 /**
  * Jaring pengaman: bersihkan keranjang untuk pesanan yang SUDAH DIBAYAR tetapi
- * keranjangnya belum dibersihkan (dibayar lewat webhook versi lama, webhook gagal, dll).
- * Memakai flag `cartSynced`. Tiap pesanan hanya diproses sekali.
+ * keranjangnya belum dibersihkan. Memakai flag `cartSynced`; tiap pesanan diproses sekali.
  */
 export async function syncPaidOrdersCart(userId) {
   const db = getAdminDb();
