@@ -355,6 +355,35 @@
       }
     });
 
+        const MAIL_REASONS = {
+      'mail-not-configured': 'email belum dikonfigurasi di server Vercel (isi GMAIL_APP_PASSWORD atau RESEND_API_KEY + MAIL_FROM)',
+      'mail-resend-failed': 'Resend menolak pengiriman (cek domain MAIL_FROM sudah terverifikasi)',
+      'buyer-email-missing': 'alamat email pembeli tidak ditemukan',
+      'send-failed': 'server gagal mengirim email'
+    };
+
+    async function notifyBuyerByEmail(threadId, messageId) {
+      try {
+        const response = await fetch('/api/admin/notify-marketplace-chat-reply', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ threadId, messageId })
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok || result.success === false) {
+          errorEl.textContent = `Pesan terkirim, tetapi email ke pembeli gagal: ${result.message || response.status}`;
+          return;
+        }
+        if (result.sent === false && result.reason && result.reason !== 'already-notified') {
+          errorEl.textContent = `Pesan terkirim, tetapi email ke pembeli tidak dikirim: ${MAIL_REASONS[result.reason] || result.reason}${result.detail ? ` (${result.detail})` : ''}`;
+        }
+      } catch (error) {
+        console.warn('[marketplace chat admin] notifikasi email gagal:', error);
+        errorEl.textContent = 'Pesan terkirim, tetapi permintaan email ke pembeli gagal.';
+      }
+    }
+
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
       const text = input.value.trim();
@@ -389,8 +418,11 @@
           updatedAt: createdAt,
           unreadForUser: increment(1)
         }, { merge: true });
-        await batch.commit();
+               await batch.commit();
         input.value = '';
+
+        
+                notifyBuyerByEmail(summaryRef.id, messageRef.id);
       } catch (error) {
         console.error('[marketplace chat admin] pesan gagal dikirim:', error);
         errorEl.textContent = `Pesan gagal terkirim: ${error?.code || 'unknown'}`;

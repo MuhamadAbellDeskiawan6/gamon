@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import nodemailer from 'nodemailer';
 import { getAdminDb } from './firebase-admin.js';
 
 const DEFAULT_ADMIN_EMAIL = 'muhamadabelldeskiawan@gmail.com';
@@ -68,6 +69,73 @@ function mailEscape(value) {
 
 function rupiah(value) {
   return `Rp ${Number(value || 0).toLocaleString('id-ID')}`;
+}
+
+/**
+ * Pengirim email tunggal untuk seluruh marketplace.
+ * Urutan: Resend (jika MAIL_FROM memakai domain terverifikasi) -> Gmail SMTP -> Resend onboarding.
+ * Melempar error dengan `code` jika semua gagal / belum dikonfigurasi.
+ */
+export async function sendEmail({ to, subject, html, text }) {
+  const recipient = String(to || '').trim();
+  if (!recipient) throw makeError('Alamat email tujuan kosong.', 'mail-no-recipient');
+
+  const resendKey = readEnv('RESEND_API_KEY');
+  const resendFrom = readEnv('MAIL_FROM');
+  const gmailPass = readEnv('GMAIL_APP_PASSWORD');
+  const domainReady = Boolean(resendKey && resendFrom && !/resend\.dev/i.test(resendFrom));
+
+  const viaResend = async (from) => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 10000);
+    try {
+      const response = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ from, to: [recipient], subject, html, text }),
+        signal: controller.signal
+      });
+      if (!response.ok) {
+        throw makeError(`Resend ${response.status}: ${(await response.text()).slice(0, 300)}`, 'mail-resend-failed');
+      }
+    } finally {
+      clearTimeout(timer);
+    }
+  };
+
+  const viaGmail = async () => {
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: { user: DEFAULT_ADMIN_EMAIL, pass: gmailPass }
+    });
+    await transporter.sendMail({
+      from: `"Marketplace Mantan" <${DEFAULT_ADMIN_EMAIL}>`,
+      to: recipient,
+      subject,
+      html,
+      text
+    });
+  };
+
+  if (domainReady) {
+    try {
+      await viaResend(resendFrom);
+      return { provider: 'resend' };
+    } catch (error) {
+      if (!gmailPass) throw error;
+      console.warn('[marketplace] Resend gagal, mencoba Gmail:', error.message);
+    }
+  }
+  if (gmailPass) {
+    await viaGmail();
+    return { provider: 'gmail' };
+  }
+  if (resendKey) {
+    // Catatan: tanpa domain terverifikasi, Resend hanya mau mengirim ke email pemilik akun Resend.
+    await viaResend(resendFrom || DEFAULT_MAIL_FROM);
+    return { provider: 'resend-onboarding' };
+  }
+  throw makeError('Email belum dikonfigurasi di server (isi RESEND_API_KEY + MAIL_FROM, atau GMAIL_APP_PASSWORD).', 'mail-not-configured');
 }
 
 function buildAdminEmail(order, siteUrl) {

@@ -1,7 +1,7 @@
 import { getAdminAuth, getAdminDb } from '../lib/firebase-admin.js';
 import { verifyAdminSession } from '../lib/admin-session.js';
 import { FieldValue } from 'firebase-admin/firestore';
-import { releaseExpiredReservations, updateMarketplaceOrderStatus } from '../lib/marketplace-orders.js';
+import { releaseExpiredReservations, sendEmail, updateMarketplaceOrderStatus } from '../lib/marketplace-orders.js';
 import fs from 'fs';
 import path from 'path';
 import nodemailer from 'nodemailer';
@@ -1168,6 +1168,100 @@ async function handleUpdateWeddingRequestStatus(req, res) {
     }
 }
 
+function escapeMailHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, (char) => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[char]));
+}
+
+async function handleNotifyMarketplaceChatReply(req, res) {
+    if (req.method !== 'POST') {
+        return res.status(405).json({ success: false, message: 'Method Not Allowed' });
+    }
+
+    const authResult = await requireAdmin(req, res);
+    if (!authResult) return;
+
+    const threadId = String(req.body?.threadId || '').trim();
+    const messageId = String(req.body?.messageId || '').trim();
+    if (!threadId || !messageId || threadId.includes('/') || messageId.includes('/')) {
+        return res.status(400).json({ success: false, message: 'threadId dan messageId wajib diisi.' });
+    }
+
+    try {
+        const db = getAdminDb();
+        const threadRef = db.collection('marketplace_chats').doc(threadId);
+        const messageRef = threadRef.collection('messages').doc(messageId);
+        const [threadSnap, messageSnap] = await Promise.all([threadRef.get(), messageRef.get()]);
+        if (!threadSnap.exists || !messageSnap.exists) {
+            return res.status(404).json({ success: false, message: 'Percakapan atau pesan tidak ditemukan.' });
+        }
+
+        const thread = threadSnap.data() || {};
+        const message = messageSnap.data() || {};
+        if (message.senderRole !== 'admin') {
+            return res.status(400).json({ success: false, message: 'Hanya pesan admin yang dapat dinotifikasikan.' });
+        }
+        if (message.emailNotifiedAt) {
+            return res.status(200).json({ success: true, sent: false, reason: 'already-notified' });
+        }
+
+        // Email pembeli: dari thread, atau fallback ke akun Firebase Auth.
+        let buyerEmail = String(thread.buyerEmail || '').trim();
+        if (!isValidEmail(buyerEmail) && thread.buyerId) {
+            try {
+                buyerEmail = String((await getAdminAuth().getUser(String(thread.buyerId))).email || '').trim();
+            } catch (error) {
+                buyerEmail = '';
+            }
+        }
+        if (!isValidEmail(buyerEmail)) {
+            return res.status(200).json({ success: true, sent: false, reason: 'buyer-email-missing' });
+        }
+
+        const siteUrl = (/^https:\/\//i.test(String(process.env.SITE_URL || '').trim())
+            ? String(process.env.SITE_URL).trim()
+            : 'https://gamon-tawing.vercel.app').replace(/\/$/, '');
+        const params = new URLSearchParams();
+        if (thread.productId) params.set('productId', String(thread.productId));
+        else if (thread.orderId) params.set('orderId', String(thread.orderId));
+        const link = `${siteUrl}/user/marketplace/chat.html${params.toString() ? `?${params}` : ''}`;
+        const label = thread.productName
+            ? `Produk: ${thread.productName}`
+            : thread.orderId ? `Pesanan: ${thread.orderId}` : 'Pertanyaan umum';
+        const body = String(message.text || '').slice(0, 1000);
+
+        try {
+            await sendEmail({
+                to: buyerEmail,
+                subject: '💬 Admin Marketplace Mantan membalas chat Anda',
+                html: `
+                <div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;padding:24px;border:1px solid #eee;border-radius:16px">
+                    <h2 style="margin-top:0;color:#111827">Ada balasan baru dari admin 💬</h2>
+                    <p style="color:#374151;margin:0 0 12px"><b>Topik:</b> ${escapeMailHtml(label)}</p>
+                    <div style="background:#f8fafc;padding:12px;border-radius:12px;font-size:14px;color:#334155;line-height:1.5;white-space:pre-wrap;">${escapeMailHtml(body)}</div>
+                    <p style="margin-top:18px"><a href="${escapeMailHtml(link)}" style="background:#db2777;color:#fff;padding:10px 16px;border-radius:10px;text-decoration:none;font-weight:600">Buka chat</a></p>
+                    <p style="font-size:12px;color:#64748b;margin-top:14px">Anda menerima email ini karena memiliki percakapan di Marketplace Mantan.</p>
+                </div>`,
+                text: `Balasan dari admin Marketplace Mantan (${label}):\n\n${body}\n\nBuka chat: ${link}`
+            });
+        } catch (mailError) {
+            console.warn('[marketplace chat] email balasan gagal:', mailError.code || '', mailError.message);
+            return res.status(200).json({
+                success: true,
+                sent: false,
+                reason: mailError.code || 'send-failed',
+                detail: String(mailError.message || '').slice(0, 300)
+            });
+        }
+
+        await messageRef.set({ emailNotifiedAt: Date.now() }, { merge: true });
+        return res.status(200).json({ success: true, sent: true });
+    } catch (error) {
+        return res.status(500).json({ success: false, message: error.message });
+    }
+}
+
 export default async function handler(req, res) {
     const action = String(req?.query?.action || '').toLowerCase();
 
@@ -1238,6 +1332,8 @@ export default async function handler(req, res) {
             return handleToggleRedeemCode(req, res);
         case 'delete-redeem-code':
             return handleDeleteRedeemCode(req, res);
+                    case 'notify-marketplace-chat-reply':
+            return handleNotifyMarketplaceChatReply(req, res);
         default:
             return res.status(404).json({ success: false, message: 'Admin action tidak ditemukan.' });
     }

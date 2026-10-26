@@ -1,5 +1,5 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut, sendPasswordResetEmail } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut, sendPasswordResetEmail, sendEmailVerification } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 import { getFirestore, collection, doc, setDoc, getDoc, getDocs, query, where, orderBy, limit, onSnapshot, updateDoc, writeBatch, increment, deleteField, runTransaction } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
 
@@ -680,15 +680,14 @@ async function syncCurrentUserFromFirebase(firebaseUser, rememberMe = true) {
   }
 
   const userDoc = await fetchUserDoc(firebaseUser.uid);
-  const user = userDoc || {
+    const user = userDoc || {
     id: firebaseUser.uid,
     name: firebaseUser.displayName || 'Pengguna',
     email: firebaseUser.email,
     phone: '',
     username: 'user',
     bio: '',
-    city: 'Jakarta',
-    role: 'both'
+    city: 'Jakarta'
   };
 
   setCurrentUser(user, rememberMe);
@@ -1287,31 +1286,61 @@ function getCurrentUserIdentifier() {
   return normalizeUserIdentifier(auth.currentUser?.uid || user.uid || user.id || user.email || user.name || 'guest');
 }
 
-function ensureChatBadgeElements() {
-  const chatLinks = document.querySelectorAll('a[href*="chat.html"]');
-  chatLinks.forEach((link) => {
-    if (link.querySelector('[data-chat-nav-badge]')) return;
+const CHAT_BADGE_STYLE = 'display:none;margin-left:6px;min-width:18px;height:18px;padding:0 6px;border-radius:999px;background:#e0313f;color:#fff;font-size:11px;line-height:18px;text-align:center;font-weight:700;vertical-align:middle;box-sizing:border-box;';
 
-    if (getComputedStyle(link).position === 'static') {
-      link.style.position = 'relative';
-    }
+function ensureChatBadgeElements() {
+  // 1) Badge di link "Chat Admin" pada sidebar
+  document.querySelectorAll('.sidebar nav a[href*="chat.html"]').forEach((link) => {
+    if (link.querySelector('[data-chat-nav-badge]')) return;
+    const badge = document.createElement('span');
+    badge.setAttribute('data-chat-nav-badge', '');
+    badge.className = 'chat-nav-badge';
+    badge.style.cssText = CHAT_BADGE_STYLE;
+    link.appendChild(badge);
+  });
+
+  // 2) Tombol Chat + badge di topbar (terlihat juga di HP)
+  const actions = document.querySelector('.topbar .nav-actions');
+  if (actions && document.querySelector('.user-shell') && !actions.querySelector('[data-chat-topbar-link]')) {
+    const link = document.createElement('a');
+    link.className = 'btn btn-secondary';
+    link.href = 'chat.html';
+    link.setAttribute('data-chat-topbar-link', '');
+    link.setAttribute('aria-label', 'Chat Admin');
+    link.style.position = 'relative';
+    link.innerHTML = '<span class="material-symbols-outlined" aria-hidden="true">chat</span>';
 
     const badge = document.createElement('span');
     badge.setAttribute('data-chat-nav-badge', '');
     badge.className = 'chat-nav-badge';
-    badge.style.cssText = 'display:none;position:absolute;top:-6px;right:-8px;min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:#e0313f;color:#fff;font-size:11px;line-height:18px;text-align:center;font-weight:600;box-shadow:0 0 0 2px #fff;';
+    badge.style.cssText = CHAT_BADGE_STYLE + 'position:absolute;top:-7px;right:-7px;margin-left:0;box-shadow:0 0 0 2px #fff;';
     link.appendChild(badge);
-  });
+
+    const cartLink = actions.querySelector('[data-cart-link]');
+    if (cartLink) cartLink.insertAdjacentElement('afterend', link);
+    else actions.insertBefore(link, actions.firstChild);
+  }
+
+  // 3) Titik merah di tombol hamburger (mobile) agar pesan baru tetap terlihat
+  const toggle = document.querySelector('.mobile-menu-toggle');
+  if (toggle && !toggle.querySelector('[data-chat-dot]')) {
+    if (getComputedStyle(toggle).position === 'static') toggle.style.position = 'relative';
+    const dot = document.createElement('i');
+    dot.setAttribute('data-chat-dot', '');
+    dot.style.cssText = 'display:none;position:absolute;top:2px;right:2px;width:10px;height:10px;border-radius:50%;background:#e0313f;box-shadow:0 0 0 2px #fff;';
+    toggle.appendChild(dot);
+  }
 }
 
 function updateChatBadges(count) {
+  const total = Math.max(0, Number(count) || 0);
+  window.__marketplaceChatUnread = total;
   ensureChatBadgeElements();
 
-  const badges = document.querySelectorAll('[data-chat-badge], [data-chat-nav-badge]');
-  badges.forEach((badge) => {
-    if (count > 0) {
-      badge.textContent = count > 99 ? '99+' : String(count);
-      badge.style.display = '';
+  document.querySelectorAll('[data-chat-badge], [data-chat-nav-badge]').forEach((badge) => {
+    if (total > 0) {
+      badge.textContent = total > 99 ? '99+' : String(total);
+      badge.style.display = 'inline-block';
       badge.classList.add('show');
     } else {
       badge.textContent = '';
@@ -1320,7 +1349,11 @@ function updateChatBadges(count) {
     }
   });
 
-  document.title = count > 0 ? `(${count > 99 ? '99+' : count}) ${BASE_DOCUMENT_TITLE}` : BASE_DOCUMENT_TITLE;
+  document.querySelectorAll('[data-chat-dot]').forEach((dot) => {
+    dot.style.display = total > 0 ? 'block' : 'none';
+  });
+
+  document.title = total > 0 ? `(${total > 99 ? '99+' : total}) ${BASE_DOCUMENT_TITLE}` : BASE_DOCUMENT_TITLE;
 }
 
 function subscribeToGlobalChatNotifications(currentUserId) {
@@ -1440,6 +1473,7 @@ async function renderChat() {
   let messagesUnsubscribe = () => {};
   let threadsUnsubscribe = () => {};
   let isMarkingRead = false;
+  let attachAttempts = 0;
   let didInitialSelect = false;
   const productMeta = new Map();
 
@@ -1552,13 +1586,14 @@ async function renderChat() {
     }
   }
 
-  function attachMessages(id) {
+    function attachMessages(id) {
     messagesUnsubscribe();
     listeningId = id;
     messagesUnsubscribe = onSnapshot(
       query(collection(db, 'marketplace_chats', id, 'messages'), orderBy('createdAt', 'asc')),
       (snapshot) => {
         if (activeId !== id) return;
+        attachAttempts = 0;
         setStatus('');
         const messages = snapshot.docs.map((messageDoc) => ({ id: messageDoc.id, ...messageDoc.data() }));
         renderChatMessages(threadEl, messages, currentUserId);
@@ -1566,7 +1601,19 @@ async function renderChat() {
       },
       (error) => {
         console.error('[marketplace chat] gagal memuat pesan:', error);
-        setStatus(`Pesan gagal dimuat (${error?.code || 'unknown'}).`);
+        // Listener yang error sudah mati. Reset supaya bisa dipasang ulang
+        // (otomatis oleh snapshot daftar thread, atau oleh timer di bawah).
+        messagesUnsubscribe();
+        messagesUnsubscribe = () => {};
+        if (listeningId === id) listeningId = '';
+        if (activeId === id && attachAttempts < 5) {
+          attachAttempts += 1;
+          setTimeout(() => {
+            if (activeId === id && listeningId !== id && threads.some((thread) => thread.id === id)) attachMessages(id);
+          }, 1500 * attachAttempts);
+        } else if (activeId === id) {
+          setStatus(`Pesan gagal dimuat (${error?.code || 'unknown'}). Muat ulang halaman.`);
+        }
       }
     );
   }
@@ -1575,10 +1622,11 @@ async function renderChat() {
     const thread = findThread(id);
     if (!thread) return;
 
-    messagesUnsubscribe();
+       messagesUnsubscribe();
     messagesUnsubscribe = () => {};
     listeningId = '';
     activeId = id;
+    attachAttempts = 0;
     layout.dataset.view = 'conversation';
     setStatus('');
     input.disabled = false;
@@ -1706,9 +1754,13 @@ async function renderChat() {
         unreadForAdmin: increment(1),
         ...(thread.isDraft ? { createdAt } : {})
       }, { merge: true });
-      await batch.commit();
+            await batch.commit();
       input.value = '';
       setStatus('');
+
+      // Kirim notifikasi email ke admin (tidak memblokir UI, gagal pun tidak masalah)
+      callMarketplaceApi('notify-chat', { threadId: thread.id, messageId: messageRef.id })
+        .catch((error) => console.warn('[marketplace chat] notifikasi email dilewati:', error?.message || error));
     } catch (error) {
       console.error('[marketplace chat] pesan user gagal dikirim:', error);
       setStatus(`Pesan gagal terkirim: ${error?.code || 'unknown'}`);
@@ -2358,66 +2410,97 @@ async function handleAuthSubmit(event) {
   event.preventDefault();
   const form = event.currentTarget;
   const submitButton = form.querySelector('button[type="submit"]');
+  const isRegister = document.body.dataset.page === 'register';
+  const idleLabel = isRegister ? 'Buat akun' : 'Masuk ke dashboard';
+
+  const resetButton = () => {
+    if (!submitButton) return;
+    submitButton.disabled = false;
+    submitButton.textContent = idleLabel;
+  };
+
   if (submitButton) {
     submitButton.disabled = true;
-    submitButton.textContent = document.body.dataset.page === 'register' ? 'Membuat akun...' : 'Masuk...';
+    submitButton.textContent = isRegister ? 'Membuat akun...' : 'Masuk...';
   }
 
   const formData = new FormData(form);
   const payload = Object.fromEntries(formData.entries());
   const rememberMe = formData.get('remember') === 'on' || payload.remember === 'on';
 
-  const isRegister = document.body.dataset.page === 'register';
-
   if (!canAttemptLogin()) {
     setAuthMessage('Terlalu banyak percobaan login. Tunggu beberapa menit lalu coba lagi.', 'error');
     showPopup('Terlalu banyak percobaan login. Tunggu beberapa menit lalu coba lagi.', 'Terlalu banyak', 'error');
-    if (submitButton) {
-      submitButton.disabled = false;
-      submitButton.textContent = isRegister ? 'Buat akun' : 'Masuk ke dashboard';
-    }
+    resetButton();
     return;
   }
 
+  // Cegah listener onAuthStateChanged ikut campur selama proses daftar/login berjalan.
+  window.__marketplaceAuthBusy = true;
   try {
     if (isRegister) {
       ensureDemoData();
       const email = String(payload.email || '').trim().toLowerCase();
-      const users = readStorage(STORAGE_KEYS.USERS, []);
-      const filteredUsers = users.filter((user) => (user.email || '').toLowerCase() !== email);
-      if (filteredUsers.length !== users.length) {
-        writeStorage(STORAGE_KEYS.USERS, filteredUsers);
+      if (email === ADMIN_ACCOUNT_EMAIL) {
+        throw Object.assign(new Error('Email ini tidak dapat dipakai untuk akun pembeli.'), { code: 'reserved-email' });
       }
 
       const cred = await createUserWithEmailAndPassword(auth, email, String(payload.password || ''));
 
+      const firstName = String(payload.firstName || '').trim();
+      const lastName = String(payload.lastName || '').trim();
       const newUser = {
         id: cred.user.uid,
-        name: `${payload.firstName || ''} ${payload.lastName || ''}`.trim() || 'Pengguna',
-        email: payload.email,
-        phone: payload.phone || '',
-        username: `${(payload.firstName || 'user').toLowerCase()}${(payload.lastName || '').toLowerCase()}`.trim() || 'user',
-        bio: 'Saya menggunakan akun sebagai pembeli di Marketplace Mantan.',
-        city: 'Jakarta',
-        role: 'buyer'
+        name: `${firstName} ${lastName}`.trim() || 'Pengguna',
+        email,
+        phone: String(payload.phone || '').trim(),
+        username: `${firstName}${lastName}`.toLowerCase().replace(/\s+/g, '') || 'user',
+        bio: 'Saya berbelanja di Marketplace Mantan.',
+        city: 'Jakarta'
       };
 
       await setDoc(doc(db, 'marketplace_users', cred.user.uid), newUser);
-      users.push(newUser);
-      writeStorage(STORAGE_KEYS.USERS, users);
-      clearCurrentUser();
-      setAuthMessage('Akun berhasil dibuat. Silakan masuk ke dashboard.', 'info');
-      showPopup('Akun berhasil dibuat. Silakan masuk ke dashboard.', 'Berhasil', 'success');
-      if (submitButton) {
-        submitButton.textContent = 'Akun dibuat';
+
+      // Kirim email verifikasi. Akun baru bisa dipakai setelah link di email diklik.
+            let mailSent = true;
+      try {
+        await callMarketplaceApi('send-verification');
+      } catch (serverMailError) {
+        console.warn('[marketplace] email verifikasi server gagal, memakai Firebase:', serverMailError);
+        try {
+          auth.languageCode = 'id';
+          await sendEmailVerification(cred.user);
+        } catch (mailError) {
+          mailSent = false;
+          console.error('[marketplace] gagal mengirim email verifikasi:', mailError);
+        }
       }
-      setTimeout(() => {
-        window.location.href = 'login.html';
-      }, 1200);
+
+      await signOut(auth);
+      clearCurrentUser();
+
+      const doneMessage = mailSent
+        ? `Akun dibuat. Kami mengirim link verifikasi ke ${email}. Klik link itu (cek juga folder Spam), lalu masuk.`
+        : 'Akun dibuat, tetapi email verifikasi gagal terkirim. Buka halaman Masuk lalu klik "Kirim ulang email verifikasi".';
+      setAuthMessage(doneMessage, mailSent ? 'info' : 'error');
+      showPopup(doneMessage, mailSent ? 'Cek email Anda' : 'Verifikasi belum terkirim', mailSent ? 'success' : 'error');
+      if (submitButton) submitButton.textContent = 'Akun dibuat';
+      setTimeout(() => { window.location.href = 'login.html'; }, 4000);
       return;
     }
 
-    const cred = await signInWithEmailAndPassword(auth, payload.email, payload.password);
+    const cred = await signInWithEmailAndPassword(auth, String(payload.email || '').trim(), String(payload.password || ''));
+    await cred.user.reload();
+
+    if (!cred.user.emailVerified) {
+      await signOut(auth);
+      clearCurrentUser();
+      const message = 'Email belum diverifikasi. Buka email Anda dan klik link verifikasi, atau klik "Kirim ulang email verifikasi".';
+      setAuthMessage(message, 'error');
+      showPopup(message, 'Email belum terverifikasi', 'error');
+      resetButton();
+      return;
+    }
 
     const userDoc = await fetchUserDoc(cred.user.uid);
     const user = userDoc || {
@@ -2427,8 +2510,7 @@ async function handleAuthSubmit(event) {
       phone: '',
       username: 'user',
       bio: 'Pembeli Marketplace Mantan',
-      city: 'Jakarta',
-      role: 'buyer'
+      city: 'Jakarta'
     };
 
     resetLoginAttempts();
@@ -2436,29 +2518,84 @@ async function handleAuthSubmit(event) {
     writeStorage(STORAGE_KEYS.USERS, [...(readStorage(STORAGE_KEYS.USERS, []) || []), user].filter((item, index, arr) => arr.findIndex((entry) => entry.email === item.email) === index));
     window.location.href = 'dashboard.html';
   } catch (error) {
-    recordFailedLogin();
+    if (!isRegister) recordFailedLogin();
     console.error(error);
 
     const rawMessage = error?.message || 'Terjadi kesalahan saat proses autentikasi.';
-    const errorText = String(rawMessage).toLowerCase();
+    const errorText = `${error?.code || ''} ${rawMessage}`.toLowerCase();
     let userMessage = rawMessage;
 
-    if (errorText.includes('invalid-credential') || errorText.includes('wrong-password') || errorText.includes('user-not-found') || errorText.includes('invalid-email')) {
+    if (errorText.includes('invalid-credential') || errorText.includes('wrong-password') || errorText.includes('user-not-found')) {
       userMessage = 'Email atau password salah. Pastikan akun sudah dibuat dan password benar.';
+    } else if (errorText.includes('invalid-email')) {
+      userMessage = 'Format email tidak valid.';
     } else if (errorText.includes('email-already-in-use')) {
-      userMessage = 'Email sudah dipakai. Jika akun sebelumnya sudah dihapus dari Firebase, tunggu beberapa menit lalu coba lagi atau pakai email lain.';
+      userMessage = 'Email sudah terdaftar. Silakan masuk, atau klik "Lupa password?" jika lupa.';
+    } else if (errorText.includes('weak-password')) {
+      userMessage = 'Password terlalu lemah. Gunakan minimal 6 karakter.';
+    } else if (errorText.includes('reserved-email')) {
+      userMessage = rawMessage;
     } else if (errorText.includes('too-many-requests')) {
-      userMessage = 'Terlalu banyak percobaan login. Tunggu beberapa menit lalu coba lagi.';
+      userMessage = 'Terlalu banyak percobaan. Tunggu beberapa menit lalu coba lagi.';
     } else if (errorText.includes('network-request-failed')) {
       userMessage = 'Koneksi gagal. Coba lagi dalam beberapa saat.';
     }
 
     setAuthMessage(userMessage, 'error');
     showPopup(userMessage, isRegister ? 'Pendaftaran gagal' : 'Login gagal', 'error');
-    if (submitButton) {
-      submitButton.disabled = false;
-      submitButton.textContent = isRegister ? 'Buat akun' : 'Masuk ke dashboard';
+    resetButton();
+  } finally {
+    window.__marketplaceAuthBusy = false;
+  }
+}
+
+// Kirim ulang email verifikasi dari halaman login (isi email + password dulu).
+async function handleResendVerification(event) {
+  event.preventDefault();
+  const email = String(document.querySelector('#email')?.value || '').trim();
+  const password = String(document.querySelector('#password')?.value || '');
+
+  if (!email || !password) {
+    setAuthMessage('Isi email dan password dulu, lalu klik "Kirim ulang email verifikasi".', 'error');
+    return;
+  }
+
+  window.__marketplaceAuthBusy = true;
+  try {
+    const cred = await signInWithEmailAndPassword(auth, email, password);
+    await cred.user.reload();
+
+    if (cred.user.emailVerified) {
+      await signOut(auth);
+      setAuthMessage('Email Anda sudah terverifikasi. Silakan klik "Masuk ke dashboard".', 'info');
+      return;
     }
+
+        try {
+      await callMarketplaceApi('send-verification');
+    } catch (serverMailError) {
+      if (serverMailError?.code === 'too-many-requests') throw serverMailError;
+      console.warn('[marketplace] email verifikasi server gagal, memakai Firebase:', serverMailError);
+      auth.languageCode = 'id';
+      await sendEmailVerification(cred.user);
+    }
+    await signOut(auth);
+    clearCurrentUser();
+    const message = `Link verifikasi dikirim ke ${email}. Cek inbox dan folder Spam.`;
+    setAuthMessage(message, 'info');
+    showPopup(message, 'Email terkirim', 'success');
+  } catch (error) {
+    console.error('[marketplace] kirim ulang verifikasi gagal:', error);
+    const code = String(error?.code || '');
+    const message = code.includes('too-many-requests')
+      ? 'Terlalu banyak permintaan. Tunggu beberapa menit lalu coba lagi.'
+      : code.includes('invalid-credential') || code.includes('wrong-password') || code.includes('user-not-found')
+        ? 'Email atau password salah.'
+        : 'Email verifikasi gagal dikirim. Coba lagi nanti.';
+    setAuthMessage(message, 'error');
+    await signOut(auth).catch(() => {});
+  } finally {
+    window.__marketplaceAuthBusy = false;
   }
 }
 
@@ -2497,6 +2634,11 @@ async function bindAuthPage() {
     forgotBtn.addEventListener('click', handleForgotPassword);
   }
 
+  const resendBtn = document.querySelector('[data-resend-verification]');
+  if (resendBtn) {
+    resendBtn.addEventListener('click', handleResendVerification);
+  }
+
   const savedUser = currentUser();
   if (savedUser) {
     if (window.location.pathname.endsWith('login.html') || window.location.pathname.endsWith('register.html')) {
@@ -2506,7 +2648,8 @@ async function bindAuthPage() {
   }
 
   onAuthStateChanged(auth, async (firebaseUser) => {
-    if (!firebaseUser || String(firebaseUser.email || '').toLowerCase() === ADMIN_ACCOUNT_EMAIL) return;
+    if (window.__marketplaceAuthBusy) return;
+    if (!firebaseUser || !firebaseUser.emailVerified || String(firebaseUser.email || '').toLowerCase() === ADMIN_ACCOUNT_EMAIL) return;
 
     try {
       await syncCurrentUserFromFirebase(firebaseUser, true);
@@ -3648,7 +3791,7 @@ function renderProfile() {
 
       // Strip legacy photo-related keys out of the spread so they can never
       // silently re-enter the saved object.
-      const { photo: _legacyPhoto, profilePhotoUrl: _legacyProfilePhotoUrl, avatarUrl: _legacyAvatarUrl, ...restUser } = user;
+            const { photo: _legacyPhoto, profilePhotoUrl: _legacyProfilePhotoUrl, avatarUrl: _legacyAvatarUrl, role: _legacyRole, ...restUser } = user;
 
       const updatedUser = {
         ...restUser,
@@ -3691,7 +3834,8 @@ function renderProfile() {
           ...updatedUser,
           photo: deleteField(),
           profilePhotoUrl: deleteField(),
-          avatarUrl: deleteField()
+          avatarUrl: deleteField(),
+          role: deleteField()
         }, { merge: true });
       }
 
@@ -4530,20 +4674,34 @@ async function init() {
   handleSidebarState();
   bindLogoutButtons();
   bindMobileSidebar();
+  ensureChatBadgeElements(); 
   bindHeaderActionsMenu();
   bindPasswordToggles();
   hydrateUserProfileUI();
  
+    const PROTECTED_PAGES = ['dashboard.html', 'pesanan.html', 'keranjang.html', 'jual.html', 'profil.html', 'chat.html'];
+
   onAuthStateChanged(auth, async (firebaseUser) => {
+    if (window.__marketplaceAuthBusy) return;
     try {
       if (firebaseUser && String(firebaseUser.email || '').toLowerCase() !== ADMIN_ACCOUNT_EMAIL) {
+        // Sesi lama dengan email belum terverifikasi: keluarkan.
+        if (!firebaseUser.emailVerified) {
+          clearCurrentUser();
+          await signOut(auth).catch(() => {});
+          if (PROTECTED_PAGES.includes(document.body.dataset.page)) {
+            window.location.href = 'login.html';
+          }
+          return;
+        }
+
         await syncCurrentUserFromFirebase(firebaseUser, localStorage.getItem('gamon_marketplace_remember_me') === '1');
         hydrateUserProfileUI();
- 
+
         if (!window.__marketplaceCartUnsubscribe) {
           window.__marketplaceCartUnsubscribe = subscribeToCartBadge();
         }
- 
+
         if (!window.__marketplaceGlobalChatUnsubscribe) {
           const currentUserId = getCurrentUserIdentifier();
           if (currentUserId) {

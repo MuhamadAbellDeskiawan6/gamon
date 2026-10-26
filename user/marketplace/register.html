@@ -27,16 +27,16 @@
                 <span class="eyebrow">Bergabung sekarang</span>
                 <h2 style="margin-top: 14px; font-size: 2rem;">Daftar untuk belanja di Marketplace Mantan</h2>
                 <p class="muted" style="margin-top: 10px; line-height: 1.7;">
-                  Daftar akun agar dapat melihat katalog, chat dengan admin toko, dan melakukan transaksi COD dengan aman.
+                  Daftar akun agar dapat melihat katalog, chat dengan admin toko, dan melakukan pemesanan dengan aman.
                 </p>
               </div>
 
               <div class="mini-card">
                 <div class="seller-row">
                   <span class="seller-meta"><span class="avatar">R</span> Raka</span>
-                  <span class="condition">Buyer baru</span>
+                  <span class="condition">Anggota baru</span>
                 </div>
-                <p style="margin-top: 12px; color: var(--muted);">Akun pembeli hanya bisa melihat katalog, chat admin, dan melakukan pemesanan COD.</p>
+                <p style="margin-top: 12px; color: var(--muted);">Gunakan email aktif. Kami akan mengirim link verifikasi yang harus diklik sebelum akun bisa dipakai.</p>
               </div>
             </div>
           </div>
@@ -60,8 +60,9 @@
               </div>
 
               <div class="field">
-                <label for="reg-email">Email</label>
-                <input id="reg-email" name="email" type="email" placeholder="nama@email.com" required />
+                <label for="reg-email">Email aktif</label>
+                <input id="reg-email" name="email" type="email" placeholder="nama@email.com" autocomplete="email" required />
+                <small class="muted">Link verifikasi akan dikirim ke email ini.</small>
               </div>
 
               <div class="field">
@@ -72,17 +73,12 @@
               <div class="field">
                 <label for="reg-password">Password</label>
                 <div class="password-field">
-                  <input id="reg-password" name="password" type="password" placeholder="Buat password" required />
+                  <input id="reg-password" name="password" type="password" placeholder="Minimal 6 karakter" minlength="6" autocomplete="new-password" required />
                   <button type="button" class="password-toggle" data-password-toggle aria-label="Tampilkan password" title="Tampilkan password"><span class="material-symbols-outlined">visibility</span></button>
                 </div>
               </div>
 
               <div class="field" data-auth-message style="display:none; padding: 10px 12px; border-radius: 12px; font-size: 0.95rem; margin-bottom: 8px;"></div>
-
-              <div class="field">
-                <label for="role">Role akun</label>
-                <input id="role" name="role" type="text" value="buyer" readonly aria-readonly="true" />
-              </div>
 
               <label class="check-row">
                 <input type="checkbox" name="agree" required />

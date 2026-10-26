@@ -3,7 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import { getAdminAuth, getAdminDb } from './lib/firebase-admin.js';
 import { FieldValue } from 'firebase-admin/firestore';
-import { applyMarketplacePayment, reconcilePaidOrdersStock, releaseExpiredReservations, releaseOrderStock, syncPaidOrdersCart } from './lib/marketplace-orders.js';
+import { applyMarketplacePayment, reconcilePaidOrdersStock, releaseExpiredReservations, releaseOrderStock, sendEmail, syncPaidOrdersCart } from './lib/marketplace-orders.js';
 
 const PAYMENT_WINDOW_MS = 60 * 60 * 1000;
 const DEFAULT_SITE_URL = 'https://gamon-tawing.vercel.app';
@@ -26,7 +26,11 @@ async function requireBuyer(req, res) {
     return null;
   }
   try {
-    const claims = await getAdminAuth().verifyIdToken(token, true);
+        const claims = await getAdminAuth().verifyIdToken(token, true);
+    if (claims.email_verified !== true) {
+      responseError(res, 403, 'email-not-verified', 'Verifikasi email Anda terlebih dahulu. Cek inbox lalu masuk kembali.');
+      return null;
+    }
     return claims;
   } catch (error) {
     console.warn('[marketplace] bearer ID token invalid:', error.code || error.message);
@@ -43,7 +47,7 @@ function loadLocalEnvFallback() {
   localEnvLoaded = true;
   if (process.env.VERCEL_ENV === 'production' || process.env.NODE_ENV === 'production') return;
 
-  const wanted = ['DOKU_CLIENT_ID', 'DOKU_SECRET_KEY', 'DOKU_BASE_URL', 'SITE_URL', 'DOKU_PAYMENT_METHODS', 'MARKETPLACE_SHIPPING_FEE'];
+    const wanted = ['DOKU_CLIENT_ID', 'DOKU_SECRET_KEY', 'DOKU_BASE_URL', 'SITE_URL', 'DOKU_PAYMENT_METHODS', 'MARKETPLACE_SHIPPING_FEE', 'GMAIL_APP_PASSWORD', 'ADMIN_NOTIFY_EMAIL'];
   const files = ['.env.local', '.env.development.local', '.env.development', '.env'];
   const found = [];
 
@@ -766,6 +770,142 @@ async function viewProduct(req, res) {
   return res.status(200).json({ success: true, counted: true, views });
 }
 
+/* =========================================================================
+ * NOTIFIKASI EMAIL CHAT: pembeli kirim pesan -> email ke admin
+ * ========================================================================= */
+const MAIL_OWNER_EMAIL = 'muhamadabelldeskiawan@gmail.com';
+
+function escapeMailHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, (char) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[char]));
+}
+
+function getSiteUrl() {
+  const siteUrl = String(process.env.SITE_URL || '').trim().replace(/\/$/, '');
+  return /^https:\/\//i.test(siteUrl) ? siteUrl : DEFAULT_SITE_URL;
+}
+
+async function notifyChat(req, res, claims) {
+  const threadId = String(req.body?.threadId || '').trim();
+  const messageId = String(req.body?.messageId || '').trim();
+  if (!threadId || !messageId || threadId.includes('/') || messageId.includes('/')) {
+    return responseError(res, 400, 'invalid-request', 'threadId dan messageId wajib diisi.');
+  }
+
+  const db = getAdminDb();
+  const threadRef = db.collection('marketplace_chats').doc(threadId);
+  const messageRef = threadRef.collection('messages').doc(messageId);
+  const [threadSnap, messageSnap] = await Promise.all([threadRef.get(), messageRef.get()]);
+  if (!threadSnap.exists || !messageSnap.exists) return responseError(res, 404, 'not-found', 'Percakapan atau pesan tidak ditemukan.');
+
+  const thread = threadSnap.data() || {};
+  const message = messageSnap.data() || {};
+  if (String(thread.buyerId) !== String(claims.uid) || message.senderRole !== 'user' || String(message.senderId) !== String(claims.uid)) {
+    return responseError(res, 403, 'forbidden', 'Tidak diizinkan.');
+  }
+  if (message.emailNotifiedAt) return res.status(200).json({ success: true, sent: false, reason: 'already-notified' });
+  if (Date.now() - Number(message.createdAt || 0) > 10 * 60 * 1000) {
+    return res.status(200).json({ success: true, sent: false, reason: 'message-too-old' });
+  }
+
+  const adminEmail = String(process.env.ADMIN_NOTIFY_EMAIL || MAIL_OWNER_EMAIL).trim();
+  const buyerName = cleanText(thread.buyerName || claims.name || 'Pembeli', 120);
+  const label = thread.productName
+    ? `Produk: ${cleanText(thread.productName, 120)}`
+    : thread.orderId ? `Pesanan: ${cleanText(thread.orderId, 60)}` : 'Pertanyaan umum';
+  const link = `${getSiteUrl()}/admin/marketplace-chat.html?thread=${encodeURIComponent(threadId)}`;
+  const body = cleanText(message.text, 1000);
+
+  try {
+    await sendEmail({
+      to: adminEmail,
+      subject: `💬 Pesan baru dari ${buyerName} - ${label}`,
+      html: `
+      <div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;padding:24px;border:1px solid #eee;border-radius:16px">
+        <h2 style="margin-top:0;color:#111827">Ada pesan baru dari pembeli 💬</h2>
+        <p style="color:#374151;margin:0 0 4px"><b>Pembeli:</b> ${escapeMailHtml(buyerName)}</p>
+        <p style="color:#374151;margin:0 0 12px"><b>Topik:</b> ${escapeMailHtml(label)}</p>
+        <div style="background:#f8fafc;padding:12px;border-radius:12px;font-size:14px;color:#334155;line-height:1.5;white-space:pre-wrap;">${escapeMailHtml(body)}</div>
+        <p style="margin-top:18px"><a href="${escapeMailHtml(link)}" style="background:#db2777;color:#fff;padding:10px 16px;border-radius:10px;text-decoration:none;font-weight:600">Buka & balas chat</a></p>
+      </div>`,
+      text: `Pesan baru dari ${buyerName} (${label}):\n\n${body}\n\nBalas: ${link}`
+    });
+  } catch (error) {
+    console.warn('[marketplace] email notifikasi chat gagal:', error.code || '', error.message);
+    return res.status(200).json({ success: true, sent: false, reason: error.code || 'send-failed' });
+  }
+
+  await messageRef.set({ emailNotifiedAt: Date.now() }, { merge: true });
+  return res.status(200).json({ success: true, sent: true });
+}
+
+/* =========================================================================
+ * EMAIL VERIFIKASI AKUN (dikirim dari server agar tidak masuk spam)
+ * Boleh dipanggil oleh user yang BELUM terverifikasi (hanya ID token yang dicek).
+ * ========================================================================= */
+const verificationThrottle = new Map();
+
+async function sendVerification(req, res) {
+  const token = readBearerToken(req);
+  if (!token) return responseError(res, 401, 'unauthenticated', 'Silakan masuk kembali.');
+
+  let claims;
+  try {
+    claims = await getAdminAuth().verifyIdToken(token);
+  } catch (error) {
+    return responseError(res, 401, 'unauthenticated', 'Sesi tidak valid. Silakan masuk kembali.');
+  }
+
+  const email = String(claims.email || '').trim();
+  if (!email) return responseError(res, 400, 'email-missing', 'Akun tidak memiliki email.');
+  if (claims.email_verified === true) {
+    return res.status(200).json({ success: true, sent: false, reason: 'already-verified' });
+  }
+
+  const last = verificationThrottle.get(claims.uid) || 0;
+  if (Date.now() - last < 30 * 1000) {
+    return responseError(res, 429, 'too-many-requests', 'Tunggu 30 detik sebelum meminta email verifikasi lagi.');
+  }
+
+  const host = String(req.headers?.host || '');
+  const isLocalHost = /^(localhost|127\.0\.0\.1)(:\d+)?$/i.test(host);
+  const baseUrl = isLocalHost ? `http://${host}` : getSiteUrl();
+  const continueUrl = `${baseUrl}/user/marketplace/login.html`;
+
+  try {
+    const adminAuth = getAdminAuth();
+    let link;
+    try {
+      link = await adminAuth.generateEmailVerificationLink(email, { url: continueUrl });
+    } catch (error) {
+      // Domain belum masuk "Authorized domains": pakai link default Firebase.
+      link = await adminAuth.generateEmailVerificationLink(email);
+    }
+    if (!/[?&]lang=/.test(link)) link += `${link.includes('?') ? '&' : '?'}lang=id`;
+
+    const name = cleanText(claims.name || '', 80) || 'Pembeli';
+    await sendEmail({
+      to: email,
+      subject: 'Verifikasi email akun Marketplace Mantan',
+      html: `
+      <div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;padding:24px;border:1px solid #eee;border-radius:16px">
+        <h2 style="margin-top:0;color:#111827">Verifikasi email Anda</h2>
+        <p style="color:#374151">Halo ${escapeMailHtml(name)}, terima kasih sudah mendaftar di Marketplace Mantan. Klik tombol di bawah untuk mengaktifkan akun Anda.</p>
+        <p style="margin:20px 0"><a href="${escapeMailHtml(link)}" style="background:#db2777;color:#fff;padding:12px 18px;border-radius:10px;text-decoration:none;font-weight:600">Verifikasi email</a></p>
+        <p style="font-size:12px;color:#64748b">Jika tombol tidak berfungsi, salin link ini ke browser:<br>${escapeMailHtml(link)}</p>
+        <p style="font-size:12px;color:#64748b">Jika Anda tidak merasa mendaftar, abaikan email ini.</p>
+      </div>`,
+      text: `Halo ${name},\n\nBuka link berikut untuk memverifikasi email Anda:\n${link}\n\nJika Anda tidak merasa mendaftar, abaikan email ini.`
+    });
+    verificationThrottle.set(claims.uid, Date.now());
+    return res.status(200).json({ success: true, sent: true });
+  } catch (error) {
+    console.error('[marketplace] gagal mengirim email verifikasi:', { code: error.code || 'unknown', message: error.message });
+    return responseError(res, 502, error.code || 'verification-mail-failed', `Email verifikasi gagal dikirim: ${cleanText(error.message, 200)}`);
+  }
+} 
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return responseError(res, 405, 'method-not-allowed', 'Method not allowed.');
   const action = String(req.query?.action || '').trim().toLowerCase();
@@ -780,6 +920,15 @@ export default async function handler(req, res) {
     }
   }
 
+    if (action === 'send-verification') {
+    try {
+      return await sendVerification(req, res);
+    } catch (error) {
+      console.error('[marketplace] send-verification gagal:', error.message);
+      return responseError(res, 500, 'verification-failed', 'Email verifikasi gagal dikirim.');
+    }
+  }
+
   const claims = await requireBuyer(req, res);
   if (!claims) return;
 
@@ -791,6 +940,7 @@ export default async function handler(req, res) {
     if (action === 'sync-cart') return await syncCart(req, res, claims);
     if (action === 'confirm-received') return await confirmReceived(req, res, claims);
     if (action === 'submit-review') return await submitReview(req, res, claims);
+        if (action === 'notify-chat') return await notifyChat(req, res, claims);
     if (action === 'release-expired-reservations') {
       const result = await releaseExpiredReservations();
       return res.status(200).json({ success: true, ...result });
