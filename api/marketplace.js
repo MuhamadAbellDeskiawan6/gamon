@@ -47,7 +47,7 @@ function loadLocalEnvFallback() {
   localEnvLoaded = true;
   if (process.env.VERCEL_ENV === 'production' || process.env.NODE_ENV === 'production') return;
 
-    const wanted = ['DOKU_CLIENT_ID', 'DOKU_SECRET_KEY', 'DOKU_BASE_URL', 'SITE_URL', 'DOKU_PAYMENT_METHODS', 'MARKETPLACE_SHIPPING_FEE', 'GMAIL_APP_PASSWORD', 'ADMIN_NOTIFY_EMAIL'];
+    const wanted = ['DOKU_CLIENT_ID', 'DOKU_SECRET_KEY', 'DOKU_BASE_URL', 'SITE_URL', 'DOKU_PAYMENT_METHODS', 'MARKETPLACE_SHIPPING_FEE', 'GMAIL_APP_PASSWORD', 'ADMIN_NOTIFY_EMAIL', 'EMAIL_VERIFY_SECRET'];
   const files = ['.env.local', '.env.development.local', '.env.development', '.env'];
   const found = [];
 
@@ -841,10 +841,50 @@ async function notifyChat(req, res, claims) {
 }
 
 /* =========================================================================
- * EMAIL VERIFIKASI AKUN (dikirim dari server agar tidak masuk spam)
- * Boleh dipanggil oleh user yang BELUM terverifikasi (hanya ID token yang dicek).
+ * EMAIL VERIFIKASI AKUN (token HMAC buatan sendiri, tidak memakai oobCode Firebase)
  * ========================================================================= */
-const verificationThrottle = new Map();
+const VERIFY_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
+const VERIFY_RESEND_INTERVAL_MS = 30 * 1000;
+
+function getVerifySecret() {
+  loadLocalEnvFallback();
+  const secret = String(process.env.EMAIL_VERIFY_SECRET || '').trim();
+  if (secret.length < 16) {
+    throw Object.assign(new Error('EMAIL_VERIFY_SECRET belum diatur (minimal 16 karakter) di environment server.'), { code: 'verify-secret-missing' });
+  }
+  return secret;
+}
+
+function base64Url(input) {
+  return Buffer.from(input).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+function signVerifyPayload(payloadB64, secret) {
+  return base64Url(crypto.createHmac('sha256', secret).update(payloadB64).digest());
+}
+
+function createVerifyToken(uid, email) {
+  const secret = getVerifySecret();
+  const payloadB64 = base64Url(JSON.stringify({ uid, email: String(email).toLowerCase(), exp: Date.now() + VERIFY_TOKEN_TTL_MS }));
+  return `${payloadB64}.${signVerifyPayload(payloadB64, secret)}`;
+}
+
+function readVerifyToken(token) {
+  const secret = getVerifySecret();
+  const [payloadB64, signature] = String(token || '').split('.');
+  if (!payloadB64 || !signature) return null;
+  const expected = signVerifyPayload(payloadB64, secret);
+  const a = Buffer.from(signature);
+  const b = Buffer.from(expected);
+  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
+  try {
+    const payload = JSON.parse(Buffer.from(payloadB64.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8'));
+    if (!payload?.uid || !payload?.email || Number(payload.exp) < Date.now()) return null;
+    return payload;
+  } catch (error) {
+    return null;
+  }
+}
 
 async function sendVerification(req, res) {
   const token = readBearerToken(req);
@@ -863,52 +903,77 @@ async function sendVerification(req, res) {
     return res.status(200).json({ success: true, sent: false, reason: 'already-verified' });
   }
 
-  const last = verificationThrottle.get(claims.uid) || 0;
-  if (Date.now() - last < 30 * 1000) {
+  // Throttle disimpan di Firestore supaya tetap berlaku antar instance serverless.
+  const db = getAdminDb();
+  const profileRef = db.collection('marketplace_users').doc(String(claims.uid));
+  const profileSnap = await profileRef.get();
+  const lastSent = Number(profileSnap.exists ? profileSnap.data()?.verificationSentAt || 0 : 0);
+  if (Date.now() - lastSent < VERIFY_RESEND_INTERVAL_MS) {
     return responseError(res, 429, 'too-many-requests', 'Tunggu 30 detik sebelum meminta email verifikasi lagi.');
   }
 
-  const host = String(req.headers?.host || '');
-  const isLocalHost = /^(localhost|127\.0\.0\.1)(:\d+)?$/i.test(host);
-  const baseUrl = isLocalHost ? `http://${host}` : getSiteUrl();
-  const continueUrl = `${baseUrl}/user/marketplace/login.html`;
-
   try {
-    const adminAuth = getAdminAuth();
-    let link;
-    try {
-      link = await adminAuth.generateEmailVerificationLink(email, { url: continueUrl });
-    } catch (error) {
-      // Domain belum masuk "Authorized domains": pakai link default Firebase.
-      link = await adminAuth.generateEmailVerificationLink(email);
-    }
-    if (!/[?&]lang=/.test(link)) link += `${link.includes('?') ? '&' : '?'}lang=id`;
+    const host = String(req.headers?.host || '');
+    const isLocalHost = /^(localhost|127\.0\.0\.1)(:\d+)?$/i.test(host);
+    const baseUrl = isLocalHost ? `http://${host}` : getSiteUrl();
+    const link = `${baseUrl}/api/marketplace?action=verify-email&token=${encodeURIComponent(createVerifyToken(claims.uid, email))}`;
 
-    const name = cleanText(claims.name || '', 80) || 'Pembeli';
+    const name = cleanText(claims.name || profileSnap.data()?.name || '', 80) || 'Pembeli';
     await sendEmail({
       to: email,
       subject: 'Verifikasi email akun Marketplace Mantan',
       html: `
       <div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;padding:24px;border:1px solid #eee;border-radius:16px">
         <h2 style="margin-top:0;color:#111827">Verifikasi email Anda</h2>
-        <p style="color:#374151">Halo ${escapeMailHtml(name)}, terima kasih sudah mendaftar di Marketplace Mantan. Klik tombol di bawah untuk mengaktifkan akun Anda.</p>
+        <p style="color:#374151">Halo ${escapeMailHtml(name)}, terima kasih sudah mendaftar di Marketplace Mantan. Klik tombol di bawah untuk mengaktifkan akun Anda. Link berlaku 24 jam.</p>
         <p style="margin:20px 0"><a href="${escapeMailHtml(link)}" style="background:#db2777;color:#fff;padding:12px 18px;border-radius:10px;text-decoration:none;font-weight:600">Verifikasi email</a></p>
         <p style="font-size:12px;color:#64748b">Jika tombol tidak berfungsi, salin link ini ke browser:<br>${escapeMailHtml(link)}</p>
         <p style="font-size:12px;color:#64748b">Jika Anda tidak merasa mendaftar, abaikan email ini.</p>
       </div>`,
-      text: `Halo ${name},\n\nBuka link berikut untuk memverifikasi email Anda:\n${link}\n\nJika Anda tidak merasa mendaftar, abaikan email ini.`
+      text: `Halo ${name},\n\nBuka link berikut untuk memverifikasi email Anda (berlaku 24 jam):\n${link}\n\nJika Anda tidak merasa mendaftar, abaikan email ini.`
     });
-    verificationThrottle.set(claims.uid, Date.now());
+    await profileRef.set({ verificationSentAt: Date.now() }, { merge: true });
     return res.status(200).json({ success: true, sent: true });
   } catch (error) {
     console.error('[marketplace] gagal mengirim email verifikasi:', { code: error.code || 'unknown', message: error.message });
     return responseError(res, 502, error.code || 'verification-mail-failed', `Email verifikasi gagal dikirim: ${cleanText(error.message, 200)}`);
   }
-} 
+}
+
+// Dibuka dari link di email (GET). Menandai email terverifikasi lalu mengarahkan ke halaman login.
+async function verifyEmail(req, res) {
+  const redirect = (flag) => {
+    res.statusCode = 302;
+    res.setHeader('Location', `/user/marketplace/login.html?verified=${flag}`);
+    res.setHeader('Cache-Control', 'no-store');
+    res.end();
+  };
+
+  try {
+    const payload = readVerifyToken(req.query?.token);
+    if (!payload) return redirect('invalid');
+
+    const adminAuth = getAdminAuth();
+    const user = await adminAuth.getUser(payload.uid);
+    if (String(user.email || '').toLowerCase() !== payload.email) return redirect('invalid');
+    if (!user.emailVerified) await adminAuth.updateUser(payload.uid, { emailVerified: true });
+    return redirect('1');
+  } catch (error) {
+    console.error('[marketplace] verify-email gagal:', { code: error.code || 'unknown', message: error.message });
+    return redirect('error');
+  }
+}
 
 export default async function handler(req, res) {
+ const action = String(req.query?.action || '').trim().toLowerCase();
+
+  // Link dari email dibuka lewat GET.
+  if (req.method === 'GET' && action === 'verify-email') {
+    return verifyEmail(req, res);
+  }
+
   if (req.method !== 'POST') return responseError(res, 405, 'method-not-allowed', 'Method not allowed.');
-  const action = String(req.query?.action || '').trim().toLowerCase();
+
 
   // Aksi publik (tanpa login): mencatat jumlah dilihat produk.
   if (action === 'view-product') {

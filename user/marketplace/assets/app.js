@@ -2618,6 +2618,16 @@ async function bindAuthPage() {
   if (!form) return;
   form.addEventListener('submit', handleAuthSubmit);
 
+    if (page === 'login') {
+    const verified = new URLSearchParams(window.location.search).get('verified');
+    if (verified === '1') {
+      setAuthMessage('Email berhasil diverifikasi. Silakan masuk.', 'info');
+      showPopup('Email berhasil diverifikasi. Silakan masuk.', 'Verifikasi berhasil', 'success');
+    } else if (verified) {
+      setAuthMessage('Link verifikasi tidak valid atau sudah kedaluwarsa. Klik "Kirim ulang email verifikasi".', 'error');
+    }
+  }
+
   const forgotBtn = document.querySelector('[data-forgot-password]');
   if (forgotBtn) {
     forgotBtn.addEventListener('click', handleForgotPassword);
