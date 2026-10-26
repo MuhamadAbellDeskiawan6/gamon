@@ -1,5 +1,5 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut, sendPasswordResetEmail, } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut, sendPasswordResetEmail, GoogleAuthProvider, signInWithPopup } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 import { getFirestore, collection, doc, setDoc, getDoc, getDocs, query, where, orderBy, limit, onSnapshot, updateDoc, writeBatch, increment, deleteField, runTransaction } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
 
@@ -2406,6 +2406,104 @@ async function renderHomeProducts() {
   window.__marketplaceHomeProductsCleanup = unsubscribe;
 }
 
+// Cek email ke server: format, domain punya MX, bukan email sekali pakai, saran salah ketik.
+// Jika server/jaringan bermasalah, pendaftaran tetap boleh lanjut (fail-open).
+async function checkEmailDeliverable(email) {
+  try {
+    const response = await withTimeout(fetch('/api/marketplace?action=check-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email })
+    }), 8000, 'Pengecekan email');
+    const result = await response.json().catch(() => ({}));
+    if (response.ok && result.success === true && result.valid === false) {
+      return { ok: false, message: result.message || 'Email tidak valid.' };
+    }
+  } catch (error) {
+    console.warn('[marketplace] cek email dilewati:', error?.message || error);
+  }
+  return { ok: true };
+}
+
+async function handleGoogleAuth(event) {
+  event.preventDefault();
+  const button = event.currentTarget;
+  const rememberInput = document.querySelector('input[name="remember"]');
+  const rememberMe = rememberInput ? rememberInput.checked : true;
+
+  if (!canAttemptLogin()) {
+    const message = 'Terlalu banyak percobaan login. Tunggu beberapa menit lalu coba lagi.';
+    setAuthMessage(message, 'error');
+    showPopup(message, 'Terlalu banyak', 'error');
+    return;
+  }
+
+  button.disabled = true;
+  window.__marketplaceAuthBusy = true;
+  try {
+    const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: 'select_account' });
+    const cred = await signInWithPopup(auth, provider);
+    const firebaseUser = cred.user;
+    const email = String(firebaseUser.email || '').trim().toLowerCase();
+
+    if (!email || !firebaseUser.emailVerified) {
+      await signOut(auth);
+      throw Object.assign(new Error('Akun Google ini tidak memiliki email yang terverifikasi.'), { code: 'google-email-unverified' });
+    }
+    if (email === ADMIN_ACCOUNT_EMAIL) {
+      await signOut(auth);
+      throw Object.assign(new Error('Email ini tidak dapat dipakai untuk akun pembeli.'), { code: 'reserved-email' });
+    }
+
+    // Baca langsung (bukan fetchUserDoc) supaya error jaringan tidak dianggap "user belum ada"
+    // dan menimpa profil yang sudah ada.
+    const profileRef = doc(db, 'marketplace_users', firebaseUser.uid);
+    const snap = await getDoc(profileRef);
+    let user;
+    if (snap.exists()) {
+      user = snap.data();
+    } else {
+      const displayName = String(firebaseUser.displayName || '').trim() || email.split('@')[0];
+      user = {
+        id: firebaseUser.uid,
+        name: displayName,
+        email,
+        phone: '',
+        username: displayName.toLowerCase().replace(/[^a-z0-9]/g, '') || 'user',
+        bio: 'Saya berbelanja di Marketplace Mantan.',
+        city: 'Jakarta',
+        photoUrl: /^https:\/\//i.test(String(firebaseUser.photoURL || '')) ? firebaseUser.photoURL : ''
+      };
+      await setDoc(profileRef, user);
+    }
+
+    resetLoginAttempts();
+    setCurrentUser(user, rememberMe);
+    const users = readStorage(STORAGE_KEYS.USERS, []) || [];
+    writeStorage(STORAGE_KEYS.USERS, [...users.filter((item) => item.email !== user.email), user]);
+    window.location.href = 'dashboard.html';
+  } catch (error) {
+    console.error('[marketplace] login Google gagal:', error);
+    const code = String(error?.code || '');
+    if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') {
+      button.disabled = false;
+      return;
+    }
+    let message = error?.message || 'Masuk dengan Google gagal.';
+    if (code === 'auth/popup-blocked') message = 'Popup diblokir browser. Izinkan popup untuk situs ini lalu coba lagi.';
+    else if (code === 'auth/account-exists-with-different-credential') message = 'Email ini sudah terdaftar dengan password. Silakan masuk memakai email dan password.';
+    else if (code === 'auth/unauthorized-domain') message = 'Domain ini belum diizinkan di Firebase (Authentication > Settings > Authorized domains).';
+    else if (code === 'auth/operation-not-allowed') message = 'Login Google belum diaktifkan di Firebase Console.';
+    else if (code === 'auth/network-request-failed') message = 'Koneksi gagal. Coba lagi dalam beberapa saat.';
+    setAuthMessage(message, 'error');
+    showPopup(message, 'Login Google gagal', 'error');
+    button.disabled = false;
+  } finally {
+    window.__marketplaceAuthBusy = false;
+  }
+}
+
 async function handleAuthSubmit(event) {
   event.preventDefault();
   const form = event.currentTarget;
@@ -2428,14 +2526,13 @@ async function handleAuthSubmit(event) {
   const payload = Object.fromEntries(formData.entries());
   const rememberMe = formData.get('remember') === 'on' || payload.remember === 'on';
 
-  if (!canAttemptLogin()) {
+  if (!isRegister && !canAttemptLogin()) {
     setAuthMessage('Terlalu banyak percobaan login. Tunggu beberapa menit lalu coba lagi.', 'error');
     showPopup('Terlalu banyak percobaan login. Tunggu beberapa menit lalu coba lagi.', 'Terlalu banyak', 'error');
     resetButton();
     return;
   }
 
-  // Cegah listener onAuthStateChanged ikut campur selama proses daftar/login berjalan.
   window.__marketplaceAuthBusy = true;
   try {
     if (isRegister) {
@@ -2443,6 +2540,12 @@ async function handleAuthSubmit(event) {
       const email = String(payload.email || '').trim().toLowerCase();
       if (email === ADMIN_ACCOUNT_EMAIL) {
         throw Object.assign(new Error('Email ini tidak dapat dipakai untuk akun pembeli.'), { code: 'reserved-email' });
+      }
+
+      // Tolak email asal-asalan SEBELUM akun dibuat.
+      const emailCheck = await checkEmailDeliverable(email);
+      if (!emailCheck.ok) {
+        throw Object.assign(new Error(emailCheck.message), { code: 'invalid-email-domain' });
       }
 
       const cred = await createUserWithEmailAndPassword(auth, email, String(payload.password || ''));
@@ -2461,27 +2564,26 @@ async function handleAuthSubmit(event) {
 
       await setDoc(doc(db, 'marketplace_users', cred.user.uid), newUser);
 
-      // Kirim email verifikasi. Akun baru bisa dipakai setelah link di email diklik.
-           let mailSent = true;
-let mailErrorText = '';
-try {
-  await callMarketplaceApi('send-verification');
-} catch (serverMailError) {
-  mailSent = false;
-  mailErrorText = `${serverMailError?.code || 'unknown'}: ${serverMailError?.message || ''}`;
-  console.error('[marketplace] email verifikasi gagal:', serverMailError);
-}
+      let mailSent = true;
+      let mailErrorText = '';
+      try {
+        await callMarketplaceApi('send-verification');
+      } catch (serverMailError) {
+        mailSent = false;
+        mailErrorText = `${serverMailError?.code || 'unknown'}: ${serverMailError?.message || ''}`;
+        console.error('[marketplace] email verifikasi gagal:', serverMailError);
+      }
 
       await signOut(auth);
       clearCurrentUser();
 
       const doneMessage = mailSent
-  ? `Akun dibuat. Kami mengirim link verifikasi ke ${email}. Klik link itu (cek juga folder Spam), lalu masuk.`
-  : `Akun dibuat, tetapi email verifikasi gagal terkirim (${mailErrorText}). Buka halaman Masuk lalu klik "Kirim ulang email verifikasi".`;
+        ? `Akun dibuat. Link verifikasi dikirim ke ${email}. Jika tidak ada di Kotak Masuk, buka folder Spam lalu tekan "Bukan spam" dan klik linknya. Setelah itu silakan masuk.`
+        : `Akun dibuat, tetapi email verifikasi gagal terkirim (${mailErrorText}). Buka halaman Masuk lalu klik "Kirim ulang email verifikasi".`;
       setAuthMessage(doneMessage, mailSent ? 'info' : 'error');
       showPopup(doneMessage, mailSent ? 'Cek email Anda' : 'Verifikasi belum terkirim', mailSent ? 'success' : 'error');
       if (submitButton) submitButton.textContent = 'Akun dibuat';
-      setTimeout(() => { window.location.href = 'login.html'; }, 4000);
+      setTimeout(() => { window.location.href = 'login.html'; }, 6000);
       return;
     }
 
@@ -2491,7 +2593,7 @@ try {
     if (!cred.user.emailVerified) {
       await signOut(auth);
       clearCurrentUser();
-      const message = 'Email belum diverifikasi. Buka email Anda dan klik link verifikasi, atau klik "Kirim ulang email verifikasi".';
+      const message = 'Email belum diverifikasi. Cek Kotak Masuk dan folder Spam, atau klik "Kirim ulang email verifikasi". Anda juga bisa masuk dengan Google.';
       setAuthMessage(message, 'error');
       showPopup(message, 'Email belum terverifikasi', 'error');
       resetButton();
@@ -2523,6 +2625,8 @@ try {
 
     if (errorText.includes('invalid-credential') || errorText.includes('wrong-password') || errorText.includes('user-not-found')) {
       userMessage = 'Email atau password salah. Pastikan akun sudah dibuat dan password benar.';
+    } else if (errorText.includes('invalid-email-domain')) {
+      userMessage = rawMessage;
     } else if (errorText.includes('invalid-email')) {
       userMessage = 'Format email tidak valid.';
     } else if (errorText.includes('email-already-in-use')) {
@@ -2636,6 +2740,11 @@ async function bindAuthPage() {
   const resendBtn = document.querySelector('[data-resend-verification]');
   if (resendBtn) {
     resendBtn.addEventListener('click', handleResendVerification);
+  }
+
+    const googleBtn = document.querySelector('[data-google-auth]');
+  if (googleBtn) {
+    googleBtn.addEventListener('click', handleGoogleAuth);
   }
 
   const savedUser = currentUser();

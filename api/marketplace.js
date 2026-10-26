@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
+import dns from 'dns/promises';
 import { getAdminAuth, getAdminDb } from './lib/firebase-admin.js';
 import { FieldValue } from 'firebase-admin/firestore';
 import { applyMarketplacePayment, reconcilePaidOrdersStock, releaseExpiredReservations, releaseOrderStock, sendEmail, syncPaidOrdersCart } from './lib/marketplace-orders.js';
@@ -886,6 +887,100 @@ function readVerifyToken(token) {
   }
 }
 
+/* =========================================================================
+ * CEK EMAIL (publik): format + MX domain + email sekali pakai + saran salah ketik
+ * Gratis, tanpa API pihak ketiga. Hanya membuktikan DOMAIN bisa menerima email,
+ * bukan bahwa mailbox-nya ada. Verifikasi link tetap jadi bukti akhir.
+ * ========================================================================= */
+const EMAIL_FORMAT_RE = /^[A-Za-z0-9._%+\-]{1,64}@[A-Za-z0-9.\-]{1,253}\.[A-Za-z]{2,}$/;
+
+const DISPOSABLE_DOMAINS = new Set([
+  'mailinator.com', 'guerrillamail.com', 'guerrillamail.net', 'guerrillamail.org', 'sharklasers.com',
+  '10minutemail.com', '10minutemail.net', 'tempmail.com', 'temp-mail.org', 'temp-mail.io',
+  'tempmailo.com', 'tempail.com', 'throwawaymail.com', 'yopmail.com', 'yopmail.net', 'yopmail.fr',
+  'trashmail.com', 'trashmail.net', 'getnada.com', 'nada.email', 'maildrop.cc', 'dispostable.com',
+  'fakeinbox.com', 'mintemail.com', 'mohmal.com', 'emailondeck.com', 'burnermail.io', 'moakt.com',
+  'mailnesia.com', 'spamgourmet.com', 'mytemp.email', 'tmpmail.org', 'tmpmail.net', 'discard.email',
+  'inboxkitten.com', 'mail.tm', 'tempinbox.com', 'mailcatch.com', 'spambox.us', 'grr.la',
+  'harakirimail.com', 'luxusmail.org', 'mail7.io', 'emailfake.com', 'fakemail.net', 'tempr.email',
+  'fexpost.com', 'dropmail.me', '1secmail.com', '1secmail.net', 'wegwerfmail.de', 'cs.email'
+]);
+
+const DOMAIN_TYPO_FIXES = {
+  'gmial.com': 'gmail.com', 'gmai.com': 'gmail.com', 'gmail.co': 'gmail.com', 'gmail.con': 'gmail.com',
+  'gmal.com': 'gmail.com', 'gamil.com': 'gmail.com', 'gnail.com': 'gmail.com', 'gmail.cm': 'gmail.com',
+  'gmaill.com': 'gmail.com', 'yahooo.com': 'yahoo.com', 'yaho.com': 'yahoo.com', 'yahoo.co': 'yahoo.com',
+  'yahoo.con': 'yahoo.com', 'hotmial.com': 'hotmail.com', 'hotmal.com': 'hotmail.com',
+  'outlok.com': 'outlook.com', 'outloook.com': 'outlook.com'
+};
+
+const emailCheckHits = new Map(); // best-effort per instance serverless
+function tooManyEmailChecks(ip) {
+  const now = Date.now();
+  const windowMs = 10 * 60 * 1000;
+  const hits = (emailCheckHits.get(ip) || []).filter((time) => now - time < windowMs);
+  hits.push(now);
+  emailCheckHits.set(ip, hits);
+  if (emailCheckHits.size > 3000) {
+    for (const [key, list] of emailCheckHits) {
+      if (!list.some((time) => now - time < windowMs)) emailCheckHits.delete(key);
+    }
+  }
+  return hits.length > 30;
+}
+
+function withDnsTimeout(promise, ms = 4000) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(Object.assign(new Error('dns-timeout'), { code: 'ETIMEOUT' })), ms))
+  ]);
+}
+
+// 'ok' = domain bisa menerima email, 'no' = pasti tidak bisa, 'unknown' = DNS bermasalah (jangan menolak).
+async function domainMailStatus(domain) {
+  try {
+    const records = await withDnsTimeout(dns.resolveMx(domain));
+    const usable = records.some((record) => record.exchange && record.exchange !== '.');
+    return usable ? 'ok' : 'no';
+  } catch (error) {
+    if (error.code === 'ENOTFOUND' || error.code === 'ENODATA') {
+      try {
+        const addresses = await withDnsTimeout(dns.resolve4(domain));
+        return addresses.length ? 'ok' : 'no';
+      } catch (fallbackError) {
+        return fallbackError.code === 'ENOTFOUND' || fallbackError.code === 'ENODATA' ? 'no' : 'unknown';
+      }
+    }
+    return 'unknown';
+  }
+}
+
+async function checkEmail(req, res) {
+  if (tooManyEmailChecks(getClientIp(req))) {
+    return res.status(200).json({ success: true, valid: true, reason: 'rate-limited' }); // fail-open
+  }
+
+  const email = String(req.body?.email || '').trim().toLowerCase();
+  if (!EMAIL_FORMAT_RE.test(email) || email.length > 254 || email.includes('..')) {
+    return res.status(200).json({ success: true, valid: false, reason: 'format', message: 'Format email tidak valid.' });
+  }
+
+  const domain = email.split('@')[1];
+  if (DOMAIN_TYPO_FIXES[domain]) {
+    const suggestion = `${email.split('@')[0]}@${DOMAIN_TYPO_FIXES[domain]}`;
+    return res.status(200).json({ success: true, valid: false, reason: 'typo', suggestion, message: `Apakah maksud Anda ${suggestion}?` });
+  }
+  if (DISPOSABLE_DOMAINS.has(domain)) {
+    return res.status(200).json({ success: true, valid: false, reason: 'disposable', message: 'Email sementara (disposable) tidak diperbolehkan. Gunakan email aktif Anda.' });
+  }
+
+  const status = await domainMailStatus(domain);
+  if (status === 'no') {
+    return res.status(200).json({ success: true, valid: false, reason: 'no-mx', message: `Domain "${domain}" tidak dapat menerima email. Periksa penulisan email Anda.` });
+  }
+  return res.status(200).json({ success: true, valid: true, reason: status });
+}
+
 async function sendVerification(req, res) {
   const token = readBearerToken(req);
   if (!token) return responseError(res, 401, 'unauthenticated', 'Silakan masuk kembali.');
@@ -918,19 +1013,19 @@ async function sendVerification(req, res) {
     const baseUrl = isLocalHost ? `http://${host}` : getSiteUrl();
     const link = `${baseUrl}/api/marketplace?action=verify-email&token=${encodeURIComponent(createVerifyToken(claims.uid, email))}`;
 
-    const name = cleanText(claims.name || profileSnap.data()?.name || '', 80) || 'Pembeli';
+        const name = cleanText(claims.name || profileSnap.data()?.name || '', 80) || 'Pembeli';
     await sendEmail({
       to: email,
-      subject: 'Verifikasi email akun Marketplace Mantan',
+      subject: 'Konfirmasi pendaftaran akun Marketplace Mantan',
       html: `
-      <div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;padding:24px;border:1px solid #eee;border-radius:16px">
-        <h2 style="margin-top:0;color:#111827">Verifikasi email Anda</h2>
-        <p style="color:#374151">Halo ${escapeMailHtml(name)}, terima kasih sudah mendaftar di Marketplace Mantan. Klik tombol di bawah untuk mengaktifkan akun Anda. Link berlaku 24 jam.</p>
-        <p style="margin:20px 0"><a href="${escapeMailHtml(link)}" style="background:#db2777;color:#fff;padding:12px 18px;border-radius:10px;text-decoration:none;font-weight:600">Verifikasi email</a></p>
-        <p style="font-size:12px;color:#64748b">Jika tombol tidak berfungsi, salin link ini ke browser:<br>${escapeMailHtml(link)}</p>
-        <p style="font-size:12px;color:#64748b">Jika Anda tidak merasa mendaftar, abaikan email ini.</p>
+      <div style="font-family:Arial,sans-serif;max-width:520px;margin:auto;padding:20px;color:#111827;line-height:1.6">
+        <p>Halo ${escapeMailHtml(name)},</p>
+        <p>Anda (atau seseorang) mendaftar akun di Marketplace Mantan memakai alamat email ini. Untuk menyelesaikan pendaftaran, buka tautan berikut:</p>
+        <p><a href="${escapeMailHtml(link)}">Konfirmasi email saya</a></p>
+        <p>Tautan berlaku 24 jam. Jika Anda tidak merasa mendaftar, abaikan email ini dan tidak ada yang berubah.</p>
+        <p>Salam,<br>Marketplace Mantan</p>
       </div>`,
-      text: `Halo ${name},\n\nBuka link berikut untuk memverifikasi email Anda (berlaku 24 jam):\n${link}\n\nJika Anda tidak merasa mendaftar, abaikan email ini.`
+      text: `Halo ${name},\n\nAnda (atau seseorang) mendaftar akun di Marketplace Mantan memakai alamat email ini. Untuk menyelesaikan pendaftaran, buka tautan berikut:\n\n${link}\n\nTautan berlaku 24 jam. Jika Anda tidak merasa mendaftar, abaikan email ini dan tidak ada yang berubah.\n\nSalam,\nMarketplace Mantan`
     });
     await profileRef.set({ verificationSentAt: Date.now() }, { merge: true });
     return res.status(200).json({ success: true, sent: true });
@@ -982,6 +1077,15 @@ export default async function handler(req, res) {
     } catch (error) {
       console.error('[marketplace] gagal mencatat view produk:', { code: error.code || 'unknown', message: error.message });
       return responseError(res, 500, error.code || 'view-failed', 'Jumlah dilihat gagal dicatat.');
+    }
+  }
+
+    if (action === 'check-email') {
+    try {
+      return await checkEmail(req, res);
+    } catch (error) {
+      console.error('[marketplace] check-email gagal:', error.message);
+      return res.status(200).json({ success: true, valid: true, reason: 'check-failed' }); // fail-open
     }
   }
 

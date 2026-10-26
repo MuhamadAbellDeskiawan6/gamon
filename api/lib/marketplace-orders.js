@@ -30,7 +30,7 @@ function toMillis(value) {
 }
 
 /* =========================================================================
- * EMAIL NOTIFIKASI ADMIN (Resend, gratis)
+ * EMAIL (Resend + Gmail SMTP)
  * ========================================================================= */
 
 // Di production (Vercel) variabel dibaca dari environment. Saat development lokal,
@@ -104,11 +104,16 @@ export async function sendEmail({ to, subject, html, text }) {
   };
 
   const viaGmail = async () => {
+    // Timeout supaya fungsi serverless tidak menggantung bila Gmail lambat.
     const transporter = nodemailer.createTransport({
       service: 'gmail',
-      auth: { user: DEFAULT_ADMIN_EMAIL, pass: gmailPass }
+      auth: { user: DEFAULT_ADMIN_EMAIL, pass: gmailPass },
+      connectionTimeout: 8000,
+      greetingTimeout: 8000,
+      socketTimeout: 10000
     });
     await transporter.sendMail({
+      // Harus sama dengan akun Gmail yang login SMTP agar SPF/DKIM Google lolos.
       from: `"Marketplace Mantan" <${DEFAULT_ADMIN_EMAIL}>`,
       to: recipient,
       subject,
@@ -215,14 +220,13 @@ function buildAdminEmail(order, siteUrl) {
 /**
  * Kirim email ke admin untuk pesanan yang sudah dibayar. Maksimal SATU email per pesanan
  * (flag `adminEmailSent`). Tidak pernah melempar error: kegagalan email tidak boleh
- * menggagalkan pembayaran/stok.
+ * menggagalkan pembayaran/stok. Pengiriman memakai sendEmail (Resend atau Gmail).
  */
 async function notifyAdminNewOrder(orderId) {
   try {
-    const apiKey = readEnv('RESEND_API_KEY');
-    if (!apiKey) {
-      console.warn('[marketplace] RESEND_API_KEY belum diatur; email notifikasi admin dilewati.');
-      return { sent: false, reason: 'no-api-key' };
+    if (!readEnv('RESEND_API_KEY') && !readEnv('GMAIL_APP_PASSWORD')) {
+      console.warn('[marketplace] email belum dikonfigurasi (RESEND_API_KEY / GMAIL_APP_PASSWORD); notifikasi admin dilewati.');
+      return { sent: false, reason: 'no-mail-config' };
     }
 
     const db = getAdminDb();
@@ -243,34 +247,20 @@ async function notifyAdminNewOrder(orderId) {
     if (!order) return { sent: false, reason: 'already-sent-or-not-paid' };
 
     const adminEmail = readEnv('ADMIN_NOTIFY_EMAIL') || DEFAULT_ADMIN_EMAIL;
-    const from = readEnv('MAIL_FROM') || DEFAULT_MAIL_FROM;
     let siteUrl = readEnv('SITE_URL').replace(/\/$/, '');
     if (!/^https:\/\//i.test(siteUrl)) siteUrl = DEFAULT_SITE_URL;
 
     const email = buildAdminEmail(order, siteUrl);
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 10000);
 
     try {
-      const response = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ from, to: [adminEmail], subject: email.subject, html: email.html, text: email.text }),
-        signal: controller.signal
-      });
-      if (!response.ok) {
-        const detail = (await response.text()).slice(0, 500);
-        throw new Error(`Resend ${response.status}: ${detail}`);
-      }
+      const result = await sendEmail({ to: adminEmail, subject: email.subject, html: email.html, text: email.text });
       await orderRef.update({ adminEmailSent: true, adminEmailSentAt: Date.now(), adminEmailError: '' });
-      console.log('[marketplace] email notifikasi admin terkirim:', orderId);
+      console.log('[marketplace] email notifikasi admin terkirim via', result.provider, orderId);
       return { sent: true };
     } catch (error) {
       console.error('[marketplace] gagal kirim email admin:', orderId, error.message);
       await orderRef.update({ adminEmailError: String(error.message || '').slice(0, 500), adminEmailClaimAt: 0 }).catch(() => {});
       return { sent: false, reason: 'send-failed' };
-    } finally {
-      clearTimeout(timer);
     }
   } catch (error) {
     console.error('[marketplace] notifikasi admin error:', error.message);
