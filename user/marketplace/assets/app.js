@@ -1,5 +1,5 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut, sendPasswordResetEmail, sendEmailVerification } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut, sendPasswordResetEmail, } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 import { getFirestore, collection, doc, setDoc, getDoc, getDocs, query, where, orderBy, limit, onSnapshot, updateDoc, writeBatch, increment, deleteField, runTransaction } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
 
@@ -2462,26 +2462,22 @@ async function handleAuthSubmit(event) {
       await setDoc(doc(db, 'marketplace_users', cred.user.uid), newUser);
 
       // Kirim email verifikasi. Akun baru bisa dipakai setelah link di email diklik.
-            let mailSent = true;
-      try {
-        await callMarketplaceApi('send-verification');
-      } catch (serverMailError) {
-        console.warn('[marketplace] email verifikasi server gagal, memakai Firebase:', serverMailError);
-        try {
-          auth.languageCode = 'id';
-          await sendEmailVerification(cred.user);
-        } catch (mailError) {
-          mailSent = false;
-          console.error('[marketplace] gagal mengirim email verifikasi:', mailError);
-        }
-      }
+           let mailSent = true;
+let mailErrorText = '';
+try {
+  await callMarketplaceApi('send-verification');
+} catch (serverMailError) {
+  mailSent = false;
+  mailErrorText = `${serverMailError?.code || 'unknown'}: ${serverMailError?.message || ''}`;
+  console.error('[marketplace] email verifikasi gagal:', serverMailError);
+}
 
       await signOut(auth);
       clearCurrentUser();
 
       const doneMessage = mailSent
-        ? `Akun dibuat. Kami mengirim link verifikasi ke ${email}. Klik link itu (cek juga folder Spam), lalu masuk.`
-        : 'Akun dibuat, tetapi email verifikasi gagal terkirim. Buka halaman Masuk lalu klik "Kirim ulang email verifikasi".';
+  ? `Akun dibuat. Kami mengirim link verifikasi ke ${email}. Klik link itu (cek juga folder Spam), lalu masuk.`
+  : `Akun dibuat, tetapi email verifikasi gagal terkirim (${mailErrorText}). Buka halaman Masuk lalu klik "Kirim ulang email verifikasi".`;
       setAuthMessage(doneMessage, mailSent ? 'info' : 'error');
       showPopup(doneMessage, mailSent ? 'Cek email Anda' : 'Verifikasi belum terkirim', mailSent ? 'success' : 'error');
       if (submitButton) submitButton.textContent = 'Akun dibuat';
@@ -2571,14 +2567,7 @@ async function handleResendVerification(event) {
       return;
     }
 
-        try {
-      await callMarketplaceApi('send-verification');
-    } catch (serverMailError) {
-      if (serverMailError?.code === 'too-many-requests') throw serverMailError;
-      console.warn('[marketplace] email verifikasi server gagal, memakai Firebase:', serverMailError);
-      auth.languageCode = 'id';
-      await sendEmailVerification(cred.user);
-    }
+        await callMarketplaceApi('send-verification');
     await signOut(auth);
     clearCurrentUser();
     const message = `Link verifikasi dikirim ke ${email}. Cek inbox dan folder Spam.`;
@@ -2587,11 +2576,11 @@ async function handleResendVerification(event) {
   } catch (error) {
     console.error('[marketplace] kirim ulang verifikasi gagal:', error);
     const code = String(error?.code || '');
-    const message = code.includes('too-many-requests')
-      ? 'Terlalu banyak permintaan. Tunggu beberapa menit lalu coba lagi.'
-      : code.includes('invalid-credential') || code.includes('wrong-password') || code.includes('user-not-found')
-        ? 'Email atau password salah.'
-        : 'Email verifikasi gagal dikirim. Coba lagi nanti.';
+const message = code.includes('too-many-requests')
+  ? 'Terlalu banyak permintaan. Tunggu 30 detik lalu coba lagi.'
+  : code.includes('invalid-credential') || code.includes('wrong-password') || code.includes('user-not-found')
+    ? 'Email atau password salah.'
+    : `Email verifikasi gagal dikirim (${code || 'unknown'}): ${error?.message || ''}`;
     setAuthMessage(message, 'error');
     await signOut(auth).catch(() => {});
   } finally {
