@@ -1174,6 +1174,49 @@ function escapeMailHtml(value) {
     }[char]));
 }
 
+// Kirim email balasan chat ke pembeli.
+// Prioritas: Gmail SMTP (bisa ke alamat mana pun). Jika gagal/tidak dikonfigurasi, pakai sendEmail() lama.
+async function sendChatReplyEmail({ to, subject, html, text }) {
+    loadLocalEnvIfNeeded();
+    // App password Gmail sering disalin dengan spasi (xxxx xxxx xxxx xxxx); buang spasinya.
+    const gmailPassword = String(process.env.GMAIL_APP_PASSWORD || '').replace(/\s+/g, '');
+    let gmailError = null;
+
+    if (gmailPassword) {
+        try {
+            const transporter = nodemailer.createTransport({
+                service: 'gmail',
+                auth: { user: OWNER_EMAIL, pass: gmailPassword },
+            });
+            await transporter.sendMail({
+                from: `"Marketplace Mantan" <${OWNER_EMAIL}>`,
+                to,
+                replyTo: OWNER_EMAIL,
+                subject,
+                html,
+                text,
+            });
+            return { via: 'gmail' };
+        } catch (error) {
+            gmailError = error;
+            console.warn('[marketplace chat] Gmail SMTP gagal, mencoba sendEmail():', error.code || '', error.message);
+        }
+    }
+
+    try {
+        await sendEmail({ to, subject, html, text });
+        return { via: 'fallback' };
+    } catch (error) {
+        const combined = new Error(
+            gmailError
+                ? `Gmail: ${gmailError.message} | Cadangan: ${error.message}`
+                : error.message
+        );
+        combined.code = gmailError ? 'mail-gmail-failed' : (error.code || 'send-failed');
+        throw combined;
+    }
+}
+
 async function handleNotifyMarketplaceChatReply(req, res) {
     if (req.method !== 'POST') {
         return res.status(405).json({ success: false, message: 'Method Not Allowed' });
@@ -1181,6 +1224,8 @@ async function handleNotifyMarketplaceChatReply(req, res) {
 
     const authResult = await requireAdmin(req, res);
     if (!authResult) return;
+
+    loadLocalEnvIfNeeded();
 
     const threadId = String(req.body?.threadId || '').trim();
     const messageId = String(req.body?.messageId || '').trim();
@@ -1232,7 +1277,7 @@ async function handleNotifyMarketplaceChatReply(req, res) {
         const body = String(message.text || '').slice(0, 1000);
 
         try {
-            await sendEmail({
+            const result = await sendChatReplyEmail({
                 to: buyerEmail,
                 subject: '💬 Admin Marketplace Mantan membalas chat Anda',
                 html: `
@@ -1245,6 +1290,7 @@ async function handleNotifyMarketplaceChatReply(req, res) {
                 </div>`,
                 text: `Balasan dari admin Marketplace Mantan (${label}):\n\n${body}\n\nBuka chat: ${link}`
             });
+            console.log('[marketplace chat] email balasan terkirim via', result.via, 'ke', buyerEmail);
         } catch (mailError) {
             console.warn('[marketplace chat] email balasan gagal:', mailError.code || '', mailError.message);
             return res.status(200).json({
