@@ -348,8 +348,12 @@ async function createPendingOrder(claims) {
         conflicts.push({ productId, name: 'Produk tidak ditemukan', stock: 0, requested: qty });
         return;
       }
-      const product = snapshot.data() || {};
+           const product = snapshot.data() || {};
       const stock = Number.isInteger(Number(product.stock)) && Number(product.stock) >= 0 ? Number(product.stock) : 1;
+      if (product.active === false) {
+        conflicts.push({ productId, name: cleanText(product.name || 'Produk', 120), stock: 0, requested: qty, reason: 'Produk sedang tidak dijual' });
+        return;
+      }
       const unitPrice = Number(product.price);
       if (!Number.isSafeInteger(unitPrice) || unitPrice < 0) {
         conflicts.push({ productId, name: cleanText(product.name || 'Produk', 120), stock, requested: qty, reason: 'Harga produk tidak valid' });

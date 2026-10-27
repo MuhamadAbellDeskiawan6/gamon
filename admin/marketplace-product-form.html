@@ -31,6 +31,20 @@
 
       <form id="productForm" class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm" novalidate>
         <div class="grid gap-5 md:grid-cols-2">
+
+          <!-- STATUS JUAL -->
+          <div class="md:col-span-2 flex items-center justify-between gap-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+            <div>
+              <p class="text-sm font-semibold text-slate-800">Status jual: <span id="activeLabel" class="font-bold text-emerald-600">Aktif (dijual)</span></p>
+              <p class="mt-0.5 text-xs text-slate-500">Kalau dinonaktifkan, produk disembunyikan dari katalog dan tidak bisa dibeli, walaupun stok masih ada. Data produk tetap tersimpan.</p>
+            </div>
+            <label class="relative inline-flex cursor-pointer items-center">
+              <input id="activeInput" name="active" type="checkbox" checked class="peer sr-only" aria-label="Produk aktif dijual" />
+              <span class="h-6 w-11 rounded-full bg-slate-300 transition-colors peer-checked:bg-emerald-500 peer-focus-visible:ring-2 peer-focus-visible:ring-pink-300"></span>
+              <span class="absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform peer-checked:translate-x-5"></span>
+            </label>
+          </div>
+
           <label class="block">
             <span class="mb-1 block text-sm font-medium text-slate-700">Nama produk</span>
             <input name="name" required maxlength="120" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-pink-200" />
@@ -63,7 +77,7 @@
           <label class="block">
             <span class="mb-1 block text-sm font-medium text-slate-700">Stok</span>
             <input name="stock" type="number" min="0" step="1" required value="1" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-pink-200" />
-            <small class="mt-1 block text-slate-500">Status otomatis: <span data-stock-state class="font-semibold">Tersedia</span></small>
+            <small class="mt-1 block text-slate-500">Status stok otomatis: <span data-stock-state class="font-semibold">Tersedia</span></small>
           </label>
 
           <label class="block">
@@ -105,7 +119,11 @@
 
           <label class="block md:col-span-2">
             <span class="mb-1 block text-sm font-medium text-slate-700">Deskripsi</span>
-            <textarea name="description" rows="4" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-pink-200" placeholder="Jelaskan kondisi barang..."></textarea>
+            <textarea id="descriptionInput" name="description" rows="4" maxlength="1500" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-pink-200" placeholder="Jelaskan kondisi barang..."></textarea>
+            <small class="mt-1 flex justify-between text-slate-500">
+              <span>Di katalog, deskripsi panjang otomatis dipotong dan bisa dibuka lewat "Baca selengkapnya".</span>
+              <span id="descCount">0/1500</span>
+            </small>
           </label>
 
           <!-- FOTO -->
@@ -155,12 +173,32 @@
     const mapStatus = document.getElementById('mapStatus');
     const mapResults = document.getElementById('mapResults');
     const mapSearchInput = document.getElementById('mapSearchInput');
+    const activeInput = document.getElementById('activeInput');
+    const activeLabel = document.getElementById('activeLabel');
+    const descriptionInput = document.getElementById('descriptionInput');
+    const descCount = document.getElementById('descCount');
 
     let images = [];
     let isSaving = false;
     let isProcessing = false; // kunci saat foto sedang diproses
     let searchToken = 0;      // cegah hasil pencarian lama menimpa yang baru
     const touched = { city: false, address: false };
+
+    /* ---------- STATUS JUAL (aktif / nonaktif) ---------- */
+    function refreshActiveLabel() {
+      const on = activeInput.checked;
+      activeLabel.textContent = on ? 'Aktif (dijual)' : 'Nonaktif (disembunyikan)';
+      activeLabel.className = `font-bold ${on ? 'text-emerald-600' : 'text-slate-500'}`;
+    }
+    activeInput.addEventListener('change', refreshActiveLabel);
+    refreshActiveLabel();
+
+    /* ---------- DESKRIPSI ---------- */
+    function refreshDescCount() {
+      descCount.textContent = `${descriptionInput.value.length}/1500`;
+    }
+    descriptionInput.addEventListener('input', refreshDescCount);
+    refreshDescCount();
 
     /* ---------- STOK ---------- */
     function refreshStockLabel() {
@@ -419,6 +457,11 @@
         ['name', 'category', 'condition', 'description', 'city', 'address'].forEach((key) => setFieldValue(key, data[key]));
         if (data.city) touched.city = true;
         if (data.address) touched.address = true;
+        refreshDescCount();
+
+        // Produk lama tanpa field "active" dianggap aktif.
+        activeInput.checked = data.active !== false;
+        refreshActiveLabel();
 
         priceInput.value = formatPrice(data.price);
         stockInput.value = Number.isInteger(Number(data.stock)) && Number(data.stock) >= 0 ? Number(data.stock) : 1;
@@ -471,6 +514,7 @@
         condition: payload.condition,
         status: stock > 0 ? 'Tersedia' : 'Habis',
         stock,
+        active: activeInput.checked, // true = dijual, false = disembunyikan
         description: String(payload.description || '').trim(),
         city: city || address || 'Jakarta',
         address: address || city || 'Jakarta',

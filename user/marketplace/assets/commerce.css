@@ -236,3 +236,64 @@
     gap: 4px;
   }
 }
+
+/* ===== Truncation deskripsi ===== */
+
+/* Kartu produk di beli.html: maksimal 3 baris (2 baris di HP) */
+.product-body .product-desc {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  min-height: 4.8em; /* 3 baris x line-height 1.6 supaya tinggi kartu seragam */
+  font-size: 0.92rem;
+}
+
+@media (max-width: 640px) {
+  .product-body .product-desc {
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    min-height: 3.2em;
+  }
+}
+
+/* Halaman product.html: terpotong + tombol "Baca selengkapnya" */
+[data-detail-description] {
+  overflow-wrap: anywhere;
+  white-space: pre-line;
+}
+
+.desc-clamp {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: var(--desc-lines, 5);
+  line-clamp: var(--desc-lines, 5);
+  overflow: hidden;
+}
+
+.desc-clamp.is-expanded {
+  display: block;
+  -webkit-line-clamp: none;
+  line-clamp: none;
+  overflow: visible;
+}
+
+.desc-toggle {
+  display: inline-block;
+  margin-top: 8px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink, var(--primary-strong));
+  font: 700 0.9rem var(--f-b, inherit);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+@media (max-width: 640px) {
+  .desc-clamp { --desc-lines: 4; }
+}

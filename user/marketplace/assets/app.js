@@ -854,7 +854,8 @@ async function addProductToCart(productId, quantity = 1, openCart = false) {
     if (!userId) return;
     const productSnapshot = await getDoc(doc(db, 'marketplace_products', String(productId)));
     if (!productSnapshot.exists()) throw new Error('Produk sudah tidak tersedia.');
-    const product = productSnapshot.data();
+        const product = productSnapshot.data();
+    if (product.active === false) throw new Error('Produk ini sedang tidak dijual.');
     const stockValue = Number(product.stock);
     const stock = Number.isInteger(stockValue) && stockValue >= 0 ? stockValue : 1;
     if (!stock) throw new Error('Stok produk habis.');
@@ -1157,10 +1158,12 @@ function marketplaceLoadErrorMarkup() {
   `;
 }
 
-function normalizeMarketplaceProducts(items) {
+function normalizeMarketplaceProducts(items, { includeInactive = false } = {}) {
   return items.flatMap((item) => {
     try {
-      return [normalizeProduct(item)];
+      const product = normalizeProduct(item);
+      // Produk yang dinonaktifkan admin tidak tampil di beranda, katalog, dan dashboard.
+      return includeInactive || product.active ? [product] : [];
     } catch (error) {
       console.error('[marketplace] produk dilewati karena data tidak valid:', item?.id, error);
       return [];
@@ -1255,6 +1258,7 @@ function normalizeProduct(item) {
     status: stock > 0 ? 'Tersedia' : 'Habis',
     stock,
     sold,
+    active: item.active !== false, // produk lama tanpa field "active" dianggap aktif
     image: primaryImage || productEmoji(item.category),
     label: item.label || productLabel(item.category),
     city: item.city || item.address || 'Jakarta',
@@ -1274,6 +1278,36 @@ function normalizeProduct(item) {
     longitude: longitude,
     coordinates: latitude !== '' && longitude !== '' ? { lat: Number(latitude), lng: Number(longitude) } : null
   };
+}
+
+// Potong deskripsi panjang jadi beberapa baris + tombol "Baca selengkapnya".
+// Tombol hanya muncul kalau teks memang terpotong.
+function applyDescriptionClamp(el, lines = 5) {
+  if (!el) return;
+  const next = el.nextElementSibling;
+  if (next && next.matches('[data-desc-toggle]')) next.remove();
+  el.classList.remove('is-expanded');
+  el.classList.add('desc-clamp');
+  el.style.setProperty('--desc-lines', String(lines));
+
+  requestAnimationFrame(() => {
+    if (el.scrollHeight <= el.clientHeight + 1) {
+      el.classList.remove('desc-clamp');
+      return;
+    }
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'desc-toggle';
+    button.setAttribute('data-desc-toggle', '');
+    button.setAttribute('aria-expanded', 'false');
+    button.textContent = 'Baca selengkapnya';
+    button.addEventListener('click', () => {
+      const expanded = el.classList.toggle('is-expanded');
+      button.setAttribute('aria-expanded', String(expanded));
+      button.textContent = expanded ? 'Tampilkan lebih sedikit' : 'Baca selengkapnya';
+    });
+    el.insertAdjacentElement('afterend', button);
+  });
 }
 
 function normalizeUserIdentifier(value) {
@@ -1894,7 +1928,7 @@ async function refreshMarketplaceLandingMetrics() {
   try {
     const productsSnapshot = await getDocs(collection(db, 'marketplace_products'));
     const products = productsSnapshot.docs.map((docSnap) => docSnap.data());
-    const activeItems = products.filter((product) => Number(product?.stock ?? 1) > 0).length;
+        const activeItems = products.filter((product) => product?.active !== false && Number(product?.stock ?? 1) > 0).length;
     const soldItems = products.reduce((total, product) => total + Math.max(0, Number(product?.sold || 0)), 0);
 
     if (itemsEl) {
@@ -2169,7 +2203,8 @@ async function renderCartPage() {
         const snapshot = await getDoc(doc(db, 'marketplace_products', String(item.productId)));
         if (!snapshot.exists()) return { productId: String(item.productId), qty: Number(item.qty || 1), product: null, stock: 0 };
         const product = normalizeProduct({ id: snapshot.id, ...snapshot.data() });
-        return { productId: snapshot.id, qty: Number(item.qty || 1), product, stock: product.stock };
+                // Produk nonaktif diperlakukan seperti stok 0 (tidak bisa dibayar)
+        return { productId: snapshot.id, qty: Number(item.qty || 1), product, stock: product.active ? product.stock : 0 };
       } catch (error) {
         console.error('[marketplace] gagal memeriksa produk keranjang:', item.productId, error);
         return { productId: String(item.productId), qty: Number(item.qty || 1), product: null, stock: 0 };
@@ -2238,8 +2273,9 @@ async function renderCartPage() {
       const step = Number(event.target.closest('[data-cart-step]')?.dataset.cartStep || 0);
       if (!step) return;
       const productSnapshot = await getDoc(doc(db, 'marketplace_products', productId));
-      const rawStock = productSnapshot.exists() ? Number(productSnapshot.data().stock) : 0;
-      const stock = Number.isInteger(rawStock) && rawStock >= 0 ? rawStock : (productSnapshot.exists() ? 1 : 0);
+            const rawStock = productSnapshot.exists() ? Number(productSnapshot.data().stock) : 0;
+      const isActive = productSnapshot.exists() && productSnapshot.data().active !== false;
+      const stock = !isActive ? 0 : (Number.isInteger(rawStock) && rawStock >= 0 ? rawStock : 1);
       if (stock <= 0) return;
       await updateCartItems(userId, (items) => {
         if (!items.some((item) => String(item.productId) === productId)) return null;
@@ -3522,7 +3558,7 @@ async function renderProductsForBuyer() {
               </div>
             </div>
             <h3>${escapeHtml(normalized.name)}</h3>
-            <p>${escapeHtml(normalized.description)}</p>
+                        <p class="product-desc" title="${escapeHtml(normalized.description)}">${escapeHtml(normalized.description)}</p>
             <div class="seller-row">
               <span>${escapeHtml(normalized.city)}</span>
               <span>Marketplace Mantan</span>
@@ -4211,7 +4247,10 @@ async function renderProductDetail() {
     return;
   }
 
-  const normalized = normalizeProduct(product);
+    const normalized = normalizeProduct(product);
+  const isInactive = !normalized.active;
+  // Produk nonaktif: halaman tetap bisa dibuka (link lama), tapi tidak bisa dibeli.
+  if (isInactive) normalized.stock = 0;
   renderProductGallery(normalized.images || [normalized.imageUrl || normalized.image], normalized.name);
 
   const detailImage = document.querySelector('[data-detail-image]');
@@ -4227,15 +4266,18 @@ async function renderProductDetail() {
   if (detailCondition) detailCondition.textContent = normalized.condition;
 
   const detailStatus = document.querySelector('[data-detail-status]');
-  if (detailStatus) detailStatus.textContent = normalized.stock > 0 ? 'Tersedia' : 'Terjual/Habis';
+  if (detailStatus) detailStatus.textContent = isInactive ? 'Tidak dijual' : normalized.stock > 0 ? 'Tersedia' : 'Terjual/Habis';
   const detailStock = document.querySelector('[data-detail-stock]');
-  if (detailStock) detailStock.textContent = normalized.stock > 0 ? `Stok: ${normalized.stock}` : 'Stok habis';
+  if (detailStock) detailStock.textContent = isInactive ? 'Tidak dijual' : normalized.stock > 0 ? `Stok: ${normalized.stock}` : 'Stok habis';
 
   const detailName = document.querySelector('[data-detail-name]');
   if (detailName) detailName.textContent = normalized.name;
 
   const detailDescription = document.querySelector('[data-detail-description]');
-  if (detailDescription) detailDescription.textContent = normalized.description;
+  if (detailDescription) {
+    detailDescription.textContent = normalized.description;
+    applyDescriptionClamp(detailDescription, 5);
+  }
 
   const detailCategory = document.querySelector('[data-detail-category]');
   if (detailCategory) detailCategory.textContent = normalized.label;
@@ -4309,7 +4351,7 @@ async function renderProductDetail() {
   [addButton, buyButton].forEach((button) => {
     if (!button) return;
     button.disabled = normalized.stock <= 0;
-    if (normalized.stock <= 0) button.textContent = 'Stok habis';
+    if (normalized.stock <= 0) button.textContent = isInactive ? 'Tidak dijual' : 'Stok habis';
     button.addEventListener('click', () => {
       if (normalized.stock <= 0) return;
       if (!currentUser()) {
