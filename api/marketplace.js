@@ -1017,19 +1017,30 @@ async function sendVerification(req, res) {
     const baseUrl = isLocalHost ? `http://${host}` : getSiteUrl();
     const link = `${baseUrl}/api/marketplace?action=verify-email&token=${encodeURIComponent(createVerifyToken(claims.uid, email))}`;
 
-        const name = cleanText(claims.name || profileSnap.data()?.name || '', 80) || 'Pembeli';
+            const safeLink = escapeMailHtml(link);
     await sendEmail({
       to: email,
-      subject: 'Konfirmasi pendaftaran akun Marketplace Mantan',
+      subject: 'Verifikasi email akun Marketplace Mantan',
       html: `
-      <div style="font-family:Arial,sans-serif;max-width:520px;margin:auto;padding:20px;color:#111827;line-height:1.6">
+      <div style="font-family:Arial,Helvetica,sans-serif;max-width:520px;margin:auto;padding:28px;color:#111827;line-height:1.6;border:1px solid #eee;border-radius:16px">
+        <h2 style="margin:0 0 12px;color:#2a1f3d">Verifikasi email Anda</h2>
         <p>Halo ${escapeMailHtml(name)},</p>
-        <p>Anda (atau seseorang) mendaftar akun di Marketplace Mantan memakai alamat email ini. Untuk menyelesaikan pendaftaran, buka tautan berikut:</p>
-        <p><a href="${escapeMailHtml(link)}">Konfirmasi email saya</a></p>
-        <p>Tautan berlaku 24 jam. Jika Anda tidak merasa mendaftar, abaikan email ini dan tidak ada yang berubah.</p>
-        <p>Salam,<br>Marketplace Mantan</p>
+        <p>Terima kasih sudah mendaftar di Marketplace Mantan. Klik tombol di bawah untuk mengaktifkan akun Anda.</p>
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:24px 0">
+          <tr>
+            <td align="center" bgcolor="#ec4f86" style="border-radius:10px">
+              <a href="${safeLink}" target="_blank"
+                 style="display:inline-block;padding:14px 30px;font-size:16px;font-weight:bold;color:#ffffff;text-decoration:none;border-radius:10px">
+                Verifikasi Email
+              </a>
+            </td>
+          </tr>
+        </table>
+        <p style="font-size:13px;color:#6b6078">Jika tombol tidak bisa diklik, salin dan tempel link berikut ke browser:</p>
+        <p style="font-size:12px;word-break:break-all;color:#374151">${safeLink}</p>
+        <p style="font-size:13px;color:#6b6078">Link berlaku 24 jam. Jika Anda tidak merasa mendaftar, abaikan email ini.</p>
       </div>`,
-      text: `Halo ${name},\n\nAnda (atau seseorang) mendaftar akun di Marketplace Mantan memakai alamat email ini. Untuk menyelesaikan pendaftaran, buka tautan berikut:\n\n${link}\n\nTautan berlaku 24 jam. Jika Anda tidak merasa mendaftar, abaikan email ini dan tidak ada yang berubah.\n\nSalam,\nMarketplace Mantan`
+      text: `Halo ${name},\n\nKlik link berikut untuk memverifikasi email Anda:\n\n${link}\n\nLink berlaku 24 jam. Jika Anda tidak merasa mendaftar, abaikan email ini.\n\nMarketplace Mantan`
     });
     await profileRef.set({ verificationSentAt: Date.now() }, { merge: true });
     return res.status(200).json({ success: true, sent: true });
