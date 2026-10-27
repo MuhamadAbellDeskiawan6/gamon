@@ -1017,7 +1017,8 @@ async function sendVerification(req, res) {
     const baseUrl = isLocalHost ? `http://${host}` : getSiteUrl();
     const link = `${baseUrl}/api/marketplace?action=verify-email&token=${encodeURIComponent(createVerifyToken(claims.uid, email))}`;
 
-            const safeLink = escapeMailHtml(link);
+             const name = cleanText(claims.name || profileSnap.data()?.name || '', 80) || 'Pembeli';
+    const safeLink = escapeMailHtml(link);
     await sendEmail({
       to: email,
       subject: 'Verifikasi email akun Marketplace Mantan',
