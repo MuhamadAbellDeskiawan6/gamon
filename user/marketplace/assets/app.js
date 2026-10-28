@@ -29,6 +29,185 @@ const productSeed = [];
 
 const demoUsers = [];
 
+/* =========================================================================
+ * WILAYAH LAYANAN: KALIMANTAN SELATAN
+ * Struktur: Kota/Kabupaten -> Kecamatan -> [Kelurahan/Desa]
+ * Array kosong [] = daftar desa belum diisi, user akan mengetik manual.
+ * Untuk menambah desa, cukup isi array kecamatan yang bersangkutan.
+ * ========================================================================= */
+const KALSEL_PROVINCE = 'Kalimantan Selatan';
+const VILLAGE_MANUAL_VALUE = '__manual__';
+
+const KALSEL_REGIONS = {
+  'Kota Banjarmasin': {
+    'Banjarmasin Selatan': ['Basirih Selatan', 'Kelayan Barat', 'Kelayan Dalam', 'Kelayan Selatan', 'Kelayan Tengah', 'Kelayan Timur', 'Mantuil', 'Murung Raya', 'Pekauman', 'Pemurus Baru', 'Pemurus Dalam', 'Pemurus Luar'],
+    'Banjarmasin Timur': ['Banua Anyar', 'Karang Mekar', 'Kebun Bunga', 'Kuripan', 'Pekapuran Raya', 'Pengambangan', 'Sungai Bilu', 'Sungai Lulut', 'Tanjung Pagar'],
+    'Banjarmasin Barat': ['Basirih', 'Belitung Darat', 'Belitung Utara', 'Kuin Cerucuk', 'Kuin Selatan', 'Pelambuan', 'Telaga Biru', 'Teluk Tiram'],
+    'Banjarmasin Tengah': ['Antasan Besar', 'Gadang', 'Kertak Baru Ilir', 'Kertak Baru Ulu', 'Mawar', 'Melayu', 'Pasar Lama', 'Pekapuran Laut', 'Seberang Mesjid', 'Sungai Baru', 'Teluk Dalam'],
+    'Banjarmasin Utara': ['Alalak Selatan', 'Alalak Tengah', 'Alalak Utara', 'Antasan Kecil Timur', 'Kuin Utara', 'Pangeran', 'Sungai Andai', 'Sungai Jingah', 'Sungai Miai', 'Surgi Mufti']
+  },
+  'Kota Banjarbaru': {
+    'Banjarbaru Selatan': [],
+    'Banjarbaru Utara': [],
+    'Cempaka': [],
+    'Landasan Ulin': [],
+    'Liang Anggang': []
+  },
+  'Kabupaten Banjar': {
+    'Aluh-Aluh': [], 'Aranio': [], 'Astambul': [], 'Beruntung Baru': [], 'Cintapuri Darussalam': [],
+    'Gambut': [], 'Karang Intan': [], 'Kertak Hanyar': [], 'Martapura': [], 'Martapura Barat': [],
+    'Martapura Timur': [], 'Mataraman': [], 'Paramasan': [], 'Pengaron': [], 'Sambung Makmur': [],
+    'Simpang Empat': [], 'Sungai Pinang': [], 'Sungai Tabuk': [], 'Tatah Makmur': [], 'Telaga Bauntung': []
+  },
+  'Kabupaten Barito Kuala': {
+    'Alalak': [], 'Anjir Muara': [], 'Anjir Pasar': [], 'Bakumpai': [], 'Barambai': [], 'Belawang': [],
+    'Cerbon': [], 'Jejangkit': [], 'Kuripan': [], 'Mandastana': [], 'Marabahan': [], 'Mekarsari': [],
+    'Rantau Badauh': [], 'Tabukan': [], 'Tamban': [], 'Tabunganen': [], 'Wanaraya': []
+  },
+  'Kabupaten Tanah Laut': {
+    'Bajuin': [], 'Bati-Bati': [], 'Batu Ampar': [], 'Bumi Makmur': [], 'Jorong': [], 'Kintap': [],
+    'Kurau': [], 'Panyipatan': [], 'Pelaihari': [], 'Takisung': [], 'Tambang Ulang': []
+  },
+  'Kabupaten Tapin': {
+    'Bakarangan': [], 'Binuang': [], 'Bungur': [], 'Candi Laras Selatan': [], 'Candi Laras Utara': [],
+    'Hatungun': [], 'Lokpaikat': [], 'Piani': [], 'Salam Babaris': [], 'Tapin Selatan': [],
+    'Tapin Tengah': [], 'Tapin Utara': []
+  },
+  'Kabupaten Hulu Sungai Selatan': {
+    'Angkinang': [], 'Daha Barat': [], 'Daha Selatan': [], 'Daha Utara': [], 'Kalumpang': [],
+    'Kandangan': [], 'Loksado': [], 'Padang Batung': [], 'Simpur': [], 'Sungai Raya': [], 'Telaga Langsat': []
+  },
+  'Kabupaten Hulu Sungai Tengah': {
+    'Barabai': [], 'Batang Alai Selatan': [], 'Batang Alai Timur': [], 'Batang Alai Utara': [],
+    'Batu Benawa': [], 'Hantakan': [], 'Haruyan': [], 'Labuan Amas Selatan': [], 'Labuan Amas Utara': [],
+    'Limpasu': [], 'Pandawan': []
+  },
+  'Kabupaten Hulu Sungai Utara': {
+    'Amuntai Selatan': [], 'Amuntai Tengah': [], 'Amuntai Utara': [], 'Babirik': [], 'Banjang': [],
+    'Danau Panggang': [], 'Haur Gading': [], 'Paminggir': [], 'Sungai Pandan': [], 'Sungai Tabukan': []
+  },
+  'Kabupaten Tabalong': {
+    'Banua Lawas': [], 'Bintang Ara': [], 'Haruai': [], 'Jaro': [], 'Kelua': [], 'Muara Harus': [],
+    'Muara Uya': [], 'Murung Pudak': [], 'Pugaan': [], 'Tanjung': [], 'Tanta': [], 'Upau': []
+  },
+  'Kabupaten Tanah Bumbu': {
+    'Angsana': [], 'Batulicin': [], 'Karang Bintang': [], 'Kuranji': [], 'Kusan Hilir': [], 'Kusan Hulu': [],
+    'Mantewe': [], 'Satui': [], 'Simpang Empat': [], 'Sungai Loban': [], 'Teluk Kepayang': []
+  },
+  'Kabupaten Balangan': {
+    'Awayan': [], 'Batumandi': [], 'Halong': [], 'Juai': [], 'Lampihong': [], 'Paringin': [],
+    'Paringin Selatan': [], 'Tebing Tinggi': []
+  },
+  'Kabupaten Kotabaru': {
+    'Hampang': [], 'Kelumpang Barat': [], 'Kelumpang Hilir': [], 'Kelumpang Hulu': [], 'Kelumpang Selatan': [],
+    'Kelumpang Tengah': [], 'Kelumpang Utara': [], 'Pamukan Barat': [], 'Pamukan Selatan': [], 'Pamukan Utara': [],
+    'Pulau Laut Barat': [], 'Pulau Laut Kepulauan': [], 'Pulau Laut Selatan': [], 'Pulau Laut Tanjung Selayar': [],
+    'Pulau Laut Tengah': [], 'Pulau Laut Timur': [], 'Pulau Laut Utara': [], 'Pulau Sebuku': [],
+    'Pulau Sembilan': [], 'Sampanahan': [], 'Sungai Durian': []
+  }
+};
+
+function fillSelectOptions(select, items, placeholder, selectedValue = '') {
+  if (!select) return;
+  select.innerHTML = '';
+  const first = document.createElement('option');
+  first.value = '';
+  first.textContent = placeholder;
+  select.appendChild(first);
+  items.forEach((item) => {
+    const option = document.createElement('option');
+    option.value = item.value;
+    option.textContent = item.label;
+    select.appendChild(option);
+  });
+  select.value = items.some((item) => item.value === selectedValue) ? selectedValue : '';
+}
+
+// Menghubungkan dropdown Kota -> Kecamatan -> Kelurahan/Desa di dalam form.
+// Mengembalikan { getValues, isComplete } atau null jika elemen tidak ada.
+function bindKalselAddressSelects(form, saved = {}, onChange = () => {}) {
+  const citySelect = form.querySelector('[name="shippingCity"]');
+  const districtSelect = form.querySelector('[name="shippingDistrict"]');
+  const villageSelect = form.querySelector('[name="shippingVillage"]');
+  const villageManual = form.querySelector('[name="shippingVillageManual"]');
+  if (!citySelect || !districtSelect || !villageSelect) return null;
+
+  const toItems = (names) => names.map((name) => ({ value: name, label: name }));
+
+  const renderDistricts = (city, selectedDistrict = '') => {
+    const districts = Object.keys(KALSEL_REGIONS[city] || {});
+    fillSelectOptions(districtSelect, toItems(districts), 'Pilih kecamatan', selectedDistrict);
+    districtSelect.disabled = !districts.length;
+  };
+
+  const renderVillages = (city, district, selectedVillage = '') => {
+    const known = district && KALSEL_REGIONS[city] ? (KALSEL_REGIONS[city][district] || []) : [];
+
+    if (!district) {
+      fillSelectOptions(villageSelect, [], 'Pilih kelurahan/desa');
+      villageSelect.disabled = true;
+      if (villageManual) { villageManual.hidden = true; villageManual.value = ''; }
+      return;
+    }
+
+    const items = [...toItems(known), { value: VILLAGE_MANUAL_VALUE, label: 'Lainnya (ketik manual)' }];
+    let selected = '';
+    let manualText = '';
+    if (selectedVillage) {
+      if (known.includes(selectedVillage)) selected = selectedVillage;
+      else { selected = VILLAGE_MANUAL_VALUE; manualText = selectedVillage; }
+    } else if (!known.length) {
+      selected = VILLAGE_MANUAL_VALUE; // desa belum terdata: langsung tampilkan kolom ketik manual
+    }
+
+    fillSelectOptions(villageSelect, items, 'Pilih kelurahan/desa', selected);
+    villageSelect.disabled = false;
+    if (villageManual) {
+      villageManual.hidden = selected !== VILLAGE_MANUAL_VALUE;
+      villageManual.value = manualText;
+    }
+  };
+
+  const getValues = () => {
+    const manual = villageSelect.value === VILLAGE_MANUAL_VALUE;
+    return {
+      province: KALSEL_PROVINCE,
+      city: citySelect.value,
+      district: districtSelect.value,
+      village: manual ? String(villageManual?.value || '').trim() : villageSelect.value
+    };
+  };
+
+  const isComplete = () => {
+    const values = getValues();
+    return Boolean(values.city && values.district && values.village);
+  };
+
+  fillSelectOptions(citySelect, toItems(Object.keys(KALSEL_REGIONS)), 'Pilih kota/kabupaten', saved.city || '');
+  renderDistricts(citySelect.value, saved.district || '');
+  renderVillages(citySelect.value, districtSelect.value, saved.village || '');
+
+  citySelect.addEventListener('change', () => {
+    renderDistricts(citySelect.value);
+    renderVillages(citySelect.value, '');
+    onChange();
+  });
+  districtSelect.addEventListener('change', () => {
+    renderVillages(citySelect.value, districtSelect.value);
+    onChange();
+  });
+  villageSelect.addEventListener('change', () => {
+    if (villageManual) {
+      villageManual.hidden = villageSelect.value !== VILLAGE_MANUAL_VALUE;
+      if (villageManual.hidden) villageManual.value = '';
+    }
+    onChange();
+  });
+  villageManual?.addEventListener('input', onChange);
+
+  return { getValues, isComplete };
+}
+
 const moneyFormatter = new Intl.NumberFormat('id-ID', {
   style: 'currency',
   currency: 'IDR',
@@ -798,17 +977,22 @@ function getShippingAddressFromUser(user) {
   const address = {
     recipientName: String(shipping.recipientName || user?.name || ''),
     phone: String(shipping.phone || user?.phone || ''),
-    address: String(shipping.address || user?.address || user?.location || ''),
-    city: String(shipping.city || user?.city || ''),
-    province: String(shipping.province || ''),
+    address: String(shipping.address || user?.address || ''),
+    province: KALSEL_PROVINCE,
+    city: String(shipping.city || ''),
+    district: String(shipping.district || ''),
+    village: String(shipping.village || ''),
     postalCode: String(shipping.postalCode || ''),
     note: String(shipping.note || ''),
     latitude: validCoordinates ? latitude : null,
     longitude: validCoordinates ? longitude : null,
     mapsUrl: validCoordinates ? `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}` : ''
   };
-  address.complete = Boolean(address.recipientName.trim() && address.phone.trim() && address.address.trim() && validCoordinates);
+  const regionValid = Boolean(KALSEL_REGIONS[address.city] && address.district.trim() && address.village.trim());
+  address.complete = Boolean(address.recipientName.trim() && address.phone.trim() && address.address.trim() && regionValid && validCoordinates);
   address.outsideIndonesia = validCoordinates && (latitude < -11.2 || latitude > 6.2 || longitude < 95 || longitude > 141);
+  // Perkiraan kotak batas Kalimantan Selatan
+  address.outsideKalsel = validCoordinates && (latitude < -4.3 || latitude > -1.2 || longitude < 114.3 || longitude > 116.8);
   return address;
 }
 
@@ -2151,10 +2335,15 @@ async function renderCartPage() {
   const shipping = getShippingAddressFromUser(profile);
   const cartSummary = document.querySelector('[data-cart-shipping]');
   if (cartSummary) {
-    const completeness = shipping.complete ? 'Alamat siap untuk checkout.' : 'Alamat belum lengkap; isi nama penerima, HP, alamat, latitude, dan longitude di Profil.';
-    const warning = shipping.outsideIndonesia ? '<p class="commerce-warning">Koordinat berada di luar Indonesia; periksa kembali sebelum membayar.</p>' : '';
+        const completeness = shipping.complete ? 'Alamat siap untuk checkout.' : 'Alamat belum lengkap; isi nama penerima, HP, kota/kecamatan/kelurahan, alamat lengkap, dan titik peta di Profil.';
+    const warning = shipping.outsideKalsel
+      ? '<p class="commerce-warning">Titik peta berada di luar Kalimantan Selatan; layanan hanya untuk wilayah Kalsel. Periksa kembali sebelum membayar.</p>'
+      : shipping.outsideIndonesia
+        ? '<p class="commerce-warning">Koordinat berada di luar Indonesia; periksa kembali sebelum membayar.</p>'
+        : '';
+    const regionLine = [shipping.village && `Kel./Desa ${shipping.village}`, shipping.district && `Kec. ${shipping.district}`, shipping.city, shipping.province, shipping.postalCode].filter(Boolean).map(escapeHtml).join(', ');
     const map = shipping.complete ? `<iframe title="Preview alamat pengiriman" loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="https://maps.google.com/maps?q=${shipping.latitude},${shipping.longitude}&z=16&output=embed"></iframe><a href="${shipping.mapsUrl}" target="_blank" rel="noopener noreferrer">Lihat titik di Google Maps</a>` : '';
-    cartSummary.innerHTML = `<div class="commerce-section-heading"><div><h2>Alamat pengiriman</h2><p>${escapeHtml(completeness)}</p></div><a href="profil.html">Ubah alamat</a></div>${shipping.complete ? `<address>${escapeHtml(shipping.recipientName)} · ${escapeHtml(shipping.phone)}<br>${escapeHtml(shipping.address)}${shipping.city ? `, ${escapeHtml(shipping.city)}` : ''}${shipping.province ? `, ${escapeHtml(shipping.province)}` : ''}${shipping.postalCode ? ` ${escapeHtml(shipping.postalCode)}` : ''}${shipping.note ? `<br>Catatan: ${escapeHtml(shipping.note)}` : ''}</address><div class="commerce-map">${map}</div>` : ''}${warning}`;
+    cartSummary.innerHTML = `<div class="commerce-section-heading"><div><h2>Alamat pengiriman</h2><p>${escapeHtml(completeness)}</p></div><a href="profil.html">Ubah alamat</a></div>${shipping.complete ? `<address>${escapeHtml(shipping.recipientName)} · ${escapeHtml(shipping.phone)}<br>${escapeHtml(shipping.address)}<br>${regionLine}${shipping.note ? `<br>Catatan: ${escapeHtml(shipping.note)}` : ''}</address><div class="commerce-map">${map}</div>` : ''}${warning}`;
   }
 
   let renderSequence = 0;
@@ -3012,9 +3201,11 @@ async function renderOrdersForBuyer() {
     return ms ? new Date(ms).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' }) : 'Tanggal belum tersedia';
   };
 
-  const formatAddress = (shipping) => {
+    const formatAddress = (shipping) => {
     const parts = [
       escapeHtml(shipping.address || ''),
+      shipping.village ? `Kel./Desa ${escapeHtml(shipping.village)}` : '',
+      shipping.district ? `Kec. ${escapeHtml(shipping.district)}` : '',
       shipping.city ? escapeHtml(shipping.city) : '',
       shipping.province ? escapeHtml(shipping.province) : '',
       shipping.postalCode ? escapeHtml(shipping.postalCode) : ''
@@ -3622,7 +3813,6 @@ function renderProfile() {
   const emailField = document.querySelector('#email');
   const phoneField = document.querySelector('#phone');
   const bioField = document.querySelector('#bio');
-  const cityField = document.querySelector('#alamat');
   const shipping = user.shipping || {};
 
   if (nameField) nameField.value = user.name || '';
@@ -3630,14 +3820,12 @@ function renderProfile() {
   if (emailField) emailField.value = user.email || '';
   if (phoneField) phoneField.value = user.phone || '';
   if (bioField) bioField.value = user.bio || '';
-  if (cityField) cityField.value = user.city || user.address || user.location || '';
 
+  // Field teks alamat. Provinsi/kota/kecamatan/kelurahan ditangani dropdown di bawah.
   const shippingFields = {
     recipientName: document.querySelector('[name="shippingRecipientName"]'),
     phone: document.querySelector('[name="shippingPhone"]'),
     address: document.querySelector('[name="shippingAddress"]'),
-    city: document.querySelector('[name="shippingCity"]'),
-    province: document.querySelector('[name="shippingProvince"]'),
     postalCode: document.querySelector('[name="shippingPostalCode"]'),
     note: document.querySelector('[name="shippingNote"]'),
     latitude: document.querySelector('[name="shippingLatitude"]'),
@@ -3648,8 +3836,7 @@ function renderProfile() {
   });
   if (shippingFields.recipientName && !shippingFields.recipientName.value) shippingFields.recipientName.value = user.name || '';
   if (shippingFields.phone && !shippingFields.phone.value) shippingFields.phone.value = user.phone || '';
-  if (shippingFields.address && !shippingFields.address.value) shippingFields.address.value = user.address || user.location || '';
-  if (shippingFields.city && !shippingFields.city.value) shippingFields.city.value = user.city || '';
+  if (shippingFields.address && !shippingFields.address.value) shippingFields.address.value = user.address || '';
   if (shippingFields.latitude && !shippingFields.latitude.value && user.latitude !== undefined) shippingFields.latitude.value = user.latitude;
   if (shippingFields.longitude && !shippingFields.longitude.value && user.longitude !== undefined) shippingFields.longitude.value = user.longitude;
 
@@ -3709,14 +3896,11 @@ function renderProfile() {
 
       updateSelectedFileLabel(file);
 
-      // Preview only — this is NOT what gets saved. The actual compressed
-      // version is generated by uploadProfilePhoto() on submit.
+      // Hanya preview; versi terkompresi dibuat oleh uploadProfilePhoto() saat submit.
       const reader = new FileReader();
       reader.onload = (loadEvent) => {
         const result = String(loadEvent.target?.result || '');
-        if (result) {
-          syncProfilePhotoPreview(result);
-        }
+        if (result) syncProfilePhotoPreview(result);
       };
       reader.readAsDataURL(file);
     });
@@ -3731,11 +3915,6 @@ function renderProfile() {
   updateSelectedFileLabel(photoInput && photoInput.files && photoInput.files[0] ? photoInput.files[0] : null);
   syncProfilePhotoPreview(getUserPhotoUrl(user));
 
-  const locationButton = form.querySelector('[data-use-location]');
-  const locationStatus = form.querySelector('[data-location-status]');
-  const latField = form.querySelector('[name="latitude"]');
-  const lngField = form.querySelector('[name="longitude"]');
-  const mapPreview = form.querySelector('[data-location-map-preview]');
   const shippingMapPreview = form.querySelector('[data-shipping-map-preview]');
   const shippingMapLink = form.querySelector('[data-shipping-map-link]');
   const shippingMapsUrl = form.querySelector('#shippingMapsUrl');
@@ -3760,12 +3939,16 @@ function renderProfile() {
       : null;
   };
 
+  // Dideklarasikan lebih dulu agar bisa dipakai callback dropdown wilayah.
+  let addressPicker = null;
+
   const updateShippingPreview = () => {
     const coordinates = getShippingCoordinates();
     const addressComplete = Boolean(
       shippingFields.recipientName?.value.trim() &&
       shippingFields.phone?.value.trim() &&
       shippingFields.address?.value.trim() &&
+      addressPicker?.isComplete() &&
       coordinates
     );
 
@@ -3791,6 +3974,9 @@ function renderProfile() {
       shippingMapLink.textContent = 'Buka di Google Maps';
     }
   };
+
+  // Dropdown Kota/Kabupaten -> Kecamatan -> Kelurahan/Desa (khusus Kalimantan Selatan)
+  addressPicker = bindKalselAddressSelects(form, shipping, updateShippingPreview);
 
   const parseGoogleMapsCoordinates = (rawValue) => {
     let url;
@@ -3855,72 +4041,20 @@ function renderProfile() {
   });
   updateShippingPreview();
 
-  const updateLocationPreview = (lat, lng) => {
-    if (!mapPreview) return;
-    const latitude = Number(lat || 0);
-    const longitude = Number(lng || 0);
-    if (!latitude || !longitude) {
-      mapPreview.innerHTML = '<div class="map-placeholder">📍</div>';
-      return;
-    }
-
-    const mapUrl = `https://maps.google.com/maps?q=${latitude},${longitude}&z=14&output=embed`;
-    mapPreview.innerHTML = `<iframe title="Preview lokasi profil" loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="${mapUrl}"></iframe>`;
-  };
-
-  if (latField) latField.value = user.latitude || '';
-  if (lngField) lngField.value = user.longitude || '';
-  if (user.latitude && user.longitude) {
-    updateLocationPreview(user.latitude, user.longitude);
-  }
-
-  if (locationButton) {
-    locationButton.addEventListener('click', () => {
-      if (!navigator.geolocation) {
-        showPopup('Browser Anda tidak mendukung pembacaan lokasi otomatis.', 'Lokasi tidak tersedia', 'error');
-        if (locationStatus) locationStatus.textContent = 'Browser tidak mendukung';
-        return;
-      }
-
-      if (locationStatus) locationStatus.textContent = 'Mencari lokasi...';
-      locationButton.disabled = true;
-
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const latitude = Number(position.coords.latitude || 0);
-          const longitude = Number(position.coords.longitude || 0);
-
-          if (latField) latField.value = String(latitude.toFixed(6));
-          if (lngField) lngField.value = String(longitude.toFixed(6));
-          updateLocationPreview(latitude, longitude);
-
-          if (locationStatus) locationStatus.textContent = 'Lokasi berhasil dipakai';
-          showPopup('Lokasi Anda berhasil dipakai di profil.', 'Lokasi diperbarui', 'success');
-          locationButton.disabled = false;
-        },
-        (error) => {
-          console.warn('Geolocation error:', error);
-          if (locationStatus) locationStatus.textContent = 'Gagal mengambil lokasi';
-          showPopup('Tidak dapat mengambil lokasi otomatis. Silakan izinkan akses lokasi browser Anda.', 'Lokasi gagal', 'error');
-          locationButton.disabled = false;
-        },
-        {
-          enableHighAccuracy: true,
-          timeout: 15000,
-          maximumAge: 0
-        }
-      );
-    });
-  }
-
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
     const formData = new FormData(form);
     const file = photoInput && photoInput.files && photoInput.files[0] ? photoInput.files[0] : null;
     const userId = user.id || user.uid || auth.currentUser?.uid || '';
+    const region = addressPicker ? addressPicker.getValues() : { province: KALSEL_PROVINCE, city: '', district: '', village: '' };
 
-    // Start from the current canonical photo (single field) — never carry
-    // forward legacy duplicate fields (`photo`, `profilePhotoUrl`, `avatarUrl`).
+    // Kalau kelurahan dipilih "Lainnya", namanya wajib diketik.
+    if (region.city && region.district && !region.village) {
+      showPopup('Pilih kelurahan/desa, atau ketik namanya jika tidak ada di daftar.', 'Alamat belum lengkap', 'error');
+      return;
+    }
+
+    // Mulai dari foto kanonik saat ini (satu field), jangan bawa field foto lama.
     let photoUrl = getUserPhotoUrl(user) || '';
 
     if (submitButton) {
@@ -3933,9 +4067,17 @@ function renderProfile() {
         photoUrl = await uploadProfilePhoto(file);
       }
 
-      // Strip legacy photo-related keys out of the spread so they can never
-      // silently re-enter the saved object.
-            const { photo: _legacyPhoto, profilePhotoUrl: _legacyProfilePhotoUrl, avatarUrl: _legacyAvatarUrl, role: _legacyRole, ...restUser } = user;
+      const { photo: _legacyPhoto, profilePhotoUrl: _legacyProfilePhotoUrl, avatarUrl: _legacyAvatarUrl, role: _legacyRole, ...restUser } = user;
+
+      const street = shippingFields.address?.value.trim() || '';
+      const coordinates = getShippingCoordinates();
+      const fullLocation = [
+        street,
+        region.village && `Kel./Desa ${region.village}`,
+        region.district && `Kec. ${region.district}`,
+        region.city,
+        region.city ? region.province : ''
+      ].filter(Boolean).join(', ');
 
       const updatedUser = {
         ...restUser,
@@ -3944,36 +4086,33 @@ function renderProfile() {
         email: formData.get('email') || user.email,
         phone: formData.get('phone') || user.phone,
         bio: formData.get('bio') || user.bio,
-        city: shippingFields.city?.value.trim() || formData.get('alamat') || user.city || user.address || user.location,
-        address: shippingFields.address?.value.trim() || formData.get('alamat') || user.address || user.city || user.location,
-        location: shippingFields.address?.value.trim() || formData.get('alamat') || user.location || user.address || user.city,
-        latitude: formData.get('latitude') || user.latitude || '',
-        longitude: formData.get('longitude') || user.longitude || '',
+        city: region.city || '',
+        address: street,
+        location: fullLocation,
+        latitude: coordinates ? coordinates.latitude : (user.latitude || ''),
+        longitude: coordinates ? coordinates.longitude : (user.longitude || ''),
         shipping: {
           recipientName: shippingFields.recipientName?.value.trim() || '',
           phone: shippingFields.phone?.value.trim() || '',
-          address: shippingFields.address?.value.trim() || '',
-          city: shippingFields.city?.value.trim() || '',
-          province: shippingFields.province?.value.trim() || '',
+          address: street,
+          province: KALSEL_PROVINCE,
+          city: region.city,
+          district: region.district,
+          village: region.village,
           postalCode: shippingFields.postalCode?.value.trim() || '',
           note: shippingFields.note?.value.trim() || '',
-          latitude: getShippingCoordinates()?.latitude ?? '',
-          longitude: getShippingCoordinates()?.longitude ?? '',
-          mapsUrl: getShippingCoordinates()
-            ? `https://www.google.com/maps/search/?api=1&query=${getShippingCoordinates().latitude},${getShippingCoordinates().longitude}`
+          latitude: coordinates?.latitude ?? '',
+          longitude: coordinates?.longitude ?? '',
+          mapsUrl: coordinates
+            ? `https://www.google.com/maps/search/?api=1&query=${coordinates.latitude},${coordinates.longitude}`
             : '',
           updatedAt: Date.now()
         },
         photoUrl
       };
 
-      updatedUser.latitude = updatedUser.shipping.latitude !== '' ? updatedUser.shipping.latitude : updatedUser.latitude;
-      updatedUser.longitude = updatedUser.shipping.longitude !== '' ? updatedUser.shipping.longitude : updatedUser.longitude;
-
       if (userId) {
-        // Write the canonical field AND explicitly delete the old duplicate
-        // fields from Firestore itself (deleteField), so previously-bloated
-        // documents shrink back down instead of staying triplicated forever.
+        // Tulis field foto kanonik dan hapus field duplikat lama dari Firestore.
         await setDoc(doc(db, 'marketplace_users', userId), {
           ...updatedUser,
           photo: deleteField(),
@@ -3996,8 +4135,8 @@ function renderProfile() {
       syncProfilePhotoPreview(photoUrl);
       showPopup('Profil berhasil diperbarui.', 'Berhasil', 'success');
     } catch (error) {
-      console.error('Update profile photo error:', error);
-      showPopup(error.message || 'Gagal memperbarui foto profil. Silakan coba lagi.', 'Gagal', 'error');
+      console.error('Update profile error:', error);
+      showPopup(error.message || 'Gagal memperbarui profil. Silakan coba lagi.', 'Gagal', 'error');
     } finally {
       if (submitButton) {
         submitButton.disabled = false;

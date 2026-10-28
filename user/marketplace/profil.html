@@ -101,19 +101,15 @@
                 <textarea id="bio" name="bio" placeholder="Ceritakan sedikit tentang diri Anda"></textarea>
               </div>
 
-              <div class="field">
-                <label for="alamat">Alamat</label>
-                <input id="alamat" name="alamat" type="text" placeholder="Masukkan alamat" />
-              </div>
-
               <section class="shipping-profile-section" style="margin-top:24px;padding-top:20px;border-top:1px solid var(--line);">
                 <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
                   <div>
                     <h3 style="margin:0;">Alamat Pengiriman</h3>
-                    <p class="muted" style="margin:6px 0 0;">Pastikan titik peta sesuai lokasi rumah agar kurir mudah menemukan.</p>
+                    <p class="muted" style="margin:6px 0 0;">Marketplace Mantan melayani wilayah Kalimantan Selatan. Pilih wilayah, lalu pastikan titik peta sesuai lokasi rumah.</p>
                   </div>
                   <strong data-shipping-completeness role="status" aria-live="polite">Alamat belum lengkap</strong>
                 </div>
+
                 <div class="form-row">
                   <div class="field">
                     <label for="shippingRecipientName">Nama penerima</label>
@@ -124,19 +120,52 @@
                     <input id="shippingPhone" name="shippingPhone" type="tel" autocomplete="shipping tel" placeholder="08xxxxxxxxxx" />
                   </div>
                 </div>
-                <div class="field">
-                  <label for="shippingAddress">Alamat lengkap (jalan, RT/RW, nomor)</label>
-                  <input id="shippingAddress" name="shippingAddress" type="text" autocomplete="shipping street-address" />
-                </div>
+
                 <div class="form-row">
-                  <div class="field"><label for="shippingCity">Kota/Kabupaten</label><input id="shippingCity" name="shippingCity" type="text" autocomplete="shipping address-level2" /></div>
-                  <div class="field"><label for="shippingProvince">Provinsi</label><input id="shippingProvince" name="shippingProvince" type="text" autocomplete="shipping address-level1" /></div>
-                  <div class="field"><label for="shippingPostalCode">Kode pos</label><input id="shippingPostalCode" name="shippingPostalCode" type="text" inputmode="numeric" autocomplete="shipping postal-code" /></div>
+                  <div class="field">
+                    <label for="shippingProvince">Provinsi</label>
+                    <input id="shippingProvince" name="shippingProvince" type="text" value="Kalimantan Selatan" readonly />
+                  </div>
+                  <div class="field">
+                    <label for="shippingCity">Kota/Kabupaten</label>
+                    <select id="shippingCity" name="shippingCity" autocomplete="shipping address-level2">
+                      <option value="">Pilih kota/kabupaten</option>
+                    </select>
+                  </div>
                 </div>
+
+                <div class="form-row">
+                  <div class="field">
+                    <label for="shippingDistrict">Kecamatan</label>
+                    <select id="shippingDistrict" name="shippingDistrict" disabled>
+                      <option value="">Pilih kecamatan</option>
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label for="shippingVillage">Kelurahan/Desa</label>
+                    <select id="shippingVillage" name="shippingVillage" disabled>
+                      <option value="">Pilih kelurahan/desa</option>
+                    </select>
+                    <input id="shippingVillageManual" name="shippingVillageManual" type="text" placeholder="Ketik nama kelurahan/desa" maxlength="80" style="margin-top:8px;" hidden />
+                  </div>
+                </div>
+
+                <div class="form-row">
+                  <div class="field">
+                    <label for="shippingAddress">Alamat lengkap (jalan, gang, RT/RW, nomor)</label>
+                    <input id="shippingAddress" name="shippingAddress" type="text" autocomplete="shipping street-address" placeholder="Contoh: Jl. Kelayan A Gg. 5 No. 12 RT 03 RW 01" />
+                  </div>
+                  <div class="field">
+                    <label for="shippingPostalCode">Kode pos</label>
+                    <input id="shippingPostalCode" name="shippingPostalCode" type="text" inputmode="numeric" maxlength="5" autocomplete="shipping postal-code" />
+                  </div>
+                </div>
+
                 <div class="field">
                   <label for="shippingNote">Catatan untuk kurir</label>
                   <textarea id="shippingNote" name="shippingNote" rows="2" placeholder="Patokan atau instruksi tambahan"></textarea>
                 </div>
+
                 <div class="field">
                   <label for="shippingMapsUrl">Tempel link Google Maps</label>
                   <div style="display:flex;gap:8px;flex-wrap:wrap;">
@@ -146,30 +175,18 @@
                   </div>
                   <small class="muted" data-shipping-location-status></small>
                 </div>
+
                 <div class="form-row">
                   <div class="field"><label for="shippingLatitude">Latitude</label><input id="shippingLatitude" name="shippingLatitude" type="number" step="any" min="-90" max="90" /></div>
                   <div class="field"><label for="shippingLongitude">Longitude</label><input id="shippingLongitude" name="shippingLongitude" type="number" step="any" min="-180" max="180" /></div>
                 </div>
+
                 <div class="field">
                   <label>Preview titik alamat</label>
                   <div class="map-preview" data-shipping-map-preview><div class="map-placeholder"><span class="material-symbols-outlined map-placeholder-icon">location_on</span></div></div>
                   <a data-shipping-map-link hidden target="_blank" rel="noopener noreferrer">Buka di Google Maps</a>
                 </div>
               </section>
-
-              <div class="field">
-                <div style="display:flex; gap: 10px; align-items:center; flex-wrap: wrap; margin-bottom: 12px;">
-                  <button class="btn btn-secondary" type="button" data-use-location>Gunakan lokasi saya</button>
-                  <small class="muted" data-location-status>Belum dipakai</small>
-                </div>
-
-                <div class="map-preview" data-location-map-preview>
-                  <div class="map-placeholder"><span class="material-symbols-outlined map-placeholder-icon">location_on</span></div>
-                </div>
-
-                <input type="hidden" name="latitude" value="" />
-                <input type="hidden" name="longitude" value="" />
-              </div>
 
               <button class="btn btn-primary" type="submit" style="width:auto;">Simpan perubahan</button>
             </form>
