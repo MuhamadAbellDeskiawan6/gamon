@@ -7,7 +7,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { applyMarketplacePayment, reconcilePaidOrdersStock, releaseExpiredReservations, releaseOrderStock, sendEmail, syncPaidOrdersCart } from './lib/marketplace-orders.js';
 
 const PAYMENT_WINDOW_MS = 60 * 60 * 1000;
-const DEFAULT_SITE_URL = 'https://gamon-tawing.vercel.app';
+const DEFAULT_SITE_URL = 'https://gamon-space.vercel.app';
 const DEFAULT_DOKU_BASE_URL = 'https://api.doku.com';
 
 function responseError(res, status, code, message, details) {
@@ -160,7 +160,7 @@ function dokuSafePhone(value) {
 
 function dokuSafeEmail(value) {
   const email = String(value ?? '').trim().replace(/[^A-Za-z0-9.\-+_@%]/g, '');
-  return email.includes('@') ? email.slice(0, 120) : 'pembeli@gamon-tawing.vercel.app';
+  return email.includes('@') ? email.slice(0, 120) : 'pembeli@gamon-space.vercel.app';
 }
 
 function readShippingAddress(profile) {

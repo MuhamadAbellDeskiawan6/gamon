@@ -1,0 +1,717 @@
+﻿<!DOCTYPE html>
+<html class="light" lang="id">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=1024" />
+<title>Gamon Tawing Curhat — Ruang Dukungan Emosional &amp; Ekspresi Digital(Curhat) untuk Generasi Muda</title>
+<meta name="description" content="Gamon Tawing Curhat adalah ruang aman digital untuk remaja mengekspresikan emosi(curhat), berbagi cerita secara anonim, menemukan dukungan sebaya, dan mengakses informasi serta bantuan kesehatan mental yang tepat." />
+<meta property="og:title" content="Gamon Tawing Curhat — Ruang Dukungan Emosional & Ekspresi Digital(curhat) untuk Generasi Muda" />
+<meta property="og:description" content="Platform peer-support bagi generasi muda untuk berbagi cerita secara anonim, mendapatkan dukungan komunitas, dan mengenali saat dibutuhkan bantuan profesional." />
+<meta property="og:type" content="website" />
+<meta property="og:image" content="image/logo/Gamon%20Tawing.png" />
+<link rel="icon" type="image/svg+xml" href="image/logo/Gamon%20Tawing.svg" />
+<link rel="icon" type="image/png" href="image/logo/Gamon%20Tawing.png" />
+<meta name="google-site-verification" content="brhBnzlMdpBNrETSVrBAz9lwk9wB0mc15VRAJBIhPCY" />
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400..900&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+    tailwind.config = {
+        darkMode: "class",
+        theme: {
+            extend: {
+                "colors": {
+                    "outline":"#7f7478","inverse-on-surface":"#f5eff1","secondary-fixed":"#ecdeee",
+                    "primary-fixed":"#f4dce4","on-primary":"#ffffff","secondary":"#655b68",
+                    "on-surface-variant":"#4d4447","surface-dim":"#ded9db","on-secondary":"#ffffff",
+                    "on-surface":"#1d1b1d","surface-container-highest":"#e7e1e3","surface-container-high":"#ece7e9",
+                    "on-primary-fixed-variant":"#524249","outline-variant":"#d0c3c7","background":"#fef8fa",
+                    "tertiary-container":"#d9edf6","error-container":"#ffdad6","tertiary":"#4f6169",
+                    "surface-container-lowest":"#ffffff","surface-container":"#f2ecee","secondary-container":"#ecdeee",
+                    "on-primary-container":"#76646b","surface-bright":"#fef8fa","primary-fixed-dim":"#d7c1c8",
+                    "primary":"#6b5a60","inverse-surface":"#323031","on-primary-fixed":"#25181e",
+                    "on-secondary-container":"#6b616e","tertiary-fixed":"#d2e6ef","surface":"#fef8fa",
+                    "on-error":"#ffffff","primary-container":"#fce4ec","surface-variant":"#e7e1e3",
+                    "error":"#ba1a1a","on-background":"#1d1b1d","surface-tint":"#6b5a60",
+                    "on-secondary-fixed":"#201924","surface-container-low":"#f8f2f4"
+                },
+                "borderRadius":{"DEFAULT":"0.25rem","lg":"0.5rem","xl":"0.75rem","full":"9999px"},
+                "spacing":{"unit":"8px","section-gap":"80px","gutter":"24px","container-padding":"40px","margin-mobile":"20px"},
+                "fontFamily":{"body-lg":["Inter"],"body-md":["Inter"],"display-lg":["Playfair Display"],"label-md":["Inter"],"headline-sm":["Playfair Display"],"headline-md":["Playfair Display"]},
+                "fontSize":{
+                    "body-lg":["18px",{"lineHeight":"1.6","fontWeight":"400"}],
+                    "body-md":["16px",{"lineHeight":"1.6","fontWeight":"400"}],
+                    "display-lg":["48px",{"lineHeight":"1.1","letterSpacing":"-0.02em","fontWeight":"600"}],
+                    "label-md":["14px",{"lineHeight":"1","letterSpacing":"0.05em","fontWeight":"600"}],
+                    "headline-sm":["24px",{"lineHeight":"1.4","fontWeight":"500"}],
+                    "headline-md":["32px",{"lineHeight":"1.3","fontWeight":"500"}]
+                }
+            }
+        }
+    }
+</script>
+<style>
+    /* ══════════════════════════════════════════════════════════
+       BACKGROUND — langit senja/luar-angkasa dengan gradasi
+       biru-tosca + lapisan pelangi & awan.
+       ══════════════════════════════════════════════════════════ */
+    body {
+        background: linear-gradient(180deg, #010A17 0%, #0A4267 30%, #20658E 60%, #6BADC4 100%) fixed;
+        overflow-x: hidden;
+        min-height: 100vh;
+    }
+
+    /* ── STAR & SPACE BACKGROUND DECORATION ── */
+    .star-particle {
+        position: absolute; background: #e7d8ff; border-radius: 50%; opacity: 0.55;
+        pointer-events: none; box-shadow: 0 0 6px rgba(231,216,255,0.6);
+    }
+    .space-decor {
+        position: absolute; pointer-events: none; opacity: 0.2; filter: blur(4px);
+        animation: spaceFloat 18s infinite ease-in-out alternate;
+    }
+    @keyframes spaceFloat {
+        0% { transform: translateY(0px) rotate(0deg) scale(1); }
+        100% { transform: translateY(-30px) rotate(15deg) scale(1.15); }
+    }
+    @keyframes pulse-soft {
+        0%,100%{transform:scale(1);opacity:.4}
+        50%{transform:scale(1.6);opacity:.7}
+    }
+
+    /* ── CLOUD DECORATIVE LAYER ── */
+    #gtSkyLayer {
+        position: fixed; inset: 0; z-index: 2; pointer-events: none; overflow: hidden;
+    }
+    .gt-cloud {
+        position: absolute; bottom: -6%; width: 620px; max-width: 62vw;
+        opacity: 0.5; will-change: transform; transform: translate3d(0,0,0);
+    }
+    .gt-cloud img { width: 100%; display: block; }
+    .gt-cloud-left { left: -12%; }
+    .gt-cloud-right { right: -14%; transform: scaleX(-1); }
+    @media (max-width: 768px) {
+        .gt-cloud { display: none; }
+    }
+
+    /* ── BUBBLE CANVAS ── */
+    #bubbleCanvas {
+        position: relative;
+        width: 100%;
+        height: 70vh;
+        min-height: 460px;
+        overflow: hidden;
+    }
+
+    /* ── BUBBLE ── */
+    .bubble {
+        position: absolute;
+        cursor: grab;
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        gap: 2px; text-align: center; padding: 12px;
+        background: rgba(255,255,255,0.12);
+        border: 1px solid rgba(255,255,255,0.24);
+        box-shadow: 0 12px 30px -16px rgba(1,10,23,0.65);
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
+        user-select: none;
+        box-sizing: border-box;
+        overflow: hidden;
+        touch-action: none; /* Cegah scroll browser saat di-drag di mobile */
+        color: rgba(255, 255, 255, 0.96);
+        text-shadow: 0 1px 1px rgba(17, 24, 39, 0.18);
+    }
+    .bubble:hover {
+        box-shadow: 0 16px 36px -16px rgba(1,10,23,0.7);
+        background: rgba(255,255,255,0.16);
+        z-index: 50;
+    }
+    .bubble:active { cursor: grabbing; }
+
+    /* Bentuk Awan / Bubble */
+    .bubble.shape-circle { border-radius: 50%; }
+    .bubble.shape-cloud { border-radius: 60% 40% 55% 45% / 45% 55% 45% 55%; }
+    .bubble.shape-cloud-2 { border-radius: 45% 55% 40% 60% / 55% 45% 60% 40%; }
+    .bubble.shape-blob { border-radius: 38% 62% 46% 54% / 54% 38% 62% 46%; }
+
+    /* Varian Tipe */
+    .bubble.type-curhat { background: rgba(255, 235, 244, 0.18); border-color: rgba(255,255,255,0.26); }
+
+    /* Animasi Melayang Lambat (CSS Floating) */
+    .float-container {
+        position: absolute;
+        width: 84px;
+        height: 84px;
+        transition: transform 0.1s ease-out; /* Menghaluskan pergerakan awal */
+    }
+    @keyframes float-a { 0%,100%{transform:translate(0, 0)} 33%{transform:translate(4px, -10px)} 66%{transform:translate(-3px, -5px)} }
+    @keyframes float-b { 0%,100%{transform:translate(0, 0)} 40%{transform:translate(-5px, -8px)} 70%{transform:translate(3px, -12px)} }
+    @keyframes float-c { 0%,100%{transform:translate(0, 0)} 50%{transform:translate(3px, -7px)} }
+
+    .float-a .bubble { animation: float-a var(--fd,6s) infinite ease-in-out var(--fdel,0s); }
+    .float-b .bubble { animation: float-b var(--fd,6s) infinite ease-in-out var(--fdel,0s); }
+    .float-c .bubble { animation: float-c var(--fd,6s) infinite ease-in-out var(--fdel,0s); }
+
+    /* Matikan animasi melayang bawaan CSS ketika sedang di-drag agar posisi akurat */
+    .dragging .bubble { animation: none !important; transform: scale(1.08) !important; z-index: 100; }
+
+    .bubble-emoji { font-size: 1.15em; line-height:1; }
+    .bubble-from  { font-size: 10px; font-weight: 700; color: rgba(255, 255, 255, 0.98); max-width: 90%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .bubble-to    { font-size: 9px;  color: rgba(255, 255, 255, 0.8); max-width: 90%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .bubble-likes { font-size: 9px; color: rgba(255, 255, 255, 0.95); display: flex; align-items: center; gap: 2px; margin-top: 1px; }
+
+    /* ── MODAL OVERLAY (post) ── */
+    #modalOverlay {
+        position: fixed; inset: 0; z-index: 500;
+        background: rgba(1,10,23,0.55);
+        backdrop-filter: blur(5px);
+        display: flex; align-items: center; justify-content: center;
+        opacity: 0; pointer-events: none;
+        transition: opacity .22s ease;
+    }
+    #modalOverlay.show { opacity: 1; pointer-events: auto; }
+
+    #modalBox {
+        background: rgba(255,255,255,0.18);
+        backdrop-filter: blur(18px);
+        -webkit-backdrop-filter: blur(18px);
+        border-radius: 24px;
+        border: 1px solid rgba(255,255,255,0.28);
+        box-shadow: 0 24px 60px -16px rgba(1,10,23,0.48);
+        width: 340px;
+        max-width: calc(100vw - 32px);
+        max-height: 80vh;
+        overflow-y: auto;
+        padding: 24px;
+        position: relative;
+        transform: scale(.88) translateY(12px);
+        transition: transform .24s cubic-bezier(.34,1.56,.64,1);
+        color: rgba(255, 255, 255, 0.96);
+    }
+    #modalOverlay.show #modalBox { transform: scale(1) translateY(0); }
+
+    #modalClose {
+        position: absolute; top: 14px; right: 14px;
+        width: 30px; height: 30px; border-radius: 50%;
+        background: rgba(255,255,255,0.08); border: none; cursor: pointer;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 15px; color: rgba(255, 255, 255, 0.95); transition: background .15s;
+    }
+    #modalClose:hover { background: rgba(255,255,255,0.12); }
+
+    .modal-badge {
+        display: inline-flex; align-items: center; gap: 4px;
+        font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 99px; margin-bottom: 12px;
+    }
+    .badge-curhat { background: #fce4ec; color: #ad1457; }
+
+    #modalHeader { font-size: 15px; font-weight: 700; color: rgba(255, 255, 255, 0.96); margin-bottom: 12px; line-height: 1.4; }
+    #modalHeader .to-label { color: rgba(255, 255, 255, 0.8); font-weight: 400; font-size: 13px; }
+
+    #modalMsg {
+        font-size: 14px; color: rgba(255, 255, 255, 0.92); line-height: 1.7; font-style: italic;
+        background: rgba(255,255,255,0.08); border-radius: 12px; padding: 12px 14px;
+        margin-bottom: 14px; white-space: pre-wrap;
+        max-height: 160px;
+        overflow-y: auto;
+    }
+
+    #modalAudio { width: 100%; border-radius: 99px; margin-bottom: 14px; display: none; }
+    #modalAudio.has-audio { display: block; }
+    #modalAudio::-webkit-media-controls-panel { background-color: #f2ecee; }
+
+    .modal-footer { display: flex; align-items: center; justify-content: space-between; }
+    #modalDate { font-size: 11px; color: rgba(255, 255, 255, 0.72); }
+    #modalLoveBtn {
+        display: flex; align-items: center; gap: 5px;
+        background: none; border: none; cursor: pointer;
+        font-size: 12px; color: #e07ea0; font-weight: 600;
+        padding: 5px 10px; border-radius: 99px;
+        transition: background .15s;
+    }
+    #modalLoveBtn:hover { background: rgba(224,126,160,0.12); }
+    #modalLoveBtn:disabled { opacity: .5; cursor: not-allowed; }
+    #modalLoveBtn .material-symbols-outlined { font-size: 16px; }
+
+    .glass-card {
+        background: rgba(255,255,255,0.55);
+        backdrop-filter: blur(12px);
+        border: 1px solid rgba(255,255,255,0.45);
+        box-shadow: 0 8px 24px -8px rgba(1,10,23,0.25);
+    }
+
+    @keyframes fadeInScale {
+        from { opacity:0; transform:scale(.7); }
+        to   { opacity:1; transform:scale(1); }
+    }
+    .bubble-enter { animation: fadeInScale .35s cubic-bezier(.34,1.56,.64,1) both; }
+
+    #hintBar {
+        text-align: center; padding: 0.5rem 1rem 2rem;
+        font-size: 13px; color: rgba(255,255,255,0.6);
+        display: flex; align-items: center; justify-content: center; gap: 6px;
+    }
+
+    #loadingMsg { text-align:center; padding:4rem 1rem; color: rgba(255,255,255,0.5); font-size:14px; }
+
+    @media(max-width:768px){
+        #bubbleCanvas { height: 60vh; min-height: 380px; }
+        #musicPlayerBar { bottom:4rem; width:calc(100% - 20px); left:50%; transform:translateX(-50%); }
+        #menuFitur { bottom:10.5rem; right:.75rem; }
+    }
+
+    /* ══════════════════════════════════════════════════════════
+       PERBAIKAN UI — bagian baru untuk:
+       1) penanda halaman bisa di-scroll (arrow) + tombol kembali ke atas
+       2) memindahkan card "Tentang Kami / Misi Kami" dari tengah halaman
+          menjadi tombol info ringkas (fab) yang membuka panel detail,
+          agar tidak menutupi/mengganggu tampilan utama.
+       ══════════════════════════════════════════════════════════ */
+
+    /* ── Garis progres scroll tipis di atas — kesan rapi & profesional ── */
+    #scrollProgress {
+        position: fixed; top: 0; left: 0; height: 3px; width: 0%;
+        background: linear-gradient(90deg, #f9d8c5, #f7d9e8, #dfe7ff);
+        z-index: 600; pointer-events: none;
+        transition: width .12s linear;
+    }
+
+    /* ── Penanda "bisa discroll" di hero ── */
+    #scrollCue {
+        display: inline-flex; flex-direction: column; align-items: center; gap: 6px;
+        margin: 28px auto 0; background: none; border: none; cursor: pointer;
+        opacity: .85; transition: opacity .35s ease, transform .35s ease;
+        color: rgba(255,255,255,0.75);
+    }
+    #scrollCue:hover { opacity: 1; }
+    #scrollCue .cue-label {
+        font-size: 11px; letter-spacing: 0.1em; color: rgba(255,255,255,0.65);
+    }
+    #scrollCue .cue-arrow {
+        width: 34px; height: 34px; border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        border: 1px solid rgba(255,255,255,0.3); background: rgba(255,255,255,0.08);
+        animation: cueBounce 1.8s infinite ease-in-out;
+    }
+    #scrollCue .cue-arrow .material-symbols-outlined { font-size: 18px; }
+    @keyframes cueBounce {
+        0%,100% { transform: translateY(0); }
+        50% { transform: translateY(6px); }
+    }
+    #scrollCue.is-hidden { opacity: 0; transform: translateY(-6px); pointer-events: none; }
+
+    /* ── Tombol kembali ke atas ── */
+    #backToTop {
+        position: fixed; left: 1.5rem; bottom: 2rem; z-index: 45;
+        width: 48px; height: 48px; border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.26);
+        backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+        color: #fff; box-shadow: 0 10px 26px -12px rgba(1,10,23,0.65);
+        opacity: 0; transform: translateY(14px) scale(.9); pointer-events: none;
+        transition: opacity .25s ease, transform .25s ease, background .2s ease;
+    }
+    #backToTop.show { opacity: 1; transform: translateY(0) scale(1); pointer-events: auto; }
+    #backToTop:hover { background: rgba(255,255,255,0.2); }
+    #backToTop .material-symbols-outlined { font-size: 22px; }
+    @media(max-width:768px){
+        #backToTop { left: 1rem; bottom: 5.75rem; width: 44px; height: 44px; }
+    }
+
+    /* ── Tombol info "Tentang Kami" ── */
+#aboutFab {
+    position: fixed; left: 1.5rem; top: 1.5rem; z-index: 45;
+    display: flex; align-items: center; gap: 8px;
+    padding: 9px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.10);
+    border: 1px solid rgba(255,255,255,0.20);
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    -webkit-appearance: none; appearance: none;
+    font-family: inherit;
+    color: #fff; cursor: pointer;
+    box-shadow: 0 4px 18px rgba(1,10,23,0.25);
+    transition: background .2s ease, padding .25s ease, box-shadow .2s ease, max-width .25s ease;
+    overflow: hidden; max-width: 46px;
+}
+#aboutFab .about-fab-icon {
+    width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: transparent;
+}
+    #aboutFab .about-fab-icon .material-symbols-outlined { font-size: 18px; }
+    #aboutFab .about-fab-text {
+        font-size: 12px; font-weight: 600; letter-spacing: 0.01em;
+        white-space: nowrap; opacity: 0; transition: opacity .2s ease;
+    }
+    #aboutFab:hover {
+        max-width: 240px; padding-right: 16px;
+        background: rgba(255,255,255,0.16);
+    }
+    #aboutFab:hover .about-fab-text { opacity: 1; }
+    #aboutFab .about-fab-dot {
+        width: 7px; height: 7px; border-radius: 50%; background: #f6a8c1;
+        position: absolute; top: 8px; right: 8px;
+        box-shadow: 0 0 0 rgba(246,168,193,0.6);
+        animation: dotPulse 2.4s infinite;
+    }
+    @keyframes dotPulse {
+        0% { box-shadow: 0 0 0 0 rgba(246,168,193,.55); }
+        70% { box-shadow: 0 0 0 8px rgba(246,168,193,0); }
+        100% { box-shadow: 0 0 0 0 rgba(246,168,193,0); }
+    }
+    @media(max-width:768px){
+        #aboutFab { left: 1rem; top: 1rem; }
+    }
+
+    /* ── Modal "Tentang Kami & Layanan Bantuan" ── */
+    #aboutModalOverlay {
+        position: fixed; inset: 0; z-index: 520;
+        background: rgba(1,10,23,0.6);
+        backdrop-filter: blur(6px);
+        display: flex; align-items: center; justify-content: center;
+        opacity: 0; pointer-events: none; padding: 20px;
+        transition: opacity .22s ease;
+    }
+    #aboutModalOverlay.show { opacity: 1; pointer-events: auto; }
+    #aboutModalBox {
+        background: rgba(255,255,255,0.16);
+        backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+        border-radius: 26px; border: 1px solid rgba(255,255,255,0.26);
+        box-shadow: 0 28px 70px -18px rgba(1,10,23,0.55);
+        width: 560px; max-width: calc(100vw - 32px);
+        max-height: 84vh; overflow-y: auto;
+        padding: 30px 28px; position: relative;
+        color: rgba(255,255,255,0.96);
+        transform: scale(.92) translateY(14px);
+        transition: transform .26s cubic-bezier(.34,1.56,.64,1);
+    }
+    #aboutModalOverlay.show #aboutModalBox { transform: scale(1) translateY(0); }
+    #aboutModalClose {
+        position: absolute; top: 16px; right: 16px;
+        width: 32px; height: 32px; border-radius: 50%;
+        background: rgba(255,255,255,0.1); border: none; cursor: pointer;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 15px; color: #fff; transition: background .15s;
+    }
+    #aboutModalClose:hover { background: rgba(255,255,255,0.16); }
+    #aboutModalBox .about-eyebrow {
+        font-size: 12px; letter-spacing: 0.14em; color: rgba(255,255,255,0.65);
+        text-transform: uppercase; margin-bottom: 10px;
+    }
+    #aboutModalBox h3 {
+        font-family: "Playfair Display", serif;
+        font-size: 22px; line-height: 1.35; font-weight: 600;
+        color: #fff; margin-bottom: 14px; max-width: 46ch;
+    }
+    #aboutModalBox p {
+        font-size: 14px; line-height: 1.7; color: rgba(255,255,255,0.86);
+    }
+    #aboutModalBox .about-help-box {
+        margin-top: 20px; border-radius: 16px; border: 1px solid rgba(255,255,255,0.18);
+        background: rgba(255,255,255,0.07); padding: 16px 18px;
+    }
+    #aboutModalBox .about-help-label {
+        font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase;
+        color: rgba(255,255,255,0.6); margin-bottom: 8px;
+    }
+    #aboutModalBox .about-help-line { font-size: 14px; color: #fff; margin-bottom: 4px; }
+    #aboutModalBox .about-help-line strong { font-weight: 700; }
+    #aboutModalBox .about-disclaimer {
+        margin-top: 16px; font-size: 12px; line-height: 1.6; color: rgba(255,255,255,0.65);
+    }
+    #aboutModalBox .about-detail-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 10px 22px; border-radius: 999px;
+    background: rgba(255,255,255,0.10);
+    border: 1px solid rgba(255,255,255,0.20);
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    color: #fff; font-size: 14px; font-weight: 600; text-decoration: none;
+    box-shadow: 0 4px 18px rgba(1,10,23,0.25);
+    transition: background .2s ease, transform .2s ease;
+}
+#aboutModalBox .about-detail-btn:hover { background: rgba(255,255,255,0.18); transform: scale(1.04); }
+#aboutModalBox .about-detail-btn:active { transform: scale(.96); }
+    /* ══════════════════════════════════════════════════════════
+       TOMBOL GESER "HITUNG PENTOL"
+       Awalnya hanya ikon + panah. Klik panah (atau hover di desktop)
+       → tombol meluas & muncul tulisan. Murni CSS (checkbox), tanpa JS.
+       ══════════════════════════════════════════════════════════ */
+    .pentol-dock {
+        position: relative;
+        display: inline-flex; align-items: center; gap: 4px;
+        padding: 4px;
+        border-radius: 999px;
+        background: rgba(255,255,255,0.08);
+        border: 1px solid rgba(255,255,255,0.20);
+        backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+        box-shadow: 0 4px 18px rgba(1,10,23,0.25);
+        transition: background .25s ease, box-shadow .25s ease;
+    }
+    .pentol-dock:hover { background: rgba(255,255,255,0.14); box-shadow: 0 6px 24px rgba(1,10,23,0.35); }
+
+    /* checkbox disembunyikan secara visual, tetap bisa difokus keyboard */
+    .pentol-check {
+        position: absolute; opacity: 0; width: 1px; height: 1px;
+        margin: 0; pointer-events: none;
+    }
+
+    /* Tombol utama (ikon + tulisan) */
+    .pentol-link {
+        display: inline-flex; align-items: center;
+        height: 40px; padding: 0 10px;
+        border-radius: 999px;
+        color: #fff; text-decoration: none; font-weight: 600;
+        background: linear-gradient(135deg, rgba(249,216,197,0.35), rgba(247,217,232,0.25));
+        transition: background .25s ease, transform .2s ease;
+    }
+    .pentol-link:hover { background: linear-gradient(135deg, rgba(249,216,197,0.5), rgba(247,217,232,0.4)); }
+    .pentol-link:active { transform: scale(.96); }
+    .pentol-link .material-symbols-outlined { font-size: 22px; }
+
+    /* Tulisan: tersembunyi dulu, lalu meluncur keluar */
+    .pentol-text {
+        max-width: 0; opacity: 0; overflow: hidden; white-space: nowrap;
+        font-size: 14px; letter-spacing: 0.01em;
+        transition: max-width .35s ease, opacity .25s ease, margin-left .35s ease;
+    }
+
+    /* Tombol panah */
+    .pentol-arrow {
+        width: 34px; height: 34px; border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        color: rgba(255,255,255,0.85); cursor: pointer;
+        transition: background .2s ease, transform .35s ease;
+        animation: pentolNudge 1.8s infinite ease-in-out;
+    }
+    .pentol-arrow:hover { background: rgba(255,255,255,0.14); }
+    .pentol-arrow .material-symbols-outlined { font-size: 22px; }
+    @keyframes pentolNudge {
+        0%,100% { transform: translateX(0); }
+        50%     { transform: translateX(4px); }
+    }
+
+    /* ── Keadaan TERBUKA (klik panah / hover desktop) ── */
+    .pentol-check:checked ~ .pentol-link .pentol-text,
+    .pentol-dock:hover .pentol-text {
+        max-width: 140px; opacity: 1; margin-left: 8px; margin-right: 4px;
+    }
+    .pentol-check:checked ~ .pentol-arrow,
+    .pentol-dock:hover .pentol-arrow {
+        animation: none; transform: rotate(180deg);
+    }
+
+    /* Fokus keyboard */
+    .pentol-check:focus-visible ~ .pentol-arrow {
+        outline: 2px solid rgba(255,255,255,0.7); outline-offset: 2px;
+    }
+
+    /* Hormati pengguna yang mematikan animasi */
+    @media (prefers-reduced-motion: reduce) {
+        .pentol-arrow { animation: none; }
+        .pentol-text, .pentol-arrow { transition: none; }
+    }
+</style>
+</head>
+<body class="text-white/90 selection:bg-primary-container">
+
+<!-- Garis progres scroll -->
+<div id="scrollProgress"></div>
+
+<!-- Background Elements (Space & Clouds Decor) -->
+<div class="fixed inset-0 pointer-events-none z-0" id="spaceBackground">
+    <div class="fixed inset-0" id="stars"></div>
+</div>
+
+<!-- Lapisan awan dekoratif -->
+<div id="gtSkyLayer">
+    <div class="gt-cloud gt-cloud-left" id="gtCloudLeft">
+        <img src="https://soft-zoom-63098134.figma.site/_assets/v11/0d6dfd3f90b930f21726f2ed56a3320d79b7a797.png" alt="" />
+    </div>
+    <div class="gt-cloud gt-cloud-right" id="gtCloudRight">
+        <img src="https://soft-zoom-63098134.figma.site/_assets/v11/0d6dfd3f90b930f21726f2ed56a3320d79b7a797.png" alt="" />
+    </div>
+</div>
+
+<!-- Tombol info "Tentang Kami & Layanan Bantuan" — menggantikan card besar di tengah halaman -->
+<button id="aboutFab" type="button" aria-haspopup="dialog" aria-controls="aboutModalOverlay">
+    <span class="about-fab-icon"><span class="material-symbols-outlined">info</span></span>
+    <span class="about-fab-text">Tentang Kami &amp; Layanan Bantuan</span>
+    <span class="about-fab-dot" aria-hidden="true"></span>
+</button>
+
+<!-- Tombol kembali ke atas -->
+<button id="backToTop" type="button" aria-label="Kembali ke atas">
+    <span class="material-symbols-outlined">arrow_upward</span>
+</button>
+
+<main class="relative z-10 pt-24 pb-32 w-full">
+
+       <!-- Hero -->
+    <header class="text-center mb-10">
+        <div class="mx-auto mb-0 max-w-xs overflow-hidden">
+            <img src="image/logo/Gamon%20Tawing.png" alt="Gamon Tawing Curhat" class="mx-auto h-56 w-auto object-cover object-top" style="filter: drop-shadow(0 0 36px rgba(255,255,255,0.55));" />
+        </div>
+        <p class="font-label-md text-white/75 uppercase tracking-[0.18em] mb-4">Ruang Aman Digital untuk Generasi Muda</p>
+        <h1 class="text-white text-3xl sm:text-4xl md:text-5xl font-semibold leading-tight mb-5 max-w-4xl mx-auto px-4">
+            Wadah Kolaboratif untuk Kesejahteraan Mental dan Kreativitas Generasi Muda.
+        </h1>
+        <p class="font-body-lg text-white/85 max-w-3xl mx-auto mb-8 px-4 leading-relaxed">
+            Gamon Tawing Curhat adalah platform digital dan peer-support komprehensif bagi generasi muda untuk berekspresi(Curhat), berbagi cerita secara aman, saling mendukung, serta memanfaatkan berbagai fitur kreatif dan kesehatan mental dalam satu ekosistem terpadu.
+        </p>
+        <div class="flex justify-center items-center gap-4 flex-wrap">
+            <a href="ai.html" class="inline-flex items-center gap-2 px-8 py-3 bg-white/10 text-white font-semibold rounded-full shadow-[0_4px_18px_rgba(1,10,23,0.25)] hover:shadow-[0_6px_24px_rgba(1,10,23,0.35)] hover:scale-105 transition-all active:scale-95 border border-white/20 backdrop-blur-sm">
+                <span class="material-symbols-outlined text-lg">smart_toy</span>
+                AI Dukungan Awal
+            </a>
+            <button onclick="location.href='submit.html'" class="inline-flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-[#f9d8c5] via-[#f7d9e8] to-[#dfe7ff] text-[#2f1f26] font-semibold rounded-full shadow-[0_6px_22px_rgba(1,10,23,0.38)] hover:shadow-[0_8px_28px_rgba(1,10,23,0.45)] hover:scale-105 transition-all active:scale-95 border border-white/60">
+                <span class="material-symbols-outlined">edit_note</span>
+                Sampaikan Perasaanmu dengan Aman
+            </button>
+            <a href="foto-ldr.html" class="inline-flex items-center gap-2 px-8 py-3 bg-white/10 text-white font-semibold rounded-full shadow-[0_4px_18px_rgba(1,10,23,0.25)] hover:shadow-[0_6px_24px_rgba(1,10,23,0.35)] hover:scale-105 transition-all active:scale-95 border border-white/20 backdrop-blur-sm">
+                <span class="material-symbols-outlined text-lg">photo_camera_front</span>
+                LDR Foto
+            </a>
+
+            <!-- Tombol geser: Hitung Pentol (ikon dulu, klik panah untuk melihat tulisan) -->
+            <div class="pentol-dock">
+                <input type="checkbox" id="pentolToggle" class="pentol-check" aria-label="Tampilkan tombol Hitung Pentol" />
+                <a href="hitung-pentol.html" class="pentol-link" title="Hitung Pentol" aria-label="Hitung Pentol">
+                    <span class="material-symbols-outlined">kebab_dining</span>
+                    <span class="pentol-text">Hitung Pentol</span>
+                </a>
+                <label for="pentolToggle" class="pentol-arrow" title="Geser untuk membuka">
+                    <span class="material-symbols-outlined">chevron_right</span>
+                </label>
+            </div>
+        </div>
+
+        <!-- Penanda: halaman ini bisa digulir untuk melihat cerita -->
+        <button id="scrollCue" type="button" aria-label="Gulir untuk melihat cerita">
+            <span class="cue-label">Jelajahi cerita</span>
+            <span class="cue-arrow"><span class="material-symbols-outlined">keyboard_arrow_down</span></span>
+        </button>
+    </header>
+
+    <!-- Hint -->
+    <div id="hintBar">
+        <span class="material-symbols-outlined" style="font-size:16px;opacity:.6;">drag_pan</span>
+        klik untuk baca, tahan & geser untuk memindahkan awan
+    </div>
+
+    <!-- Bubble Canvas -->
+    <div id="bubbleCanvas">
+        <div id="loadingMsg">Memuat pesan-pesan rindu... ✦</div>
+    </div>
+    <div class="text-center mt-6">
+        <button id="loadMorePosts" class="hidden px-8 py-3 rounded-full bg-gradient-to-r from-[#f4dce4] to-[#e1d2f5] text-on-primary-fixed-variant font-semibold shadow-[0_4px_18px_rgba(1,10,23,0.35)] hover:shadow-[0_6px_24px_rgba(1,10,23,0.4)] hover:scale-105 transition-all active:scale-95 border border-white/50">
+            Muat Lebih Banyak
+        </button>
+    </div>
+
+</main>
+
+<!-- Modal "Tentang Kami / Misi Kami" + Layanan Bantuan Resmi -->
+<div id="aboutModalOverlay" role="dialog" aria-modal="true" aria-labelledby="aboutModalTitle">
+    <div id="aboutModalBox">
+        <button id="aboutModalClose" aria-label="Tutup">✕</button>
+        <p class="about-eyebrow">Tentang Kami / Misi Kami</p>
+        <h3 id="aboutModalTitle">Membangun wadah kolaboratif untuk kesejahteraan mental dan kreativitas generasi muda.</h3>
+        <p>
+            Gamon Tawing Curhat hadir sebagai platform digital dan <em>peer-support</em> komprehensif bagi generasi muda untuk berekspresi, berbagi cerita secara aman, saling mendukung, serta memanfaatkan berbagai fitur kreatif dan kesehatan mental dalam satu ekosistem terpadu. Kami mendorong ekspresi positif, anonimitas yang terjaga, serta lingkungan inklusif yang siap bersinergi dengan berbagai pihak.
+        </p>
+        <div class="about-help-box">
+            <p class="about-help-label">Layanan Bantuan Resmi</p>
+            <p class="about-help-line"><strong>Sejiwa</strong> — 119 ext. 8</p>
+            <p class="about-help-line" style="color:rgba(255,255,255,0.8); font-weight:400;">Hotline kesehatan jiwa Kementerian Kesehatan RI untuk dukungan awal dan rujukan profesional.</p>
+        </div>
+        <p class="about-disclaimer">
+            Gamon Tawing Curhat adalah ruang dukungan sebaya dan ekosistem digital positif, bukan pengganti layanan konseling profesional. Jika kamu atau temanmu membutuhkan bantuan segera, hubungi layanan di atas.
+        </p>
+        
+        <!-- Tambahan Tombol Menuju Halaman Detail about.html -->
+       <div style="margin-top: 20px; text-align: center;">
+    <a href="about.html" class="about-detail-btn">
+        Pelajari Lebih Lanjut
+        <span class="material-symbols-outlined" style="font-size:18px;">arrow_forward</span>
+    </a>
+</div>
+    </div>
+</div>
+
+<!-- Modal -->
+<div id="modalOverlay">
+    <div id="modalBox">
+        <button id="modalClose">✕</button>
+        <div id="modalBadgeEl"></div>
+        <div id="modalHeader"></div>
+        <div id="modalMsg"></div>
+        <audio id="modalAudio" controls></audio>
+        <div class="modal-footer">
+            <span id="modalDate"></span>
+            <button id="modalLoveBtn">
+                <span class="material-symbols-outlined" style="font-variation-settings:'FILL' 1;">favorite</span>
+                <span id="modalLikeCount">0</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Music player
+<div id="musicPlayerBar" class="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 glass-card rounded-full p-1.5 flex items-center justify-between border border-white/40 shadow-[0_8px_32px_0_rgba(1,10,23,0.25)] backdrop-blur-md transition-all duration-300 ease-in-out w-[110px]">
+    <button id="musicToggle" class="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center hover:bg-primary/20 hover:scale-105 active:scale-95 transition-all flex-shrink-0">
+        <span class="material-symbols-outlined" style="font-size: 24px;">play_arrow</span>
+    </button>
+    <div id="musicTextInfo" class="hidden min-w-0 px-2 opacity-0 transition-opacity duration-200">
+        <div class="font-semibold text-xs truncate text-on-surface tracking-wide">Four Summers</div>
+        <div class="text-[10px] truncate text-on-surface-variant/80 mt-0.5">Reality Club</div>
+    </div>
+    <button id="musicResizeBtn" class="w-8 h-8 rounded-full flex items-center justify-center text-on-surface-variant/70 hover:text-primary hover:bg-surface-container transition-all flex-shrink-0">
+        <span class="material-symbols-outlined" style="font-size: 20px;">chevron_right</span>
+    </button>
+</div> -->
+
+<!-- FAB -->
+<div class="fixed right-6 bottom-28 z-40 flex flex-col items-center gap-3" id="menuFitur">
+    <div id="menuItems" class="flex flex-col items-center gap-3 opacity-0 pointer-events-none translate-y-4 transition-all duration-300">
+        <a href="user/undangan/index.html" class="w-12 h-12 rounded-full bg-surface-container border border-outline-variant flex items-center justify-center shadow-md hover:bg-primary-container hover:scale-110 active:scale-95 transition-all relative group/tooltip">
+            <span class="material-symbols-outlined text-primary text-2xl">celebration</span>
+            <span class="absolute right-14 bg-inverse-surface text-inverse-on-surface text-xs font-label-md px-2 py-1 rounded shadow-md whitespace-nowrap opacity-0 group-hover/tooltip:opacity-100 transition-opacity duration-200 pointer-events-none">Undangan Digital</span>
+        </a>
+        <a href="map.html" class="w-12 h-12 rounded-full bg-surface-container border border-outline-variant flex items-center justify-center shadow-md hover:bg-primary-container hover:scale-110 active:scale-95 transition-all relative group/tooltip">
+            <span class="material-symbols-outlined text-primary text-2xl">map</span>
+            <span class="absolute right-14 bg-inverse-surface text-inverse-on-surface text-xs font-label-md px-2 py-1 rounded shadow-md whitespace-nowrap opacity-0 group-hover/tooltip:opacity-100 transition-opacity duration-200 pointer-events-none">Lihat Peta</span>
+        </a>
+        <a href="user/marketplace/index.html" class="w-12 h-12 rounded-full bg-surface-container border border-outline-variant flex items-center justify-center shadow-md hover:bg-primary-container hover:scale-110 active:scale-95 transition-all relative group/tooltip">
+            <span class="material-symbols-outlined text-primary text-2xl">shopping_bag</span>
+            <span class="absolute right-14 bg-inverse-surface text-inverse-on-surface text-xs font-label-md px-2 py-1 rounded shadow-md whitespace-nowrap opacity-0 group-hover/tooltip:opacity-100 transition-opacity duration-200 pointer-events-none">Marketplace</span>
+        </a>
+<a href="gamon-read.html"
+   class="w-12 h-12 rounded-full bg-surface-container border border-outline-variant flex items-center justify-center shadow-md hover:bg-primary-container hover:scale-110 active:scale-95 transition-all relative group/tooltip">
+
+    <span class="material-symbols-outlined text-primary text-2xl">
+        menu_book
+    </span>
+
+    <span class="absolute right-14 bg-inverse-surface text-inverse-on-surface text-xs font-label-md px-2 py-1 rounded shadow-md whitespace-nowrap opacity-0 group-hover/tooltip:opacity-100 transition-opacity duration-200 pointer-events-none">
+        GamonRead
+    </span>
+
+</a>
+    </div>
+    <button id="menuBtn" class="w-14 h-14 rounded-full bg-gradient-to-tr from-primary to-secondary flex items-center justify-center shadow-lg hover:scale-105 active:scale-95 transition-all">
+        <span class="material-symbols-outlined text-white text-3xl transition-transform">apps</span>
+    </button>
+</div>
+
+<!-- <audio id="bgMusic" loop><source src="music.mp3" type="audio/mpeg"></audio> -->
+
+<!--
+  PENTING: SEMUA javascript untuk halaman ini sekarang hanya ada di index-main.js.
+  Jangan tambahkan <script> inline lain di sini — itu penyebab data/handler "kedobel".
+-->
+<script type="module" src="./index-main.js"></script>
+
+</body>
+</html>

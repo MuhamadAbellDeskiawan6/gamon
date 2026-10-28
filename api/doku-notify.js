@@ -132,9 +132,8 @@ export default async function handler(req, res) {
         console.log('[DOKU return] RAW REQUEST:', { url: req.url, query: req.query });
         const orderId = getReturnOrderId(req);
         if (orderId.startsWith('MM-')) {
-            if (!SITE_URL) return res.status(503).send('SITE_URL is not configured');
-            return res.redirect(302, `${SITE_URL}/user/marketplace/pesanan.html?orderId=${encodeURIComponent(orderId)}`);
-        }
+    return res.redirect(302, `/user/marketplace/pesanan.html?orderId=${encodeURIComponent(orderId)}`);
+}
         if (orderId.startsWith('LDR-')) {
             try {
                 const orderSnapshot = await getFirestore().collection('ldr_order').doc(orderId).get();
@@ -157,7 +156,8 @@ export default async function handler(req, res) {
             }
         }
 
-        const targetUrl = '/photobox.html';
+        // ...dan di bagian akhir GET:
+const targetUrl = '/';
         console.log('[DOKU return] Redirect target:', { targetUrl, orderId: orderId || null });
         console.log('[DOKU return] Order bukan LDR atau identifier tidak tersedia, memakai halaman Photobox:', { orderId: orderId || null });
         return res.redirect(302, targetUrl);

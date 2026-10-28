@@ -1266,7 +1266,7 @@ async function handleNotifyMarketplaceChatReply(req, res) {
 
         const siteUrl = (/^https:\/\//i.test(String(process.env.SITE_URL || '').trim())
             ? String(process.env.SITE_URL).trim()
-            : 'https://gamon-tawing.vercel.app').replace(/\/$/, '');
+            : 'https://gamon-space.vercel.app').replace(/\/$/, '');
         const params = new URLSearchParams();
         if (thread.productId) params.set('productId', String(thread.productId));
         else if (thread.orderId) params.set('orderId', String(thread.orderId));

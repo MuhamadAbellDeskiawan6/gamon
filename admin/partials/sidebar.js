@@ -45,7 +45,7 @@
 
     sidebarHost.outerHTML = `<aside class="border-r border-slate-200 bg-white p-4 lg:p-6">
         <div class="mb-6">
-            <h1 class="text-lg font-bold text-pink-600">Gamon Admin</h1>
+            <h1 class="text-lg font-bold text-pink-600">Gamon Space Admin</h1>
             <p class="mt-1 text-xs text-slate-500">Panel pengelolaan admin</p>
         </div>
         <nav class="space-y-1">${menuMarkup}</nav>
