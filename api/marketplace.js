@@ -653,7 +653,15 @@ async function confirmReceived(req, res, claims) {
   return res.status(200).json({ success: true, orderId, already: Boolean(outcome.already) });
 }
 
-// Pembeli mengirim ulasan untuk satu produk di pesanan yang sudah selesai.
+// Foto profil untuk testimoni: hanya URL https pendek atau data URL kecil,
+// supaya dokumen ulasan dan beranda tidak berat.
+function getReviewAvatar(value) {
+  const url = String(value || '').trim();
+  if (/^https:\/\//i.test(url) && url.length <= 1500) return url;
+  if (/^data:image\/(?:jpeg|png|webp);base64,/i.test(url) && url.length <= 60000) return url;
+  return '';
+}
+
 async function submitReview(req, res, claims) {
   const orderId = String(req.body?.orderId || '').trim();
   const productId = String(req.body?.productId || '').trim();
@@ -669,10 +677,14 @@ async function submitReview(req, res, claims) {
   const reviewId = `${orderId}__${productId}`.replace(/[^A-Za-z0-9_-]/g, '_');
   const reviewRef = db.collection('marketplace_reviews').doc(reviewId);
   const productRef = db.collection('marketplace_products').doc(productId);
+  const profileRef = db.collection('marketplace_users').doc(String(claims.uid));
 
   const outcome = await db.runTransaction(async (transaction) => {
-    const [orderSnap, reviewSnap, productSnap] = await Promise.all([
-      transaction.get(orderRef), transaction.get(reviewRef), transaction.get(productRef)
+    const [orderSnap, reviewSnap, productSnap, profileSnap] = await Promise.all([
+      transaction.get(orderRef),
+      transaction.get(reviewRef),
+      transaction.get(productRef),
+      transaction.get(profileRef)
     ]);
     if (!orderSnap.exists || orderSnap.data()?.userId !== claims.uid) {
       return { status: 404, code: 'not-found', message: 'Pesanan tidak ditemukan.' };
@@ -697,12 +709,12 @@ async function submitReview(req, res, claims) {
       productImage: getSafeThumbnail(item.image),
       userId: claims.uid,
       buyerName: maskBuyerName(order.buyerName),
+      buyerPhotoUrl: getReviewAvatar(profileSnap.exists ? profileSnap.data()?.photoUrl : ''),
       rating,
       comment,
       createdAt: now,
       updatedAt: now
     });
-    // Agregat rating di dokumen produk (opsional dipakai di halaman produk).
     if (productSnap.exists) {
       transaction.update(productRef, {
         ratingSum: FieldValue.increment(rating),

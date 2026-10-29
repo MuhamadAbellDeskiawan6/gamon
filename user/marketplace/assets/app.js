@@ -3616,9 +3616,9 @@ async function renderOrdersForBuyer() {
         ${canPay ? `<p class="commerce-payment-countdown" data-payment-countdown="${Number(order.paymentExpiresAt)}"></p>` : ''}
         <div class="commerce-order-shipping"><strong>Alamat pengiriman</strong><p>${escapeHtml(shipping.recipientName || '')} · ${escapeHtml(shipping.phone || '')}<br>${formatAddress(shipping)}${shipping.note ? `<br>Catatan: ${escapeHtml(shipping.note)}` : ''}</p>${mapUrl ? `<a href="${mapUrl}" target="_blank" rel="noopener noreferrer">Lihat di Google Maps</a>` : ''}</div>
         ${order.trackingNumber ? `<p class="commerce-tracking"><strong>${escapeHtml(order.courier || 'Kurir')}:</strong> ${escapeHtml(order.trackingNumber)}</p>` : ''}
-        <footer class="commerce-order-actions">
+                       <footer class="commerce-order-actions">
           <a class="btn btn-soft" href="pesanan.html?orderId=${encodeURIComponent(order.id)}">Lihat detail</a>
-                    ${order.status === 'shipped' ? `<button class="btn btn-primary" type="button" data-confirm-received="${escapeHtml(order.id)}">Pesanan Diterima</button>` : ''}
+          ${order.status === 'shipped' ? `<button class="btn btn-primary" type="button" data-confirm-received="${escapeHtml(order.id)}">Pesanan Diterima</button>` : ''}
           ${order.status === 'completed' ? `<a class="btn btn-primary" href="pesanan.html?orderId=${encodeURIComponent(order.id)}">Beri / lihat ulasan</a>` : ''}
           ${canPay ? `<button class="btn btn-primary" type="button" data-pay-order="${escapeHtml(order.id)}">Bayar Sekarang</button><button class="btn btn-secondary" type="button" data-cancel-order="${escapeHtml(order.id)}">Batalkan</button>` : ''}
           <a class="btn btn-secondary" href="chat.html?orderId=${encodeURIComponent(order.id)}">Tanya Admin</a>
@@ -4917,7 +4917,7 @@ async function renderHomeReviews() {
   const summaryEl = document.querySelector('[data-review-summary]');
 
   try {
-    const snapshot = await getDocs(query(collection(db, 'marketplace_reviews'), orderBy('createdAt', 'desc'), limit(60)));
+    const snapshot = await getDocs(query(collection(db, 'marketplace_reviews'), orderBy('createdAt', 'desc'), limit(30)));
     const reviews = snapshot.docs
       .map((reviewDoc) => ({ id: reviewDoc.id, ...reviewDoc.data() }))
       .filter((review) => Number.isInteger(Number(review.rating)) && Number(review.rating) >= 1 && Number(review.rating) <= 5);
@@ -4929,23 +4929,45 @@ async function renderHomeReviews() {
       summaryEl.hidden = false;
     }
 
-    list.innerHTML = reviews.slice(0, 9).map((review) => {
+    const shown = reviews.slice(0, 9);
+
+    // Gambar produk: ulasan sering tidak menyimpan gambar, jadi ambil dari dokumen produk (publik).
+    const productImages = new Map();
+    const productIds = [...new Set(shown.map((review) => String(review.productId || '')).filter(Boolean))];
+    await Promise.allSettled(productIds.map(async (productId) => {
+      const productSnap = await getDoc(doc(db, 'marketplace_products', productId));
+      if (!productSnap.exists()) return;
+      const data = productSnap.data() || {};
+      const firstImage = Array.isArray(data.images) ? data.images[0] : '';
+      const image = safeMarketplaceImageUrl(data.imageUrl || firstImage || data.image);
+      if (image) productImages.set(productId, image);
+    }));
+
+    list.innerHTML = shown.map((review) => {
       const rating = Number(review.rating);
-      const image = safeMarketplaceImageUrl(review.productImage);
+      const productName = String(review.productName || 'Produk');
+      const image = safeMarketplaceImageUrl(review.productImage) || productImages.get(String(review.productId || '')) || '';
       const thumb = image
-        ? `<img src="${escapeHtml(image)}" alt="${escapeHtml(review.productName || 'Produk')}" loading="lazy" />`
-        : `<span>${escapeHtml(String(review.productName || 'P').charAt(0).toUpperCase())}</span>`;
-      const date = getCreatedAtMs(review.createdAt)
-        ? new Date(getCreatedAtMs(review.createdAt)).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
-        : '';
+        ? `<img src="${escapeHtml(image)}" alt="${escapeHtml(productName)}" loading="lazy" />`
+        : `<span>${escapeHtml(productName.charAt(0).toUpperCase())}</span>`;
+
+      const buyerName = String(review.buyerName || 'Pembeli');
+      const buyerPhoto = safeMarketplaceImageUrl(review.buyerPhotoUrl);
+      const avatar = buyerPhoto
+        ? `<span class="mm-review-avatar"><img src="${escapeHtml(buyerPhoto)}" alt="${escapeHtml(buyerName)}" loading="lazy" referrerpolicy="no-referrer" /></span>`
+        : `<span class="mm-review-avatar">${escapeHtml(buyerName.charAt(0).toUpperCase())}</span>`;
+
+      const ms = getCreatedAtMs(review.createdAt);
+      const date = ms ? new Date(ms).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
+
       return `<article class="mm-review">
         <div class="mm-review-product">
           <span class="mm-review-thumb">${thumb}</span>
-          <a href="${getProductDetailUrl(review.productId)}">${escapeHtml(review.productName || 'Produk')}</a>
+          <a href="${getProductDetailUrl(review.productId)}">${escapeHtml(productName)}</a>
         </div>
         <div class="mm-review-stars" role="img" aria-label="Rating ${rating} dari 5">${'★'.repeat(rating)}${'☆'.repeat(5 - rating)}</div>
         <p class="mm-review-text">${review.comment ? escapeHtml(review.comment) : '<em>Pembeli tidak menulis komentar.</em>'}</p>
-        <div class="mm-review-foot"><strong>${escapeHtml(review.buyerName || 'Pembeli')}</strong><span>${escapeHtml(date)}</span></div>
+        <div class="mm-review-foot"><span class="mm-review-buyer">${avatar}<strong>${escapeHtml(buyerName)}</strong></span><span>${escapeHtml(date)}</span></div>
       </article>`;
     }).join('');
     list.hidden = false;
