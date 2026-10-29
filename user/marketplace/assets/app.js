@@ -2898,13 +2898,24 @@ async function handleForgotPassword(event) {
   }
 
   try {
-    await sendPasswordResetEmail(auth, email);
-    setAuthMessage('Link reset password sudah dikirim ke email Anda.', 'info');
-    showPopup('Link reset password sudah dikirim ke email Anda.', 'Berhasil', 'success');
+    // Dikirim lewat server (sama seperti email verifikasi) supaya tidak masuk spam.
+    const response = await withTimeout(fetch('/api/marketplace?action=send-password-reset', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email })
+    }), 20000, 'Pengiriman email reset');
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || result.success === false) {
+      throw Object.assign(new Error(result.message || 'Gagal mengirim link reset password.'), { code: result.code || `http-${response.status}` });
+    }
+    const message = `Jika ${email} terdaftar, link reset password sudah dikirim. Cek Kotak Masuk (dan folder Spam, lalu tekan "Bukan spam"). Link berlaku 1 jam.`;
+    setAuthMessage(message, 'info');
+    showPopup(message, 'Cek email Anda', 'success');
   } catch (error) {
     console.error('Reset password gagal:', error);
-    setAuthMessage(error.message || 'Gagal mengirim link reset password.', 'error');
-    showPopup(error.message || 'Gagal mengirim link reset password.', 'Gagal', 'error');
+    const message = error.message || 'Gagal mengirim link reset password.';
+    setAuthMessage(message, 'error');
+    showPopup(message, 'Gagal', 'error');
   }
 }
 
@@ -2916,13 +2927,18 @@ async function bindAuthPage() {
   if (!form) return;
   form.addEventListener('submit', handleAuthSubmit);
 
-    if (page === 'login') {
-    const verified = new URLSearchParams(window.location.search).get('verified');
+      if (page === 'login') {
+    const query = new URLSearchParams(window.location.search);
+    const verified = query.get('verified');
     if (verified === '1') {
       setAuthMessage('Email berhasil diverifikasi. Silakan masuk.', 'info');
       showPopup('Email berhasil diverifikasi. Silakan masuk.', 'Verifikasi berhasil', 'success');
     } else if (verified) {
       setAuthMessage('Link verifikasi tidak valid atau sudah kedaluwarsa. Klik "Kirim ulang email verifikasi".', 'error');
+    }
+    if (query.get('reset') === '1') {
+      setAuthMessage('Password berhasil diganti. Silakan masuk dengan password baru.', 'info');
+      showPopup('Password berhasil diganti. Silakan masuk dengan password baru.', 'Berhasil', 'success');
     }
   }
 

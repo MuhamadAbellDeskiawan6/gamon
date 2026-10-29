@@ -985,6 +985,225 @@ async function checkEmail(req, res) {
   return res.status(200).json({ success: true, valid: true, reason: status });
 }
 
+/* =========================================================================
+ * RESET PASSWORD (token HMAC buatan sendiri, dikirim lewat sendEmail seperti email verifikasi)
+ * Alur: POST send-password-reset -> email berisi link -> GET reset-password (form)
+ *       -> POST confirm-password-reset (ganti password via Admin SDK)
+ * ========================================================================= */
+const RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 1 jam
+const RESET_RESEND_INTERVAL_MS = 30 * 1000;
+const resetRequestHits = new Map(); // best-effort per instance serverless
+
+function createResetToken(uid, email, passwordHash) {
+  const secret = getVerifySecret();
+  // "ph" = potongan hash password saat ini: token otomatis hangus begitu password diganti (sekali pakai).
+  const ph = crypto.createHash('sha256').update(String(passwordHash || 'no-password')).digest('hex').slice(0, 16);
+  const payloadB64 = base64Url(JSON.stringify({ t: 'reset', uid, email: String(email).toLowerCase(), ph, exp: Date.now() + RESET_TOKEN_TTL_MS }));
+  return `${payloadB64}.${signVerifyPayload(payloadB64, secret)}`;
+}
+
+function readResetToken(token) {
+  const secret = getVerifySecret();
+  const [payloadB64, signature] = String(token || '').split('.');
+  if (!payloadB64 || !signature) return null;
+  const expected = signVerifyPayload(payloadB64, secret);
+  const a = Buffer.from(signature);
+  const b = Buffer.from(expected);
+  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
+  try {
+    const payload = JSON.parse(Buffer.from(payloadB64.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8'));
+    if (payload?.t !== 'reset' || !payload?.uid || !payload?.email || Number(payload.exp) < Date.now()) return null;
+    return payload;
+  } catch (error) {
+    return null;
+  }
+}
+
+function tooManyResetRequests(key) {
+  const now = Date.now();
+  const hits = (resetRequestHits.get(key) || []).filter((time) => now - time < 10 * 60 * 1000);
+  hits.push(now);
+  resetRequestHits.set(key, hits);
+  if (resetRequestHits.size > 3000) {
+    for (const [storedKey, list] of resetRequestHits) {
+      if (!list.some((time) => now - time < 10 * 60 * 1000)) resetRequestHits.delete(storedKey);
+    }
+  }
+  return hits.length > 5;
+}
+
+// Publik. Selalu membalas sukses agar tidak membocorkan email mana yang terdaftar.
+async function sendPasswordReset(req, res) {
+  const email = String(req.body?.email || '').trim().toLowerCase();
+  if (!EMAIL_FORMAT_RE.test(email) || email.length > 254) {
+    return responseError(res, 400, 'invalid-email', 'Format email tidak valid.');
+  }
+  if (tooManyResetRequests(`${getClientIp(req)}|${email}`)) {
+    return responseError(res, 429, 'too-many-requests', 'Terlalu banyak permintaan. Tunggu beberapa menit lalu coba lagi.');
+  }
+
+  const genericOk = () => res.status(200).json({ success: true, sent: true });
+
+  try {
+    const adminAuth = getAdminAuth();
+    let user;
+    try {
+      user = await adminAuth.getUserByEmail(email);
+    } catch (error) {
+      if (error.code === 'auth/user-not-found') return genericOk();
+      throw error;
+    }
+    if (String(user.email || '').toLowerCase() === MAIL_OWNER_EMAIL) return genericOk(); // akun admin tidak lewat jalur ini
+
+    // Throttle per akun disimpan di Firestore (berlaku antar instance serverless).
+    const db = getAdminDb();
+    const profileRef = db.collection('marketplace_users').doc(user.uid);
+    const profileSnap = await profileRef.get();
+    const lastSent = Number(profileSnap.exists ? profileSnap.data()?.resetSentAt || 0 : 0);
+    if (Date.now() - lastSent < RESET_RESEND_INTERVAL_MS) return genericOk();
+
+    const host = String(req.headers?.host || '');
+    const isLocalHost = /^(localhost|127\.0\.0\.1)(:\d+)?$/i.test(host);
+    const baseUrl = isLocalHost ? `http://${host}` : getSiteUrl();
+    const link = `${baseUrl}/api/marketplace?action=reset-password&token=${encodeURIComponent(createResetToken(user.uid, email, user.passwordHash))}`;
+
+    const name = cleanText(profileSnap.exists ? profileSnap.data()?.name : '', 80) || 'Pembeli';
+    const safeLink = escapeMailHtml(link);
+    await sendEmail({
+      to: email,
+      subject: 'Atur ulang password akun Marketplace Mantan',
+      html: `
+      <div style="font-family:Arial,Helvetica,sans-serif;max-width:520px;margin:auto;padding:28px;color:#111827;line-height:1.6;border:1px solid #eee;border-radius:16px">
+        <h2 style="margin:0 0 12px;color:#2a1f3d">Atur ulang password</h2>
+        <p>Halo ${escapeMailHtml(name)},</p>
+        <p>Kami menerima permintaan untuk mengatur ulang password akun Marketplace Mantan Anda. Klik tombol di bawah untuk membuat password baru.</p>
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:24px 0">
+          <tr>
+            <td align="center" bgcolor="#ec4f86" style="border-radius:10px">
+              <a href="${safeLink}" target="_blank"
+                 style="display:inline-block;padding:14px 30px;font-size:16px;font-weight:bold;color:#ffffff;text-decoration:none;border-radius:10px">
+                Atur Ulang Password
+              </a>
+            </td>
+          </tr>
+        </table>
+        <p style="font-size:13px;color:#6b6078">Jika tombol tidak bisa diklik, salin dan tempel link berikut ke browser:</p>
+        <p style="font-size:12px;word-break:break-all;color:#374151">${safeLink}</p>
+        <p style="font-size:13px;color:#6b6078">Link berlaku 1 jam dan hanya bisa dipakai sekali. Jika Anda tidak meminta ini, abaikan email ini; password Anda tidak berubah.</p>
+      </div>`,
+      text: `Halo ${name},\n\nKlik link berikut untuk mengatur ulang password akun Marketplace Mantan Anda:\n\n${link}\n\nLink berlaku 1 jam dan hanya bisa dipakai sekali. Jika Anda tidak meminta ini, abaikan email ini.\n\nMarketplace Mantan`
+    });
+    await profileRef.set({ resetSentAt: Date.now() }, { merge: true });
+    return genericOk();
+  } catch (error) {
+    console.error('[marketplace] gagal mengirim email reset password:', { code: error.code || 'unknown', message: error.message });
+    return responseError(res, 502, error.code || 'reset-mail-failed', 'Email reset password gagal dikirim. Coba lagi sebentar.');
+  }
+}
+
+function renderResetPage(res, { token = '', error = '' } = {}) {
+  res.statusCode = error ? 400 : 200;
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-store');
+  res.setHeader('Referrer-Policy', 'no-referrer');
+  const form = error ? '' : `
+    <form id="f" autocomplete="off">
+      <label for="p1">Password baru</label>
+      <input id="p1" type="password" minlength="6" autocomplete="new-password" required />
+      <label for="p2">Ulangi password baru</label>
+      <input id="p2" type="password" minlength="6" autocomplete="new-password" required />
+      <p id="msg" role="status"></p>
+      <button id="btn" type="submit">Simpan password</button>
+    </form>
+    <script>
+      const token = ${JSON.stringify(token)};
+      const form = document.getElementById('f');
+      const msg = document.getElementById('msg');
+      const btn = document.getElementById('btn');
+      form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const p1 = document.getElementById('p1').value;
+        const p2 = document.getElementById('p2').value;
+        msg.className = '';
+        if (p1.length < 6) { msg.textContent = 'Password minimal 6 karakter.'; msg.className = 'err'; return; }
+        if (p1 !== p2) { msg.textContent = 'Kedua password tidak sama.'; msg.className = 'err'; return; }
+        btn.disabled = true; btn.textContent = 'Menyimpan...';
+        try {
+          const response = await fetch('/api/marketplace?action=confirm-password-reset', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token, password: p1 })
+          });
+          const result = await response.json().catch(() => ({}));
+          if (!response.ok || result.success === false) throw new Error(result.message || 'Password gagal disimpan.');
+          msg.textContent = 'Password berhasil diganti. Mengarahkan ke halaman masuk...'; msg.className = 'ok';
+          setTimeout(() => { location.href = '/user/marketplace/login.html?reset=1'; }, 1500);
+        } catch (err) {
+          msg.textContent = err.message; msg.className = 'err';
+          btn.disabled = false; btn.textContent = 'Simpan password';
+        }
+      });
+    </script>`;
+  res.end(`<!DOCTYPE html>
+<html lang="id"><head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Atur ulang password — Marketplace Mantan</title>
+<style>
+  body{margin:0;min-height:100vh;display:grid;place-items:center;background:#fff5f9;font-family:Arial,Helvetica,sans-serif;color:#2a1f3d}
+  .card{width:min(420px,92vw);background:#fff;border-radius:20px;padding:28px;box-shadow:0 18px 50px rgba(0,0,0,.1)}
+  h1{margin:0 0 6px;font-size:1.4rem} p.sub{margin:0 0 18px;color:#6b6078;font-size:.95rem}
+  label{display:block;margin:14px 0 6px;font-weight:600;font-size:.9rem}
+  input{width:100%;box-sizing:border-box;padding:12px;border:1px solid #e5d9e2;border-radius:10px;font-size:1rem}
+  button{width:100%;margin-top:18px;padding:13px;border:0;border-radius:10px;background:#ec4f86;color:#fff;font-size:1rem;font-weight:700;cursor:pointer}
+  button:disabled{opacity:.6;cursor:default} #msg{min-height:20px;margin:12px 0 0;font-size:.9rem}
+  .err{color:#b91c1c}.ok{color:#15803d}.error-box{background:#fff1f2;border:1px solid #fecdd3;color:#991b1b;padding:12px;border-radius:10px;margin-bottom:12px}
+  a{color:#ec4f86;font-weight:700}
+</style></head><body><div class="card">
+  <h1>Atur ulang password</h1>
+  <p class="sub">Buat password baru untuk akun Marketplace Mantan Anda.</p>
+  ${error ? `<div class="error-box">${escapeMailHtml(error)}</div><p><a href="/user/marketplace/login.html">Kembali ke halaman masuk</a></p>` : form}
+</div></body></html>`);
+}
+
+// Dibuka dari link di email (GET): tampilkan form password baru.
+async function showResetPage(req, res) {
+  try {
+    const payload = readResetToken(req.query?.token);
+    if (!payload) return renderResetPage(res, { error: 'Link tidak valid atau sudah kedaluwarsa. Minta link baru dari halaman masuk.' });
+    const user = await getAdminAuth().getUser(payload.uid);
+    const ph = crypto.createHash('sha256').update(String(user.passwordHash || 'no-password')).digest('hex').slice(0, 16);
+    if (String(user.email || '').toLowerCase() !== payload.email || ph !== payload.ph) {
+      return renderResetPage(res, { error: 'Link ini sudah dipakai atau tidak berlaku lagi. Minta link baru dari halaman masuk.' });
+    }
+    return renderResetPage(res, { token: String(req.query.token) });
+  } catch (error) {
+    console.error('[marketplace] reset-password gagal:', { code: error.code || 'unknown', message: error.message });
+    return renderResetPage(res, { error: 'Terjadi kesalahan. Silakan minta link baru.' });
+  }
+}
+
+// Publik (dilindungi token): ganti password lewat Admin SDK.
+async function confirmPasswordReset(req, res) {
+  const password = String(req.body?.password || '');
+  if (password.length < 6 || password.length > 128) {
+    return responseError(res, 400, 'weak-password', 'Password harus 6 sampai 128 karakter.');
+  }
+  const payload = readResetToken(req.body?.token);
+  if (!payload) return responseError(res, 400, 'invalid-token', 'Link tidak valid atau sudah kedaluwarsa. Minta link baru dari halaman masuk.');
+
+  const adminAuth = getAdminAuth();
+  const user = await adminAuth.getUser(payload.uid);
+  const ph = crypto.createHash('sha256').update(String(user.passwordHash || 'no-password')).digest('hex').slice(0, 16);
+  if (String(user.email || '').toLowerCase() !== payload.email || ph !== payload.ph) {
+    return responseError(res, 400, 'token-used', 'Link ini sudah dipakai. Minta link baru dari halaman masuk.');
+  }
+
+  // Email terbukti milik pengguna karena link dikirim ke sana, jadi sekalian ditandai terverifikasi
+  // (membantu akun Google yang belum punya password).
+  await adminAuth.updateUser(payload.uid, { password, emailVerified: true });
+  await adminAuth.revokeRefreshTokens(payload.uid).catch(() => {});
+  return res.status(200).json({ success: true });
+}
+
 async function sendVerification(req, res) {
   const token = readBearerToken(req);
   if (!token) return responseError(res, 401, 'unauthenticated', 'Silakan masuk kembali.');
@@ -1078,9 +1297,12 @@ async function verifyEmail(req, res) {
 export default async function handler(req, res) {
  const action = String(req.query?.action || '').trim().toLowerCase();
 
-  // Link dari email dibuka lewat GET.
+   // Link dari email dibuka lewat GET.
   if (req.method === 'GET' && action === 'verify-email') {
     return verifyEmail(req, res);
+  }
+  if (req.method === 'GET' && action === 'reset-password') {
+    return showResetPage(req, res);
   }
 
   if (req.method !== 'POST') return responseError(res, 405, 'method-not-allowed', 'Method not allowed.');
@@ -1102,6 +1324,24 @@ export default async function handler(req, res) {
     } catch (error) {
       console.error('[marketplace] check-email gagal:', error.message);
       return res.status(200).json({ success: true, valid: true, reason: 'check-failed' }); // fail-open
+    }
+  }
+
+    if (action === 'send-password-reset') {
+    try {
+      return await sendPasswordReset(req, res);
+    } catch (error) {
+      console.error('[marketplace] send-password-reset gagal:', error.message);
+      return responseError(res, 500, 'reset-failed', 'Email reset password gagal dikirim.');
+    }
+  }
+
+  if (action === 'confirm-password-reset') {
+    try {
+      return await confirmPasswordReset(req, res);
+    } catch (error) {
+      console.error('[marketplace] confirm-password-reset gagal:', error.message);
+      return responseError(res, 500, 'reset-failed', 'Password gagal diganti. Coba lagi.');
     }
   }
 
