@@ -913,39 +913,6 @@ function setAuthMessage(message, tone = 'info') {
   messageBox.style.border = tone === 'error' ? '1px solid #f1b3b3' : '1px solid #c8d7ff';
 }
 
-function getLoginAttempts() {
-  const stored = readStorage(STORAGE_KEYS.LOGIN_ATTEMPTS, { count: 0, lastAttemptAt: 0 });
-  const now = Date.now();
-  if (stored.lastAttemptAt && now - stored.lastAttemptAt > 15 * 60 * 1000) {
-    return { count: 0, lastAttemptAt: 0 };
-  }
-  return stored;
-}
-
-function recordFailedLogin() {
-  const now = Date.now();
-  const attempts = getLoginAttempts();
-  const next = { count: (attempts.count || 0) + 1, lastAttemptAt: now };
-  writeStorage(STORAGE_KEYS.LOGIN_ATTEMPTS, next);
-  return next;
-}
-
-function resetLoginAttempts() {
-  writeStorage(STORAGE_KEYS.LOGIN_ATTEMPTS, { count: 0, lastAttemptAt: 0 });
-}
-
-function canAttemptLogin() {
-  const attempts = getLoginAttempts();
-  const now = Date.now();
-  if ((attempts.count || 0) >= 5 && attempts.lastAttemptAt && now - attempts.lastAttemptAt < 5 * 60 * 1000) {
-    return false;
-  }
-  if ((attempts.count || 0) >= 3 && attempts.lastAttemptAt && now - attempts.lastAttemptAt < 2 * 60 * 1000) {
-    return false;
-  }
-  return true;
-}
-
 function formatCurrency(value) {
   return moneyFormatter.format(Number(value || 0));
 }
@@ -962,6 +929,21 @@ function getProductDetailUrl(productId) {
 function safeMarketplaceImageUrl(value) {
   const imageUrl = String(value || '').trim();
   return /^https:\/\//i.test(imageUrl) || /^data:image\/(?:jpeg|png|webp);base64,/i.test(imageUrl) ? imageUrl : '';
+}
+
+/* =========================================================================
+ * KEMBALI KE HALAMAN SEBELUMNYA (mis. keranjang -> profil -> keranjang)
+ * Hanya menerima nama file .html di folder yang sama (anti open-redirect).
+ * ========================================================================= */
+function getSafeReturnUrl() {
+  const raw = String(new URLSearchParams(window.location.search).get('returnTo') || '').trim();
+  if (!/^[A-Za-z0-9_-]+\.html(\?[A-Za-z0-9_=&%.-]*)?$/.test(raw)) return '';
+  if (raw.toLowerCase().startsWith('profil.html')) return '';
+  return raw;
+}
+
+function getProfileUrlWithReturn(returnTo = 'keranjang.html') {
+  return `profil.html?returnTo=${encodeURIComponent(returnTo)}`;
 }
 
 function getShippingAddressFromUser(user) {
@@ -2332,10 +2314,11 @@ async function renderCartPage() {
     console.error('[marketplace] gagal memuat alamat profil untuk keranjang:', profileResult.reason);
   }
 
-  const shipping = getShippingAddressFromUser(profile);
+    const shipping = getShippingAddressFromUser(profile);
   const cartSummary = document.querySelector('[data-cart-shipping]');
   if (cartSummary) {
-        const completeness = shipping.complete ? 'Alamat siap untuk checkout.' : 'Alamat belum lengkap; isi nama penerima, HP, kota/kecamatan/kelurahan, alamat lengkap, dan titik peta di Profil.';
+    const profileUrl = getProfileUrlWithReturn('keranjang.html');
+    const completeness = shipping.complete ? 'Alamat siap untuk checkout.' : 'Alamat belum lengkap; isi nama penerima, HP, kota/kecamatan/kelurahan, alamat lengkap, dan titik peta di Profil.';
     const warning = shipping.outsideKalsel
       ? '<p class="commerce-warning">Titik peta berada di luar Kalimantan Selatan; layanan hanya untuk wilayah Kalsel. Periksa kembali sebelum membayar.</p>'
       : shipping.outsideIndonesia
@@ -2343,7 +2326,10 @@ async function renderCartPage() {
         : '';
     const regionLine = [shipping.village && `Kel./Desa ${shipping.village}`, shipping.district && `Kec. ${shipping.district}`, shipping.city, shipping.province, shipping.postalCode].filter(Boolean).map(escapeHtml).join(', ');
     const map = shipping.complete ? `<iframe title="Preview alamat pengiriman" loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="https://maps.google.com/maps?q=${shipping.latitude},${shipping.longitude}&z=16&output=embed"></iframe><a href="${shipping.mapsUrl}" target="_blank" rel="noopener noreferrer">Lihat titik di Google Maps</a>` : '';
-    cartSummary.innerHTML = `<div class="commerce-section-heading"><div><h2>Alamat pengiriman</h2><p>${escapeHtml(completeness)}</p></div><a href="profil.html">Ubah alamat</a></div>${shipping.complete ? `<address>${escapeHtml(shipping.recipientName)} · ${escapeHtml(shipping.phone)}<br>${escapeHtml(shipping.address)}<br>${regionLine}${shipping.note ? `<br>Catatan: ${escapeHtml(shipping.note)}` : ''}</address><div class="commerce-map">${map}</div>` : ''}${warning}`;
+    const completeCta = shipping.complete
+      ? ''
+      : `<p style="margin-top:12px;"><a class="btn btn-primary" href="${profileUrl}">Lengkapi alamat sekarang</a></p>`;
+    cartSummary.innerHTML = `<div class="commerce-section-heading"><div><h2>Alamat pengiriman</h2><p>${escapeHtml(completeness)}</p></div><a href="${profileUrl}">Ubah alamat</a></div>${shipping.complete ? `<address>${escapeHtml(shipping.recipientName)} · ${escapeHtml(shipping.phone)}<br>${escapeHtml(shipping.address)}<br>${regionLine}${shipping.note ? `<br>Catatan: ${escapeHtml(shipping.note)}` : ''}</address><div class="commerce-map">${map}</div>` : ''}${warning}${completeCta}`;
   }
 
   let renderSequence = 0;
@@ -2656,13 +2642,6 @@ async function handleGoogleAuth(event) {
   const rememberInput = document.querySelector('input[name="remember"]');
   const rememberMe = rememberInput ? rememberInput.checked : true;
 
-  if (!canAttemptLogin()) {
-    const message = 'Terlalu banyak percobaan login. Tunggu beberapa menit lalu coba lagi.';
-    setAuthMessage(message, 'error');
-    showPopup(message, 'Terlalu banyak', 'error');
-    return;
-  }
-
   button.disabled = true;
   window.__marketplaceAuthBusy = true;
   try {
@@ -2703,7 +2682,6 @@ async function handleGoogleAuth(event) {
       await setDoc(profileRef, user);
     }
 
-    resetLoginAttempts();
     setCurrentUser(user, rememberMe);
     const users = readStorage(STORAGE_KEYS.USERS, []) || [];
     writeStorage(STORAGE_KEYS.USERS, [...users.filter((item) => item.email !== user.email), user]);
@@ -2750,13 +2728,6 @@ async function handleAuthSubmit(event) {
   const formData = new FormData(form);
   const payload = Object.fromEntries(formData.entries());
   const rememberMe = formData.get('remember') === 'on' || payload.remember === 'on';
-
-  if (!isRegister && !canAttemptLogin()) {
-    setAuthMessage('Terlalu banyak percobaan login. Tunggu beberapa menit lalu coba lagi.', 'error');
-    showPopup('Terlalu banyak percobaan login. Tunggu beberapa menit lalu coba lagi.', 'Terlalu banyak', 'error');
-    resetButton();
-    return;
-  }
 
   window.__marketplaceAuthBusy = true;
   try {
@@ -2836,12 +2807,10 @@ async function handleAuthSubmit(event) {
       city: 'Jakarta'
     };
 
-    resetLoginAttempts();
     setCurrentUser(user, rememberMe);
     writeStorage(STORAGE_KEYS.USERS, [...(readStorage(STORAGE_KEYS.USERS, []) || []), user].filter((item, index, arr) => arr.findIndex((entry) => entry.email === item.email) === index));
     window.location.href = 'dashboard.html';
   } catch (error) {
-    if (!isRegister) recordFailedLogin();
     console.error(error);
 
     const rawMessage = error?.message || 'Terjadi kesalahan saat proses autentikasi.';
@@ -2849,19 +2818,19 @@ async function handleAuthSubmit(event) {
     let userMessage = rawMessage;
 
     if (errorText.includes('invalid-credential') || errorText.includes('wrong-password') || errorText.includes('user-not-found')) {
-      userMessage = 'Email atau password salah. Pastikan akun sudah dibuat dan password benar.';
+      userMessage = 'Email atau password salah. Jika akun Anda dibuat lewat Google, klik "Masuk dengan Google", atau klik "Lupa password?" untuk membuat password baru.';
     } else if (errorText.includes('invalid-email-domain')) {
       userMessage = rawMessage;
     } else if (errorText.includes('invalid-email')) {
       userMessage = 'Format email tidak valid.';
     } else if (errorText.includes('email-already-in-use')) {
-      userMessage = 'Email sudah terdaftar. Silakan masuk, atau klik "Lupa password?" jika lupa.';
+      userMessage = 'Email sudah terdaftar. Silakan masuk. Jika dulu mendaftar lewat Google, pakai tombol "Masuk dengan Google" atau klik "Lupa password?".';
     } else if (errorText.includes('weak-password')) {
       userMessage = 'Password terlalu lemah. Gunakan minimal 6 karakter.';
     } else if (errorText.includes('reserved-email')) {
       userMessage = rawMessage;
     } else if (errorText.includes('too-many-requests')) {
-      userMessage = 'Terlalu banyak percobaan. Tunggu beberapa menit lalu coba lagi.';
+      userMessage = 'Terlalu banyak percobaan dari perangkat ini. Tunggu beberapa menit, atau klik "Lupa password?" lalu coba lagi.';
     } else if (errorText.includes('network-request-failed')) {
       userMessage = 'Koneksi gagal. Coba lagi dalam beberapa saat.';
     }
@@ -4056,6 +4025,8 @@ function renderProfile() {
 
     // Mulai dari foto kanonik saat ini (satu field), jangan bawa field foto lama.
     let photoUrl = getUserPhotoUrl(user) || '';
+        let redirecting = false;
+    const returnTo = getSafeReturnUrl();
 
     if (submitButton) {
       submitButton.disabled = true;
@@ -4133,12 +4104,23 @@ function renderProfile() {
       setCurrentUser(updatedUser);
       hydrateUserProfileUI();
       syncProfilePhotoPreview(photoUrl);
-      showPopup('Profil berhasil diperbarui.', 'Berhasil', 'success');
+                  const addressNowComplete = getShippingAddressFromUser(updatedUser).complete;
+      if (returnTo && addressNowComplete) {
+        // Datang dari halaman lain (mis. keranjang) dan alamat sudah lengkap: kembali ke sana.
+        redirecting = true;
+        showToast('Profil tersimpan. Mengembalikan Anda ke halaman sebelumnya...', 'success');
+        setTimeout(() => { window.location.href = returnTo; }, 900);
+      } else if (returnTo && !addressNowComplete) {
+        // Datang dari halaman lain tapi alamat masih kurang: tetap di profil, beri tahu apa yang kurang.
+        showPopup('Profil tersimpan, tetapi alamat pengiriman belum lengkap. Lengkapi nama penerima, HP, kota/kecamatan/kelurahan, alamat lengkap, dan titik peta agar bisa checkout.', 'Alamat belum lengkap', 'info');
+      } else {
+        showPopup('Profil berhasil diperbarui.', 'Berhasil', 'success');
+      }
     } catch (error) {
       console.error('Update profile error:', error);
       showPopup(error.message || 'Gagal memperbarui profil. Silakan coba lagi.', 'Gagal', 'error');
-    } finally {
-      if (submitButton) {
+        } finally {
+      if (submitButton && !redirecting) {
         submitButton.disabled = false;
         submitButton.textContent = 'Simpan perubahan';
       }
