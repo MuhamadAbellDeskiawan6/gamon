@@ -1988,7 +1988,8 @@ async function getUserAvatarMarkupByName(userName, userId, fallbackText = 'P', p
     : `<span class="avatar">${escapeHtml((displayName || fallbackText).charAt(0).toUpperCase())}</span>`;
 }
 
-function chunkProducts(items, chunkSize = 4) {
+/* ---------- 1. ---------- */
+function chunkProducts(items, chunkSize = 5) {
   const chunks = [];
   for (let index = 0; index < items.length; index += chunkSize) {
     chunks.push(items.slice(index, index + chunkSize));
@@ -1996,8 +1997,10 @@ function chunkProducts(items, chunkSize = 4) {
   return chunks;
 }
 
+
+/* ---------- 2. ---------- */
 function renderProductCarousel(items) {
-  const chunks = chunkProducts(items, 4);
+  const chunks = chunkProducts(items, 5);
   if (!chunks.length) {
     return `
       <div class="product-carousel product-carousel-empty">
@@ -2005,73 +2008,75 @@ function renderProductCarousel(items) {
       </div>
     `;
   }
-
+ 
+  const cardMarkup = (item) => {
+    const imageUrl = safeMarketplaceImageUrl(item.imageUrl);
+    const media = imageUrl
+      ? `<img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(item.name)}" loading="lazy" decoding="async" />`
+      : `<span class="mm-card-noimg"><span class="material-symbols-outlined" aria-hidden="true">${escapeHtml(productEmoji(item.category))}</span></span>`;
+    const out = item.stock <= 0;
+    return `
+      <article class="mm-card" data-category="${escapeHtml(item.category)}">
+        <a class="mm-card-media" href="${getProductDetailUrl(item.id)}" aria-label="Lihat detail ${escapeHtml(item.name)}">
+          ${media}
+          <span class="mm-card-chip">${escapeHtml(item.label)}</span>
+        </a>
+        <div class="mm-card-body">
+          <div class="mm-card-price">${formatCurrency(item.price)}</div>
+          <h3 class="mm-card-title">${escapeHtml(item.name)}</h3>
+          <span class="mm-card-stock ${out ? 'is-out' : ''}">${out ? 'Stok habis' : `Stok: ${item.stock}`}</span>
+          <div class="mm-card-actions">
+            <a class="mm-card-btn" href="${getProductDetailUrl(item.id)}">Detail</a>
+            ${out
+              ? '<button class="mm-card-btn" type="button" disabled>Habis</button>'
+              : `<button class="mm-card-btn primary" type="button" data-add-cart="${escapeHtml(item.id)}">+ Keranjang</button>`}
+          </div>
+        </div>
+      </article>`;
+  };
+ 
   const slidesMarkup = chunks.map((chunk, index) => `
     <div class="product-carousel-slide ${index === 0 ? 'is-active' : ''}" data-slide-index="${index}">
-      ${chunk.map((item) => `
-        <article class="product-card compact-card thread-card" data-category="${item.category}">
-          <div class="image">${item.imageUrl ? `<img src="${item.imageUrl}" alt="${escapeHtml(item.name)}" style="width: 100%; height: 100%; object-fit: cover;" />` : item.image} <span class="chip">${escapeHtml(item.label)}</span></div>
-          <div class="product-body">
-            <div class="product-head">
-              <div class="price">${formatCurrency(item.price)}</div>
-              <span class="condition" style="${item.stock === 0 ? 'background: rgba(220, 38, 38, 0.08); color: #b91c1c; border: 1px solid rgba(220, 38, 38, 0.18);' : item.stock <= 2 ? 'background: rgba(245, 158, 11, 0.1); color: #92400e; border: 1px solid rgba(245, 158, 11, 0.2);' : 'background: rgba(34, 197, 94, 0.08); color: #15803d; border: 1px solid rgba(34, 197, 94, 0.18);'}">${item.stock > 0 ? `Stok: ${item.stock}` : 'Stok habis'}</span>
-            </div>
-            <h3>${escapeHtml(item.name)}</h3>
-            <div class="seller-row compact-row">
-              <span class="seller-meta">${item.sellerPhotoUrl ? `<span class="avatar has-photo"><img src="${escapeHtml(item.sellerPhotoUrl)}" alt="${escapeHtml(getSafeUserName(item.seller || 'P'))}" /></span>` : `<span class="avatar">${escapeHtml((item.seller || 'P').charAt(0).toUpperCase())}</span>`} <span class="seller-name">${escapeHtml(item.seller)}</span></span>
-              <span>${escapeHtml(item.city)}</span>
-            </div>
-            <div class="card-actions compact-actions">
-              <a class="btn btn-soft" href="${getProductDetailUrl(item.id)}">Lihat detail</a>
-              ${item.stock > 0 ? `<button class="btn btn-primary" type="button" data-add-cart="${escapeHtml(item.id)}">+ Keranjang</button>` : '<button class="btn btn-secondary" type="button" disabled>Stok habis</button>'}
-            </div>
-          </div>
-        </article>
-      `).join('')}
+      ${chunk.map(cardMarkup).join('')}
     </div>
   `).join('');
-
-  const dotsMarkup = chunks.map((_, dotIndex) => `
-    <button class="product-carousel-dot ${dotIndex === 0 ? 'is-active' : ''}" type="button" data-dot-index="${dotIndex}" aria-label="Lihat slide ${dotIndex + 1}"></button>
-  `).join('');
-
+ 
+  const controls = chunks.length > 1 ? `
+      <div class="product-carousel-controls">
+        <button class="product-carousel-btn product-carousel-nav product-carousel-prev" type="button" aria-label="Sebelumnya">‹</button>
+        <div class="product-carousel-dots" aria-label="Navigasi slide produk">
+          ${chunks.map((_, dotIndex) => `<button class="product-carousel-dot ${dotIndex === 0 ? 'is-active' : ''}" type="button" data-dot-index="${dotIndex}" aria-label="Lihat slide ${dotIndex + 1}"></button>`).join('')}
+        </div>
+        <button class="product-carousel-btn product-carousel-nav product-carousel-next" type="button" aria-label="Berikutnya">›</button>
+      </div>` : '';
+ 
   return `
     <div class="product-carousel" data-product-carousel data-total-slides="${chunks.length}">
       <div class="product-carousel-track">${slidesMarkup}</div>
-      <div class="product-carousel-controls">
-        <button class="product-carousel-btn product-carousel-nav product-carousel-prev" type="button" aria-label="Previous product">‹</button>
-        <div class="product-carousel-dots" aria-label="Navigasi slide produk">${dotsMarkup}</div>
-        <button class="product-carousel-btn product-carousel-nav product-carousel-next" type="button" aria-label="Next product">›</button>
-      </div>
+      ${controls}
     </div>
   `;
 }
 
-function renderHomeProductsLoadingState() {
-  const skeletons = Array.from({ length: 4 }, (_, index) => `
-    <article class="product-card compact-card product-loading-card" aria-label="Memuat barang ${index + 1}" aria-busy="true">
-      <div class="product-loading-image"></div>
-      <div class="product-body product-loading-body">
-        <div class="product-loading-line product-loading-price"></div>
-        <div class="product-loading-line"></div>
-        <div class="product-loading-line product-loading-line-short"></div>
-        <div class="product-loading-meta">
-          <span class="product-loading-avatar"></span>
-          <span class="product-loading-line product-loading-meta-line"></span>
-        </div>
-      </div>
-    </article>
-  `).join('');
 
+/* ---------- 3. ---------- */
+function renderHomeProductsLoadingState() {
+  const skeleton = `
+    <article class="mm-card mm-card-skel" aria-hidden="true">
+      <span class="sk sk-media"></span>
+      <div class="mm-card-body">
+        <span class="sk sk-price"></span>
+        <span class="sk sk-line"></span>
+        <span class="sk sk-line sk-w60"></span>
+        <span class="sk sk-chip"></span>
+        <span class="sk sk-btn"></span>
+      </div>
+    </article>`;
+ 
   return `
-    <div class="product-loading-state" aria-live="polite" aria-label="Memuat barang yang sedang dijual">
-      <div class="product-loading-indicator" role="status" aria-live="polite">
-        <span class="product-loading-spinner" aria-hidden="true"></span>
-        <span>Memuat barang yang sedang dijual...</span>
-      </div>
-      <div class="product-loading-grid">
-        ${skeletons}
-      </div>
+    <div class="mm-loading-wrap" role="status" aria-live="polite" aria-label="Memuat barang">
+      <div class="mm-loading-pill">Memuat barang yang sedang dijual...</div>
+      <div class="mm-grid">${skeleton.repeat(5)}</div>
     </div>
   `;
 }
@@ -4910,70 +4915,108 @@ function renderUserSidebar() {
 /* =========================================================================
  * TESTIMONI DI BERANDA (membaca marketplace_reviews, publik)
  * ========================================================================= */
+ 
+/* ---------- 4. ---------- */
 async function renderHomeReviews() {
   const list = document.querySelector('[data-review-list]');
   if (!list) return;
+  const loader = document.querySelector('[data-review-loading]');
   const emptyEl = document.querySelector('[data-review-empty]');
+  const errorEl = document.querySelector('[data-review-error]');
   const summaryEl = document.querySelector('[data-review-summary]');
-
+ 
+  // Hanya SATU state yang tampil pada satu waktu.
+  const show = (state) => {
+    if (loader) loader.hidden = state !== 'loading';
+    list.hidden = state !== 'list';
+    if (summaryEl) summaryEl.hidden = state !== 'list';
+    if (emptyEl) emptyEl.hidden = state !== 'empty';
+    if (errorEl) errorEl.hidden = state !== 'error';
+  };
+ 
+  if (errorEl && errorEl.dataset.retryBound !== 'true') {
+    errorEl.dataset.retryBound = 'true';
+    errorEl.querySelector('[data-review-retry]')?.addEventListener('click', () => renderHomeReviews());
+  }
+ 
+  show('loading');
+ 
   try {
     const snapshot = await getDocs(query(collection(db, 'marketplace_reviews'), orderBy('createdAt', 'desc'), limit(30)));
     const reviews = snapshot.docs
       .map((reviewDoc) => ({ id: reviewDoc.id, ...reviewDoc.data() }))
       .filter((review) => Number.isInteger(Number(review.rating)) && Number(review.rating) >= 1 && Number(review.rating) <= 5);
-    if (!reviews.length) return; // biarkan tampilan "belum ada testimoni"
-
+ 
+    // Pesan "belum ada testimoni" HANYA bila database memang kosong.
+    if (!reviews.length) {
+      show('empty');
+      return;
+    }
+ 
     const average = reviews.reduce((sum, review) => sum + Number(review.rating), 0) / reviews.length;
     if (summaryEl) {
-      summaryEl.innerHTML = `<strong>${average.toFixed(1)}</strong><span class="mm-review-stars" aria-hidden="true">${'★'.repeat(Math.round(average))}${'☆'.repeat(5 - Math.round(average))}</span><span>dari ${reviews.length} ulasan terbaru</span>`;
-      summaryEl.hidden = false;
+      const rounded = Math.round(average);
+      summaryEl.innerHTML = `<strong>${average.toFixed(1)}</strong><span class="mm-review-stars" aria-hidden="true">${'★'.repeat(rounded)}${'☆'.repeat(5 - rounded)}</span><span>dari ${reviews.length} ulasan terbaru</span>`;
     }
-
+ 
     const shown = reviews.slice(0, 9);
-
-    // Gambar produk: ulasan sering tidak menyimpan gambar, jadi ambil dari dokumen produk (publik).
-    const productImages = new Map();
-    const productIds = [...new Set(shown.map((review) => String(review.productId || '')).filter(Boolean))];
-    await Promise.allSettled(productIds.map(async (productId) => {
-      const productSnap = await getDoc(doc(db, 'marketplace_products', productId));
-      if (!productSnap.exists()) return;
-      const data = productSnap.data() || {};
-      const firstImage = Array.isArray(data.images) ? data.images[0] : '';
-      const image = safeMarketplaceImageUrl(data.imageUrl || firstImage || data.image);
-      if (image) productImages.set(productId, image);
-    }));
-
+ 
     list.innerHTML = shown.map((review) => {
       const rating = Number(review.rating);
+      const productId = String(review.productId || '');
       const productName = String(review.productName || 'Produk');
-      const image = safeMarketplaceImageUrl(review.productImage) || productImages.get(String(review.productId || '')) || '';
+      const image = safeMarketplaceImageUrl(review.productImage);
       const thumb = image
         ? `<img src="${escapeHtml(image)}" alt="${escapeHtml(productName)}" loading="lazy" />`
         : `<span>${escapeHtml(productName.charAt(0).toUpperCase())}</span>`;
-
+ 
       const buyerName = String(review.buyerName || 'Pembeli');
       const buyerPhoto = safeMarketplaceImageUrl(review.buyerPhotoUrl);
       const avatar = buyerPhoto
         ? `<span class="mm-review-avatar"><img src="${escapeHtml(buyerPhoto)}" alt="${escapeHtml(buyerName)}" loading="lazy" referrerpolicy="no-referrer" /></span>`
         : `<span class="mm-review-avatar">${escapeHtml(buyerName.charAt(0).toUpperCase())}</span>`;
-
+ 
       const ms = getCreatedAtMs(review.createdAt);
       const date = ms ? new Date(ms).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
-
+ 
       return `<article class="mm-review">
         <div class="mm-review-product">
-          <span class="mm-review-thumb">${thumb}</span>
-          <a href="${getProductDetailUrl(review.productId)}">${escapeHtml(productName)}</a>
+          <span class="mm-review-thumb" data-review-thumb="${escapeHtml(productId)}">${thumb}</span>
+          <a href="${getProductDetailUrl(productId)}">${escapeHtml(productName)}</a>
         </div>
         <div class="mm-review-stars" role="img" aria-label="Rating ${rating} dari 5">${'★'.repeat(rating)}${'☆'.repeat(5 - rating)}</div>
         <p class="mm-review-text">${review.comment ? escapeHtml(review.comment) : '<em>Pembeli tidak menulis komentar.</em>'}</p>
         <div class="mm-review-foot"><span class="mm-review-buyer">${avatar}<strong>${escapeHtml(buyerName)}</strong></span><span>${escapeHtml(date)}</span></div>
       </article>`;
     }).join('');
-    list.hidden = false;
-    if (emptyEl) emptyEl.hidden = true;
+ 
+    // Data sudah ada -> langsung tampilkan, jangan menunggu gambar produk.
+    show('list');
+ 
+    // Foto produk dilengkapi di belakang layar (ulasan sering tidak menyimpan gambar).
+    const productIds = [...new Set(shown
+      .filter((review) => !safeMarketplaceImageUrl(review.productImage))
+      .map((review) => String(review.productId || ''))
+      .filter(Boolean))];
+    productIds.forEach(async (productId) => {
+      try {
+        const productSnap = await getDoc(doc(db, 'marketplace_products', productId));
+        if (!productSnap.exists()) return;
+        const data = productSnap.data() || {};
+        const firstImage = Array.isArray(data.images) ? data.images[0] : '';
+        const image = safeMarketplaceImageUrl(data.imageUrl || firstImage || data.image);
+        if (!image) return;
+        list.querySelectorAll('[data-review-thumb]').forEach((thumbEl) => {
+          if (thumbEl.dataset.reviewThumb !== productId) return;
+          thumbEl.innerHTML = `<img src="${escapeHtml(image)}" alt="" loading="lazy" />`;
+        });
+      } catch (error) {
+        console.warn('[marketplace] gambar produk ulasan dilewati:', productId, error);
+      }
+    });
   } catch (error) {
     console.error('[marketplace] gagal memuat testimoni:', error);
+    show('error');
   }
 }
 
@@ -5072,9 +5115,9 @@ async function init() {
     return;
   }
  
+  renderHomeReviews();
   await renderHomeProducts();
   await refreshMarketplaceLandingMetrics();
-  renderHomeReviews();
 }
  
 document.addEventListener('DOMContentLoaded', init);

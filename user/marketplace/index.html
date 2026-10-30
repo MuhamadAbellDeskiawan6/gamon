@@ -23,10 +23,7 @@
   "@type": "Store",
   "name": "Marketplace Mantan",
   "description": "Toko barang bekas pilihan di Banjarmasin, Kalimantan Selatan.",
-  "areaServed": {
-    "@type": "City",
-    "name": "Banjarmasin"
-  },
+  "areaServed": { "@type": "City", "name": "Banjarmasin" },
   "address": {
     "@type": "PostalAddress",
     "addressLocality": "Banjarmasin",
@@ -71,7 +68,7 @@ a{color:inherit}
 .mobile-menu-toggle span{display:block;height:3px;border-radius:2px;background:var(--ink)}
 .mobile-menu-panel{display:none}
 
-/* Hero: grid animasi memenuhi seluruh section */
+/* Hero */
 .mm-hero{position:relative;width:100%;overflow:hidden}
 .mm-hero .kinetic-hero-shell{
   position:relative;display:grid;grid-template-columns:1.2fr .8fr;gap:48px;align-items:center;
@@ -114,36 +111,60 @@ a{color:inherit}
 .mm-note{display:flex;gap:12px;align-items:flex-start;margin-bottom:24px;padding:14px 18px;border:2px solid var(--ink);border-radius:14px;background:#fff0bf;font-size:.94rem;color:var(--ink)}
 .mm-note .material-symbols-outlined{flex:none;font-size:22px}
 
-/* Kartu produk: gaya baru */
-.grid-products{width:100%;min-width:0;padding:4px 10px 14px}
-#explore .grid-products :is(article,[class*="card"]):not([class*="card-"]):not([class*="__"]){
-  background:var(--white)!important;color:var(--ink)!important;
-  border:2px solid var(--ink)!important;border-radius:18px!important;
-  box-shadow:6px 6px 0 var(--ink)!important;backdrop-filter:none!important}
-#explore .grid-products :is(h3,h4){font-family:var(--f-d)!important;color:var(--ink)!important;letter-spacing:-.02em}
+/* =========================================================
+   KATALOG PRODUK (markup dibuat oleh assets/app.js)
+   Kartu kecil, foto potret 3:4 apa adanya, tanpa kota/alamat.
+   ========================================================= */
+.grid-products{width:100%;min-width:0;padding:4px 8px 14px}
 
-/* Semua tombol & link aksi di area katalog (selain filter) */
-#explore :is(a,button):not(.filter-pill){
-  background:var(--white)!important;background-image:none!important;
-  color:var(--ink)!important;
-  border:2px solid var(--ink)!important;border-radius:12px!important;
-  box-shadow:3px 3px 0 var(--ink)!important;filter:none!important;
-  font:600 .92rem var(--f-b)!important;text-decoration:none!important;
-  transition:transform .12s,box-shadow .12s!important}
-#explore :is(a,button):not(.filter-pill):hover{transform:translate(2px,2px)!important;box-shadow:1px 1px 0 var(--ink)!important}
-/* Tombol aksi terakhir di kartu (+ Keranjang) berwarna coral */
-#explore .grid-products :is(a,button):last-child,
-#explore .grid-products :is(a,button)[class*="cart"],
-#explore .grid-products :is(a,button)[class*="add"]{background:var(--coral)!important}
-#explore .grid-products :is(a,button):first-child:not(:last-child){background:var(--white)!important}
+.mm-grid,
+#explore .product-carousel-slide.is-active{
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(176px,1fr));gap:18px;align-items:start}
+#explore .product-carousel-track{display:block;transform:none!important}
+#explore .product-carousel-slide:not(.is-active){display:none}
 
-/* Badge stok */
-#explore .grid-products [class*="stock"],#explore .grid-products [class*="stok"]{
-  border:2px solid var(--ink)!important;background:var(--sun)!important;color:var(--ink)!important;box-shadow:none!important}
+.mm-card{display:flex;flex-direction:column;min-width:0;background:var(--white);border:2px solid var(--ink);border-radius:16px;box-shadow:4px 4px 0 var(--ink);overflow:hidden;transition:transform .12s,box-shadow .12s}
+.mm-card:hover{transform:translate(2px,2px);box-shadow:2px 2px 0 var(--ink)}
+.mm-card-media{position:relative;display:block;width:100%;aspect-ratio:3/4;background:var(--sky);border-bottom:2px solid var(--ink);overflow:hidden;text-decoration:none}
+.mm-card-media img{display:block;width:100%;height:100%;object-fit:cover;object-position:center}
+.mm-card-noimg{display:grid;place-items:center;width:100%;height:100%;color:var(--mute)}
+.mm-card-noimg .material-symbols-outlined{font-size:42px}
+.mm-card-chip{position:absolute;left:8px;top:8px;padding:2px 9px;border:2px solid var(--ink);border-radius:999px;background:var(--sun);color:var(--ink);font:700 .68rem var(--f-b);line-height:1.5}
+.mm-card-body{display:flex;flex-direction:column;gap:6px;padding:10px 11px 12px}
+.mm-card-price{font:800 1.02rem var(--f-d);letter-spacing:-.01em;color:var(--ink)}
+.mm-card-title{font:800 .9rem/1.25 var(--f-d);letter-spacing:-.01em;color:var(--ink);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:2.5em}
+.mm-card-stock{align-self:flex-start;padding:1px 9px;border:2px solid var(--ink);border-radius:999px;font:700 .68rem var(--f-b);line-height:1.6;background:var(--sun);color:var(--ink)}
+.mm-card-stock.is-out{background:#ffd3da}
+.mm-card-actions{display:grid;grid-template-columns:auto 1fr;gap:6px;margin-top:4px}
+.mm-card-btn{display:inline-flex;align-items:center;justify-content:center;padding:7px 10px;border:2px solid var(--ink);border-radius:10px;background:var(--white);color:var(--ink);font:600 .76rem var(--f-b);text-decoration:none;cursor:pointer;box-shadow:2px 2px 0 var(--ink);white-space:nowrap;transition:transform .12s,box-shadow .12s}
+.mm-card-btn:hover:not(:disabled){transform:translate(1px,1px);box-shadow:1px 1px 0 var(--ink)}
+.mm-card-btn.primary{background:var(--coral)}
+.mm-card-btn:disabled{opacity:.55;cursor:not-allowed}
 
-/* Indikator carousel */
-#explore [class*="dot"]{background:var(--white)!important;border:2px solid var(--ink)!important;box-shadow:none!important}
-#explore [class*="dot"].active,#explore [class*="dot"][aria-current="true"],#explore [class*="dot"][aria-selected="true"]{background:var(--ink)!important}
+/* Navigasi carousel */
+#explore .product-carousel-controls{display:flex;align-items:center;justify-content:center;gap:14px;margin-top:26px}
+#explore .product-carousel-btn{display:grid!important;place-items:center;width:40px;height:40px;padding:0!important;border:2px solid var(--ink)!important;border-radius:12px!important;background:var(--white)!important;color:var(--ink)!important;box-shadow:3px 3px 0 var(--ink)!important;font:700 1.3rem/1 var(--f-b)!important;cursor:pointer}
+#explore .product-carousel-btn:hover{transform:translate(1px,1px)}
+#explore .product-carousel-dots{display:flex;gap:8px;align-items:center}
+#explore .product-carousel-dot{width:12px;height:12px;padding:0!important;border:2px solid var(--ink)!important;border-radius:50%!important;background:var(--white)!important;box-shadow:none!important;cursor:pointer}
+#explore .product-carousel-dot.is-active{background:var(--ink)!important}
+#explore .product-carousel-empty{padding:28px;border:2px dashed var(--ink);border-radius:16px;text-align:center;color:var(--mute)}
+
+/* Loading (dipakai katalog & testimoni): pill + spinner + kerangka kartu */
+.mm-loading-wrap{display:grid;gap:18px}
+.mm-loading-pill{display:inline-flex;align-items:center;gap:10px;width:fit-content;justify-self:start;padding:10px 18px;border:2px solid var(--ink);border-radius:12px;background:var(--sun);color:var(--ink);box-shadow:3px 3px 0 var(--ink);font:600 .95rem var(--f-b)}
+.mm-loading-pill::before{content:"";flex:none;width:18px;height:18px;border:3px solid var(--ink);border-top-color:var(--coral);border-radius:50%;animation:mm-spin .8s linear infinite}
+@keyframes mm-spin{to{transform:rotate(360deg)}}
+.sk{display:block;border-radius:8px;background:linear-gradient(90deg,#e3eff8 25%,#f6fafd 50%,#e3eff8 75%);background-size:200% 100%;animation:mm-shimmer 1.4s linear infinite}
+@keyframes mm-shimmer{from{background-position:200% 0}to{background-position:-200% 0}}
+.mm-card-skel{pointer-events:none}
+.mm-card-skel .sk-media{width:100%;aspect-ratio:3/4;border-radius:0;border-bottom:2px solid var(--ink)}
+.mm-card-skel .sk-line{height:12px;width:100%}
+.mm-card-skel .sk-price{height:16px;width:55%}
+.mm-card-skel .sk-chip{height:18px;width:40%;border-radius:999px}
+.mm-card-skel .sk-btn{height:28px;width:100%;border-radius:10px}
+.sk-w60{width:60%!important}
+.sk-w80{width:80%!important}
 
 /* Area layanan Banjarmasin */
 .mm-area{display:grid;grid-template-columns:1fr 1fr;gap:22px}
@@ -213,13 +234,12 @@ a{color:inherit}
 .mm-road h3{font-size:1.25rem;margin-bottom:8px}
 .mm-road p{color:var(--mute);font-size:.95rem}
 
-/* Ulasan */
+/* Testimoni */
 .review-empty-state{padding:40px 24px;border:2px dashed var(--ink);border-radius:20px;background:var(--white);text-align:center}
 .review-empty-content{display:grid;justify-items:center;gap:12px}
 .review-empty-content .material-symbols-outlined{display:grid;place-items:center;width:60px;height:60px;border:2px solid var(--ink);border-radius:50%;background:var(--sun);font-size:30px;box-shadow:3px 3px 0 var(--ink)}
 .review-empty-content p{max-width:52ch;color:var(--mute)}
-
-/* Testimoni */
+.review-empty-content .mm-btn{padding:9px 16px;font-size:.92rem;box-shadow:3px 3px 0 var(--ink)}
 .mm-review-summary{display:inline-flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:24px;padding:10px 18px;border:2px solid var(--ink);border-radius:999px;background:var(--sun);box-shadow:3px 3px 0 var(--ink);font-weight:600}
 .mm-review-summary strong{font:800 1.4rem var(--f-d)}
 .mm-review-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:22px}
@@ -236,7 +256,16 @@ a{color:inherit}
 .mm-review-buyer{display:inline-flex;align-items:center;gap:8px;min-width:0}
 .mm-review-avatar{display:grid;place-items:center;flex:none;width:32px;height:32px;border:2px solid var(--ink);border-radius:50%;background:var(--sun);overflow:hidden;font:800 .85rem var(--f-d);color:var(--ink)}
 .mm-review-avatar img{width:100%;height:100%;object-fit:cover}
-@media(max-width:900px){.mm-review-grid{grid-template-columns:1fr}}
+
+/* Kerangka testimoni */
+.mm-review-skel .mm-review{pointer-events:none}
+.mm-review-skel .sk-row{display:flex;align-items:center;gap:10px}
+.mm-review-skel .sk-thumb{flex:none;width:44px;height:44px;border-radius:12px}
+.mm-review-skel .sk-avatar{flex:none;width:32px;height:32px;border-radius:50%}
+.mm-review-skel .sk-line{height:12px;width:100%}
+.mm-review-skel .sk-stars{height:18px;width:110px}
+.mm-review-skel .mm-review-text{display:grid;gap:8px;align-content:start}
+.mm-review-skel .mm-review-foot{justify-content:flex-start;align-items:center}
 
 /* Footer */
 footer{padding:28px 0 calc(40px + env(safe-area-inset-bottom,0px));border-top:2px solid var(--ink);color:var(--mute);font-size:.9rem}
@@ -244,6 +273,8 @@ footer{padding:28px 0 calc(40px + env(safe-area-inset-bottom,0px));border-top:2p
 
 /* Responsif */
 @media(max-width:900px){
+ .mm-review-grid{grid-template-columns:1fr}
+ .mm-review-skel .mm-review:nth-child(n+2){display:none}
  .nav-links,.nav-actions{display:none}
  .mobile-menu-toggle{display:flex}
  .mobile-menu-panel{position:absolute;right:0;top:calc(100% + 12px);width:min(300px,calc(100vw - 32px));padding:18px;border:2px solid var(--ink);border-radius:18px;background:var(--white);box-shadow:6px 6px 0 var(--ink)}
@@ -268,6 +299,11 @@ footer{padding:28px 0 calc(40px + env(safe-area-inset-bottom,0px));border-top:2p
  .mm-band{padding:52px 0}
 }
 @media(max-width:520px){
+ .mm-grid,
+ #explore .product-carousel-slide.is-active{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+ .grid-products{padding:4px 6px 12px}
+ .mm-card-body{padding:8px 9px 10px}
+ .mm-card-actions{grid-template-columns:1fr}
  .mm-cta .mm-btn{width:100%}
  .mm-sell-steps{grid-template-columns:1fr}
  .mm-sell-step:nth-child(n){transform:none}
@@ -356,8 +392,7 @@ footer{padding:28px 0 calc(40px + env(safe-area-inset-bottom,0px));border-top:2p
           <span class="mm-pill"><span class="material-symbols-outlined" style="font-size:16px">payments</span> Jual &amp; COD</span>
         </div>
 
-        <!-- Penghitung ini disembunyikan agar tidak menampilkan angka 0 / data belum nyata di halaman publik.
-             Elemen dipertahankan supaya assets/app.js tidak error. Hapus atribut hidden kalau nanti datanya sudah nyata. -->
+        <!-- Penghitung disembunyikan agar tidak menampilkan angka 0. Elemen dipertahankan supaya assets/app.js tidak error. -->
         <div hidden aria-hidden="true">
           <span data-metric-items>0 produk aktif</span>
           <span data-metric-buyers>0 terjual</span>
@@ -620,13 +655,47 @@ footer{padding:28px 0 calc(40px + env(safe-area-inset-bottom,0px));border-top:2p
         </div>
       </div>
 
-            <div class="mm-review-summary" data-review-summary hidden></div>
+      <!-- Semua status testimoni (loading / daftar / kosong / error) diatur oleh renderHomeReviews() di assets/app.js.
+           Pesan "belum ada testimoni" hanya tampil bila data di database memang kosong. -->
+      <div class="mm-loading-wrap" data-review-loading role="status" aria-live="polite">
+        <div class="mm-loading-pill">Memuat testimoni...</div>
+        <div class="mm-review-grid mm-review-skel" aria-hidden="true">
+          <div class="mm-review">
+            <div class="mm-review-product"><span class="sk sk-thumb"></span><span class="sk sk-line sk-w60"></span></div>
+            <span class="sk sk-stars"></span>
+            <div class="mm-review-text"><span class="sk sk-line"></span><span class="sk sk-line"></span><span class="sk sk-line sk-w80"></span></div>
+            <div class="mm-review-foot"><span class="mm-review-buyer"><span class="sk sk-avatar"></span><span class="sk sk-line" style="width:90px"></span></span></div>
+          </div>
+          <div class="mm-review">
+            <div class="mm-review-product"><span class="sk sk-thumb"></span><span class="sk sk-line sk-w60"></span></div>
+            <span class="sk sk-stars"></span>
+            <div class="mm-review-text"><span class="sk sk-line"></span><span class="sk sk-line"></span><span class="sk sk-line sk-w80"></span></div>
+            <div class="mm-review-foot"><span class="mm-review-buyer"><span class="sk sk-avatar"></span><span class="sk sk-line" style="width:90px"></span></span></div>
+          </div>
+          <div class="mm-review">
+            <div class="mm-review-product"><span class="sk sk-thumb"></span><span class="sk sk-line sk-w60"></span></div>
+            <span class="sk sk-stars"></span>
+            <div class="mm-review-text"><span class="sk sk-line"></span><span class="sk sk-line"></span><span class="sk sk-line sk-w80"></span></div>
+            <div class="mm-review-foot"><span class="mm-review-buyer"><span class="sk sk-avatar"></span><span class="sk sk-line" style="width:90px"></span></span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mm-review-summary" data-review-summary hidden></div>
       <div class="mm-review-grid" data-review-list hidden></div>
 
-      <div class="review-empty-state" data-review-empty>
+      <div class="review-empty-state" data-review-empty hidden>
         <div class="review-empty-content">
           <span class="material-symbols-outlined">rate_review</span>
           <p>Belum ada testimoni saat ini. Setelah ada transaksi dan ulasan dari pembeli, review ini akan muncul di sini.</p>
+        </div>
+      </div>
+
+      <div class="review-empty-state" data-review-error hidden>
+        <div class="review-empty-content">
+          <span class="material-symbols-outlined">error</span>
+          <p>Testimoni gagal dimuat. Periksa koneksi lalu coba lagi.</p>
+          <button class="mm-btn" type="button" data-review-retry>Muat ulang testimoni</button>
         </div>
       </div>
     </div>
