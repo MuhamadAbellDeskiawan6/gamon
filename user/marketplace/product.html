@@ -11,11 +11,13 @@
 <link rel="stylesheet" href="assets/style.css"/>
 <link rel="stylesheet" href="assets/commerce.css"/>
 <style>
-:root{--sky:#d4e9f5;--ink:#0b2342;--coral:#ff5c7a;--sun:#ffd66b;--white:#fff;--mute:#47607c;--f-d:"Bricolage Grotesque","Inter",system-ui,sans-serif;--f-b:"Inter",system-ui,sans-serif}
+:root{--sky:#d4e9f5;--ink:#0b2342;--coral:#ff5c7a;--sun:#ffd66b;--white:#fff;--mute:#47607c;--f-d:"Bricolage Grotesque","Inter",system-ui,sans-serif;--f-b:"Inter",system-ui,sans-serif;
+  /* Token card: dipakai SEMUA card di halaman ini agar konsisten */
+  --card-r:16px;--card-shadow:4px 4px 0 var(--ink);--card-pad:16px;--card-w:400px}
 *,*::before,*::after{box-sizing:border-box}
 [hidden]{display:none!important}
-body{margin:0;font-family:var(--f-b);background:var(--sky)!important;color:var(--ink);line-height:1.6;overflow-x:hidden;min-height:100vh}
-h1,h2,h3{font-family:var(--f-d)!important;font-weight:800;letter-spacing:-.02em;line-height:1.1;color:var(--ink)!important;margin:0}
+body{margin:0;font-family:var(--f-b);background:var(--sky)!important;color:var(--ink);line-height:1.55;overflow-x:hidden;min-height:100vh}
+h1,h2,h3{font-family:var(--f-d)!important;font-weight:800;letter-spacing:-.02em;line-height:1.15;color:var(--ink)!important;margin:0}
 p{margin:0}
 a{color:inherit}
 :focus-visible{outline:3px solid var(--coral);outline-offset:3px}
@@ -23,75 +25,107 @@ a{color:inherit}
 .muted{color:var(--mute)!important}
 
 /* Tombol */
-.btn,.commerce-quantity button{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:11px 18px;border:2px solid var(--ink)!important;border-radius:12px!important;background:var(--white)!important;background-image:none!important;color:var(--ink)!important;font:600 .95rem var(--f-b)!important;text-decoration:none!important;cursor:pointer;box-shadow:3px 3px 0 var(--ink)!important;filter:none!important;transition:transform .12s,box-shadow .12s}
+.btn,.commerce-quantity button{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:9px 16px;border:2px solid var(--ink)!important;border-radius:12px!important;background:var(--white)!important;background-image:none!important;color:var(--ink)!important;font:600 .9rem var(--f-b)!important;text-decoration:none!important;cursor:pointer;box-shadow:3px 3px 0 var(--ink)!important;filter:none!important;transition:transform .12s,box-shadow .12s}
 .btn:hover{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--ink)!important}
 .btn-primary{background:var(--coral)!important}
 
-/* Header */
+/* Header (lebar sama dengan index: 1080px) */
 .topbar{position:sticky;top:0;z-index:50;background:var(--sky)!important;border-bottom:2px solid var(--ink)!important;padding-top:env(safe-area-inset-top,0px);box-shadow:none!important;backdrop-filter:none!important}
-.topbar .nav{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 0;width:min(1180px,calc(100% - 32px));margin:0 auto}
-.brand{display:inline-flex;align-items:center;gap:10px;font:800 1.15rem var(--f-d);text-decoration:none;letter-spacing:-.02em;color:var(--ink)}
-.brand-mark{display:grid;place-items:center;width:36px;height:36px;border:2px solid var(--ink);border-radius:10px;background:var(--sun)!important;color:var(--ink)!important;box-shadow:2px 2px 0 var(--ink);font:800 1.1rem var(--f-d)}
+.topbar .nav{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 0;width:min(1080px,calc(100% - 32px));margin:0 auto}
+.brand{display:inline-flex;align-items:center;gap:10px;font:800 1.1rem var(--f-d);text-decoration:none;letter-spacing:-.02em;color:var(--ink)}
+.brand-mark{display:grid;place-items:center;flex:none;width:38px;height:38px;padding:3px;border:2px solid var(--ink);border-radius:10px;background:var(--white);box-shadow:2px 2px 0 var(--ink);overflow:hidden}
+.brand-mark img{display:block;width:100%;height:100%;object-fit:contain}
 .nav-actions{display:flex;gap:10px;align-items:center}
-.nav-actions .btn{padding:9px 16px;font-size:.92rem!important}
+.nav-actions .btn{padding:8px 14px;font-size:.88rem!important}
 [data-cart-count]{display:inline-grid;place-items:center;min-width:22px;height:22px;padding:0 6px;border:2px solid var(--ink);border-radius:999px;background:var(--sun);font:700 .72rem var(--f-b)}
 
 /* Layout */
-.user-layout{width:min(1180px,calc(100% - 32px))!important;margin:0 auto!important;padding:28px 0 72px!important;max-width:none!important}
+.user-layout{width:min(1080px,calc(100% - 32px))!important;margin:0 auto!important;padding:22px 0 64px!important;max-width:none!important}
 .user-layout>.panel{background:transparent!important;border:0!important;box-shadow:none!important;padding:0!important}
-.top-panel{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:22px!important}
-.listing-layout{display:grid!important;grid-template-columns:1.15fr .85fr;gap:26px;align-items:start}
+.top-panel{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:18px!important}
+/* Desktop: kolom kiri = produk (lebar proporsional), kolom kanan = info toko mengisi sisa ruang */
+.listing-layout{display:grid!important;grid-template-columns:minmax(0,clamp(320px,40%,440px)) minmax(0,1fr);gap:24px;align-items:start;justify-content:stretch}
+.listing-layout>.panel{position:sticky;top:84px}
 
-/* Kartu */
-.listing-card,.listing-layout>.panel{background:var(--white)!important;border:2px solid var(--ink)!important;border-radius:20px!important;box-shadow:6px 6px 0 var(--ink)!important;overflow:hidden;backdrop-filter:none!important}
-.listing-layout>.panel{padding:26px!important;overflow:visible}
-.listing-body{padding:22px 24px 26px!important}
-.detail-gallery{border-bottom:2px solid var(--ink)!important;background:var(--sky)}
-.detail-gallery img{width:100%;object-fit:cover}
-.detail-image-fallback{background:var(--sun)!important;color:var(--ink)!important;font-family:var(--f-d)}
+/* Semua card: ukuran, radius, bayangan & padding sama */
+.listing-card,.listing-layout>.panel{width:100%;background:var(--white)!important;border:2px solid var(--ink)!important;border-radius:var(--card-r)!important;box-shadow:var(--card-shadow)!important;overflow:hidden;backdrop-filter:none!important}
+.listing-layout>.panel{padding:var(--card-pad)!important;overflow:visible}
+.listing-body{padding:var(--card-pad)!important}
+
+/* Galeri foto: potret 3:4, penuh selebar card (sama seperti kartu katalog) */
+.detail-gallery{position:relative;width:100%;aspect-ratio:3/4;height:auto!important;min-height:0!important;max-height:none!important;margin:0;overflow:hidden;background:var(--sky);border-bottom:2px solid var(--ink)!important}
+.detail-gallery .detail-slide,
+.detail-gallery [class*="track"],
+.detail-gallery [class*="slides"]{width:100%;height:100%;min-height:0!important}
+.detail-gallery .detail-slide{display:none;position:relative}
+.detail-gallery .detail-slide.active{display:block}
+.detail-gallery img,
+.detail-gallery picture,
+.detail-gallery video{display:block;width:100%!important;height:100%!important;max-height:none!important;object-fit:cover;object-position:center}
+.detail-image-fallback{display:grid;place-items:center;width:100%;height:100%;min-height:0!important;background:var(--sun)!important;color:var(--ink)!important;font:800 clamp(3rem,10vw,4.5rem) var(--f-d)}
 .detail-gallery [class*="dot"]{border:2px solid var(--ink)!important;box-shadow:none!important}
 
-.product-head{display:flex;justify-content:space-between;align-items:center;gap:12px}
-.price{font:800 clamp(1.7rem,4vw,2.2rem) var(--f-d)!important;color:var(--ink)!important;letter-spacing:-.02em}
-.condition,.meta-tag{display:inline-flex;align-items:center;padding:5px 14px;border:2px solid var(--ink)!important;border-radius:999px!important;background:var(--sun)!important;color:var(--ink)!important;font:600 .85rem var(--f-b)!important;box-shadow:none!important}
+.product-head{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.price{font:800 clamp(1.35rem,3.4vw,1.6rem) var(--f-d)!important;color:var(--ink)!important;letter-spacing:-.02em}
+.condition,.meta-tag{display:inline-flex;align-items:center;padding:3px 11px;border:2px solid var(--ink)!important;border-radius:999px!important;background:var(--sun)!important;color:var(--ink)!important;font:600 .78rem var(--f-b)!important;box-shadow:none!important}
 .meta-tag{background:var(--white)!important}
-.meta-tag.views-tag{gap:6px;background:var(--sky)!important}
-.meta-tag.views-tag .material-symbols-outlined{font-size:18px}
-.listing-meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px}
+.meta-tag.views-tag{gap:5px;background:var(--sky)!important}
+.meta-tag.views-tag .material-symbols-outlined{font-size:16px}
+.listing-meta{display:flex;flex-wrap:wrap;gap:6px;margin-top:14px}
+.stock-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:10px}
+.listing-title{margin-top:14px;font-size:1.1rem!important}
+.listing-desc{margin-top:6px;font-size:.9rem}
 
-.commerce-quantity{display:inline-flex;align-items:center;gap:6px;padding:4px;border:2px solid var(--ink)!important;border-radius:14px!important;background:var(--white)!important;box-shadow:3px 3px 0 var(--ink)!important}
-.commerce-quantity button{width:34px;height:34px;padding:0;box-shadow:none!important;border-radius:10px!important;font-size:1.1rem!important}
+.commerce-quantity{display:inline-flex;align-items:center;gap:4px;padding:3px;border:2px solid var(--ink)!important;border-radius:12px!important;background:var(--white)!important;box-shadow:2px 2px 0 var(--ink)!important}
+.commerce-quantity button{width:30px;height:30px;padding:0;box-shadow:none!important;border-radius:8px!important;font-size:1rem!important}
 .commerce-quantity button:hover{transform:none;background:var(--sky)!important}
-.commerce-quantity output{min-width:30px;text-align:center;font-weight:700}
+.commerce-quantity output{min-width:26px;text-align:center;font-weight:700;font-size:.92rem}
 
-[data-add-to-cart]{background:var(--coral)!important}
-.ship-note{display:flex;flex-wrap:wrap;gap:8px 18px;margin-top:14px;padding:12px 14px;border:2px dashed var(--ink);border-radius:14px;background:var(--sky);font:600 .88rem var(--f-b)}
-.ship-note span{display:inline-flex;align-items:center;gap:6px}
-.ship-note .material-symbols-outlined{font-size:18px}
+[data-add-to-cart]{background:var(--coral)!important;margin-top:10px;width:100%}
+.ship-note{display:grid;gap:4px;margin-top:12px;padding:10px 12px;border:2px dashed var(--ink);border-radius:12px;background:var(--sky);font:600 .8rem var(--f-b)}
+.ship-note span{display:flex;align-items:center;gap:6px}
+.ship-note .material-symbols-outlined{font-size:17px;flex:none}
 
 /* Panel toko */
-.eyebrow{display:inline-block;padding:5px 14px;border:2px solid var(--ink)!important;border-radius:999px;background:var(--sun)!important;color:var(--ink)!important;font:600 .85rem var(--f-b)!important;box-shadow:3px 3px 0 var(--ink)}
-.seller-row{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
-.seller-meta{display:inline-flex;align-items:center;gap:10px;font-weight:600}
-.avatar{display:grid;place-items:center;width:38px;height:38px;border:2px solid var(--ink)!important;border-radius:50%!important;background:var(--coral)!important;color:var(--ink)!important;font:800 1rem var(--f-d)}
-.field{display:grid;gap:8px;margin-top:18px}
-.field label{font-weight:700;font-size:.92rem;color:var(--ink)}
-.field input,.field textarea{width:100%;padding:12px 14px;border:2px solid var(--ink)!important;border-radius:12px!important;background:var(--white)!important;color:var(--ink)!important;font:500 .98rem var(--f-b)!important;box-shadow:none!important}
-.field textarea{min-height:130px;resize:vertical;line-height:1.55}
-.map-preview{min-height:210px;border:2px solid var(--ink)!important;border-radius:14px!important;background:var(--sky)!important;overflow:hidden;display:grid;place-items:center;box-shadow:none!important}
-.map-preview iframe,.map-preview img{width:100%;height:100%;min-height:210px;border:0}
-.map-placeholder{font-size:2.4rem}
+.eyebrow{display:inline-block;padding:3px 12px;border:2px solid var(--ink)!important;border-radius:999px;background:var(--sun)!important;color:var(--ink)!important;font:600 .8rem var(--f-b)!important;box-shadow:2px 2px 0 var(--ink)}
+.seller-row{display:flex;align-items:center;gap:12px;margin-top:14px}
+.seller-text{display:flex;flex-direction:column;align-items:flex-start;gap:2px;min-width:0}
+.seller-name{font:800 1.05rem/1.2 var(--f-d);color:var(--ink)!important;opacity:1!important;overflow-wrap:anywhere}
+.seller-badge{display:inline-flex;align-items:center;gap:4px;font:600 .8rem var(--f-b);color:var(--mute)}
+.seller-badge .material-symbols-outlined{font-size:16px;color:#1a8f4c;font-variation-settings:"FILL" 1}
+
+/* Avatar toko = logo Gamon Space (huruf dari app.js disembunyikan, logo lewat background) */
+.avatar{flex:none;display:block;width:40px;height:40px;border:2px solid var(--ink)!important;border-radius:50%!important;background:var(--white) url("../../image/logo/gamonspace-transparan.png") center/76% no-repeat!important;color:transparent!important;font-size:0!important;line-height:0;overflow:hidden;text-indent:-9999px}
+
+/* Info blok: teks biasa, bukan input */
+.info-block{margin-top:16px}
+.info-label{display:flex;align-items:center;gap:6px;font:700 .8rem var(--f-b);color:var(--mute);text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px}
+.info-label .material-symbols-outlined{font-size:17px;color:var(--ink)}
+.info-text{font:500 .92rem/1.6 var(--f-b);color:var(--ink);white-space:normal;overflow-wrap:anywhere;word-break:break-word}
+.map-preview{min-height:clamp(200px,28vw,300px);border:2px solid var(--ink)!important;border-radius:12px!important;background:var(--sky)!important;overflow:hidden;display:grid;place-items:center;box-shadow:none!important}
+.map-preview iframe,.map-preview img{width:100%;height:100%;min-height:inherit;border:0}
+.map-placeholder{font-size:2rem}
 
 /* Responsif */
-@media(max-width:900px){
- .listing-layout{grid-template-columns:1fr}
- .user-layout{padding:20px 0 56px!important}
- .listing-body{padding:18px!important}
- .listing-layout>.panel{padding:20px!important}
+/* Tablet & HP: 1 kolom, kedua card sama lebar dan rata tengah */
+@media(max-width:860px){
+ .listing-layout{grid-template-columns:minmax(0,560px);justify-content:center;gap:18px}
+ .listing-layout>.panel{position:static}
+ .top-panel{width:min(100%,560px);margin-left:auto;margin-right:auto}
+ .map-preview{min-height:240px}
+}
+/* Layar sangat lebar: beri ruang sedikit lebih lega */
+@media(min-width:1400px){
+ .topbar .nav,.user-layout{width:min(1180px,calc(100% - 64px))!important}
+ .listing-layout{grid-template-columns:minmax(0,460px) minmax(0,1fr)}
 }
 @media(max-width:520px){
+ :root{--card-pad:14px}
+ .listing-layout{grid-template-columns:minmax(0,1fr)}
+ .top-panel{width:100%}
+ .map-preview{min-height:200px}
  .brand span:last-child{font-size:1rem}
- .nav-actions .btn{padding:8px 12px;font-size:.85rem!important}
+ .nav-actions .btn{padding:7px 11px;font-size:.82rem!important}
  .top-panel .btn{flex:1}
  .top-panel>div{width:100%}
 }
@@ -102,7 +136,7 @@ a{color:inherit}
 <header class="topbar">
   <div class="container nav">
     <a href="index.html" class="brand" aria-label="Home">
-      <span class="brand-mark">G</span>
+      <span class="brand-mark"><img src="../../image/logo/gamonspace-transparan.png" alt="Gamon Space"/></span>
       <span>Marketplace Mantan</span>
     </a>
     <div class="nav-actions">
@@ -114,8 +148,8 @@ a{color:inherit}
 </header>
 
 <main class="container user-layout">
-  <div class="panel" style="padding: 24px;">
-    <div class="top-panel" style="margin-bottom: 18px;">
+  <div class="panel">
+    <div class="top-panel">
       <button class="btn btn-secondary" type="button" data-back-button>← Kembali</button>
       <div style="display:flex; gap:10px; flex-wrap:wrap;">
         <a class="btn btn-secondary" href="login.html" data-chat-product>Chat Admin</a>
@@ -135,7 +169,7 @@ a{color:inherit}
             <div class="price" data-detail-price>Rp 0</div>
             <span class="condition" data-detail-condition>Layak pakai</span>
           </div>
-          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:12px;">
+          <div class="stock-row">
             <span class="condition" data-detail-stock>Stok: 0</span>
             <div class="commerce-quantity" aria-label="Jumlah barang">
               <button type="button" data-product-quantity-step="-1" aria-label="Kurangi jumlah">−</button>
@@ -143,13 +177,13 @@ a{color:inherit}
               <button type="button" data-product-quantity-step="1" aria-label="Tambah jumlah">+</button>
             </div>
           </div>
-          <button class="btn btn-secondary" type="button" data-add-to-cart style="margin-top:12px;width:100%;">Tambah ke Keranjang</button>
+          <button class="btn btn-secondary" type="button" data-add-to-cart>Tambah ke Keranjang</button>
           <div class="ship-note">
             <span><span class="material-symbols-outlined" aria-hidden="true">local_shipping</span> Gratis ongkir, diantar ke alamatmu</span>
             <span><span class="material-symbols-outlined" aria-hidden="true">lock</span> Bayar aman via DOKU</span>
           </div>
-          <h3 style="margin-top: 18px;" data-detail-name>Nama barang</h3>
-          <p class="muted" style="margin-top: 10px;" data-detail-description>Deskripsi</p>
+          <h3 class="listing-title" data-detail-name>Nama barang</h3>
+          <p class="muted listing-desc" data-detail-description>Deskripsi</p>
           <div class="listing-meta">
             <span class="meta-tag" data-detail-category>Pakaian</span>
             <span class="meta-tag" data-detail-city>Jakarta</span>
@@ -166,18 +200,23 @@ a{color:inherit}
 
       <div class="panel">
         <span class="eyebrow">Informasi toko</span>
-        <div class="seller-row" style="margin-top: 18px;">
-          <span class="seller-meta"><span class="avatar" data-detail-seller-initial>G</span> <span data-detail-seller>Marketplace Mantan</span></span>
-          <span class="condition">Toko Resmi</span>
+        <div class="seller-row">
+          <span class="avatar" data-detail-seller-initial aria-hidden="true">G</span>
+          <div class="seller-text">
+            <span class="seller-name" data-detail-seller>Marketplace Mantan</span>
+            <span class="seller-badge"><span class="material-symbols-outlined" aria-hidden="true">verified</span> Toko Resmi</span>
+          </div>
         </div>
 
-        <div class="field" style="margin-top: 20px;">
-          <label>Alamat lengkap</label>
-          <input type="text" value="Jakarta Selatan" readonly data-detail-location />
+        <!-- Alamat: teks biasa (bukan input). Input tersembunyi tetap ada sebagai penampung data dari app.js, isinya otomatis disalin ke teks di bawah. -->
+        <div class="info-block">
+          <div class="info-label"><span class="material-symbols-outlined" aria-hidden="true">home_pin</span> Alamat lengkap</div>
+          <input type="hidden" value="Jakarta Selatan" data-detail-location />
+          <p class="info-text" data-location-text>Jakarta Selatan</p>
         </div>
 
-        <div class="field">
-          <label>Lokasi</label>
+        <div class="info-block">
+          <div class="info-label"><span class="material-symbols-outlined" aria-hidden="true">location_on</span> Lokasi</div>
           <div class="map-preview" data-detail-map>
             <div class="map-placeholder">📍</div>
           </div>
@@ -185,7 +224,7 @@ a{color:inherit}
 
         <!-- Deskripsi singkat dihapus dari tampilan (sebelumnya berisi catatan cerita).
              Elemen dipertahankan tersembunyi agar app.js tidak error. -->
-        <div class="field" hidden>
+        <div hidden>
           <textarea readonly data-detail-summary></textarea>
         </div>
       </div>
@@ -194,5 +233,21 @@ a{color:inherit}
 </main>
 
 <script type="module" src="assets/app.js"></script>
+<script>
+/* Salin isi alamat dari input tersembunyi (diisi app.js) ke teks yang tampil */
+(function(){
+  var src=document.querySelector('[data-detail-location]');
+  var out=document.querySelector('[data-location-text]');
+  if(!src||!out)return;
+  var last=null;
+  function sync(){
+    var v=String(src.value!=null&&src.value!==''?src.value:(src.textContent||'')).trim();
+    if(v!==last){last=v;out.textContent=v||'-';}
+  }
+  sync();
+  src.addEventListener('input',sync);
+  setInterval(sync,400);
+})();
+</script>
 </body>
 </html>

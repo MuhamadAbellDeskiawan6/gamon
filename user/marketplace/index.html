@@ -11,6 +11,7 @@
 <meta property="og:description" content="Barang bekas pilihan dengan kondisi jelas dan harga transparan. Melayani Banjarmasin, Kalimantan Selatan."/>
 <meta property="og:type" content="website"/>
 <meta property="og:locale" content="id_ID"/>
+<link rel="icon" type="image/png" href="../../image/logo/gamonspace.png"/>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
@@ -56,7 +57,8 @@ a{color:inherit}
 .topbar{position:sticky;top:0;z-index:50;background:var(--sky);border-bottom:2px solid var(--ink);padding-top:env(safe-area-inset-top,0px)}
 .topbar .nav{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 0;width:min(1080px,calc(100% - 32px));margin:0 auto}
 .brand{display:inline-flex;align-items:center;gap:10px;font:800 1.15rem var(--f-d);text-decoration:none;letter-spacing:-.02em}
-.brand-mark{display:grid;place-items:center;width:36px;height:36px;border:2px solid var(--ink);border-radius:10px;background:var(--sun);box-shadow:2px 2px 0 var(--ink);font:800 1.1rem var(--f-d)}
+.brand-mark{display:grid;place-items:center;flex:none;width:40px;height:40px;padding:3px;border:2px solid var(--ink);border-radius:10px;background:var(--white);box-shadow:2px 2px 0 var(--ink);overflow:hidden}
+.brand-mark img{display:block;width:100%;height:100%;object-fit:contain}
 .nav-links{display:flex;align-items:center;gap:22px;font-weight:600;font-size:.95rem}
 .nav-links a{text-decoration:none}
 .nav-links a:hover{text-decoration:underline;text-underline-offset:4px}
@@ -88,7 +90,7 @@ a{color:inherit}
 .mm-pills{display:flex;flex-wrap:wrap;gap:10px;margin-top:28px}
 .mm-pill{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border:2px solid var(--ink);border-radius:999px;background:var(--white);color:var(--ink);font:600 .88rem var(--f-b)}
 .mm-sticker{justify-self:center;width:min(300px,70%);padding:30px;border:2px solid var(--ink);border-radius:28px;background:var(--white);box-shadow:8px 8px 0 var(--ink);transform:rotate(2.5deg)}
-.mm-sticker svg{display:block;width:100%;height:auto;animation:mm-beat 2.4s ease-in-out infinite}
+.mm-sticker img{display:block;width:100%;height:auto;animation:mm-beat 2.4s ease-in-out infinite}
 @keyframes mm-beat{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
 
 /* Section */
@@ -269,7 +271,18 @@ a{color:inherit}
 
 /* Footer */
 footer{padding:28px 0 calc(40px + env(safe-area-inset-bottom,0px));border-top:2px solid var(--ink);color:var(--mute);font-size:.9rem}
-.footer-line{display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}
+.footer-line{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}
+.footer-brand{display:flex;align-items:center;gap:10px}
+.footer-brand img{width:34px;height:34px;padding:3px;border:2px solid var(--ink);border-radius:10px;background:var(--white);object-fit:contain;flex:none}
+
+/* Tombol scroll atas / bawah */
+.scroll-nav{position:fixed;right:max(16px,env(safe-area-inset-right,0px));bottom:max(16px,calc(env(safe-area-inset-bottom,0px) + 12px));z-index:60;display:flex;flex-direction:column;gap:10px}
+.scroll-btn{display:grid;place-items:center;width:44px;height:44px;padding:0;border:2px solid var(--ink);border-radius:12px;background:var(--white);color:var(--ink);box-shadow:3px 3px 0 var(--ink);cursor:pointer;transition:transform .12s,box-shadow .12s,opacity .2s,visibility .2s}
+.scroll-btn.up{background:var(--sun)}
+.scroll-btn:hover{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--ink)}
+.scroll-btn .material-symbols-outlined{font-size:26px}
+.scroll-btn.is-hidden{opacity:0;visibility:hidden;pointer-events:none}
+@media(max-width:520px){.scroll-btn{width:40px;height:40px;border-radius:10px}.scroll-btn .material-symbols-outlined{font-size:24px}}
 
 /* Responsif */
 @media(max-width:900px){
@@ -315,7 +328,7 @@ footer{padding:28px 0 calc(40px + env(safe-area-inset-bottom,0px));border-top:2p
 <header class="topbar" id="top">
   <div class="container nav">
     <a href="#top" class="brand" aria-label="Kembali ke bagian atas halaman Marketplace Mantan">
-      <span class="brand-mark">G</span>
+      <span class="brand-mark"><img src="../../image/logo/gamonspace-transparan.png" alt="Gamon Space" width="40" height="40"/></span>
       <span>Marketplace Mantan</span>
     </a>
 
@@ -400,13 +413,7 @@ footer{padding:28px 0 calc(40px + env(safe-area-inset-bottom,0px));border-top:2p
       </div>
 
       <div class="mm-sticker" aria-hidden="true">
-        <svg viewBox="0 0 96 96">
-          <path d="M48 84C20 64 10 48 10 32 10 21 18 13 29 13c8 0 15 4 19 11 4-7 11-11 19-11 11 0 19 8 19 19 0 16-10 32-38 52z" fill="#ff5c7a" stroke="#0b2342" stroke-width="4" stroke-linejoin="round"/>
-          <g transform="rotate(-24 48 42)">
-            <rect x="24" y="32" width="48" height="20" rx="4" fill="#ffd66b" stroke="#0b2342" stroke-width="3"/>
-            <circle cx="40" cy="42" r="2" fill="#0b2342"/><circle cx="48" cy="42" r="2" fill="#0b2342"/><circle cx="56" cy="42" r="2" fill="#0b2342"/>
-          </g>
-        </svg>
+        <img src="../../image/logo/gamonspace-transparan.png" alt="" width="240" height="240"/>
       </div>
     </div>
   </section>
@@ -704,11 +711,39 @@ footer{padding:28px 0 calc(40px + env(safe-area-inset-bottom,0px));border-top:2p
 
 <footer>
   <div class="mm-wrap footer-line">
-    <div>© 2026 Marketplace Mantan · Banjarmasin, Kalimantan Selatan</div>
+    <div class="footer-brand"><img src="../../image/logo/gamonspace-transparan.png" alt="Gamon Space" width="34" height="34"/><span>© 2026 Marketplace Mantan · Banjarmasin, Kalimantan Selatan</span></div>
     <div>Toko barang bekas pilihan. Barang lama, manfaat baru.</div>
   </div>
 </footer>
 
+<div class="scroll-nav" aria-label="Navigasi scroll">
+  <button class="scroll-btn up is-hidden" type="button" data-scroll-up aria-label="Scroll ke atas" title="Ke atas"><span class="material-symbols-outlined" aria-hidden="true">keyboard_arrow_up</span></button>
+  <button class="scroll-btn down" type="button" data-scroll-down aria-label="Scroll ke bawah" title="Ke bawah"><span class="material-symbols-outlined" aria-hidden="true">keyboard_arrow_down</span></button>
+</div>
+
 <script type="module" src="assets/app.js"></script>
+<script>
+(function(){
+  var up=document.querySelector('[data-scroll-up]');
+  var down=document.querySelector('[data-scroll-down]');
+  if(!up||!down)return;
+  var reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function go(top){window.scrollTo({top:top,behavior:reduce?'auto':'smooth'});}
+  function maxY(){return Math.max(document.documentElement.scrollHeight,document.body.scrollHeight)-window.innerHeight;}
+  function update(){
+    var y=window.pageYOffset||document.documentElement.scrollTop||0;
+    up.classList.toggle('is-hidden',y<240);
+    down.classList.toggle('is-hidden',y>=maxY()-80);
+  }
+  up.addEventListener('click',function(){go(0);});
+  down.addEventListener('click',function(){go(maxY());});
+  window.addEventListener('scroll',update,{passive:true});
+  window.addEventListener('resize',update);
+  window.addEventListener('load',update);
+  update();
+  /* tinggi halaman berubah saat katalog/testimoni dimuat */
+  setInterval(update,1000);
+})();
+</script>
 </body>
 </html>
