@@ -134,7 +134,7 @@ a{color:inherit}
 .mm-card-chip{position:absolute;left:8px;top:8px;padding:2px 9px;border:2px solid var(--ink);border-radius:999px;background:var(--sun);color:var(--ink);font:700 .68rem var(--f-b);line-height:1.5}
 .mm-card-body{display:flex;flex-direction:column;gap:6px;padding:10px 11px 12px}
 .mm-card-price{font:800 1.02rem var(--f-d);letter-spacing:-.01em;color:var(--ink)}
-.mm-card-title{font:800 .9rem/1.25 var(--f-d);letter-spacing:-.01em;color:var(--ink);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:2.5em}
+.mm-card-title{font:800 .9rem/1.25 var(--f-d);letter-spacing:-.01em;color:var(--ink);display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:2.5em}
 .mm-card-stock{align-self:flex-start;padding:1px 9px;border:2px solid var(--ink);border-radius:999px;font:700 .68rem var(--f-b);line-height:1.6;background:var(--sun);color:var(--ink)}
 .mm-card-stock.is-out{background:#ffd3da}
 .mm-card-actions{display:grid;grid-template-columns:auto 1fr;gap:6px;margin-top:4px}
@@ -227,15 +227,6 @@ a{color:inherit}
 .mm-warn strong{color:var(--sun)}
 .mm-warn p+p{margin-top:10px}
 
-/* Tahap berikutnya */
-.mm-roadmap{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
-.mm-road{padding:24px;border:2px solid var(--ink);border-radius:20px;background:var(--white);box-shadow:5px 5px 0 var(--ink)}
-.mm-road .tag{display:inline-block;padding:4px 12px;border:2px solid var(--ink);border-radius:999px;background:var(--sun);font:700 .78rem var(--f-b);margin-bottom:12px}
-.mm-road.now .tag{background:var(--coral)}
-.mm-road.next .tag{background:var(--sky)}
-.mm-road h3{font-size:1.25rem;margin-bottom:8px}
-.mm-road p{color:var(--mute);font-size:.95rem}
-
 /* Testimoni */
 .review-empty-state{padding:40px 24px;border:2px dashed var(--ink);border-radius:20px;background:var(--white);text-align:center}
 .review-empty-content{display:grid;justify-items:center;gap:12px}
@@ -302,7 +293,6 @@ footer{padding:28px 0 calc(40px + env(safe-area-inset-bottom,0px));border-top:2p
  .mm-sell{grid-template-columns:1fr;gap:30px}
  .mm-sell-foot{grid-template-columns:1fr}
  .mm-area{grid-template-columns:1fr}
- .mm-roadmap{grid-template-columns:1fr}
  .mm-values{grid-template-columns:1fr}
  .mm-value:nth-child(n){transform:none}
  .mm-flow{grid-template-columns:1fr;gap:26px}
@@ -619,36 +609,6 @@ footer{padding:28px 0 calc(40px + env(safe-area-inset-bottom,0px));border-top:2p
         Semua pembayaran belanja dilakukan lewat sistem Marketplace Mantan menggunakan DOKU, bukan COD. Jangan transfer uang ke rekening pribadi atau di luar platform, jangan bagikan kode OTP atau PIN kepada siapa pun, dan pastikan alamat pengiriman yang kamu isi sudah benar.</p>
         <p><strong>Catatan untuk penjual:</strong>
         Pembayaran penjualan hanya dilakukan tunai di lokasi COD resmi di Banjarmasin setelah pengajuanmu disetujui dan barang dicek bersama. Datanglah sesuai jadwal yang disepakati lewat sistem, dan jangan menyerahkan barang kepada pihak yang mengaku sebagai admin di luar lokasi tersebut.</p>
-      </div>
-    </div>
-  </section>
-
-  <section id="roadmap" class="mm-band sunny">
-    <div class="mm-wrap">
-      <div class="mm-head">
-        <div>
-          <span class="mm-eyebrow">Rencana ke depan</span>
-          <h2>Dari rumah di Banjarmasin, pelan-pelan tumbuh</h2>
-        </div>
-        <p>Kami mulai kecil dan jujur soal tahapannya. Toko fisik baru dibuka kalau permintaan sudah terbukti.</p>
-      </div>
-
-      <div class="mm-roadmap">
-        <div class="mm-road now">
-          <span class="tag">Sekarang</span>
-          <h3>Toko online lokal</h3>
-          <p>Menjual barang bekas pilihan lewat website, dengan lokasi COD di rumah di Banjarmasin dan pengantaran gratis area kota.</p>
-        </div>
-        <div class="mm-road next">
-          <span class="tag">Berikutnya</span>
-          <h3>Stok lebih beragam</h3>
-          <p>Menerima lebih banyak barang bekas layak dari warga Banjarmasin, dengan standar pengecekan dan deskripsi yang konsisten.</p>
-        </div>
-        <div class="mm-road">
-          <span class="tag">Harapan</span>
-          <h3>Toko fisik</h3>
-          <p>Jika berjalan baik, kami berharap suatu hari bisa membuka toko fisik di Banjarmasin. Belum ada tanggal pasti.</p>
-        </div>
       </div>
     </div>
   </section>

@@ -21,30 +21,42 @@
 <style>
 :root{--sky:#d4e9f5;--ink:#0b2342;--coral:#ff5c7a;--sun:#ffd66b;--white:#fff;--mute:#47607c;--f-d:"Bricolage Grotesque","Inter",system-ui,sans-serif;--f-b:"Inter",system-ui,sans-serif}
 *,*::before,*::after{box-sizing:border-box}
+[hidden]{display:none!important}
 html{scroll-behavior:smooth;scroll-padding-top:90px}
 body{margin:0;font-family:var(--f-b);background:var(--sky);color:var(--ink);line-height:1.65;overflow-x:hidden;min-height:100vh}
-h1,h2,h3{font-family:var(--f-d);font-weight:800;letter-spacing:-.025em;line-height:1.05;margin:0}
+h1,h2,h3{font-family:var(--f-d);font-weight:800;letter-spacing:-.025em;line-height:1.05;color:var(--ink);margin:0}
 p{margin:0}
 a{color:inherit}
 :focus-visible{outline:3px solid var(--coral);outline-offset:3px}
 .material-symbols-outlined{font-family:"Material Symbols Outlined";font-weight:400;font-style:normal;line-height:1;display:inline-block;vertical-align:middle}
 .wrap{width:min(1080px,calc(100% - 32px));margin:0 auto}
 
+/* Tombol */
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:12px 20px;border:2px solid var(--ink);border-radius:12px;background:var(--coral);color:var(--ink);font:600 1rem var(--f-b);text-decoration:none;cursor:pointer;box-shadow:4px 4px 0 var(--ink);transition:transform .12s,box-shadow .12s}
 .btn:hover{transform:translate(2px,2px);box-shadow:2px 2px 0 var(--ink)}
 .btn.alt{background:var(--white)}
 .btn.sun{background:var(--sun)}
 
+/* Header (sama dengan Marketplace Mantan) */
 .topbar{position:sticky;top:0;z-index:50;background:var(--sky);border-bottom:2px solid var(--ink);padding-top:env(safe-area-inset-top,0px)}
 .nav{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 0}
 .brand{display:inline-flex;align-items:center;gap:10px;font:800 1.15rem var(--f-d);text-decoration:none;letter-spacing:-.02em}
-.brand-logo{display:block;height:40px;width:auto;max-width:160px;object-fit:contain}
+.brand-mark{display:grid;place-items:center;flex:none;width:40px;height:40px;padding:3px;border:2px solid var(--ink);border-radius:10px;background:var(--white);box-shadow:2px 2px 0 var(--ink);overflow:hidden}
+.brand-mark img{display:block;width:100%;height:100%;object-fit:contain}
 .nav-links{display:flex;align-items:center;gap:22px;font-weight:600;font-size:.95rem}
 .nav-links a{text-decoration:none}
 .nav-links a:hover{text-decoration:underline;text-underline-offset:4px}
+.header-actions-wrap{display:flex;align-items:center;gap:12px;position:relative}
+.nav-actions{display:flex;gap:10px}
+.nav-actions .btn{padding:9px 16px;font-size:.92rem;box-shadow:3px 3px 0 var(--ink)}
+.nav-actions .btn:hover{box-shadow:2px 2px 0 var(--ink)}
+.mobile-menu-toggle{display:none;flex-direction:column;justify-content:center;gap:5px;width:46px;height:42px;padding:0 11px;border:2px solid var(--ink);border-radius:12px;background:var(--white);box-shadow:3px 3px 0 var(--ink);cursor:pointer}
+.mobile-menu-toggle span{display:block;height:3px;border-radius:2px;background:var(--ink)}
+.mobile-menu-panel{display:none}
 
+/* Hero */
 .hero{display:grid;grid-template-columns:1.2fr .8fr;gap:48px;align-items:center;padding:64px 0 80px}
-.eyebrow{display:inline-block;padding:5px 14px;border:2px solid var(--ink);border-radius:999px;background:var(--sun);font:600 .85rem var(--f-b);margin-bottom:18px;box-shadow:3px 3px 0 var(--ink)}
+.eyebrow{display:inline-block;padding:5px 14px;border:2px solid var(--ink);border-radius:999px;background:var(--sun);color:var(--ink);font:600 .85rem var(--f-b);margin-bottom:18px;box-shadow:3px 3px 0 var(--ink)}
 .hero h1{font-size:clamp(2.6rem,8vw,5.2rem)}
 .hero h1 .hl{display:inline-block;background:var(--coral);padding:0 .18em;border:2px solid var(--ink);border-radius:14px;box-shadow:5px 5px 0 var(--ink);transform:rotate(-1.5deg);margin-top:8px}
 .tagline{margin-top:20px;font:800 clamp(1.1rem,2.6vw,1.45rem) var(--f-d);letter-spacing:-.01em}
@@ -52,10 +64,9 @@ a{color:inherit}
 .cta{display:flex;flex-wrap:wrap;gap:14px;margin-top:30px}
 .sticker{justify-self:center;width:min(300px,70%);padding:30px;border:2px solid var(--ink);border-radius:28px;background:var(--white);box-shadow:8px 8px 0 var(--ink);transform:rotate(2.5deg)}
 .sticker img{display:block;width:100%;height:auto;animation:beat 2.4s ease-in-out infinite}
-.foot-brand{display:inline-flex;align-items:center;gap:10px}
-.foot-brand img{height:28px;width:auto}
 @keyframes beat{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
 
+/* Section */
 .band{padding:72px 0;border-top:2px solid var(--ink)}
 .band.white{background:var(--white)}
 .band.sunny{background:#fff0bf}
@@ -93,11 +104,30 @@ a{color:inherit}
 
 .note{margin-top:28px;padding:18px 22px;border:2px solid var(--ink);border-radius:16px;background:#fff0bf;font-size:.95rem}
 
+/* Footer (sama dengan Marketplace Mantan) */
 footer{padding:28px 0 calc(40px + env(safe-area-inset-bottom,0px));border-top:2px solid var(--ink);color:var(--mute);font-size:.9rem}
-.foot{display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}
+.foot{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}
+.footer-brand{display:flex;align-items:center;gap:10px}
+.footer-brand img{width:34px;height:34px;padding:3px;border:2px solid var(--ink);border-radius:10px;background:var(--white);object-fit:contain;flex:none}
 
+/* Tombol scroll atas / bawah */
+.scroll-nav{position:fixed;right:max(16px,env(safe-area-inset-right,0px));bottom:max(16px,calc(env(safe-area-inset-bottom,0px) + 12px));z-index:60;display:flex;flex-direction:column;gap:10px}
+.scroll-btn{display:grid;place-items:center;width:44px;height:44px;padding:0;border:2px solid var(--ink);border-radius:12px;background:var(--white);color:var(--ink);box-shadow:3px 3px 0 var(--ink);cursor:pointer;transition:transform .12s,box-shadow .12s,opacity .2s,visibility .2s}
+.scroll-btn.up{background:var(--sun)}
+.scroll-btn:hover{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--ink)}
+.scroll-btn .material-symbols-outlined{font-size:26px}
+.scroll-btn.is-hidden{opacity:0;visibility:hidden;pointer-events:none}
+
+/* Responsif */
 @media(max-width:900px){
- .nav-links{display:none}
+ .nav-links,.nav-actions{display:none}
+ .mobile-menu-toggle{display:flex}
+ .mobile-menu-panel{position:absolute;right:0;top:calc(100% + 12px);width:min(300px,calc(100vw - 32px));padding:18px;border:2px solid var(--ink);border-radius:18px;background:var(--white);box-shadow:6px 6px 0 var(--ink)}
+ .mobile-menu-panel.open{display:block}
+ .mobile-nav-links{display:grid;gap:4px;margin-bottom:14px}
+ .mobile-nav-links a{padding:10px 12px;border-radius:10px;text-decoration:none;font-weight:600}
+ .mobile-nav-links a:hover{background:var(--sky)}
+ .mobile-menu-actions{display:grid;gap:10px}
  .hero,.feature,.tools,.values{grid-template-columns:1fr}
  .hero{padding:36px 0 56px;gap:34px}
  .sticker{order:-1;width:150px;padding:18px;border-radius:20px;box-shadow:5px 5px 0 var(--ink);justify-self:start}
@@ -106,6 +136,8 @@ footer{padding:28px 0 calc(40px + env(safe-area-inset-bottom,0px));border-top:2p
 @media(max-width:520px){
  .cta .btn{width:100%}
  .steps{grid-template-columns:1fr}
+ .scroll-btn{width:40px;height:40px;border-radius:10px}
+ .scroll-btn .material-symbols-outlined{font-size:24px}
 }
 @media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}html{scroll-behavior:auto}}
 </style>
@@ -114,15 +146,40 @@ footer{padding:28px 0 calc(40px + env(safe-area-inset-bottom,0px));border-top:2p
 <header class="topbar" id="top">
   <div class="wrap nav">
     <a href="#top" class="brand" aria-label="Gamon Space, kembali ke atas">
-      <img class="brand-logo" src="image/logo/gamonspace-transparan.png" alt=""/><span>Gamon Space</span>
+      <span class="brand-mark"><img src="image/logo/gamonspace-transparan.png" alt="Gamon Space" width="40" height="40"/></span>
+      <span>Gamon Space</span>
     </a>
+
     <nav class="nav-links" aria-label="Navigasi utama">
       <a href="#tentang">Tentang</a>
       <a href="#foto-ldr">Foto LDR</a>
       <a href="#marketplace">Marketplace Mantan</a>
       <a href="#lainnya">Fitur Lain</a>
     </nav>
-    <a class="btn sun" href="foto-ldr.html" style="padding:9px 16px;font-size:.92rem;box-shadow:3px 3px 0 var(--ink)">Coba Foto LDR</a>
+
+    <div class="header-actions-wrap">
+      <div class="nav-actions">
+        <a class="btn sun" href="foto-ldr.html">Coba Foto LDR</a>
+      </div>
+
+      <div class="mobile-menu-panel" data-mobile-menu-panel>
+        <nav class="mobile-nav-links" aria-label="Navigasi utama mobile">
+          <a href="#tentang">Tentang</a>
+          <a href="#foto-ldr">Foto LDR</a>
+          <a href="#marketplace">Marketplace Mantan</a>
+          <a href="#lainnya">Fitur Lain</a>
+        </nav>
+        <div class="mobile-menu-actions">
+          <a class="btn sun" href="foto-ldr.html">Coba Foto LDR</a>
+        </div>
+      </div>
+
+      <button class="mobile-menu-toggle" type="button" aria-label="Buka menu utama" aria-expanded="false" data-mobile-menu-toggle>
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+    </div>
   </div>
 </header>
 
@@ -140,7 +197,7 @@ footer{padding:28px 0 calc(40px + env(safe-area-inset-bottom,0px));border-top:2p
       </div>
     </div>
     <div class="sticker" aria-hidden="true">
-      <img src="image/logo/gamonspace-transparan.png" alt="" />
+      <img src="image/logo/gamonspace-transparan.png" alt="" width="240" height="240"/>
     </div>
   </section>
 
@@ -198,7 +255,7 @@ footer{padding:28px 0 calc(40px + env(safe-area-inset-bottom,0px));border-top:2p
   <section id="marketplace" class="band dark">
     <div class="wrap feature">
       <div>
-        <span class="eyebrow" style="color:var(--ink)">Marketplace Mantan</span>
+        <span class="eyebrow">Marketplace Mantan</span>
         <h2>Barang lama, manfaat baru.</h2>
         <p class="lede">Toko barang bekas pilihan di Banjarmasin. Foto asli, kondisi dan kekurangan dijelaskan jujur, bayar lewat DOKU, dan gratis ongkir untuk area Banjarmasin. Punya barang yang sudah tidak terpakai? Ajukan penjualannya dan dibayar tunai (COD).</p>
         <ul class="checks">
@@ -251,9 +308,54 @@ footer{padding:28px 0 calc(40px + env(safe-area-inset-bottom,0px));border-top:2p
 
 <footer>
   <div class="wrap foot">
-    <div class="foot-brand"><img src="image/logo/gamonspace-transparan.png" alt=""/><span>© 2026 Gamon Space</span></div>
+    <div class="footer-brand"><img src="image/logo/gamonspace-transparan.png" alt="Gamon Space" width="34" height="34"/><span>© 2026 Gamon Space</span></div>
     <div>Ruang untuk urusan hubungan.</div>
   </div>
 </footer>
+
+<div class="scroll-nav" aria-label="Navigasi scroll">
+  <button class="scroll-btn up is-hidden" type="button" data-scroll-up aria-label="Scroll ke atas" title="Ke atas"><span class="material-symbols-outlined" aria-hidden="true">keyboard_arrow_up</span></button>
+  <button class="scroll-btn down" type="button" data-scroll-down aria-label="Scroll ke bawah" title="Ke bawah"><span class="material-symbols-outlined" aria-hidden="true">keyboard_arrow_down</span></button>
+</div>
+
+<script>
+(function(){
+  /* Menu mobile */
+  var toggle=document.querySelector('[data-mobile-menu-toggle]');
+  var panel=document.querySelector('[data-mobile-menu-panel]');
+  function setMenu(open){
+    if(!toggle||!panel)return;
+    panel.classList.toggle('open',open);
+    toggle.setAttribute('aria-expanded',open?'true':'false');
+    toggle.setAttribute('aria-label',open?'Tutup menu utama':'Buka menu utama');
+  }
+  if(toggle&&panel){
+    toggle.addEventListener('click',function(e){e.stopPropagation();setMenu(!panel.classList.contains('open'));});
+    panel.addEventListener('click',function(e){if(e.target.closest('a'))setMenu(false);});
+    document.addEventListener('click',function(e){if(!panel.contains(e.target))setMenu(false);});
+    document.addEventListener('keydown',function(e){if(e.key==='Escape')setMenu(false);});
+    window.addEventListener('resize',function(){if(window.innerWidth>900)setMenu(false);});
+  }
+
+  /* Tombol scroll atas / bawah */
+  var up=document.querySelector('[data-scroll-up]');
+  var down=document.querySelector('[data-scroll-down]');
+  if(!up||!down)return;
+  var reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function go(top){window.scrollTo({top:top,behavior:reduce?'auto':'smooth'});}
+  function maxY(){return Math.max(document.documentElement.scrollHeight,document.body.scrollHeight)-window.innerHeight;}
+  function update(){
+    var y=window.pageYOffset||document.documentElement.scrollTop||0;
+    up.classList.toggle('is-hidden',y<240);
+    down.classList.toggle('is-hidden',y>=maxY()-80);
+  }
+  up.addEventListener('click',function(){go(0);});
+  down.addEventListener('click',function(){go(maxY());});
+  window.addEventListener('scroll',update,{passive:true});
+  window.addEventListener('resize',update);
+  window.addEventListener('load',update);
+  update();
+})();
+</script>
 </body>
 </html>
