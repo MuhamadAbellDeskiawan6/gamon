@@ -61,12 +61,17 @@ button{font-family:inherit}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:14px;margin-top:22px}
 .item{background:var(--white);border:2px solid var(--ink);border-radius:18px;box-shadow:4px 4px 0 var(--ink);overflow:hidden;display:grid}
 .item.pop{animation:bump .22s}
-.item .add{display:grid;grid-template-columns:1fr auto;grid-template-rows:auto 1fr auto;column-gap:8px;text-align:left;padding:14px;min-height:150px;background:var(--c);border:0;border-bottom:2px solid var(--ink);color:var(--ink);cursor:pointer;touch-action:manipulation;user-select:none;-webkit-user-select:none;transition:filter .08s}
+.item .add{display:grid;grid-template-columns:1fr auto;grid-template-rows:auto 1fr auto auto;column-gap:8px;text-align:left;padding:14px;min-height:190px;background:var(--c);border:0;border-bottom:2px solid var(--ink);color:var(--ink);cursor:pointer;touch-action:manipulation;user-select:none;-webkit-user-select:none;transition:filter .08s}
 .item .add:active{filter:brightness(.9)}
 .item .add .ic{grid-area:1/1;font-size:30px}
 .item .add .big{grid-area:1/2;font:800 clamp(2.6rem,12vw,3.4rem) var(--f-d);line-height:1;letter-spacing:-.04em}
 .item .add .nm{grid-area:2/1/3/3;align-self:end;font:800 1.08rem var(--f-d);line-height:1.15;overflow-wrap:anywhere;margin-top:10px}
 .item .add .pr{grid-area:3/1/4/3;font-weight:600;font-size:.92rem;margin-top:4px}
+.item .add .tap{grid-area:4/1/5/3;justify-self:start;display:inline-flex;align-items:center;gap:6px;margin-top:12px;padding:7px 14px 7px 8px;border:2px solid var(--ink);border-radius:999px;background:var(--white);font:700 .92rem var(--f-b);box-shadow:2px 2px 0 var(--ink)}
+.item .add .tap .ms{font-size:24px}
+.item .add:active .tap{transform:translate(2px,2px);box-shadow:none}
+.hint-tap{display:flex;align-items:center;gap:8px;margin-top:20px;font-weight:600;color:var(--ink)}
+.hint-tap .ms{font-size:22px;color:var(--coral)}
 .item .row2{display:flex;align-items:center;gap:8px;padding:8px 10px}
 .sub{flex:1;font-size:.88rem;color:var(--mute);font-weight:600;min-width:0;overflow-wrap:anywhere}
 .mini{flex:none;width:44px;height:44px;border:2px solid var(--ink);border-radius:12px;background:var(--white);color:var(--ink);cursor:pointer;display:grid;place-items:center;touch-action:manipulation}
@@ -188,7 +193,8 @@ footer p{max-width:none}
 @media(max-width:560px){
  .how{grid-template-columns:1fr}
  .grid{grid-template-columns:1fr 1fr;gap:12px}
- .item .add{min-height:140px;padding:12px}
+ .item .add{min-height:180px;padding:12px}
+ .item .add .tap{font-size:.84rem;padding:6px 10px 6px 6px}
  .erow,.elabel{grid-template-columns:1fr 84px 84px 44px;gap:6px}
  .total{top:6px;padding:12px 14px}
  .actions .btn{flex:1 1 100%}
@@ -205,8 +211,8 @@ footer p{max-width:none}
     <a href="index.html" class="brand">Gamon Space</a>
   </div>
   <header class="head">
-    <h1>Hitung pentol, tanpa lupa.</h1>
-    <p>Taruh HP di dekat gerobak, layar tetap menyala. Setiap nyucuk, satu ketukan: tiap jenis punya warna, nada, dan getar sendiri, jadi kamu tahu apa yang tercatat tanpa harus melihat layar. Bisa juga lewat suara.</p>
+    <h1>Sering lupa sudah menyucuk berapa?</h1>
+    <p>Bisa pakai tools ini untuk menghitung dan sesuaikan dengan harga yang ada di paman pentol.</p>
   </header>
 </div>
 
@@ -223,7 +229,8 @@ footer p{max-width:none}
     <div class="vstat" id="vstat"><span class="dot"></span><span id="vtxt">Mendengarkan... sebut misal "besar 2"</span></div>
   </div>
 
-  <div class="grid" id="grid" aria-label="Daftar jajanan"></div>
+  <div class="hint-tap"><span class="ms" aria-hidden="true">touch_app</span>Setiap selesai nyucuk, ketuk kotak jajanannya.</div>
+  <div class="grid" id="grid" aria-label="Daftar jajanan" style="margin-top:12px"></div>
 
   <details class="hist" id="hist">
     <summary><span>Riwayat catatan</span><span class="n" id="hist-n">0 catatan</span></summary>
@@ -406,7 +413,8 @@ function renderGrid(popId){
   return '<div class="item'+(popId===i.id?' pop':'')+'" data-id="'+i.id+'" style="--c:'+col+'">'+
    '<button class="add" type="button" data-a="add" aria-label="Tambah satu '+esc(i.n)+', sekarang '+c+'">'+
     '<span class="ms ic" aria-hidden="true">'+ic+'</span><span class="big">'+c+'</span>'+
-    '<span class="nm">'+esc(i.n)+'</span><span class="pr">'+rp(i.p)+' / biji</span></button>'+
+    '<span class="nm">'+esc(i.n)+'</span><span class="pr">'+rp(i.p)+' / biji</span>'+
+    '<span class="tap"><span class="ms" aria-hidden="true">add_circle</span>Ketuk, tambah 1</span></button>'+
    '<div class="row2"><span class="sub">'+(c?c+' x '+rp(i.p)+' = '+rp(c*i.p):'Belum ada')+'</span>'+
    '<button class="mini" type="button" data-a="set" aria-label="Ketik jumlah '+esc(i.n)+'"><span class="ms" aria-hidden="true">edit</span></button>'+
    '<button class="mini" type="button" data-a="min" aria-label="Kurangi satu '+esc(i.n)+'"'+(c?'':' disabled')+'><span class="ms" aria-hidden="true">remove</span></button></div></div>';
