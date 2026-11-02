@@ -74,9 +74,11 @@ input[type=text]{width:100%;padding:12px 14px;border:2px solid var(--ink);border
 .mk.fin{background:var(--ok);color:#fff}
 .dot{animation:ping 1.6s ease-out infinite}
 @keyframes ping{0%{box-shadow:0 0 0 2px var(--ink),0 0 0 2px rgba(255,92,122,.55)}100%{box-shadow:0 0 0 2px var(--ink),0 0 0 18px rgba(255,92,122,0)}}
-.seg{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-.seg button{padding:10px 6px;border:2px solid var(--ink);border-radius:12px;background:#fff;font:700 .8rem var(--f-b);color:var(--ink);line-height:1.2;cursor:pointer;box-shadow:2px 2px 0 var(--ink)}
-.seg button[aria-pressed=true]{background:var(--sun);transform:translate(2px,2px);box-shadow:none}
+.linkbtn{padding:0;border:0;background:none;color:var(--ink);font:inherit;font-weight:700;text-decoration:underline;cursor:pointer}
+.sheet-box.info{text-align:left}
+.sheet-box.info h4{margin:14px 0 4px;font:800 .95rem var(--f-d)}
+.sheet-box.info ul{margin:0;padding-left:18px;font-size:.88rem;line-height:1.5}
+.sheet-box.info li+li{margin-top:2px}
 .note{margin:22px 0 30px;font-size:.82rem;color:var(--mute);text-align:center}
 </style>
 </head>
@@ -108,13 +110,7 @@ input[type=text]{width:100%;padding:12px 14px;border:2px solid var(--ink);border
     <input id="tujuan" type="text" maxlength="30" placeholder="Diri sendiri, sehat, move on…"/>
     <p class="hint">Hanya tampil di kartu, tidak disimpan.</p>
     <div id="introStatus" class="status">Berdiri di titik awalmu, izinkan lokasi, lalu tekan Mulai.</div>
-    <div id="modeBox"><label>Mode rekam</label>
-    <div class="seg" id="seg" role="group" aria-label="Mode rekam">
-      <button type="button" data-m="on" aria-pressed="true">Layar menyala</button>
-      <button type="button" data-m="silent" aria-pressed="false">Layar mati</button>
-      <button type="button" data-m="music" aria-pressed="false">Layar mati + musik</button>
-    </div></div>
-    <p class="hint" id="introTip"></p>
+    <p class="hint" id="introTip"><span id="introTipTxt">Move Run memutar suara senyap agar tetap merekam saat layar mati.</span> <button type="button" id="btnAudioInfo" class="linkbtn">Info audio senyap</button></p>
     <div class="actions"><button id="btnStart" class="btn full">Mulai Move Run</button></div>
   </div>
 </section>
@@ -180,6 +176,35 @@ input[type=text]{width:100%;padding:12px 14px;border:2px solid var(--ink);border
     <div class="actions">
       <button id="btnSheetShare" class="btn sun full" type="button">Bagikan / simpan</button>
       <button id="btnSheetClose" class="btn alt full" type="button">Tutup</button>
+    </div>
+  </div>
+</div>
+
+<!-- Pop-up info audio senyap -->
+<div id="audioSheet" class="sheet" hidden role="dialog" aria-modal="true" aria-label="Info audio senyap">
+  <div class="sheet-box info">
+    <h3 style="font-size:1.3rem">Soal audio senyap</h3>
+    <p style="margin:8px 0 0;font-size:.92rem;font-weight:500">Agar rute tetap terekam saat layar mati, Move Run memutar suara senyap yang tidak terdengar.</p>
+    <h4>Yang akan terjadi</h4>
+    <ul>
+      <li>Muncul kontrol media "Move Run sedang merekam" di layar kunci.</li>
+      <li>Baterai sedikit lebih boros.</li>
+    </ul>
+    <h4>Yang terganggu</h4>
+    <ul>
+      <li>Musik Spotify atau YouTube Music akan berhenti.</li>
+      <li>Telepon atau alarm bisa menjeda rekaman. Bagian itu disambung garis putus-putus.</li>
+    </ul>
+    <h4>Yang perlu kamu lakukan</h4>
+    <ul>
+      <li>Jangan tutup tab atau browser dari daftar aplikasi.</li>
+      <li>Android: izinkan browser berjalan tanpa batasan baterai.</li>
+      <li>Mau dengar musik? Putar setelah Move Run mulai. Rekaman bisa terjeda, tidak dijamin.</li>
+      <li>Tes dulu: matikan layar 1-2 menit, lalu cek tanda ✓.</li>
+    </ul>
+    <div class="actions">
+      <button id="btnAudioOk" class="btn full" type="button">Mengerti, mulai</button>
+      <button id="btnAudioBack" class="btn alt full" type="button">Kembali</button>
     </div>
   </div>
 </div>
@@ -295,28 +320,13 @@ const NATIVE = !!(window.Capacitor && window.Capacitor.isNativePlatform && windo
 const BG = NATIVE ? window.Capacitor.registerPlugin("BackgroundGeolocation") : null;
 let bgId = null;
 
-/* ═══ Mode rekam & audio penjaga (EKSPERIMENTAL) ═══
-   "Layar mati" memutar suara senyap, "Layar mati + musik" memutar musik dari daftar MUSIC.
-   Tujuannya menjaga halaman tetap aktif saat layar mati. Hasilnya bergantung HP/browser dan tidak dijamin.
-   Musik Spotify/YouTube tidak bisa dipakai di sini (dan akan berhenti saat audio penjaga jalan). */
-const MUSIC = ["music.mp3"];   // isi dengan musik milikmu sendiri / bebas hak cipta; kosongkan untuk menyembunyikan mode musik
-let mode = "on", keepAudio = null, silentUrl = null, trackIdx = 0;
-const MODE_HINT = {
-  on: "Paling andal: layar tetap menyala, musik Spotify jalan terus.",
-  silent: "Eksperimental: suara senyap menjaga halaman aktif. Musik Spotify akan berhenti.",
-  music: "Eksperimental: musik dari Move Run menjaga halaman aktif."
-};
-function setMode(m) {
-  mode = m;
-  document.querySelectorAll("#seg button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.m === m)));
-  if (!NATIVE) $("introTip").textContent = MODE_HINT[m];
-}
-document.querySelectorAll("#seg button").forEach(b => b.addEventListener("click", () => setMode(b.dataset.m)));
-if (!MUSIC.length) document.querySelector('#seg [data-m="music"]').remove();
-if (NATIVE) { $("modeBox").hidden = true; $("introTip").textContent = "Pelacakan tetap jalan saat layar mati atau kamu buka aplikasi musik."; }
-else setMode("on");
-
-function silentWav() {   // 1 detik WAV hampir-senyap (±1/32768), diulang terus
+/* ═══ Audio senyap (penjaga halaman saat layar mati) ═══
+   Memutar suara hampir-senyap berulang supaya browser menganggap halaman sedang memutar media
+   dan menjaganya tetap aktif. Hasilnya bergantung HP/browser dan tidak dijamin.
+   Hanya dipakai di browser (bukan aplikasi native / mode demo). */
+let keepAudio = null, silentUrl = null;
+if (NATIVE) { $("introTipTxt").textContent = "Pelacakan tetap jalan saat layar mati atau kamu buka aplikasi musik."; $("btnAudioInfo").hidden = true; }
+function silentWav() {   // 1 detik WAV hampir-senyap (±1/32768), tidak terdengar
   const rate = 8000, n = rate, buf = new ArrayBuffer(44 + n * 2), v = new DataView(buf);
   const w = (o, t) => [...t].forEach((c, i) => v.setUint8(o + i, c.charCodeAt(0)));
   w(0, "RIFF"); v.setUint32(4, 36 + n * 2, true); w(8, "WAVE"); w(12, "fmt "); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
@@ -326,22 +336,14 @@ function silentWav() {   // 1 detik WAV hampir-senyap (±1/32768), diulang terus
 }
 function updateSession() {
   if (!("mediaSession" in navigator)) return;
-  const title = mode === "music" ? MUSIC[trackIdx].replace(/\.[^.]+$/, "") : "Move Run sedang merekam";
-  try { navigator.mediaSession.metadata = new MediaMetadata({ title, artist: "Gamon Space", artwork: [{ src: "image/logo/gamonspace.png", sizes: "512x512", type: "image/png" }] }); } catch (e) {}
-  const set = (a, fn) => { try { navigator.mediaSession.setActionHandler(a, fn); } catch (e) {} };
-  if (mode === "silent") { set("pause", () => keepAudio && keepAudio.play()); set("nexttrack", null); set("previoustrack", null); }
-  else { set("pause", null); set("nexttrack", () => nextTrack(1)); set("previoustrack", () => nextTrack(-1)); }
+  try { navigator.mediaSession.metadata = new MediaMetadata({ title: "Move Run sedang merekam", artist: "Gamon Space", artwork: [{ src: "image/logo/gamonspace.png", sizes: "512x512", type: "image/png" }] }); } catch (e) {}
+  try { navigator.mediaSession.setActionHandler("pause", () => keepAudio && keepAudio.play()); } catch (e) {}   // tombol jeda di layar kunci diabaikan agar rekaman tidak berhenti
 }
-function nextTrack(d) { trackIdx = (trackIdx + d + MUSIC.length) % MUSIC.length; keepAudio.src = MUSIC[trackIdx]; keepAudio.play().catch(() => {}); updateSession(); }
 function startKeepAlive() {   // harus dipanggil dari ketukan pengguna
-  if (NATIVE || DEMO || mode === "on") return;
-  if (!keepAudio) {
-    keepAudio = new Audio(); keepAudio.setAttribute("playsinline", "");
-    keepAudio.addEventListener("ended", () => { if (mode === "music") nextTrack(1); });
-  }
-  if (mode === "silent") { silentUrl = silentUrl || silentWav(); keepAudio.src = silentUrl; keepAudio.loop = true; }
-  else { keepAudio.loop = false; keepAudio.src = MUSIC[trackIdx % MUSIC.length]; }
-  keepAudio.play().then(updateSession).catch(() => setStatus($("runStatus"), "Audio gagal dimulai. Ketuk layar sekali lagi.", "bad"));
+  if (NATIVE || DEMO) return;
+  if (!keepAudio) { keepAudio = new Audio(); keepAudio.setAttribute("playsinline", ""); keepAudio.loop = true; silentUrl = silentWav(); }
+  if (!keepAudio.getAttribute("src")) keepAudio.src = silentUrl;
+  keepAudio.play().then(updateSession).catch(() => setStatus($("runStatus"), "Audio senyap gagal dimulai. Ketuk layar sekali lagi.", "bad"));
 }
 function stopKeepAlive() {
   if (keepAudio) { keepAudio.pause(); keepAudio.removeAttribute("src"); keepAudio.load(); }
@@ -437,8 +439,8 @@ async function lockScreen() {
 document.addEventListener("visibilitychange", () => {
   if (!run || NATIVE) return;
   if (document.visibilityState === "hidden") { run.hiddenAt = Date.now(); run.hidFix = run.fixes || 0; saveLocal(); return; }
-  if (mode === "on") lockScreen();
-  if (keepAudio && keepAudio.paused && mode !== "on") keepAudio.play().catch(() => {});
+  lockScreen();
+  if (keepAudio && keepAudio.paused) keepAudio.play().catch(() => {});
   if (run.origin && run.hiddenAt && Date.now() - run.hiddenAt > 15000) {
     const got = (run.fixes || 0) - (run.hidFix || 0);   // titik yang masuk selama layar mati / halaman tersembunyi
     if (got >= 2) setStatus($("runStatus"), "Pelacakan tetap jalan di latar belakang ✓ (" + got + " titik)", "good");
@@ -454,9 +456,8 @@ function beginTracking(resume) {
   if (resume && run.origin) { drawPath(run.path); run.pendingGap = true; drawOrigin(); const l = run.path[run.path.length - 1]; map.setView([l.lat, l.lng], 18); setMe(l.lat, l.lng); }
   updateStats();
   if (NATIVE) $("wlHint").textContent = "Aman: pelacakan tetap jalan saat layar mati.";
-  else if (mode === "on") lockScreen();
-  else $("wlHint").textContent = "Mode layar mati (eksperimental). Tes: matikan layar sebentar, lalu cek rutenya.";
-  if (!resume) startKeepAlive(); else if (mode !== "on" && !NATIVE) document.addEventListener("pointerdown", startKeepAlive, { once: true });
+  else { $("wlHint").textContent = "Layar boleh dimatikan. Tes: matikan layar sebentar, lalu cek rutenya."; lockScreen(); }
+  if (!resume) startKeepAlive(); else if (!NATIVE) document.addEventListener("pointerdown", startKeepAlive, { once: true });
   clearInterval(timer); timer = setInterval(() => run && run.start && updateStats(), 1000);
   if (DEMO) return startDemo();
   startWatch();
@@ -624,15 +625,30 @@ function anchorDownload() {
 }
 
 /* ═══════════ EVENT ═══════════ */
-$("btnStart").addEventListener("click", () => {
-  const nama = $("nama").value.trim();
-  if (!nama) { setStatus($("introStatus"), "Isi namamu dulu ya.", "bad"); $("nama").focus(); return; }
-  if (!DEMO && !navigator.geolocation) return setStatus($("introStatus"), "Browser tidak mendukung GPS.", "bad");
-  run = { nama, tujuan: $("tujuan").value.trim().slice(0, 30), mode, start: 0, origin: null, path: [], dist: 0, flags: 0, left: false, far: 0 };
+function startRun() {
+  run = { nama: $("nama").value.trim(), tujuan: $("tujuan").value.trim().slice(0, 30), start: 0, origin: null, path: [], dist: 0, flags: 0, left: false, far: 0 };
   $("toStart").textContent = "Menunggu titik awal…";
   setStatus($("runStatus"), "Mengunci titik awal… tetap di tempat.");
-  beginTracking(false);
+  beginTracking(false);   // dipanggil dari ketukan pengguna, jadi audio senyap boleh dimulai
+}
+const ACK = "moverun_audio_ok";
+const acked = () => { try { return localStorage.getItem(ACK) === "1"; } catch (e) { return false; } };
+let infoOnly = false;
+function openAudioSheet(only) { infoOnly = only; $("btnAudioOk").textContent = only ? "Tutup" : "Mengerti, mulai"; $("btnAudioBack").hidden = only; $("audioSheet").hidden = false; }
+$("btnStart").addEventListener("click", () => {
+  if (!$("nama").value.trim()) { setStatus($("introStatus"), "Isi namamu dulu ya.", "bad"); $("nama").focus(); return; }
+  if (!DEMO && !navigator.geolocation) return setStatus($("introStatus"), "Browser tidak mendukung GPS.", "bad");
+  if (NATIVE || DEMO || acked()) startRun(); else openAudioSheet(false);   // info audio senyap muncul sekali sebelum mulai pertama
 });
+$("btnAudioInfo").addEventListener("click", () => openAudioSheet(true));
+$("btnAudioOk").addEventListener("click", () => {
+  $("audioSheet").hidden = true;
+  if (infoOnly) return;
+  try { localStorage.setItem(ACK, "1"); } catch (e) {}
+  startRun();
+});
+$("btnAudioBack").addEventListener("click", () => { $("audioSheet").hidden = true; });
+$("audioSheet").addEventListener("click", e => { if (e.target === e.currentTarget) e.currentTarget.hidden = true; });
 $("btnFinish").addEventListener("click", finish);
 $("btnCancel").addEventListener("click", () => { if (confirm("Batalkan sesi? Rutemu tidak akan disimpan.")) { stopTracking(); run = null; clearLocal(); show("intro"); } });
 $("btnAgain").addEventListener("click", () => { show("intro"); window.scrollTo({ top: 0 }); });
@@ -661,7 +677,7 @@ document.addEventListener("keydown", e => { if (e.key === "Escape") $("saveSheet
 try {
   const saved = JSON.parse(localStorage.getItem(LS) || "null");
   if (saved && saved.origin && saved.start && Date.now() - saved.start < 3 * 3600 * 1000) {
-    run = saved; $("nama").value = saved.nama; setMode(saved.mode || "on"); beginTracking(true);
+    run = saved; $("nama").value = saved.nama; beginTracking(true);
   } else clearLocal();
 } catch (e) { clearLocal(); }
 </script>
