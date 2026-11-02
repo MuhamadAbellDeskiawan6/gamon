@@ -220,10 +220,12 @@ const CFG = {
   returnRadius: 50,      // meter, dianggap "kembali ke titik awal"
   leaveRadius: 120,      // meter, harus pernah menjauh sejauh ini sebelum finis dihitung
   lockAccuracy: 30,      // meter, akurasi GPS maksimal untuk mengunci titik awal
-  maxAccuracy: 35,       // meter, titik GPS yang kurang akurat diabaikan
+  maxAccuracy: 35,       // meter, titik GPS yang kurang akurat diabaikan (layar menyala)
+  maxAccuracyBg: 70,     // meter, batas lebih longgar untuk titik yang direkam saat layar mati / di latar belakang
   maxSpeed: 7,           // m/s (~25 km/j), di atas ini dianggap naik kendaraan
   minPoint: 5,           // meter, jarak minimal antar titik
   maxPoints: 280,        // titik rute yang disimpan
+  gapSec: 60,            // detik, jeda waktu antar titik GPS yang baru dianggap "rute terputus" (garis putus-putus)
   maxGapSpeed: 3.5,      // m/s (~12 km/j), batas kecepatan agar bagian rute yang terjeda tetap dihitung
   collection: "moveon_runs"
 };
@@ -288,7 +290,7 @@ const startIcon = () => L.divIcon({ className: "", html: '<div class="mk">Start<
 
 /* ═══════════ PETA LIVE ═══════════ */
 const LINE_STYLE = { color: "#ff5c7a", weight: 6, opacity: .95 };
-const GAP_STYLE = { color: "#ff5c7a", weight: 4, dashArray: "6 10", opacity: .8 };   // garis putus-putus = bagian yang tidak terekam
+const GAP_STYLE = { color: "#ff5c7a", weight: 4, dashArray: "6 10", opacity: .8 };   // garis putus-putus = bagian yang benar-benar tidak terekam
 function drawPath(path) {
   path.forEach((p, i) => {
     if (p.g && i > 0) { L.polyline([[path[i - 1].lat, path[i - 1].lng], [p.lat, p.lng]], GAP_STYLE).addTo(map); line = L.polyline([[p.lat, p.lng]], LINE_STYLE).addTo(map); }
@@ -371,9 +373,20 @@ function stopWatchLoc() {
 }
 
 /* ═══════════ TRACKING ═══════════ */
+
+/* Apakah titik GPS ini direkam saat halaman di latar belakang / layar mati?
+   Browser sering mengirim titik yang tertahan SETELAH halaman terlihat lagi, jadi yang dipakai
+   adalah cap waktu titiknya (ts), bukan keadaan halaman saat callback dipanggil. */
+function inBg(ts) {
+  if (!run || !run.bgFrom) return false;
+  return ts >= run.bgFrom - 2000 && (!run.bgTo || ts <= run.bgTo + 2000);
+}
+
 function onPos(lat, lng, acc, ts) {
   if (!run) return;
-  run.fixes = (run.fixes || 0) + 1;   // hitung titik GPS yang masuk (untuk mendeteksi apakah rekaman jalan saat layar mati)
+  run.fixes = (run.fixes || 0) + 1;
+  const bg = document.hidden || inBg(ts);
+  if (bg && run.origin) run.bgFixes = (run.bgFixes || 0) + 1;   // titik yang berhasil masuk saat layar mati
   setMe(lat, lng);
 
   /* Fase 1: kunci titik awal dari fix GPS akurat pertama */
@@ -387,22 +400,26 @@ function onPos(lat, lng, acc, ts) {
     return setStatus($("runStatus"), "Titik awal terkunci. Mulai bergerak!", "good");
   }
 
-  /* Fase 2: rekam rute */
-  if (acc > CFG.maxAccuracy) return setStatus($("runStatus"), "Sinyal GPS lemah. Cari area terbuka.", "bad");
+  /* Fase 2: rekam rute. Saat layar mati akurasi GPS sering turun, jadi batasnya dilonggarkan
+     agar titik tidak terbuang dan rute tidak jadi putus. */
+  if (acc > (bg ? CFG.maxAccuracyBg : CFG.maxAccuracy)) return setStatus($("runStatus"), "Sinyal GPS lemah. Cari area terbuka.", "bad");
   const p = { lat: +lat.toFixed(6), lng: +lng.toFixed(6), t: ts };
   const last = run.path[run.path.length - 1];
+  if (ts <= last.t) return;   // titik lama / urutan terbalik (sering terjadi saat titik tertahan dikirim sekaligus)
   const d = hav(last, p), dt = Math.max(1, (ts - last.t) / 1000);
   let pre = "";
-  if (run.pendingGap) {
-    /* Pelacakan sempat terjeda (layar mati / pindah aplikasi): sambungkan dengan garis putus-putus */
-    run.pendingGap = false;
+
+  if (dt > CFG.gapSec) {
+    /* Benar-benar ada jeda waktu panjang antar dua titik (pelacakan mati lebih dari gapSec detik):
+       sambungkan dengan garis putus-putus. Penentuan jeda memakai selisih cap waktu titik GPS,
+       bukan status layar, sehingga titik-titik yang tertahan lalu dikirim ulang tetap digambar solid. */
     const counted = d / dt <= CFG.maxGapSpeed;
     if (counted) { run.dist += d; run.gapDist = (run.gapDist || 0) + d; } else run.gapSkip = (run.gapSkip || 0) + d;
     p.g = counted ? 1 : 2;
     run.path.push(p);
     L.polyline([[last.lat, last.lng], [lat, lng]], GAP_STYLE).addTo(map);
     line = L.polyline([[lat, lng]], LINE_STYLE).addTo(map);
-    pre = counted ? "Sempat terjeda, disambung garis putus-putus. " : "Sempat terjeda, bagian itu tidak dihitung. ";
+    pre = counted ? "Sempat terjeda " + Math.round(dt) + " dtk, disambung garis putus-putus. " : "Sempat terjeda, bagian itu tidak dihitung. ";
   } else {
     if (d < CFG.minPoint) return;
     if (d / dt > CFG.maxSpeed) { run.flags++; return setStatus($("runStatus"), "Gerakan terlalu cepat, diabaikan.", "bad"); }
@@ -435,25 +452,34 @@ async function lockScreen() {
   if (!("wakeLock" in navigator)) { $("wlHint").textContent = "Atur kunci layar ke 'Tidak pernah' selama berlari."; return; }
   try { wakeLock = await navigator.wakeLock.request("screen"); } catch (e) {}
 }
-/* Saat halaman disembunyikan (layar mati / pindah aplikasi) browser menjeda GPS. Catat jedanya. */
+/* Saat halaman disembunyikan (layar mati / pindah aplikasi) browser bisa menjeda atau menahan GPS.
+   Di sini HANYA dicatat rentang waktunya. Keputusan "putus-putus" tidak diambil dari sini lagi
+   (itu penyebab rute jadi putus-putus padahal titiknya ada), melainkan dari selisih waktu antar titik di onPos. */
 document.addEventListener("visibilitychange", () => {
   if (!run || NATIVE) return;
-  if (document.visibilityState === "hidden") { run.hiddenAt = Date.now(); run.hidFix = run.fixes || 0; saveLocal(); return; }
+  if (document.visibilityState === "hidden") { run.bgFrom = Date.now(); run.bgTo = 0; run.bgFixes = 0; saveLocal(); return; }
+  run.bgTo = Date.now();
   lockScreen();
+  if (map) setTimeout(() => map && map.invalidateSize(), 200);
   if (keepAudio && keepAudio.paused) keepAudio.play().catch(() => {});
-  if (run.origin && run.hiddenAt && Date.now() - run.hiddenAt > 15000) {
-    const got = (run.fixes || 0) - (run.hidFix || 0);   // titik yang masuk selama layar mati / halaman tersembunyi
-    if (got >= 2) setStatus($("runStatus"), "Pelacakan tetap jalan di latar belakang ✓ (" + got + " titik)", "good");
-    else { run.pendingGap = true; setStatus($("runStatus"), "Pelacakan sempat terjeda. Lanjutkan, rute akan disambung.", "bad"); }
+  const hid = run.bgFrom ? Date.now() - run.bgFrom : 0;
+  if (run.origin && hid > 15000) {
+    setStatus($("runStatus"), "Memeriksa rekaman saat layar mati…");
+    /* Beri waktu 4 detik agar titik yang tertahan sempat masuk sebelum dinilai */
+    setTimeout(() => {
+      if (!run) return;
+      const got = run.bgFixes || 0;
+      if (got >= 2) setStatus($("runStatus"), "Pelacakan tetap jalan di latar belakang ✓ (" + got + " titik)", "good");
+      else setStatus($("runStatus"), "Hanya " + got + " titik terekam saat layar mati. Bagian kosong disambung otomatis.", "bad");
+    }, 4000);
   }
-  run.hiddenAt = 0;
 });
 window.addEventListener("pagehide", () => { if (run) saveLocal(); });
 
 function beginTracking(resume) {
   show("run"); initMap();
   $("btnFinish").disabled = !(run.origin);
-  if (resume && run.origin) { drawPath(run.path); run.pendingGap = true; drawOrigin(); const l = run.path[run.path.length - 1]; map.setView([l.lat, l.lng], 18); setMe(l.lat, l.lng); }
+  if (resume && run.origin) { drawPath(run.path); drawOrigin(); const l = run.path[run.path.length - 1]; map.setView([l.lat, l.lng], 18); setMe(l.lat, l.lng); }
   updateStats();
   if (NATIVE) $("wlHint").textContent = "Aman: pelacakan tetap jalan saat layar mati.";
   else { $("wlHint").textContent = "Layar boleh dimatikan. Tes: matikan layar sebentar, lalu cek rutenya."; lockScreen(); }
