@@ -662,6 +662,53 @@ function getReviewAvatar(value) {
   return '';
 }
 
+// Foto profil terbaru untuk testimoni: pakai thumbnail kecil (photoThumbUrl) bila ada,
+// kalau tidak ada pakai photoUrl selama ukurannya masih kecil.
+function pickProfileAvatar(profile) {
+  return getReviewAvatar(profile?.photoThumbUrl) || getReviewAvatar(profile?.photoUrl);
+}
+
+// PUBLIK (tanpa login): daftar testimoni beranda.
+// Foto pembeli SELALU diambil dari profil terbaru (marketplace_users), bukan dari salinan
+// yang tersimpan di dokumen ulasan, sehingga ganti foto profil langsung ikut berubah.
+// Hanya field yang aman dikirim (tidak ada email/HP/alamat).
+async function publicReviews(req, res) {
+  const db = getAdminDb();
+  const snapshot = await db.collection('marketplace_reviews').orderBy('createdAt', 'desc').limit(30).get();
+  const reviews = snapshot.docs.map((document) => ({ id: document.id, ...document.data() }));
+
+  const userIds = [...new Set(reviews.map((review) => String(review.userId || '').trim()).filter((id) => id && !id.includes('/')))];
+  const profiles = new Map();
+  if (userIds.length) {
+    const profileSnaps = await db.getAll(...userIds.map((id) => db.collection('marketplace_users').doc(id)));
+    profileSnaps.forEach((profileSnap) => {
+      if (profileSnap.exists) profiles.set(profileSnap.id, profileSnap.data() || {});
+    });
+  }
+
+  const result = reviews.map((review) => {
+    const userId = String(review.userId || '').trim();
+    const profile = profiles.get(userId);
+    return {
+      id: review.id,
+      productId: review.productId || '',
+      productName: review.productName || '',
+      productImage: review.productImage || '',
+      // Nama lengkap dari profil terbaru; ulasan lama menyimpan nama yang disingkat ("Muhammad A.").
+      buyerName: cleanText((profile && profile.name) || review.buyerName || 'Pembeli', 120),
+      // Profil ada -> pakai fotonya yang sekarang (boleh kosong bila memang tak punya foto).
+      // Profil sudah tidak ada -> pakai salinan lama di ulasan.
+      buyerPhotoUrl: profile ? pickProfileAvatar(profile) : getReviewAvatar(review.buyerPhotoUrl),
+      rating: review.rating,
+      comment: review.comment || '',
+      createdAt: review.createdAt || 0
+    };
+  });
+
+  res.setHeader('Cache-Control', 'public, s-maxage=10, stale-while-revalidate=30');
+  return res.status(200).json({ success: true, reviews: result });
+}
+
 async function submitReview(req, res, claims) {
   const orderId = String(req.body?.orderId || '').trim();
   const productId = String(req.body?.productId || '').trim();
@@ -708,8 +755,8 @@ async function submitReview(req, res, claims) {
       productName: cleanText(item.name || 'Produk', 120),
       productImage: getSafeThumbnail(item.image),
       userId: claims.uid,
-      buyerName: maskBuyerName(order.buyerName),
-      buyerPhotoUrl: getReviewAvatar(profileSnap.exists ? profileSnap.data()?.photoUrl : ''),
+      buyerName: cleanText(order.buyerName || (profileSnap.exists ? profileSnap.data()?.name : '') || 'Pembeli', 120),
+      buyerPhotoUrl: profileSnap.exists ? pickProfileAvatar(profileSnap.data()) : '',
       rating,
       comment,
       createdAt: now,
@@ -1327,6 +1374,16 @@ export default async function handler(req, res) {
     } catch (error) {
       console.error('[marketplace] gagal mencatat view produk:', { code: error.code || 'unknown', message: error.message });
       return responseError(res, 500, error.code || 'view-failed', 'Jumlah dilihat gagal dicatat.');
+    }
+  }
+
+  // Aksi publik (tanpa login): testimoni beranda dengan foto profil terbaru.
+  if (action === 'public-reviews') {
+    try {
+      return await publicReviews(req, res);
+    } catch (error) {
+      console.error('[marketplace] public-reviews gagal:', { code: error.code || 'unknown', message: error.message });
+      return responseError(res, 500, error.code || 'reviews-failed', 'Testimoni gagal dimuat.');
     }
   }
 

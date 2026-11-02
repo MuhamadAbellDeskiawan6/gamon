@@ -808,6 +808,37 @@ async function uploadProfilePhoto(file) {
   return dataUrl;
 }
 
+/* Thumbnail avatar kecil (persegi, ~128px, hanya beberapa KB).
+ * Disimpan di marketplace_users.photoThumbUrl dan dipakai server untuk testimoni di beranda,
+ * karena foto profil asli (hingga ~700 KB) terlalu besar untuk dikirim ke halaman publik. */
+async function createAvatarThumbDataUrl(source, size = 128, quality = 0.78) {
+  const sourceUrl = typeof source === 'string' ? source : await fileToDataUrl(source);
+  const image = await new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error('Gagal memproses foto avatar.'));
+    img.src = sourceUrl;
+  });
+
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const context = canvas.getContext('2d');
+  if (!context) return '';
+
+  context.fillStyle = '#ffffff';
+  context.fillRect(0, 0, size, size);
+
+  // Potong tengah (cover) supaya hasilnya persegi dan tidak gepeng.
+  const side = Math.min(image.width, image.height);
+  const sx = (image.width - side) / 2;
+  const sy = (image.height - side) / 2;
+  context.drawImage(image, sx, sy, side, side, 0, 0, size, size);
+
+  const dataUrl = canvas.toDataURL('image/jpeg', quality);
+  return dataUrl.length <= 50000 ? dataUrl : canvas.toDataURL('image/jpeg', 0.5);
+}
+
 /* ======================= end profile photo handling ======================= */
 
 function currentUser() {
@@ -4046,6 +4077,7 @@ function renderProfile() {
 
     // Mulai dari foto kanonik saat ini (satu field), jangan bawa field foto lama.
     let photoUrl = getUserPhotoUrl(user) || '';
+    let photoThumbUrl = user.photoThumbUrl || '';
         let redirecting = false;
     const returnTo = getSafeReturnUrl();
 
@@ -4057,6 +4089,10 @@ function renderProfile() {
     try {
       if (file) {
         photoUrl = await uploadProfilePhoto(file);
+        photoThumbUrl = await createAvatarThumbDataUrl(photoUrl);
+      } else if (photoUrl && !photoThumbUrl) {
+        // Pengguna lama yang belum punya thumbnail: buat dari foto yang sudah ada.
+        try { photoThumbUrl = await createAvatarThumbDataUrl(photoUrl); } catch (thumbError) { photoThumbUrl = ''; }
       }
 
       const { photo: _legacyPhoto, profilePhotoUrl: _legacyProfilePhotoUrl, avatarUrl: _legacyAvatarUrl, role: _legacyRole, ...restUser } = user;
@@ -4100,7 +4136,8 @@ function renderProfile() {
             : '',
           updatedAt: Date.now()
         },
-        photoUrl
+        photoUrl,
+        photoThumbUrl
       };
 
       if (userId) {
@@ -4942,9 +4979,30 @@ async function renderHomeReviews() {
   show('loading');
  
   try {
-    const snapshot = await getDocs(query(collection(db, 'marketplace_reviews'), orderBy('createdAt', 'desc'), limit(30)));
-    const reviews = snapshot.docs
-      .map((reviewDoc) => ({ id: reviewDoc.id, ...reviewDoc.data() }))
+    let rawReviews = null;
+
+    // Utama: lewat API server, foto pembeli selalu diambil dari profil TERBARU.
+    try {
+      const response = await withTimeout(
+        fetch('/api/marketplace?action=public-reviews', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}', cache: 'no-store' }),
+        10000,
+        'Memuat testimoni'
+      );
+      if (response.ok) {
+        const payload = await response.json();
+        if (payload?.success && Array.isArray(payload.reviews)) rawReviews = payload.reviews;
+      }
+    } catch (apiError) {
+      console.warn('[marketplace] API testimoni tidak tersedia, memakai data Firestore langsung:', apiError);
+    }
+
+    // Cadangan: baca langsung dari Firestore (foto bisa jadi salinan lama di ulasan).
+    if (!rawReviews) {
+      const snapshot = await getDocs(query(collection(db, 'marketplace_reviews'), orderBy('createdAt', 'desc'), limit(30)));
+      rawReviews = snapshot.docs.map((reviewDoc) => ({ id: reviewDoc.id, ...reviewDoc.data() }));
+    }
+
+    const reviews = rawReviews
       .filter((review) => Number.isInteger(Number(review.rating)) && Number(review.rating) >= 1 && Number(review.rating) <= 5);
  
     // Pesan "belum ada testimoni" HANYA bila database memang kosong.
@@ -4986,7 +5044,7 @@ async function renderHomeReviews() {
         </div>
         <div class="mm-review-stars" role="img" aria-label="Rating ${rating} dari 5">${'★'.repeat(rating)}${'☆'.repeat(5 - rating)}</div>
         <p class="mm-review-text">${review.comment ? escapeHtml(review.comment) : '<em>Pembeli tidak menulis komentar.</em>'}</p>
-        <div class="mm-review-foot"><span class="mm-review-buyer">${avatar}<strong>${escapeHtml(buyerName)}</strong></span><span>${escapeHtml(date)}</span></div>
+        <div class="mm-review-foot"><span class="mm-review-buyer">${avatar}<strong style="overflow-wrap:anywhere;">${escapeHtml(buyerName)}</strong></span><span>${escapeHtml(date)}</span></div>
       </article>`;
     }).join('');
  
@@ -5131,4 +5189,3 @@ window.addEventListener('beforeunload', () => {
   if (window.__marketplaceSellCleanup) window.__marketplaceSellCleanup();
   if (window.__marketplaceCartCleanup) window.__marketplaceCartCleanup();
 });
- 
