@@ -705,5 +705,33 @@ footer{padding:28px 0 calc(40px + env(safe-area-inset-bottom,0px));border-top:2p
   setInterval(update,1000);
 })();
 </script>
+<script>
+/* Carousel produk: setiap kali tombol panah (‹ ›) atau titik halaman diklik,
+   layar otomatis naik ke awal daftar produk supaya produk di halaman baru langsung terlihat. */
+(function(){
+  var section=document.getElementById('explore');
+  if(!section)return;
+  var reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function headerHeight(){
+    var h=document.querySelector('.topbar');
+    return h?h.getBoundingClientRect().height:0;
+  }
+
+  function scrollToProducts(){
+    var target=section.querySelector('[data-product-list]')||section;
+    var y=target.getBoundingClientRect().top+(window.pageYOffset||document.documentElement.scrollTop||0)-headerHeight()-12;
+    window.scrollTo({top:Math.max(0,y),behavior:reduce?'auto':'smooth'});
+  }
+
+  /* Delegasi event: tetap bekerja walau assets/app.js merender ulang carousel */
+  section.addEventListener('click',function(e){
+    var ctrl=e.target.closest&&e.target.closest('.product-carousel-btn, .product-carousel-dot');
+    if(!ctrl||ctrl.disabled)return;
+    /* tunggu app.js selesai mengganti slide (tinggi halaman berubah), lalu scroll */
+    requestAnimationFrame(function(){setTimeout(scrollToProducts,80);});
+  });
+})();
+</script>
 </body>
 </html>
