@@ -1,645 +1,1304 @@
 <!DOCTYPE html>
+
 <html lang="id">
+
 <head>
+
 <meta charset="UTF-8"/>
+
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+
 <title>Move Run | Gamon Space</title>
+
 <meta name="description" content="Move Run: lari atau jalan dari mana saja, kembali ke titik awal, dan bagikan kartu rutemu."/>
+
 <link rel="icon" type="image/png" href="image/logo/gamonspace.png"/>
+
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
+
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+
 <style>
+
 :root{--sky:#d4e9f5;--ink:#0b2342;--coral:#ff5c7a;--sun:#ffd66b;--mute:#47607c;--ok:#2fbf71;--f-d:"Bricolage Grotesque","Inter",system-ui,sans-serif;--f-b:"Inter",system-ui,sans-serif}
+
 *,*::before,*::after{box-sizing:border-box}
+
 [hidden]{display:none!important}
+
 body{margin:0;font-family:var(--f-b);background:var(--sky);color:var(--ink);line-height:1.55;padding-bottom:env(safe-area-inset-bottom,0)}
+
 h1,h2,h3{font-family:var(--f-d);font-weight:800;letter-spacing:-.025em;line-height:1.05;margin:0}
+
 p{margin:0}
+
 .wrap{width:min(560px,calc(100% - 28px));margin:0 auto}
+
 .top{position:sticky;top:0;z-index:1000;background:var(--sky);border-bottom:2px solid var(--ink);padding-top:env(safe-area-inset-top,0)}
+
 .top .wrap{display:flex;align-items:center;justify-content:space-between;padding:12px 0}
+
 .brand{display:inline-flex;align-items:center;gap:8px;font:800 1.05rem var(--f-d);text-decoration:none;color:var(--ink)}
+
 .brand img{width:34px;height:34px;padding:3px;border:2px solid var(--ink);border-radius:10px;background:#fff;box-shadow:2px 2px 0 var(--ink)}
+
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:13px 20px;border:2px solid var(--ink);border-radius:12px;background:var(--coral);color:var(--ink);font:700 1rem var(--f-b);text-decoration:none;cursor:pointer;box-shadow:4px 4px 0 var(--ink);transition:transform .12s,box-shadow .12s}
+
 .btn:hover{transform:translate(2px,2px);box-shadow:2px 2px 0 var(--ink)}
+
 .btn:disabled{opacity:.5;pointer-events:none}
+
 .btn.sun{background:var(--sun)}.btn.alt{background:#fff}.btn.ok{background:var(--ok);color:#fff}
+
 .btn.full{width:100%}
+
 .btn.pulse{animation:pulse 1.2s ease-in-out infinite}
+
 @keyframes pulse{50%{transform:scale(1.03)}}
+
 .card{padding:20px;border:2px solid var(--ink);border-radius:20px;background:#fff;box-shadow:6px 6px 0 var(--ink);margin-top:18px}
+
 .eyebrow{display:inline-block;padding:4px 12px;border:2px solid var(--ink);border-radius:999px;background:var(--sun);font:600 .8rem var(--f-b);box-shadow:3px 3px 0 var(--ink)}
+
 h1{font-size:clamp(2.4rem,10vw,3.4rem);margin:14px 0 10px}
+
 h1 .hl{background:var(--coral);padding:0 .15em;border:2px solid var(--ink);border-radius:12px;box-shadow:4px 4px 0 var(--ink);display:inline-block;transform:rotate(-1.5deg)}
+
 .mute{color:var(--mute)}
+
 .flow{display:flex;align-items:flex-start;justify-content:space-between;gap:2px;margin:20px 0 0;padding:16px 10px 14px;list-style:none;border:2px solid var(--ink);border-radius:20px;background:#fff;box-shadow:5px 5px 0 var(--ink)}
+
 .flow .stp{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center}
+
 .flow .num{display:grid;place-items:center;width:46px;height:46px;border:2px solid var(--ink);border-radius:50%;font:800 1.25rem var(--f-d);box-shadow:3px 3px 0 var(--ink)}
+
 .flow .stp:nth-child(1) .num{background:var(--sun)}
+
 .flow .stp:nth-child(3) .num{background:var(--coral)}
+
 .flow .stp:nth-child(5) .num{background:var(--ok);color:#fff}
+
 .flow .lbl{font-size:.82rem;font-weight:700;line-height:1.25}
+
 .flow .arr{flex:none;width:26px;margin-top:11px;color:var(--ink)}
+
 .flow .arr svg{display:block;width:26px;height:24px}
+
 label{display:block;font-weight:600;font-size:.9rem;margin:14px 0 6px}
+
 input[type=text]{width:100%;padding:12px 14px;border:2px solid var(--ink);border-radius:12px;font:500 1rem var(--f-b);background:#fff}
+
 .hint{font-size:.78rem;color:var(--mute);margin-top:6px}
+
 #map,#resMap{height:46vh;min-height:300px;border:2px solid var(--ink);border-radius:20px;box-shadow:6px 6px 0 var(--ink);margin-top:18px;z-index:1}
+
 .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:18px}
+
 .stat{padding:12px 6px;text-align:center;border:2px solid var(--ink);border-radius:14px;background:#fff;box-shadow:3px 3px 0 var(--ink)}
+
 .stat b{display:block;font:800 1.55rem var(--f-d);line-height:1.1}
+
 .stat span{font-size:.72rem;color:var(--mute);font-weight:600;text-transform:uppercase}
+
 .bar{height:16px;margin-top:14px;border:2px solid var(--ink);border-radius:999px;background:#fff;overflow:hidden}
+
 .bar i{display:block;height:100%;width:0;background:var(--coral);transition:width .4s}
+
 .toStart{margin-top:10px;text-align:center;font-weight:700;font-size:.95rem}
+
 .status{margin-top:12px;padding:10px 14px;border:2px solid var(--ink);border-radius:12px;background:#fff0bf;font-size:.9rem;font-weight:600}
+
 .status.good{background:#c9f3dc}.status.bad{background:#ffd3da}
+
 .actions{display:grid;gap:12px;margin-top:18px}
+
 .dot{width:16px;height:16px;border:3px solid #fff;border-radius:50%;background:var(--coral);box-shadow:0 0 0 2px var(--ink)}
+
 .pin{font-size:26px;line-height:1}
+
 #cv{display:block;width:min(100%,340px);aspect-ratio:9/16;margin:16px auto 0;border:2px solid var(--ink);border-radius:18px;box-shadow:6px 6px 0 var(--ink);background:#0b2342}
+
 .sheet{position:fixed;inset:0;z-index:2000;display:flex;align-items:center;justify-content:center;padding:calc(16px + env(safe-area-inset-top,0px)) 16px calc(16px + env(safe-area-inset-bottom,0px));background:rgba(11,35,66,.88);overflow:auto}
+
 .sheet-box{width:min(380px,100%);padding:16px;border:2px solid var(--ink);border-radius:20px;background:#fff;text-align:center}
+
 .sheet-box img{display:block;width:100%;max-height:62vh;object-fit:contain;border:2px solid var(--ink);border-radius:14px;background:#0b2342;-webkit-touch-callout:default;-webkit-user-select:auto;user-select:auto}
+
 .sheet-box p{margin:12px 0;font-size:.92rem;font-weight:600}
+
 .sheet-box .actions{margin-top:10px}
+
 /* Peta bergaya Gamon Space */
+
 #map .leaflet-tile-pane,#resMap .leaflet-tile-pane{filter:grayscale(1) sepia(.35) hue-rotate(170deg) saturate(1.7) contrast(.92) brightness(1.08)}
+
 #map .leaflet-overlay-pane svg,#resMap .leaflet-overlay-pane svg{filter:drop-shadow(0 0 2px #fff) drop-shadow(0 0 5px rgba(255,255,255,.9)) drop-shadow(0 2px 3px rgba(11,35,66,.35))}
+
 .leaflet-container{font-family:var(--f-b);background:#e3f0f8}
+
 .leaflet-control-attribution{font-size:10px;background:rgba(255,255,255,.85)!important;border-radius:8px 0 0 0;padding:1px 6px}
+
 .mk{width:max-content;transform:translate(-50%,-50%);padding:3px 10px;border:2px solid var(--ink);border-radius:999px;background:var(--sun);color:var(--ink);font:800 .72rem var(--f-b);box-shadow:2px 2px 0 var(--ink);white-space:nowrap}
+
 .mk.fin{background:var(--ok);color:#fff}
+
 .dot{animation:ping 1.6s ease-out infinite}
+
 @keyframes ping{0%{box-shadow:0 0 0 2px var(--ink),0 0 0 2px rgba(255,92,122,.55)}100%{box-shadow:0 0 0 2px var(--ink),0 0 0 18px rgba(255,92,122,0)}}
+
 .note{margin:22px 0 30px;font-size:.82rem;color:var(--mute);text-align:center}
+
 /* Mode Saku: layar hitam penuh, layar tetap menyala (Wake Lock) jadi GPS jalan penuh */
+
 #dark{position:fixed;inset:0;z-index:3000;background:#000;color:#3a3a3a;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;touch-action:none;user-select:none;-webkit-user-select:none}
+
 #dark b{font:800 3rem var(--f-d)}
+
 #dark small{font-size:.8rem}
+
 </style>
+
 </head>
+
 <body>
+
 <header class="top"><div class="wrap">
-  <a class="brand" href="index.html"><img src="image/logo/gamonspace-transparan.png" alt=""/>Gamon Space</a>
-  <a class="btn alt" style="padding:8px 14px;font-size:.88rem;box-shadow:3px 3px 0 var(--ink)" href="index.html">Beranda</a>
+
+  <a class="brand" href="index.html"><img src="image/logo/gamonspace-transparan.png" alt=""/>Gamon Space</a>
+
+  <a class="btn alt" style="padding:8px 14px;font-size:.88rem;box-shadow:3px 3px 0 var(--ink)" href="index.html">Beranda</a>
+
 </div></header>
+
+
 
 <main class="wrap">
 
+
+
 <!-- LAYAR 1: INTRO -->
+
 <section id="vIntro">
-  <div style="margin-top:28px"><span class="eyebrow">Lari · Jalan · Bergerak Maju</span>
-  <h1>Move<br/><span class="hl">Run</span></h1>
-  <p class="mute">Mulai dari mana saja, jalan atau lari, lalu kembali ke titik awal. Rutemu jadi kartu Story yang bisa kamu bagikan.</p></div>
-  <ol class="flow" aria-label="Langkah Move Run">
-    <li class="stp"><span class="num">1</span><span class="lbl">Mulai dari mana saja</span></li>
-    <li class="arr" aria-hidden="true"><svg viewBox="0 0 26 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h19M15 5l7 7-7 7"/></svg></li>
-    <li class="stp"><span class="num">2</span><span class="lbl">Lari / jalan</span></li>
-    <li class="arr" aria-hidden="true"><svg viewBox="0 0 26 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h19M15 5l7 7-7 7"/></svg></li>
-    <li class="stp"><span class="num">3</span><span class="lbl">Kembali ke titik awal</span></li>
-  </ol>
-  <div class="card">
-    <h3 style="font-size:1.3rem">Siap bergerak maju?</h3>
-    <label for="nama">Nama / panggilan</label>
-    <input id="nama" type="text" maxlength="20" placeholder="Contoh: Dina" autocomplete="nickname"/>
-    <label for="tujuan">Bergerak maju untuk apa? (opsional)</label>
-    <input id="tujuan" type="text" maxlength="30" placeholder="Diri sendiri, sehat, move on…"/>
-    <p class="hint">Hanya tampil di kartu, tidak disimpan.</p>
-    <div id="introStatus" class="status">Berdiri di titik awalmu, izinkan lokasi, lalu tekan Mulai.</div>
-    <p class="hint" id="introTip">Saat berlari, pakai Mode Saku (layar gelap) agar GPS tetap merekam. Jangan kunci layar.</p>
-    <div class="actions"><button id="btnStart" class="btn full">Mulai Move Run</button></div>
-  </div>
+
+  <div style="margin-top:28px"><span class="eyebrow">Lari · Jalan · Bergerak Maju</span>
+
+  <h1>Move<br/><span class="hl">Run</span></h1>
+
+  <p class="mute">Mulai dari mana saja, jalan atau lari, lalu kembali ke titik awal. Rutemu jadi kartu Story yang bisa kamu bagikan.</p></div>
+
+  <ol class="flow" aria-label="Langkah Move Run">
+
+    <li class="stp"><span class="num">1</span><span class="lbl">Mulai dari mana saja</span></li>
+
+    <li class="arr" aria-hidden="true"><svg viewBox="0 0 26 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h19M15 5l7 7-7 7"/></svg></li>
+
+    <li class="stp"><span class="num">2</span><span class="lbl">Lari / jalan</span></li>
+
+    <li class="arr" aria-hidden="true"><svg viewBox="0 0 26 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h19M15 5l7 7-7 7"/></svg></li>
+
+    <li class="stp"><span class="num">3</span><span class="lbl">Kembali ke titik awal</span></li>
+
+  </ol>
+
+  <div class="card">
+
+    <h3 style="font-size:1.3rem">Siap bergerak maju?</h3>
+
+    <label for="nama">Nama / panggilan</label>
+
+    <input id="nama" type="text" maxlength="20" placeholder="Contoh: Dina" autocomplete="nickname"/>
+
+    <label for="tujuan">Bergerak maju untuk apa? (opsional)</label>
+
+    <input id="tujuan" type="text" maxlength="30" placeholder="Diri sendiri, sehat, move on…"/>
+
+    <p class="hint">Hanya tampil di kartu, tidak disimpan.</p>
+
+    <div id="introStatus" class="status">Berdiri di titik awalmu, izinkan lokasi, lalu tekan Mulai.</div>
+
+    <p class="hint" id="introTip">Mode Saku hanya menggelapkan tampilan; layar tetap harus menyala dan halaman Move Run tetap terbuka. Browser tidak menjamin GPS saat aplikasi ditinggalkan atau layar dikunci.</p>
+
+    <div class="actions"><button id="btnStart" class="btn full">Mulai Move Run</button></div>
+
+  </div>
+
 </section>
+
+
 
 <!-- LAYAR 2: TRACKING -->
+
 <section id="vRun" hidden>
-  <div id="map"></div>
-  <div class="stats">
-    <div class="stat"><b id="sDist">0.00</b><span>Kilometer</span></div>
-    <div class="stat"><b id="sTime">00:00</b><span>Waktu</span></div>
-    <div class="stat"><b id="sPace">--:--</b><span>Pace /km</span></div>
-  </div>
-  <div class="bar"><i id="bar"></i></div>
-  <div class="toStart" id="toStart">Menunggu titik awal…</div>
-  <div id="runStatus" class="status">Mengunci titik awal… tetap di tempat.</div>
-  <p class="hint" id="wlHint">Biarkan layar menyala. Turunkan kecerahan untuk hemat baterai.</p>
-  <div class="actions">
-    <button id="btnDark" class="btn sun full">Mode Saku (layar gelap)</button>
-    <button id="btnFinish" class="btn ok full" disabled>Selesai & Lihat Rute</button>
-    <button id="btnCancel" class="btn alt full">Batalkan</button>
-  </div>
+
+  <div id="map"></div>
+
+  <div class="stats">
+
+    <div class="stat"><b id="sDist">0.00</b><span>Kilometer</span></div>
+
+    <div class="stat"><b id="sTime">00:00</b><span>Waktu</span></div>
+
+    <div class="stat"><b id="sPace">--:--</b><span>Pace /km</span></div>
+
+  </div>
+
+  <div class="bar"><i id="bar"></i></div>
+
+  <div class="toStart" id="toStart">Menunggu titik awal…</div>
+
+  <div id="runStatus" class="status">Mengunci titik awal… tetap di tempat.</div>
+
+  <p class="hint" id="wlHint">Untuk versi web, biarkan halaman ini terbuka. Mode Saku menghitamkan tampilan, bukan mematikan layar.</p>
+
+  <div class="actions">
+
+    <button id="btnDark" class="btn sun full">Mode Saku (layar gelap)</button>
+
+    <button id="btnFinish" class="btn ok full" disabled>Selesai & Lihat Rute</button>
+
+    <button id="btnCancel" class="btn alt full">Batalkan</button>
+
+  </div>
+
 </section>
+
+
 
 <!-- LAYAR 3: HASIL -->
+
 <section id="vResult" hidden>
-  <div style="margin-top:24px"><span class="eyebrow" id="resBadge">Move Run selesai</span>
-  <h1 id="resTitle" style="font-size:2.2rem">Kamu sudah bergerak maju!</h1>
-  <p class="mute" id="resSub" style="margin-top:8px"></p></div>
 
-  <div class="card" style="margin-top:16px">
-    <h3 style="font-size:1.3rem">Kartu rutemu</h3>
-    <p class="mute" style="margin-top:6px;font-size:.92rem">Siap dibagikan. Mau latar foto sendiri? Pilih di bawah.</p>
-    <canvas id="cv" width="1080" height="1920"></canvas>
-    <div class="actions">
-      <button id="btnShare" class="btn full">Bagikan ke Story</button>
-      <button id="btnCard" class="btn sun full">Unduh gambar</button>
-      <label class="btn alt full" for="photoIn" style="margin:0">Pakai foto sendiri</label>
-      <input id="photoIn" type="file" accept="image/*" hidden/>
-      <button id="btnNoPhoto" class="btn alt full" hidden>Hapus foto latar</button>
-    </div>
-  </div>
+  <div style="margin-top:24px"><span class="eyebrow" id="resBadge">Move Run selesai</span>
 
-  <div class="stats">
-    <div class="stat"><b id="rDist">0</b><span>Kilometer</span></div>
-    <div class="stat"><b id="rTime">0</b><span>Waktu</span></div>
-    <div class="stat"><b id="rPace">0</b><span>Pace /km</span></div>
-  </div>
-  <div class="toStart" id="rFar"></div>
+  <h1 id="resTitle" style="font-size:2.2rem">Kamu sudah bergerak maju!</h1>
 
-  <h3 style="margin-top:24px;font-size:1.2rem">Peta rute</h3>
-  <div id="resMap" style="margin-top:12px"></div>
-  <div class="actions"><button id="btnAgain" class="btn alt full">Mulai Lagi</button></div>
+  <p class="mute" id="resSub" style="margin-top:8px"></p></div>
+
+
+
+  <div class="card" style="margin-top:16px">
+
+    <h3 style="font-size:1.3rem">Kartu rutemu</h3>
+
+    <p class="mute" style="margin-top:6px;font-size:.92rem">Siap dibagikan. Mau latar foto sendiri? Pilih di bawah.</p>
+
+    <canvas id="cv" width="1080" height="1920"></canvas>
+
+    <div class="actions">
+
+      <button id="btnShare" class="btn full">Bagikan ke Story</button>
+
+      <button id="btnCard" class="btn sun full">Unduh gambar</button>
+
+      <label class="btn alt full" for="photoIn" style="margin:0">Pakai foto sendiri</label>
+
+      <input id="photoIn" type="file" accept="image/*" hidden/>
+
+      <button id="btnNoPhoto" class="btn alt full" hidden>Hapus foto latar</button>
+
+    </div>
+
+  </div>
+
+
+
+  <div class="stats">
+
+    <div class="stat"><b id="rDist">0</b><span>Kilometer</span></div>
+
+    <div class="stat"><b id="rTime">0</b><span>Waktu</span></div>
+
+    <div class="stat"><b id="rPace">0</b><span>Pace /km</span></div>
+
+  </div>
+
+  <div class="toStart" id="rFar"></div>
+
+
+
+  <h3 style="margin-top:24px;font-size:1.2rem">Peta rute</h3>
+
+  <div id="resMap" style="margin-top:12px"></div>
+
+  <div class="actions"><button id="btnAgain" class="btn alt full">Mulai Lagi</button></div>
+
 </section>
 
+
+
 <p class="note">Pilih rute yang aman dan terang. Jangan menatap HP saat berlari.</p>
+
 </main>
 
+
+
 <!-- Lembar simpan gambar (untuk Safari/iPhone & browser tanpa dukungan unduh) -->
+
 <div id="saveSheet" class="sheet" hidden role="dialog" aria-modal="true" aria-label="Simpan gambar">
-  <div class="sheet-box">
-    <img id="saveImg" alt="Kartu Move Run"/>
-    <p>Tekan dan tahan gambar, lalu pilih <b>Simpan ke Foto</b>.</p>
-    <div class="actions">
-      <button id="btnSheetShare" class="btn sun full" type="button">Bagikan / simpan</button>
-      <button id="btnSheetClose" class="btn alt full" type="button">Tutup</button>
-    </div>
-  </div>
+
+  <div class="sheet-box">
+
+    <img id="saveImg" alt="Kartu Move Run"/>
+
+    <p>Tekan dan tahan gambar, lalu pilih <b>Simpan ke Foto</b>.</p>
+
+    <div class="actions">
+
+      <button id="btnSheetShare" class="btn sun full" type="button">Bagikan / simpan</button>
+
+      <button id="btnSheetClose" class="btn alt full" type="button">Tutup</button>
+
+    </div>
+
+  </div>
+
 </div>
 
+
+
 <!-- Mode Saku -->
+
 <div id="dark" hidden><b id="dDist">0.00 km</b><span id="dTime">00:00</span><small>Tahan layar 2 detik untuk keluar</small></div>
 
+
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+
 <script type="module">
+
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+
 import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
+
+
 /* ═══════════ KONFIGURASI ═══════════ */
+
 const CFG = {
-  minDistance: 1000,     // meter, jarak minimal agar dihitung menyelesaikan tantangan
-  returnRadius: 50,      // meter, dianggap "kembali ke titik awal"
-  leaveRadius: 120,      // meter, harus pernah menjauh sejauh ini sebelum finis dihitung
-  lockAccuracy: 30,      // meter, akurasi GPS maksimal untuk mengunci titik awal
-  maxAccuracy: 35,       // meter, titik GPS yang kurang akurat diabaikan (layar menyala)
-  maxAccuracyBg: 70,     // meter, batas lebih longgar untuk titik yang direkam saat layar mati / di latar belakang
-  maxSpeed: 7,           // m/s (~25 km/j), di atas ini dianggap naik kendaraan
-  minPoint: 5,           // meter, jarak minimal antar titik
-  maxPoints: 280,        // titik rute yang disimpan
-  gapSec: 240,           // detik, baru dianggap "rute terputus" (garis putus-putus) jika selama ini tidak ada titik
-  maxGapSpeed: 4.5,      // m/s (~16 km/j), batas kecepatan agar bagian rute yang terjeda tetap dihitung
-  collection: "moveon_runs"
+
+  minDistance: 1000,     // meter, jarak minimal agar dihitung menyelesaikan tantangan
+
+  returnRadius: 50,      // meter, dianggap "kembali ke titik awal"
+
+  leaveRadius: 120,      // meter, harus pernah menjauh sejauh ini sebelum finis dihitung
+
+  lockAccuracy: 30,      // meter, akurasi GPS maksimal untuk mengunci titik awal
+
+  maxAccuracy: 35,       // meter, titik GPS yang kurang akurat diabaikan (layar menyala)
+
+  maxAccuracyBg: 70,     // meter, batas lebih longgar untuk titik yang direkam saat layar mati / di latar belakang
+
+  maxSpeed: 7,           // m/s (~25 km/j), di atas ini dianggap naik kendaraan
+
+  minPoint: 5,           // meter, jarak minimal antar titik
+
+  maxPoints: 280,        // titik rute yang disimpan
+
+  gapSec: 240,           // detik, baru dianggap "rute terputus" (garis putus-putus) jika selama ini tidak ada titik
+
+  maxGapSpeed: 4.5,      // m/s (~16 km/j), batas kecepatan agar bagian rute yang terjeda tetap dihitung
+
+  collection: "moveon_runs"
+
 };
+
 const DEMO = new URLSearchParams(location.search).has("demo"); // ?demo=1 → simulasi tanpa GPS
+
 const LS = "moverun_session";
 
+
+
 const app = initializeApp({
-  apiKey: "AIzaSyC247K8yyL67aWV95KNQy8CkMZsjgGCudQ",
-  authDomain: "gamon-tawing.firebaseapp.com",
-  projectId: "gamon-tawing",
-  storageBucket: "gamon-tawing.firebasestorage.app",
-  messagingSenderId: "370162915989",
-  appId: "1:370162915989:web:76779062da83aa0c5c999c"
+
+  apiKey: "AIzaSyC247K8yyL67aWV95KNQy8CkMZsjgGCudQ",
+
+  authDomain: "gamon-tawing.firebaseapp.com",
+
+  projectId: "gamon-tawing",
+
+  storageBucket: "gamon-tawing.firebasestorage.app",
+
+  messagingSenderId: "370162915989",
+
+  appId: "1:370162915989:web:76779062da83aa0c5c999c"
+
 });
+
 const db = getFirestore(app);
 
+
+
 const $ = id => document.getElementById(id);
+
 const views = { intro: $("vIntro"), run: $("vRun"), result: $("vResult") };
+
 const show = v => Object.entries(views).forEach(([k, el]) => el.hidden = k !== v);
 
+
+
 let run = null, watchId = null, timer = null, demoTimer = null, wakeLock = null;
+
 let map, line, meMarker, resMap, lastResult = null, photo = null;
 
+
+
 /* ═══════════ UTIL ═══════════ */
+
 const rad = d => d * Math.PI / 180;
+
 function hav(a, b) {
-  const R = 6371000, dLat = rad(b.lat - a.lat), dLng = rad(b.lng - a.lng);
-  const x = Math.sin(dLat / 2) ** 2 + Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dLng / 2) ** 2;
-  return 2 * R * Math.asin(Math.sqrt(x));
+
+  const R = 6371000, dLat = rad(b.lat - a.lat), dLng = rad(b.lng - a.lng);
+
+  const x = Math.sin(dLat / 2) ** 2 + Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dLng / 2) ** 2;
+
+  return 2 * R * Math.asin(Math.sqrt(x));
+
 }
+
 const fmtTime = s => { s = Math.floor(s); const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), c = s % 60;
-  return (h ? h + ":" + String(m).padStart(2, "0") : String(m).padStart(2, "0")) + ":" + String(c).padStart(2, "0"); };
+
+  return (h ? h + ":" + String(m).padStart(2, "0") : String(m).padStart(2, "0")) + ":" + String(c).padStart(2, "0"); };
+
 const fmtHuman = s => { s = Math.round(s); const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), c = s % 60; return h ? h + "j " + m + "m" : m + "m " + c + "s"; };
+
 const fmtPace = (dist, sec) => { if (dist < 50) return "--:--"; const p = sec / (dist / 1000); return Math.floor(p / 60) + ":" + String(Math.round(p % 60)).padStart(2, "0"); };
+
 const fmtFar = m => m >= 1000 ? (m / 1000).toFixed(2) + " km" : Math.round(m) + " m";
+
 const km = m => (m / 1000).toFixed(2);
+
 const elapsed = () => run && run.start ? (Date.now() - run.start) / 1000 : 0;
+
 function setStatus(el, text, type = "") { el.textContent = text; el.className = "status " + type; }
+
 const saveLocal = () => { try { localStorage.setItem(LS, JSON.stringify(run)); } catch (e) {} };
+
 const clearLocal = () => { try { localStorage.removeItem(LS); } catch (e) {} };
+
 function decimate(path, max) {
-  if (path.length <= max) return path;
-  const step = path.length / max, keep = new Set();
-  for (let i = 0; i < max; i++) keep.add(Math.floor(i * step));
-  keep.add(path.length - 1);
-  path.forEach((p, i) => { if (p.g) { keep.add(i); if (i > 0) keep.add(i - 1); } });   // titik sambungan jeda selalu disimpan
-  return [...keep].sort((a, b) => a - b).map(i => path[i]);
+
+  if (path.length <= max) return path;
+
+  const step = path.length / max, keep = new Set();
+
+  for (let i = 0; i < max; i++) keep.add(Math.floor(i * step));
+
+  keep.add(path.length - 1);
+
+  path.forEach((p, i) => { if (p.g) { keep.add(i); if (i > 0) keep.add(i - 1); } });   // titik sambungan jeda selalu disimpan
+
+  return [...keep].sort((a, b) => a - b).map(i => path[i]);
+
 }
+
 /* Dasar peta: OpenStreetMap (tanpa API key). Ganti TILE_URL jika mau penyedia lain. */
+
 const TILE_URL = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
+
 const TILE_FALLBACK = "https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png";
+
 function tiles() {
-  const l = L.tileLayer(TILE_URL, { maxZoom: 19, attribution: "© OpenStreetMap" });
-  let err = 0;   // jika dasar peta gagal dimuat, otomatis pindah ke server cadangan
-  l.on("tileerror", () => { if (++err === 4 && l._map) { const m = l._map; m.removeLayer(l); L.tileLayer(TILE_FALLBACK, { subdomains: "abc", maxZoom: 19, attribution: "© OpenStreetMap" }).addTo(m); } });
-  return l;
+
+  const l = L.tileLayer(TILE_URL, { maxZoom: 19, attribution: "© OpenStreetMap" });
+
+  let err = 0;   // jika dasar peta gagal dimuat, otomatis pindah ke server cadangan
+
+  l.on("tileerror", () => { if (++err === 4 && l._map) { const m = l._map; m.removeLayer(l); L.tileLayer(TILE_FALLBACK, { subdomains: "abc", maxZoom: 19, attribution: "© OpenStreetMap" }).addTo(m); } });
+
+  return l;
+
 }
+
 function newMap(id) { const m = L.map(id, { zoomControl: false, attributionControl: false }); L.control.attribution({ prefix: false }).addTo(m); tiles().addTo(m); return m; }
+
 const startIcon = () => L.divIcon({ className: "", html: '<div class="mk">Start</div>', iconSize: [0, 0] });
 
+
+
 /* ═══════════ PETA LIVE ═══════════ */
+
 const LINE_STYLE = { color: "#ff5c7a", weight: 6, opacity: .95 };
-const GAP_STYLE = { color: "#ff5c7a", weight: 4, dashArray: "6 10", opacity: .8 };   // garis putus-putus = bagian yang benar-benar tidak terekam
+
+const GAP_STYLE = { color: "#ff5c7a", weight: 4, dashArray: "6 10", opacity: .8 };   // garis putus-putus = bagian yang benar-benar tidak terekam
+
 function drawPath(path) {
-  path.forEach((p, i) => {
-    if (p.g && i > 0) { L.polyline([[path[i - 1].lat, path[i - 1].lng], [p.lat, p.lng]], GAP_STYLE).addTo(map); line = L.polyline([[p.lat, p.lng]], LINE_STYLE).addTo(map); }
-    else line.addLatLng([p.lat, p.lng]);
-  });
+
+  path.forEach((p, i) => {
+
+    if (p.g && i > 0) { L.polyline([[path[i - 1].lat, path[i - 1].lng], [p.lat, p.lng]], GAP_STYLE).addTo(map); line = L.polyline([[p.lat, p.lng]], LINE_STYLE).addTo(map); }
+
+    else line.addLatLng([p.lat, p.lng]);
+
+  });
+
 }
+
 function initMap() {
-  if (map) map.remove();
-  map = newMap("map"); map.setView([-2.5, 118], 5);
-  line = L.polyline([], LINE_STYLE).addTo(map);
-  meMarker = null;
+
+  if (map) map.remove();
+
+  map = newMap("map"); map.setView([-2.5, 118], 5);
+
+  line = L.polyline([], LINE_STYLE).addTo(map);
+
+  meMarker = null;
+
 }
+
 function drawOrigin() {
-  const o = run.origin;
-  L.marker([o.lat, o.lng], { icon: startIcon(), interactive: false }).addTo(map);
-  L.circle([o.lat, o.lng], { radius: CFG.returnRadius, color: "#0b2342", weight: 2, fillColor: "#ffd66b", fillOpacity: .25 }).addTo(map);
-  map.setView([o.lat, o.lng], 18);
+
+  const o = run.origin;
+
+  L.marker([o.lat, o.lng], { icon: startIcon(), interactive: false }).addTo(map);
+
+  L.circle([o.lat, o.lng], { radius: CFG.returnRadius, color: "#0b2342", weight: 2, fillColor: "#ffd66b", fillOpacity: .25 }).addTo(map);
+
+  map.setView([o.lat, o.lng], 18);
+
 }
+
 function setMe(lat, lng) {
-  if (!meMarker) meMarker = L.marker([lat, lng], { icon: L.divIcon({ className: "", html: '<div class="dot"></div>', iconSize: [16, 16], iconAnchor: [8, 8] }) }).addTo(map);
-  else meMarker.setLatLng([lat, lng]);
+
+  if (!meMarker) meMarker = L.marker([lat, lng], { icon: L.divIcon({ className: "", html: '<div class="dot"></div>', iconSize: [16, 16], iconAnchor: [8, 8] }) }).addTo(map);
+
+  else meMarker.setLatLng([lat, lng]);
+
 }
+
+
 
 /* ═══════════ SUMBER LOKASI ═══════════
-   Di browser, GPS bisa dijeda saat layar mati / pindah aplikasi (batasan browser).
-   Di dalam aplikasi Capacitor, pelacakan memakai plugin background-geolocation. */
+
+   Di browser, GPS bisa dijeda saat layar mati / pindah aplikasi (batasan browser).
+
+   Di dalam aplikasi Capacitor, pelacakan memakai plugin background-geolocation. */
+
 const NATIVE = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+
 const BG = NATIVE ? window.Capacitor.registerPlugin("BackgroundGeolocation") : null;
+
 let bgId = null;
 
-if (NATIVE) $("introTip").textContent = "Pelacakan tetap jalan saat layar mati atau kamu buka aplikasi lain.";
+
+
+if (NATIVE) $("introTip").textContent = "Mode aplikasi native hanya bekerja jika plugin BackgroundGeolocation sudah dipasang dan dikonfigurasi.";
+
 function startWatch() {
-  if (NATIVE) {
-    BG.addWatcher(
-      { backgroundTitle: "Move Run sedang merekam", backgroundMessage: "Ketuk untuk kembali ke aplikasi.", requestPermissions: true, stale: false, distanceFilter: 3 },
-      (loc, err) => {
-        if (err) { if (err.code === "NOT_AUTHORIZED" && confirm("Move Run butuh izin lokasi (pilih 'Selalu'). Buka pengaturan?")) BG.openSettings(); return; }
-        onPos(loc.latitude, loc.longitude, loc.accuracy, loc.time || Date.now());
-      }
-    ).then(id => { bgId = id; });
-    return;
-  }
-  watchId = navigator.geolocation.watchPosition(
-    pos => onPos(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy, pos.timestamp),
-    err => setStatus($("runStatus"), err.code === 1 ? "Izin lokasi ditolak. Aktifkan GPS di browser." : "GPS bermasalah: " + err.message, "bad"),
-    { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 });
+
+  if (NATIVE) {
+
+    BG.addWatcher(
+
+      { backgroundTitle: "Move Run sedang merekam", backgroundMessage: "Ketuk untuk kembali ke aplikasi.", requestPermissions: true, stale: false, distanceFilter: 3 },
+
+      (loc, err) => {
+
+        if (err) { if (err.code === "NOT_AUTHORIZED" && confirm("Move Run butuh izin lokasi (pilih 'Selalu'). Buka pengaturan?")) BG.openSettings(); return; }
+
+        onPos(loc.latitude, loc.longitude, loc.accuracy, loc.time || Date.now());
+
+      }
+
+    ).then(id => { bgId = id; });
+
+    return;
+
+  }
+
+  watchId = navigator.geolocation.watchPosition(
+
+    pos => onPos(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy, pos.timestamp),
+
+    err => setStatus($("runStatus"), err.code === 1 ? "Izin lokasi ditolak. Aktifkan GPS di browser." : "GPS bermasalah: " + err.message, "bad"),
+
+    { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 });
+
 }
+
 function stopWatchLoc() {
-  if (bgId !== null) { BG.removeWatcher({ id: bgId }); bgId = null; }
-  if (watchId !== null) navigator.geolocation.clearWatch(watchId);
+
+  if (bgId !== null) { BG.removeWatcher({ id: bgId }); bgId = null; }
+
+  if (watchId !== null) navigator.geolocation.clearWatch(watchId);
+
 }
+
+
 
 /* ═══════════ TRACKING ═══════════ */
 
+
+
 /* Apakah titik GPS ini direkam saat halaman di latar belakang / layar mati?
-   Dipakai cap waktu titiknya (ts), bukan keadaan halaman saat callback dipanggil. */
+
+   Dipakai cap waktu titiknya (ts), bukan keadaan halaman saat callback dipanggil. */
+
 function inBg(ts) {
-  if (!run || !run.bgFrom) return false;
-  return ts >= run.bgFrom - 2000 && (!run.bgTo || ts <= run.bgTo + 2000);
+
+  if (!run || !run.bgFrom) return false;
+
+  return ts >= run.bgFrom - 2000 && (!run.bgTo || ts <= run.bgTo + 2000);
+
 }
+
+
 
 function onPos(lat, lng, acc, ts) {
-  if (!run) return;
-  run.fixes = (run.fixes || 0) + 1;
-  const bg = document.hidden || inBg(ts);
-  if (bg && run.origin) run.bgFixes = (run.bgFixes || 0) + 1;   // titik yang berhasil masuk saat layar mati
-  setMe(lat, lng);
 
-  /* Fase 1: kunci titik awal dari fix GPS akurat pertama */
-  if (!run.origin) {
-    if (acc > CFG.lockAccuracy) { map.setView([lat, lng], 18); return setStatus($("runStatus"), "Mengunci titik awal… (GPS ±" + Math.round(acc) + " m). Tetap di tempat.", "bad"); }
-    run.origin = { lat: +lat.toFixed(6), lng: +lng.toFixed(6) };
-    run.start = Date.now();
-    run.path.push({ lat: run.origin.lat, lng: run.origin.lng, t: ts });
-    drawOrigin(); line.addLatLng([lat, lng]); saveLocal();
-    $("btnFinish").disabled = false;
-    return setStatus($("runStatus"), "Titik awal terkunci. Mulai bergerak!", "good");
-  }
+  if (!run) return;
 
-  /* Fase 2: rekam rute. Saat layar mati akurasi GPS sering turun, jadi batasnya dilonggarkan. */
-  if (acc > (bg ? CFG.maxAccuracyBg : CFG.maxAccuracy)) return setStatus($("runStatus"), "Sinyal GPS lemah. Cari area terbuka.", "bad");
-  const p = { lat: +lat.toFixed(6), lng: +lng.toFixed(6), t: ts };
-  const last = run.path[run.path.length - 1];
-  if (ts <= last.t) return;   // titik lama / urutan terbalik
-  const d = hav(last, p), dt = Math.max(1, (ts - last.t) / 1000);
-  let pre = "";
+  run.fixes = (run.fixes || 0) + 1;
 
-  if (dt > CFG.gapSec) {
-    /* Jeda waktu panjang antar dua titik (> gapSec detik): sambungkan dengan garis putus-putus.
-       Penentuan jeda memakai selisih cap waktu titik GPS, bukan status layar. */
-    const counted = d / dt <= CFG.maxGapSpeed;
-    if (counted) { run.dist += d; run.gapDist = (run.gapDist || 0) + d; } else run.gapSkip = (run.gapSkip || 0) + d;
-    p.g = counted ? 1 : 2;
-    run.path.push(p);
-    L.polyline([[last.lat, last.lng], [lat, lng]], GAP_STYLE).addTo(map);
-    line = L.polyline([[lat, lng]], LINE_STYLE).addTo(map);
-    pre = counted ? "Sempat terjeda " + Math.round(dt) + " dtk, disambung garis putus-putus. " : "Sempat terjeda, bagian itu tidak dihitung. ";
-  } else {
-    if (d < CFG.minPoint) return;
-    if (d / dt > CFG.maxSpeed) { run.flags++; return setStatus($("runStatus"), "Gerakan terlalu cepat, diabaikan.", "bad"); }
-    run.dist += d; run.path.push(p);
-    line.addLatLng([lat, lng]);
-  }
-  map.panTo([lat, lng], { animate: true });
+  const bg = document.hidden || inBg(ts);
 
-  const dO = hav(p, run.origin);
-  run.far = Math.max(run.far || 0, dO);
-  if (dO >= CFG.leaveRadius) run.left = true;
-  updateStats(dO); saveLocal();
+  if (bg && run.origin) run.bgFixes = (run.bgFixes || 0) + 1;   // titik yang berhasil masuk saat layar mati
 
-  const closed = run.left && dO <= CFG.returnRadius, enough = run.dist >= CFG.minDistance;
-  $("btnFinish").classList.toggle("pulse", closed && enough);
-  if (closed && enough) setStatus($("runStatus"), pre + "Kamu kembali! Tekan Selesai.", "good");
-  else if (closed) setStatus($("runStatus"), pre + "Baru " + km(run.dist) + " km. Lanjut sampai " + km(CFG.minDistance) + " km!");
-  else if (!enough) setStatus($("runStatus"), pre + "Terus bergerak… " + Math.round(CFG.minDistance - run.dist) + " m lagi.");
-  else setStatus($("runStatus"), pre + "Jarak tercapai! Kembali ke titik awal.", "good");
+  setMe(lat, lng);
+
+
+
+  /* Fase 1: kunci titik awal dari fix GPS akurat pertama */
+
+  if (!run.origin) {
+
+    if (acc > CFG.lockAccuracy) { map.setView([lat, lng], 18); return setStatus($("runStatus"), "Mengunci titik awal… (GPS ±" + Math.round(acc) + " m). Tetap di tempat.", "bad"); }
+
+    run.origin = { lat: +lat.toFixed(6), lng: +lng.toFixed(6) };
+
+    run.start = Date.now();
+
+    run.path.push({ lat: run.origin.lat, lng: run.origin.lng, t: ts });
+
+    drawOrigin(); line.addLatLng([lat, lng]); saveLocal();
+
+    $("btnFinish").disabled = false;
+
+    return setStatus($("runStatus"), "Titik awal terkunci. Mulai bergerak!", "good");
+
+  }
+
+
+
+  /* Fase 2: rekam rute. Saat layar mati akurasi GPS sering turun, jadi batasnya dilonggarkan. */
+
+  if (acc > (bg ? CFG.maxAccuracyBg : CFG.maxAccuracy)) return setStatus($("runStatus"), "Sinyal GPS lemah. Cari area terbuka.", "bad");
+
+  const p = { lat: +lat.toFixed(6), lng: +lng.toFixed(6), t: ts };
+
+  const last = run.path[run.path.length - 1];
+
+  if (ts <= last.t) return;   // titik lama / urutan terbalik
+
+  const d = hav(last, p), dt = Math.max(1, (ts - last.t) / 1000);
+
+  let pre = "";
+
+
+
+  if (dt > CFG.gapSec) {
+
+    /* Jeda waktu panjang antar dua titik (> gapSec detik): sambungkan dengan garis putus-putus.
+
+       Penentuan jeda memakai selisih cap waktu titik GPS, bukan status layar. */
+
+    const counted = d / dt <= CFG.maxGapSpeed;
+
+    if (counted) { run.dist += d; run.gapDist = (run.gapDist || 0) + d; } else run.gapSkip = (run.gapSkip || 0) + d;
+
+    p.g = counted ? 1 : 2;
+
+    run.path.push(p);
+
+    L.polyline([[last.lat, last.lng], [lat, lng]], GAP_STYLE).addTo(map);
+
+    line = L.polyline([[lat, lng]], LINE_STYLE).addTo(map);
+
+    pre = counted ? "Sempat terjeda " + Math.round(dt) + " dtk, disambung garis putus-putus. " : "Sempat terjeda, bagian itu tidak dihitung. ";
+
+  } else {
+
+    if (d < CFG.minPoint) return;
+
+    if (d / dt > CFG.maxSpeed) { run.flags++; return setStatus($("runStatus"), "Gerakan terlalu cepat, diabaikan.", "bad"); }
+
+    run.dist += d; run.path.push(p);
+
+    line.addLatLng([lat, lng]);
+
+  }
+
+  map.panTo([lat, lng], { animate: true });
+
+
+
+  const dO = hav(p, run.origin);
+
+  run.far = Math.max(run.far || 0, dO);
+
+  if (dO >= CFG.leaveRadius) run.left = true;
+
+  updateStats(dO); saveLocal();
+
+
+
+  const closed = run.left && dO <= CFG.returnRadius, enough = run.dist >= CFG.minDistance;
+
+  $("btnFinish").classList.toggle("pulse", closed && enough);
+
+  if (closed && enough) setStatus($("runStatus"), pre + "Kamu kembali! Tekan Selesai.", "good");
+
+  else if (closed) setStatus($("runStatus"), pre + "Baru " + km(run.dist) + " km. Lanjut sampai " + km(CFG.minDistance) + " km!");
+
+  else if (!enough) setStatus($("runStatus"), pre + "Terus bergerak… " + Math.round(CFG.minDistance - run.dist) + " m lagi.");
+
+  else setStatus($("runStatus"), pre + "Jarak tercapai! Kembali ke titik awal.", "good");
+
 }
+
 function updateStats(dO) {
-  $("sDist").textContent = km(run.dist);
-  $("sTime").textContent = fmtTime(elapsed());
-  $("sPace").textContent = fmtPace(run.dist, elapsed());
-  $("bar").style.width = Math.min(100, run.dist / CFG.minDistance * 100) + "%";
-  $("dDist").textContent = km(run.dist) + " km"; $("dTime").textContent = fmtTime(elapsed());   // Mode Saku
-  if (run.origin && dO == null && run.path.length) dO = hav(run.path[run.path.length - 1], run.origin);
-  if (run.origin) $("toStart").textContent = "Jarak ke titik awal: " + fmtFar(dO || 0);
+
+  $("sDist").textContent = km(run.dist);
+
+  $("sTime").textContent = fmtTime(elapsed());
+
+  $("sPace").textContent = fmtPace(run.dist, elapsed());
+
+  $("bar").style.width = Math.min(100, run.dist / CFG.minDistance * 100) + "%";
+
+  $("dDist").textContent = km(run.dist) + " km"; $("dTime").textContent = fmtTime(elapsed());   // Mode Saku
+
+  if (run.origin && dO == null && run.path.length) dO = hav(run.path[run.path.length - 1], run.origin);
+
+  if (run.origin) $("toStart").textContent = "Jarak ke titik awal: " + fmtFar(dO || 0);
+
 }
+
 async function lockScreen() {
-  if (!("wakeLock" in navigator)) { $("wlHint").textContent = "Atur kunci layar ke 'Tidak pernah' selama berlari."; return; }
-  try { wakeLock = await navigator.wakeLock.request("screen"); } catch (e) {}
+  if (!("wakeLock" in navigator)) {
+    $("wlHint").textContent = "Browser ini tidak mendukung Wake Lock. Atur layar agar tidak mati otomatis dan jangan kunci layar.";
+    return false;
+  }
+  try {
+    if (wakeLock && !wakeLock.released) return true;
+    wakeLock = await navigator.wakeLock.request("screen");
+    wakeLock.addEventListener("release", () => {
+      wakeLock = null;
+      if (run && document.visibilityState === "visible") {
+        $("wlHint").textContent = "Pengunci layar terlepas. Aktifkan kembali Mode Saku dan pastikan layar tetap menyala.";
+      }
+    });
+    $("wlHint").textContent = "Mode Saku menggelapkan tampilan. Layar tetap aktif agar browser tidak mudah menghentikan sesi.";
+    return true;
+  } catch (e) {
+    $("wlHint").textContent = "Wake Lock gagal aktif. Jangan kunci layar; atur waktu layar mati ke durasi terlama.";
+    return false;
+  }
 }
+
 /* Saat halaman disembunyikan browser bisa menjeda GPS. Di sini hanya dicatat rentang waktunya;
-   saat kembali terlihat, GPS dihidupkan ulang dan satu titik segar diminta supaya rute cepat tersambung. */
+
+   saat kembali terlihat, GPS dihidupkan ulang dan satu titik segar diminta supaya rute cepat tersambung. */
+
 document.addEventListener("visibilitychange", () => {
   if (!run || NATIVE) return;
-  if (document.visibilityState === "hidden") { run.bgFrom = Date.now(); run.bgTo = 0; run.bgFixes = 0; saveLocal(); return; }
+
+  if (document.visibilityState === "hidden") {
+    run.bgFrom = Date.now();
+    run.bgTo = 0;
+    run.bgFixes = 0;
+    saveLocal();
+    return;
+  }
+
+  const hiddenFor = run.bgFrom ? Date.now() - run.bgFrom : 0;
   run.bgTo = Date.now();
   lockScreen();
-  if (!DEMO) {
-    if (watchId !== null) { navigator.geolocation.clearWatch(watchId); watchId = null; }
+
+  if (!DEMO && navigator.geolocation) {
+    if (watchId !== null) {
+      navigator.geolocation.clearWatch(watchId);
+      watchId = null;
+    }
     startWatch();
-    navigator.geolocation.getCurrentPosition(p => onPos(p.coords.latitude, p.coords.longitude, p.coords.accuracy, p.timestamp), () => {}, { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 });
+    navigator.geolocation.getCurrentPosition(
+      p => onPos(p.coords.latitude, p.coords.longitude, p.coords.accuracy, p.timestamp),
+      () => {},
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 }
+    );
   }
+
   if (map) setTimeout(() => map && map.invalidateSize(), 200);
-  const hid = run.bgFrom ? Date.now() - run.bgFrom : 0;
-  if (run.origin && hid > 15000) {
-    setStatus($("runStatus"), "Memeriksa rekaman saat layar mati…");
-    setTimeout(() => {   // beri waktu 4 detik agar titik yang tertahan sempat masuk
-      if (!run) return;
-      const got = run.bgFixes || 0;
-      if (got >= 2) setStatus($("runStatus"), "Pelacakan tetap jalan di latar belakang ✓ (" + got + " titik)", "good");
-      else setStatus($("runStatus"), "Hanya " + got + " titik terekam saat layar mati. Bagian kosong disambung otomatis.", "bad");
-    }, 4000);
+
+  if (hiddenFor > 15000) {
+    setStatus(
+      $("runStatus"),
+      "Move Run sempat tidak aktif selama " + Math.round(hiddenFor / 1000) +
+      " detik. Browser mungkin menghentikan GPS; periksa apakah ada bagian rute yang terputus.",
+      "bad"
+    );
   }
 });
+
 window.addEventListener("pagehide", () => { if (run) saveLocal(); });
 
+window.addEventListener("focus", () => {
+  if (!run || NATIVE || document.visibilityState !== "visible") return;
+  lockScreen();
+});
+
+
+
 function beginTracking(resume) {
-  show("run"); initMap();
-  $("btnFinish").disabled = !(run.origin);
-  if (resume && run.origin) { drawPath(run.path); drawOrigin(); const l = run.path[run.path.length - 1]; map.setView([l.lat, l.lng], 18); setMe(l.lat, l.lng); }
-  updateStats();
-  if (NATIVE) $("wlHint").textContent = "Aman: pelacakan tetap jalan saat layar mati.";
-  else { $("wlHint").textContent = "Pakai Mode Saku (layar gelap) saat berlari. Layar dikunci biasa bisa membuat rute terputus."; lockScreen(); }
-  clearInterval(timer); timer = setInterval(() => run && run.start && updateStats(), 1000);
-  if (DEMO) return startDemo();
-  startWatch();
+
+  show("run"); initMap();
+
+  $("btnFinish").disabled = !(run.origin);
+
+  if (resume && run.origin) { drawPath(run.path); drawOrigin(); const l = run.path[run.path.length - 1]; map.setView([l.lat, l.lng], 18); setMe(l.lat, l.lng); }
+
+  updateStats();
+
+  if (NATIVE) $("wlHint").textContent = "Aplikasi native memerlukan plugin BackgroundGeolocation yang terpasang dan izin lokasi latar belakang.";
+
+  else { $("wlHint").textContent = "Versi web: gunakan Mode Saku dan jangan kunci layar atau pindah aplikasi. Wake Lock membantu layar tetap aktif, tetapi tidak menjamin GPS di latar belakang."; lockScreen(); }
+
+  clearInterval(timer); timer = setInterval(() => run && run.start && updateStats(), 1000);
+
+  if (DEMO) return startDemo();
+
+  startWatch();
+
 }
+
 function stopTracking() {
-  $("dark").hidden = true;
-  stopWatchLoc();
-  watchId = null; clearInterval(timer); clearInterval(demoTimer);
-  try { wakeLock?.release(); } catch (e) {} wakeLock = null;
+
+  $("dark").hidden = true;
+
+  stopWatchLoc();
+
+  watchId = null; clearInterval(timer); clearInterval(demoTimer);
+
+  try { wakeLock?.release(); } catch (e) {} wakeLock = null;
+
 }
+
+
 
 /* Mode demo: simulasi lari melingkar ±1 km (buka move-run.html?demo=1) */
+
 function startDemo() {
-  const lat0 = -3.3194, lng0 = 114.5908, r = 175;
-  const mLat = 1 / 111320, mLng = 1 / (111320 * Math.cos(rad(lat0)));
-  let th = Math.PI, now = Date.now(), speedup = 25;
-  demoTimer = setInterval(() => {
-    th += 0.045; now += 500 * speedup;
-    onPos(lat0 + r * Math.sin(th) * mLat, lng0 + (r + r * Math.cos(th)) * mLng, 8, now);
-    if (run && run.start) run.start -= 500 * (speedup - 1);
-    if (th > Math.PI * 3 + .05) clearInterval(demoTimer);
-  }, 500);
+
+  const lat0 = -3.3194, lng0 = 114.5908, r = 175;
+
+  const mLat = 1 / 111320, mLng = 1 / (111320 * Math.cos(rad(lat0)));
+
+  let th = Math.PI, now = Date.now(), speedup = 25;
+
+  demoTimer = setInterval(() => {
+
+    th += 0.045; now += 500 * speedup;
+
+    onPos(lat0 + r * Math.sin(th) * mLat, lng0 + (r + r * Math.cos(th)) * mLng, 8, now);
+
+    if (run && run.start) run.start -= 500 * (speedup - 1);
+
+    if (th > Math.PI * 3 + .05) clearInterval(demoTimer);
+
+  }, 500);
+
 }
 
+
+
 /* ═══════════ SELESAI & HASIL ═══════════ */
+
 async function finish() {
-  if (!run || !run.origin) return;
-  stopTracking();
-  const sec = Math.max(1, elapsed()), last = run.path[run.path.length - 1];
-  const dEnd = hav(last, run.origin), avg = run.dist / sec;
-  let reason = "";
-  if (run.path.length < 5) reason = "Rute terlalu pendek atau sinyal GPS kurang.";
-  else if (run.dist < CFG.minDistance) reason = "Jarak " + km(run.dist) + " km, minimal " + km(CFG.minDistance) + " km.";
-  else if (!run.left || dEnd > CFG.returnRadius * 1.5) reason = "Belum kembali ke titik awal (masih " + Math.round(dEnd) + " m).";
-  else if (avg > CFG.maxSpeed * .85 || run.flags > 10) reason = "Gerakan tidak wajar untuk jalan/lari.";
-  else if (((run.gapDist || 0) + (run.gapSkip || 0)) > 0.4 * (run.dist + (run.gapSkip || 0))) reason = "Terlalu banyak bagian rute tidak terekam. Pakai Mode Saku atau biarkan layar menyala.";
-  const cloud = { nama: run.nama, jarak: Math.round(run.dist), durasi: Math.round(sec), pace: fmtPace(run.dist, sec),
-    start: { lat: run.origin.lat, lng: run.origin.lng },
-    path: decimate(run.path, CFG.maxPoints).map(p => p.g ? { lat: p.lat, lng: p.lng, g: p.g } : { lat: p.lat, lng: p.lng }),
-    terjauh: Math.round(run.far || 0),
-    selesai: !reason, waktu: Date.now() };
-  lastResult = { ...cloud, tujuan: run.tujuan || "" };   // "tujuan" hanya untuk kartu, tidak dikirim ke server
-  photo = null;
-  $("photoIn").value = ""; $("btnNoPhoto").hidden = true;
-  clearLocal(); run = null;
-  show("result"); renderCard(); renderResult(lastResult, reason);
-  try { await addDoc(collection(db, CFG.collection), cloud); }
-  catch (e) { console.warn("Simpan ke Firestore gagal (cek firestore.rules untuk " + CFG.collection + "):", e); }
+
+  if (!run || !run.origin) return;
+
+  stopTracking();
+
+  const sec = Math.max(1, elapsed()), last = run.path[run.path.length - 1];
+
+  const dEnd = hav(last, run.origin), avg = run.dist / sec;
+
+  let reason = "";
+
+  if (run.path.length < 5) reason = "Rute terlalu pendek atau sinyal GPS kurang.";
+
+  else if (run.dist < CFG.minDistance) reason = "Jarak " + km(run.dist) + " km, minimal " + km(CFG.minDistance) + " km.";
+
+  else if (!run.left || dEnd > CFG.returnRadius * 1.5) reason = "Belum kembali ke titik awal (masih " + Math.round(dEnd) + " m).";
+
+  else if (avg > CFG.maxSpeed * .85 || run.flags > 10) reason = "Gerakan tidak wajar untuk jalan/lari.";
+
+  else if (((run.gapDist || 0) + (run.gapSkip || 0)) > 0.4 * (run.dist + (run.gapSkip || 0))) reason = "Terlalu banyak bagian rute tidak terekam. Pakai Mode Saku atau biarkan layar menyala.";
+
+  const cloud = { nama: run.nama, jarak: Math.round(run.dist), durasi: Math.round(sec), pace: fmtPace(run.dist, sec),
+
+    start: { lat: run.origin.lat, lng: run.origin.lng },
+
+    path: decimate(run.path, CFG.maxPoints).map(p => p.g ? { lat: p.lat, lng: p.lng, g: p.g } : { lat: p.lat, lng: p.lng }),
+
+    terjauh: Math.round(run.far || 0),
+
+    selesai: !reason, waktu: Date.now() };
+
+  lastResult = { ...cloud, tujuan: run.tujuan || "" };   // "tujuan" hanya untuk kartu, tidak dikirim ke server
+
+  photo = null;
+
+  $("photoIn").value = ""; $("btnNoPhoto").hidden = true;
+
+  clearLocal(); run = null;
+
+  show("result"); renderCard(); renderResult(lastResult, reason);
+
+  try { await addDoc(collection(db, CFG.collection), cloud); }
+
+  catch (e) { console.warn("Simpan ke Firestore gagal (cek firestore.rules untuk " + CFG.collection + "):", e); }
+
 }
+
 function renderResult(rec, reason) {
-  $("rDist").textContent = km(rec.jarak); $("rTime").textContent = fmtTime(rec.durasi); $("rPace").textContent = rec.pace;
-  $("rFar").textContent = "Terjauh: " + fmtFar(rec.terjauh) + " dari titik awal";
-  $("resBadge").textContent = rec.selesai ? "Tantangan selesai 🎉" : "Sesi selesai";
-  $("resTitle").textContent = rec.selesai ? "Kamu sudah bergerak maju!" : "Langkahmu tetap berarti";
-  $("resSub").textContent = rec.selesai ? "Kamu kembali ke titik awal. Rute selesai!" : reason;
-  try { buildResultMap(rec); } catch (e) { console.warn("Peta hasil gagal dibuat:", e); }
-  window.scrollTo({ top: 0, behavior: "smooth" });
+
+  $("rDist").textContent = km(rec.jarak); $("rTime").textContent = fmtTime(rec.durasi); $("rPace").textContent = rec.pace;
+
+  $("rFar").textContent = "Terjauh: " + fmtFar(rec.terjauh) + " dari titik awal";
+
+  $("resBadge").textContent = rec.selesai ? "Tantangan selesai 🎉" : "Sesi selesai";
+
+  $("resTitle").textContent = rec.selesai ? "Kamu sudah bergerak maju!" : "Langkahmu tetap berarti";
+
+  $("resSub").textContent = rec.selesai ? "Kamu kembali ke titik awal. Rute selesai!" : reason;
+
+  try { buildResultMap(rec); } catch (e) { console.warn("Peta hasil gagal dibuat:", e); }
+
+  window.scrollTo({ top: 0, behavior: "smooth" });
+
 }
+
 function buildResultMap(rec) {
-  if (resMap) { resMap.remove(); resMap = null; }
-  resMap = newMap("resMap");
-  const pts = rec.path.map(p => [p.lat, p.lng]);
-  if (pts.length < 2) return resMap.setView([rec.start.lat, rec.start.lng], 17);
-  const pl = L.featureGroup().addTo(resMap); let seg = [pts[0]];
-  const flush = () => { if (seg.length > 1) L.polyline(seg, LINE_STYLE).addTo(pl); };
-  rec.path.forEach((p, i) => { if (!i) return; if (p.g) { flush(); L.polyline([pts[i - 1], pts[i]], GAP_STYLE).addTo(pl); seg = [pts[i]]; } else seg.push(pts[i]); });
-  flush();
-  const mk = (ll, txt, cls) => L.marker(ll, { icon: L.divIcon({ className: "", html: '<div class="mk ' + cls + '">' + txt + '</div>', iconSize: [0, 0] }), interactive: false }).addTo(resMap);
-  if (hav(rec.path[0], rec.path[rec.path.length - 1]) < 30) mk(pts[0], "Start · Finis", "fin");
-  else { mk(pts[0], "Start", ""); mk(pts[pts.length - 1], "Finis", "fin"); }
-  const fit = () => { resMap.invalidateSize(); resMap.fitBounds(pl.getBounds(), { padding: [30, 30] }); };
-  fit(); setTimeout(fit, 250);
+
+  if (resMap) { resMap.remove(); resMap = null; }
+
+  resMap = newMap("resMap");
+
+  const pts = rec.path.map(p => [p.lat, p.lng]);
+
+  if (pts.length < 2) return resMap.setView([rec.start.lat, rec.start.lng], 17);
+
+  const pl = L.featureGroup().addTo(resMap); let seg = [pts[0]];
+
+  const flush = () => { if (seg.length > 1) L.polyline(seg, LINE_STYLE).addTo(pl); };
+
+  rec.path.forEach((p, i) => { if (!i) return; if (p.g) { flush(); L.polyline([pts[i - 1], pts[i]], GAP_STYLE).addTo(pl); seg = [pts[i]]; } else seg.push(pts[i]); });
+
+  flush();
+
+  const mk = (ll, txt, cls) => L.marker(ll, { icon: L.divIcon({ className: "", html: '<div class="mk ' + cls + '">' + txt + '</div>', iconSize: [0, 0] }), interactive: false }).addTo(resMap);
+
+  if (hav(rec.path[0], rec.path[rec.path.length - 1]) < 30) mk(pts[0], "Start · Finis", "fin");
+
+  else { mk(pts[0], "Start", ""); mk(pts[pts.length - 1], "Finis", "fin"); }
+
+  const fit = () => { resMap.invalidateSize(); resMap.fitBounds(pl.getBounds(), { padding: [30, 30] }); };
+
+  fit(); setTimeout(fit, 250);
+
 }
+
+
 
 /* ═══════════ KARTU STORY 9:16 (1080×1920) ═══════════ */
 
+
+
 let renderToken = 0;
+
 async function renderCard() {
-  const r = lastResult; if (!r) return;
-  const token = ++renderToken; cachedBlob = null;
-  try { await Promise.race([Promise.all([document.fonts.load('800 100px "Bricolage Grotesque"'), document.fonts.load('600 40px Inter')]), new Promise(r => setTimeout(r, 1500))]); } catch (e) {}
-  if (token !== renderToken) return;
-  const c = $("cv"), g = c.getContext("2d"), W = 1080, H = 1920, FD = '"Bricolage Grotesque",Inter,sans-serif', FB = 'Inter,sans-serif';
 
-  /* Latar: foto sendiri (cover) atau gradien bawaan */
-  if (photo) {
-    const s = Math.max(W / photo.width, H / photo.height), dw = photo.width * s, dh = photo.height * s;
-    g.drawImage(photo, (W - dw) / 2, (H - dh) / 2, dw, dh);
-  } else {
-    const bg = g.createLinearGradient(0, 0, 0, H); bg.addColorStop(0, "#0b2342"); bg.addColorStop(1, "#27466e");
-    g.fillStyle = bg; g.fillRect(0, 0, W, H);
-    const glow = g.createRadialGradient(W / 2, 1380, 40, W / 2, 1380, 620); glow.addColorStop(0, "rgba(255,92,122,.35)"); glow.addColorStop(1, "rgba(255,92,122,0)");
-    g.fillStyle = glow; g.fillRect(0, 0, W, H);
-  }
-  /* Lapisan gelap agar teks terbaca */
-  const ov = g.createLinearGradient(0, 0, 0, H); ov.addColorStop(0, "rgba(0,0,0,.25)"); ov.addColorStop(.5, "rgba(0,0,0,.30)"); ov.addColorStop(1, "rgba(0,0,0,.60)");
-  g.fillStyle = ov; g.fillRect(0, 0, W, H);
+  const r = lastResult; if (!r) return;
 
-  const T = (s, y, size, weight, alpha = 1, font = FD) => {
-    g.save(); g.textAlign = "center"; g.font = weight + " " + size + "px " + font; g.fillStyle = "rgba(255,255,255," + alpha + ")";
-    g.shadowColor = "rgba(0,0,0,.5)"; g.shadowBlur = 20; g.fillText(s, W / 2, y); g.restore();
-  };
+  const token = ++renderToken; cachedBlob = null;
 
-  /* Statistik bergaya Strava */
-  T("Jarak", 470, 44, 600, .9, FB);  T(km(r.jarak) + " km", 610, 150, 800);
-  T("Pace", 730, 44, 600, .9, FB);   T(r.pace + " /km", 850, 120, 800);
-  T("Waktu", 970, 44, 600, .9, FB);  T(fmtHuman(r.durasi), 1090, 120, 800);
+  try { await Promise.race([Promise.all([document.fonts.load('800 100px "Bricolage Grotesque"'), document.fonts.load('600 40px Inter')]), new Promise(r => setTimeout(r, 1500))]); } catch (e) {}
 
-  /* Rute */
-  const pts = r.path;
-  if (pts.length > 1) {
-    const bx = 300, by = 1170, bw = 480, bh = 380, k = Math.cos(rad(pts[0].lat));
-    const xs = pts.map(p => p.lng * k), ys = pts.map(p => -p.lat);
-    const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
-    const s = Math.min(bw / ((x1 - x0) || 1e-9), bh / ((y1 - y0) || 1e-9));
-    const ox = bx + (bw - (x1 - x0) * s) / 2, oy = by + (bh - (y1 - y0) * s) / 2;
-    const P = i => [ox + (xs[i] - x0) * s, oy + (ys[i] - y0) * s];
-    g.save(); g.lineJoin = g.lineCap = "round"; g.strokeStyle = "#ff5c7a"; g.lineWidth = 14; g.shadowColor = "rgba(0,0,0,.5)"; g.shadowBlur = 16;
-    g.beginPath(); pts.forEach((q, i) => { const [x, y] = P(i); i && !q.g ? g.lineTo(x, y) : g.moveTo(x, y); }); g.stroke();
-    g.lineWidth = 8; g.setLineDash([2, 24]); g.beginPath();
-    pts.forEach((q, i) => { if (i && q.g) { const [ax, ay] = P(i - 1), [bx2, by2] = P(i); g.moveTo(ax, ay); g.lineTo(bx2, by2); } });
-    g.stroke(); g.restore();
-    const [sx, sy] = P(0); g.beginPath(); g.arc(sx, sy, 17, 0, 7); g.fillStyle = "#fff"; g.fill(); g.lineWidth = 7; g.strokeStyle = "#ff5c7a"; g.stroke();
-  }
+  if (token !== renderToken) return;
 
-  /* Baris tambahan: tujuan (opsional) dan titik terjauh dari titik awal */
-  const lines = [];
-  if (r.tujuan) lines.push("Bergerak maju untuk: " + r.tujuan);
-  lines.push("Terjauh " + fmtFar(r.terjauh) + " dari titik awal");
-  lines.forEach((t, i) => T(t, 1625 + i * 58, 40, 600, .95, FB));
+  const c = $("cv"), g = c.getContext("2d"), W = 1080, H = 1920, FD = '"Bricolage Grotesque",Inter,sans-serif', FB = 'Inter,sans-serif';
 
-  /* Watermark: teks saja */
-  T("Move Run", 1830, 58, 800, .95);
-  cacheBlob(token);
+
+
+  /* Latar: foto sendiri (cover) atau gradien bawaan */
+
+  if (photo) {
+
+    const s = Math.max(W / photo.width, H / photo.height), dw = photo.width * s, dh = photo.height * s;
+
+    g.drawImage(photo, (W - dw) / 2, (H - dh) / 2, dw, dh);
+
+  } else {
+
+    const bg = g.createLinearGradient(0, 0, 0, H); bg.addColorStop(0, "#0b2342"); bg.addColorStop(1, "#27466e");
+
+    g.fillStyle = bg; g.fillRect(0, 0, W, H);
+
+    const glow = g.createRadialGradient(W / 2, 1380, 40, W / 2, 1380, 620); glow.addColorStop(0, "rgba(255,92,122,.35)"); glow.addColorStop(1, "rgba(255,92,122,0)");
+
+    g.fillStyle = glow; g.fillRect(0, 0, W, H);
+
+  }
+
+  /* Lapisan gelap agar teks terbaca */
+
+  const ov = g.createLinearGradient(0, 0, 0, H); ov.addColorStop(0, "rgba(0,0,0,.25)"); ov.addColorStop(.5, "rgba(0,0,0,.30)"); ov.addColorStop(1, "rgba(0,0,0,.60)");
+
+  g.fillStyle = ov; g.fillRect(0, 0, W, H);
+
+
+
+  const T = (s, y, size, weight, alpha = 1, font = FD) => {
+
+    g.save(); g.textAlign = "center"; g.font = weight + " " + size + "px " + font; g.fillStyle = "rgba(255,255,255," + alpha + ")";
+
+    g.shadowColor = "rgba(0,0,0,.5)"; g.shadowBlur = 20; g.fillText(s, W / 2, y); g.restore();
+
+  };
+
+
+
+  /* Statistik bergaya Strava */
+
+  T("Jarak", 470, 44, 600, .9, FB);  T(km(r.jarak) + " km", 610, 150, 800);
+
+  T("Pace", 730, 44, 600, .9, FB);   T(r.pace + " /km", 850, 120, 800);
+
+  T("Waktu", 970, 44, 600, .9, FB);  T(fmtHuman(r.durasi), 1090, 120, 800);
+
+
+
+  /* Rute */
+
+  const pts = r.path;
+
+  if (pts.length > 1) {
+
+    const bx = 300, by = 1170, bw = 480, bh = 380, k = Math.cos(rad(pts[0].lat));
+
+    const xs = pts.map(p => p.lng * k), ys = pts.map(p => -p.lat);
+
+    const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+
+    const s = Math.min(bw / ((x1 - x0) || 1e-9), bh / ((y1 - y0) || 1e-9));
+
+    const ox = bx + (bw - (x1 - x0) * s) / 2, oy = by + (bh - (y1 - y0) * s) / 2;
+
+    const P = i => [ox + (xs[i] - x0) * s, oy + (ys[i] - y0) * s];
+
+    g.save(); g.lineJoin = g.lineCap = "round"; g.strokeStyle = "#ff5c7a"; g.lineWidth = 14; g.shadowColor = "rgba(0,0,0,.5)"; g.shadowBlur = 16;
+
+    g.beginPath(); pts.forEach((q, i) => { const [x, y] = P(i); i && !q.g ? g.lineTo(x, y) : g.moveTo(x, y); }); g.stroke();
+
+    g.lineWidth = 8; g.setLineDash([2, 24]); g.beginPath();
+
+    pts.forEach((q, i) => { if (i && q.g) { const [ax, ay] = P(i - 1), [bx2, by2] = P(i); g.moveTo(ax, ay); g.lineTo(bx2, by2); } });
+
+    g.stroke(); g.restore();
+
+    const [sx, sy] = P(0); g.beginPath(); g.arc(sx, sy, 17, 0, 7); g.fillStyle = "#fff"; g.fill(); g.lineWidth = 7; g.strokeStyle = "#ff5c7a"; g.stroke();
+
+  }
+
+
+
+  /* Baris tambahan: tujuan (opsional) dan titik terjauh dari titik awal */
+
+  const lines = [];
+
+  if (r.tujuan) lines.push("Bergerak maju untuk: " + r.tujuan);
+
+  lines.push("Terjauh " + fmtFar(r.terjauh) + " dari titik awal");
+
+  lines.forEach((t, i) => T(t, 1625 + i * 58, 40, 600, .95, FB));
+
+
+
+  /* Watermark: teks saja */
+
+  T("Move Run", 1830, 58, 800, .95);
+
+  cacheBlob(token);
+
 }
+
+
 
 /* ── Simpan / unduh lintas browser ──
-   Blob dibuat SEBELUMNYA supaya klik tombol langsung memanggil share/unduh (agar Safari tidak memblokirnya). */
+
+   Blob dibuat SEBELUMNYA supaya klik tombol langsung memanggil share/unduh (agar Safari tidak memblokirnya). */
+
 const isIOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+
 let cachedBlob = null, sheetUrl = null;
+
 function cacheBlob(token) {
-  try { $("cv").toBlob(b => { if (token === renderToken) cachedBlob = b; }, "image/png"); } catch (e) { cachedBlob = null; }
+
+  try { $("cv").toBlob(b => { if (token === renderToken) cachedBlob = b; }, "image/png"); } catch (e) { cachedBlob = null; }
+
 }
+
 function cardFile() { return cachedBlob ? new File([cachedBlob], "move-run-story.png", { type: "image/png" }) : null; }
 
+
+
 /* Menu bagikan bawaan HP. Mengembalikan true bila sudah ditangani. */
+
 async function tryShare() {
-  const f = cardFile();
-  if (f && navigator.canShare && navigator.canShare({ files: [f] })) {
-    try { await navigator.share({ files: [f], title: "Move Run" }); return true; }
-    catch (e) { if (e && e.name === "AbortError") return true; }
-  }
-  return false;
+
+  const f = cardFile();
+
+  if (f && navigator.canShare && navigator.canShare({ files: [f] })) {
+
+    try { await navigator.share({ files: [f], title: "Move Run" }); return true; }
+
+    catch (e) { if (e && e.name === "AbortError") return true; }
+
+  }
+
+  return false;
+
 }
+
 /* Cadangan universal: tampilkan gambar penuh, pengguna tekan-tahan lalu Simpan ke Foto */
+
 function openSaveSheet() {
-  let src;
-  if (cachedBlob) { if (sheetUrl) URL.revokeObjectURL(sheetUrl); sheetUrl = URL.createObjectURL(cachedBlob); src = sheetUrl; }
-  else { try { src = $("cv").toDataURL("image/png"); } catch (e) { return alert("Gambar tidak bisa dibuat di browser ini. Coba buka lewat Chrome atau Safari terbaru."); } }
-  $("saveImg").src = src; $("saveSheet").hidden = false;
+
+  let src;
+
+  if (cachedBlob) { if (sheetUrl) URL.revokeObjectURL(sheetUrl); sheetUrl = URL.createObjectURL(cachedBlob); src = sheetUrl; }
+
+  else { try { src = $("cv").toDataURL("image/png"); } catch (e) { return alert("Gambar tidak bisa dibuat di browser ini. Coba buka lewat Chrome atau Safari terbaru."); } }
+
+  $("saveImg").src = src; $("saveSheet").hidden = false;
+
 }
+
 function anchorDownload() {
-  const a = document.createElement("a"); a.href = URL.createObjectURL(cachedBlob); a.download = "move-run-story.png";
-  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 8000);
+
+  const a = document.createElement("a"); a.href = URL.createObjectURL(cachedBlob); a.download = "move-run-story.png";
+
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 8000);
+
 }
+
+
 
 /* ═══════════ EVENT ═══════════ */
+
 function startRun() {
-  run = { nama: $("nama").value.trim(), tujuan: $("tujuan").value.trim().slice(0, 30), start: 0, origin: null, path: [], dist: 0, flags: 0, left: false, far: 0 };
-  $("toStart").textContent = "Menunggu titik awal…";
-  setStatus($("runStatus"), "Mengunci titik awal… tetap di tempat.");
-  beginTracking(false);
+
+  run = { nama: $("nama").value.trim(), tujuan: $("tujuan").value.trim().slice(0, 30), start: 0, origin: null, path: [], dist: 0, flags: 0, left: false, far: 0 };
+
+  $("toStart").textContent = "Menunggu titik awal…";
+
+  setStatus($("runStatus"), "Mengunci titik awal… tetap di tempat.");
+
+  beginTracking(false);
+
 }
+
 $("btnStart").addEventListener("click", () => {
-  if (!$("nama").value.trim()) { setStatus($("introStatus"), "Isi namamu dulu ya.", "bad"); $("nama").focus(); return; }
-  if (!DEMO && !navigator.geolocation) return setStatus($("introStatus"), "Browser tidak mendukung GPS.", "bad");
-  startRun();
+
+  if (!$("nama").value.trim()) { setStatus($("introStatus"), "Isi namamu dulu ya.", "bad"); $("nama").focus(); return; }
+
+  if (!DEMO && !navigator.geolocation) return setStatus($("introStatus"), "Browser tidak mendukung GPS.", "bad");
+
+  startRun();
+
 });
+
 $("btnFinish").addEventListener("click", finish);
+
 $("btnCancel").addEventListener("click", () => { if (confirm("Batalkan sesi? Rutemu tidak akan disimpan.")) { stopTracking(); run = null; clearLocal(); show("intro"); } });
+
 $("btnAgain").addEventListener("click", () => { show("intro"); window.scrollTo({ top: 0 }); });
 
+
+
 /* Mode Saku: layar hitam, tahan 2 detik untuk keluar */
+
 let darkT = null; const dk = $("dark");
+
 $("btnDark").addEventListener("click", () => { dk.hidden = false; lockScreen(); });
+
 dk.addEventListener("pointerdown", () => { darkT = setTimeout(() => { dk.hidden = true; }, 2000); });
+
 ["pointerup", "pointercancel", "pointerleave"].forEach(ev => dk.addEventListener(ev, () => clearTimeout(darkT)));
 
+
+
 $("photoIn").addEventListener("change", e => {
-  const f = e.target.files && e.target.files[0]; if (!f) return;
-  const url = URL.createObjectURL(f), img = new Image();
-  img.onload = () => { photo = img; $("btnNoPhoto").hidden = false; renderCard(); URL.revokeObjectURL(url); };
-  img.onerror = () => { URL.revokeObjectURL(url); alert("Foto tidak bisa dibuka. Coba foto lain."); };
-  img.src = url;
+
+  const f = e.target.files && e.target.files[0]; if (!f) return;
+
+  const url = URL.createObjectURL(f), img = new Image();
+
+  img.onload = () => { photo = img; $("btnNoPhoto").hidden = false; renderCard(); URL.revokeObjectURL(url); };
+
+  img.onerror = () => { URL.revokeObjectURL(url); alert("Foto tidak bisa dibuka. Coba foto lain."); };
+
+  img.src = url;
+
 });
+
 $("btnNoPhoto").addEventListener("click", () => { photo = null; $("photoIn").value = ""; $("btnNoPhoto").hidden = true; renderCard(); });
+
 /* Bagikan: menu share bawaan HP; jika tidak ada, tampilkan lembar simpan */
+
 $("btnShare").addEventListener("click", async () => { if (!(await tryShare())) openSaveSheet(); });
+
 /* Unduh: iPhone/iPad → lembar simpan (tekan-tahan); browser lain → unduh langsung */
+
 $("btnCard").addEventListener("click", () => {
-  if (isIOS || !cachedBlob || !("download" in HTMLAnchorElement.prototype)) return openSaveSheet();
-  anchorDownload();
+
+  if (isIOS || !cachedBlob || !("download" in HTMLAnchorElement.prototype)) return openSaveSheet();
+
+  anchorDownload();
+
 });
+
 $("btnSheetShare").addEventListener("click", async () => { if (!(await tryShare())) alert("Tekan dan tahan gambar untuk menyimpan."); });
+
 $("btnSheetClose").addEventListener("click", () => { $("saveSheet").hidden = true; });
+
 $("saveSheet").addEventListener("click", e => { if (e.target === e.currentTarget) e.currentTarget.hidden = true; });
+
 document.addEventListener("keydown", e => { if (e.key === "Escape") $("saveSheet").hidden = true; });
 
+
+
 /* Pulihkan sesi jika halaman ter-reload saat lari */
+
 try {
-  const saved = JSON.parse(localStorage.getItem(LS) || "null");
-  if (saved && saved.origin && saved.start && Date.now() - saved.start < 3 * 3600 * 1000) {
-    run = saved; $("nama").value = saved.nama; beginTracking(true);
-  } else clearLocal();
+
+  const saved = JSON.parse(localStorage.getItem(LS) || "null");
+
+  if (saved && saved.origin && saved.start && Date.now() - saved.start < 3 * 3600 * 1000) {
+
+    run = saved; $("nama").value = saved.nama; beginTracking(true);
+
+  } else clearLocal();
+
 } catch (e) { clearLocal(); }
+
 </script>
+
 </body>
+
 </html>
