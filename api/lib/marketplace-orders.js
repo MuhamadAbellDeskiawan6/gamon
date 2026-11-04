@@ -268,6 +268,82 @@ async function notifyAdminNewOrder(orderId) {
   }
 }
 
+export async function notifyAdminNewCodOrder(orderId) {
+  try {
+    if (!readEnv('RESEND_API_KEY') && !readEnv('GMAIL_APP_PASSWORD')) {
+      console.warn('[marketplace] email COD admin belum dikonfigurasi; notifikasi dilewati.');
+      return { sent: false, reason: 'no-mail-config' };
+    }
+
+    const db = getAdminDb();
+    const orderRef = db.collection('marketplace_orders').doc(String(orderId));
+    const order = await db.runTransaction(async (transaction) => {
+      const snapshot = await transaction.get(orderRef);
+      if (!snapshot.exists) return null;
+      const data = snapshot.data() || {};
+      if (data.paymentMethod !== 'COD' || data.status !== 'awaiting_confirmation' || data.adminEmailSent === true) return null;
+      const claimedAt = asInt(data.adminEmailClaimAt);
+      if (claimedAt && Date.now() - claimedAt < 60 * 1000) return null;
+      transaction.update(orderRef, { adminEmailClaimAt: Date.now() });
+      return { id: snapshot.id, ...data };
+    });
+    if (!order) return { sent: false, reason: 'already-sent-or-not-cod' };
+
+    const adminEmail = readEnv('ADMIN_NOTIFY_EMAIL') || DEFAULT_ADMIN_EMAIL;
+    let siteUrl = readEnv('SITE_URL').replace(/\/$/, '');
+    if (!/^https:\/\//i.test(siteUrl)) siteUrl = DEFAULT_SITE_URL;
+    const code = order.orderCode || order.orderId || order.id;
+    const shipping = order.shippingAddress || {};
+    const addressLine = [
+      shipping.address,
+      shipping.village && `Kel./Desa ${shipping.village}`,
+      shipping.district && `Kec. ${shipping.district}`,
+      shipping.city,
+      shipping.province,
+      shipping.postalCode
+    ].filter(Boolean).join(', ');
+    const latitude = Number(shipping.latitude);
+    const longitude = Number(shipping.longitude);
+    const mapsUrl = shipping.mapsUrl || (Number.isFinite(latitude) && Number.isFinite(longitude)
+      ? `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`
+      : '');
+    const adminUrl = `${siteUrl}/admin/marketplace-orders.html`;
+    const itemRows = (Array.isArray(order.items) ? order.items : []).map((item) => `
+      <tr>
+        <td style="padding:8px;border-bottom:1px solid #eee;">${mailEscape(item.name || 'Produk')}</td>
+        <td style="padding:8px;border-bottom:1px solid #eee;text-align:center;">${Math.max(1, asInt(item.qty, 1))}</td>
+        <td style="padding:8px;border-bottom:1px solid #eee;text-align:right;">${rupiah(item.subtotal)}</td>
+      </tr>`).join('');
+    const subject = `Pesanan COD baru ${code} - ${rupiah(order.totalAmount)}`;
+    const html = `<div style="font-family:Arial,Helvetica,sans-serif;max-width:620px;margin:0 auto;color:#222;">
+      <h2>Pesanan COD baru ${mailEscape(code)}</h2>
+      <p><strong>Bayar tunai saat barang diterima, siapkan konfirmasi via WhatsApp.</strong></p>
+      <p><strong>Total:</strong> ${rupiah(order.totalAmount)}</p>
+      <table style="width:100%;border-collapse:collapse;font-size:14px;"><tbody>${itemRows}</tbody></table>
+      <h3>Pembeli</h3>
+      <p>${mailEscape(order.buyerName || '-')}<br>${mailEscape(order.buyerPhone || '-')}<br>${mailEscape(order.buyerEmail || '-')}</p>
+      <h3>Alamat pengiriman</h3>
+      <p>${mailEscape(shipping.recipientName || '-')} · ${mailEscape(shipping.phone || '-')}<br>${mailEscape(addressLine || '-')}<br>${mailEscape(shipping.note || '')}</p>
+      ${mapsUrl ? `<p><a href="${mailEscape(mapsUrl)}">Buka lokasi di Google Maps</a></p>` : ''}
+      <p><a href="${mailEscape(adminUrl)}">Buka pesanan di panel admin</a></p>
+    </div>`;
+    const text = `Pesanan COD baru ${code}\nTotal: ${rupiah(order.totalAmount)}\nBayar tunai saat barang diterima, siapkan konfirmasi via WhatsApp.\n\nPembeli: ${order.buyerName || '-'}\nHP: ${order.buyerPhone || '-'}\nAlamat: ${addressLine || '-'}\nPeta: ${mapsUrl || '-'}\nAdmin: ${adminUrl}`;
+    try {
+      const result = await sendEmail({ to: adminEmail, subject, html, text });
+      await orderRef.update({ adminEmailSent: true, adminEmailSentAt: Date.now(), adminEmailError: '' });
+      console.log('[marketplace] email COD admin terkirim via', result.provider, orderId);
+      return { sent: true };
+    } catch (error) {
+      console.error('[marketplace] gagal kirim email COD admin:', orderId, error.message);
+      await orderRef.update({ adminEmailError: String(error.message || '').slice(0, 500), adminEmailClaimAt: 0 }).catch(() => {});
+      return { sent: false, reason: 'send-failed' };
+    }
+  } catch (error) {
+    console.error('[marketplace] notifikasi COD admin error:', error.message);
+    return { sent: false, reason: 'error' };
+  }
+}
+
 /* ========================================================================= */
 
 /**
@@ -326,6 +402,16 @@ export async function releaseOrderStock(orderId, {
     if (!orderSnapshot.exists) throw makeError('Pesanan tidak ditemukan.', 'not-found');
     const order = orderSnapshot.data() || {};
 
+    if (order.paymentMethod === 'COD') {
+      if (status === 'expired' && (by !== 'system' || order.status !== 'awaiting_confirmation' || toMillis(order.codConfirmExpiresAt) > Date.now())) {
+        return { released: false, alreadyReleased: false, order };
+      }
+      if (status === 'cancelled' && !['awaiting_confirmation', 'processing'].includes(String(order.status || ''))) {
+        return { released: false, needsAttention: true, order };
+      }
+      if (!['expired', 'cancelled'].includes(status)) return { released: false, ignored: true, order };
+    }
+
     if (order.stockReleased) return { released: false, alreadyReleased: true, order };
     if (order.paymentStatus === 'PAID' && !allowPaid) {
       return { released: false, needsAttention: true, order };
@@ -376,13 +462,15 @@ export async function releaseOrderStock(orderId, {
 
 export async function releaseExpiredReservations() {
   const db = getAdminDb();
-  const snapshot = await db.collection('marketplace_orders')
-    .where('status', '==', 'awaiting_payment')
-    .get();
+  const [paymentSnapshot, codSnapshot] = await Promise.all([
+    db.collection('marketplace_orders').where('status', '==', 'awaiting_payment').get(),
+    db.collection('marketplace_orders').where('status', '==', 'awaiting_confirmation').get()
+  ]);
   const now = Date.now();
-  const expired = snapshot.docs.filter((document) => asInt(document.data()?.paymentExpiresAt) > 0 && asInt(document.data().paymentExpiresAt) <= now);
+  const expiredPayments = paymentSnapshot.docs.filter((document) => asInt(document.data()?.paymentExpiresAt) > 0 && asInt(document.data().paymentExpiresAt) <= now);
+  const expiredCod = codSnapshot.docs.filter((document) => document.data()?.paymentMethod === 'COD' && asInt(document.data()?.codConfirmExpiresAt) > 0 && asInt(document.data().codConfirmExpiresAt) <= now);
   let released = 0;
-  for (const document of expired) {
+  for (const document of expiredPayments) {
     const result = await releaseOrderStock(document.id, {
       status: 'expired',
       paymentStatus: 'EXPIRED',
@@ -391,7 +479,16 @@ export async function releaseExpiredReservations() {
     });
     if (result.released) released += 1;
   }
-  return { scanned: snapshot.size, expired: expired.length, released };
+  for (const document of expiredCod) {
+    const result = await releaseOrderStock(document.id, {
+      status: 'expired',
+      paymentStatus: 'UNPAID',
+      by: 'system',
+      reason: 'Admin tidak mengonfirmasi dalam 24 jam.'
+    });
+    if (result.released) released += 1;
+  }
+  return { scanned: paymentSnapshot.size + codSnapshot.size, expired: expiredPayments.length + expiredCod.length, released };
 }
 
 /**
@@ -406,6 +503,7 @@ async function applyPaymentTransaction({ orderId, amount, requestId }) {
     const orderSnapshot = await transaction.get(orderRef);
     if (!orderSnapshot.exists) return { found: false };
     const order = orderSnapshot.data() || {};
+    if (order.paymentMethod === 'COD') return { found: true, ignored: true, order };
     const now = Date.now();
     const savedAmount = Number(order.totalAmount);
     const alreadyPaid = order.paymentStatus === 'PAID';
@@ -557,7 +655,7 @@ export async function reconcilePaidOrdersStock(userId = '') {
 
   const targets = snapshot.docs.filter((document) => {
     const order = document.data() || {};
-    return needsStockDeduction(order)
+    return order.paymentMethod !== 'COD' && needsStockDeduction(order)
       && ['paid', 'processing', 'shipped', 'completed'].includes(String(order.status || '').toLowerCase());
   });
 
@@ -594,6 +692,7 @@ export async function syncPaidOrdersCart(userId) {
   const targets = snapshot.docs
     .filter((document) => {
       const order = document.data() || {};
+      if (order.paymentMethod === 'COD') return false;
       if (order.cartSynced === true) return false;
       if (!['paid', 'processing', 'shipped', 'completed'].includes(String(order.status || '').toLowerCase())) return false;
       const paidAt = paidAtOf(order);
@@ -610,6 +709,7 @@ export async function syncPaidOrdersCart(userId) {
         const [orderSnapshot, cartSnapshot] = await Promise.all([transaction.get(orderRef), transaction.get(cartRef)]);
         if (!orderSnapshot.exists) return;
         const order = orderSnapshot.data() || {};
+        if (order.paymentMethod === 'COD') return;
         if (order.cartSynced === true) return;
 
         const items = Array.isArray(order.items) ? order.items : [];
@@ -636,7 +736,8 @@ export async function updateMarketplaceOrderStatus({
   courier,
   trackingNumber,
   returnStock = false,
-  note = ''
+  note = '',
+  codFailed = false
 }) {
   const db = getAdminDb();
   const orderRef = db.collection('marketplace_orders').doc(String(orderId));
@@ -645,6 +746,101 @@ export async function updateMarketplaceOrderStatus({
   const order = orderSnapshot.data() || {};
   const current = String(order.status || '');
   const next = String(status || '');
+  if (order.paymentMethod === 'COD') {
+    const codTransitions = {
+      awaiting_confirmation: ['processing', 'cancelled'],
+      processing: ['shipped', 'cancelled'],
+      shipped: ['completed', 'cancelled']
+    };
+    if (!codTransitions[current]?.includes(next)) throw makeError(`Transisi status COD ${current} ke ${next} tidak diizinkan.`, 'invalid-transition');
+    if (codFailed && (next !== 'cancelled' || !['awaiting_confirmation', 'processing'].includes(current))) {
+      throw makeError('COD gagal hanya dapat dicatat sebelum pesanan dikirim.', 'invalid-transition');
+    }
+
+    return db.runTransaction(async (transaction) => {
+      const currentSnapshot = await transaction.get(orderRef);
+      if (!currentSnapshot.exists) throw makeError('Pesanan tidak ditemukan.', 'not-found');
+      const currentOrder = currentSnapshot.data() || {};
+      if (currentOrder.paymentMethod !== 'COD' || currentOrder.status !== current) {
+        throw makeError('Status pesanan berubah. Muat ulang sebelum mencoba lagi.', 'invalid-transition');
+      }
+      if (next === 'cancelled' && currentOrder.stockReleased) {
+        throw makeError('Stok pesanan COD ini sudah dilepas.', 'invalid-transition');
+      }
+      if (next === 'completed' && (!currentOrder.stockDeducted || currentOrder.stockReleased)) {
+        throw makeError('Status stok pesanan COD tidak valid untuk diselesaikan.', 'invalid-order-state');
+      }
+      const now = Date.now();
+      const items = Array.isArray(currentOrder.items) ? currentOrder.items : [];
+      const productRefs = next === 'cancelled' || next === 'completed'
+        ? items.map((item) => db.collection('marketplace_products').doc(String(item.productId)))
+        : [];
+      const statsRef = codFailed ? db.collection('marketplace_cod_stats').doc(String(currentOrder.userId || '')) : null;
+      const [productSnapshots, statsSnapshot] = await Promise.all([
+        Promise.all(productRefs.map((productRef) => transaction.get(productRef))),
+        statsRef ? transaction.get(statsRef) : Promise.resolve(null)
+      ]);
+      const history = Array.isArray(currentOrder.statusHistory) ? currentOrder.statusHistory : [];
+      const update = {
+        status: next,
+        updatedAt: now,
+        updatedBy: by,
+        statusHistory: [...history, { status: next, at: now, by, ...(note ? { note } : {}) }]
+      };
+      if (next === 'completed') {
+        update.paymentStatus = 'PAID';
+        update.paidAt = now;
+        update.completedAt = now;
+      }
+      if (next === 'cancelled') {
+        update.paymentStatus = 'UNPAID';
+        update.stockReleased = true;
+        update.stockDeducted = false;
+        if (note) update.cancellationNote = note;
+      }
+      if (next === 'shipped') {
+        update.courier = String(courier || '').trim();
+        update.trackingNumber = String(trackingNumber || '').trim();
+      }
+      let missingProduct = false;
+      productSnapshots.forEach((snapshot, index) => {
+        if (!snapshot.exists) {
+          missingProduct = true;
+          return;
+        }
+        const product = snapshot.data() || {};
+        const quantity = Math.max(0, asInt(items[index]?.qty));
+        if (!quantity) return;
+        if (next === 'cancelled') {
+          const stock = Math.max(0, asInt(product.stock, 1)) + quantity;
+          transaction.update(productRefs[index], {
+            stock,
+            status: stock > 0 ? 'Tersedia' : 'Habis',
+            updatedAt: now
+          });
+        } else if (next === 'completed') {
+          transaction.update(productRefs[index], {
+            sold: Math.max(0, asInt(product.sold)) + quantity,
+            updatedAt: now
+          });
+        }
+      });
+      if (missingProduct) {
+        update.needsAttention = true;
+        update.attentionReason = next === 'cancelled'
+          ? 'Produk tidak ditemukan saat pengembalian stok COD.'
+          : 'Produk tidak ditemukan saat penyelesaian pesanan COD.';
+      }
+      if (codFailed && statsRef) {
+        transaction.set(statsRef, {
+          failCount: Math.max(0, asInt(statsSnapshot?.data()?.failCount)) + 1,
+          updatedAt: now
+        }, { merge: true });
+      }
+      transaction.update(orderRef, update);
+      return { released: next === 'cancelled', stockRestored: next === 'cancelled', order: { ...currentOrder, ...update } };
+    });
+  }
   const transitions = {
     paid: ['processing', 'cancelled'],
     processing: ['shipped', 'cancelled'],

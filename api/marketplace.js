@@ -4,11 +4,18 @@ import path from 'path';
 import dns from 'dns/promises';
 import { getAdminAuth, getAdminDb } from './lib/firebase-admin.js';
 import { FieldValue } from 'firebase-admin/firestore';
-import { applyMarketplacePayment, reconcilePaidOrdersStock, releaseExpiredReservations, releaseOrderStock, sendEmail, syncPaidOrdersCart } from './lib/marketplace-orders.js';
+import { applyMarketplacePayment, notifyAdminNewCodOrder, reconcilePaidOrdersStock, releaseExpiredReservations, releaseOrderStock, sendEmail, syncPaidOrdersCart } from './lib/marketplace-orders.js';
 
 const PAYMENT_WINDOW_MS = 60 * 60 * 1000;
+const COD_CONFIRM_WINDOW_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_SITE_URL = 'https://gamon-space.vercel.app';
 const DEFAULT_DOKU_BASE_URL = 'https://api.doku.com';
+const KALSEL_CITIES = new Set([
+  'Kota Banjarmasin', 'Kota Banjarbaru', 'Kabupaten Banjar', 'Kabupaten Barito Kuala',
+  'Kabupaten Tanah Laut', 'Kabupaten Tapin', 'Kabupaten Hulu Sungai Selatan',
+  'Kabupaten Hulu Sungai Tengah', 'Kabupaten Hulu Sungai Utara', 'Kabupaten Tabalong',
+  'Kabupaten Tanah Bumbu', 'Kabupaten Balangan', 'Kabupaten Kotabaru'
+]);
 
 function responseError(res, status, code, message, details) {
   return res.status(status).json({ success: false, code, message, ...(details ? { details } : {}) });
@@ -48,7 +55,7 @@ function loadLocalEnvFallback() {
   localEnvLoaded = true;
   if (process.env.VERCEL_ENV === 'production' || process.env.NODE_ENV === 'production') return;
 
-    const wanted = ['DOKU_CLIENT_ID', 'DOKU_SECRET_KEY', 'DOKU_BASE_URL', 'SITE_URL', 'DOKU_PAYMENT_METHODS', 'MARKETPLACE_SHIPPING_FEE', 'GMAIL_APP_PASSWORD', 'ADMIN_NOTIFY_EMAIL', 'EMAIL_VERIFY_SECRET'];
+  const wanted = ['DOKU_CLIENT_ID', 'DOKU_SECRET_KEY', 'DOKU_BASE_URL', 'SITE_URL', 'DOKU_PAYMENT_METHODS', 'MARKETPLACE_SHIPPING_FEE', 'MARKETPLACE_COD_MAX_AMOUNT', 'MARKETPLACE_COD_MAX_ACTIVE', 'MARKETPLACE_COD_MAX_FAIL', 'MARKETPLACE_COD_FEE', 'GMAIL_APP_PASSWORD', 'ADMIN_NOTIFY_EMAIL', 'EMAIL_VERIFY_SECRET'];
   const files = ['.env.local', '.env.development.local', '.env.development', '.env'];
   const found = [];
 
@@ -174,6 +181,8 @@ function readShippingAddress(profile) {
     phone: cleanText(saved.phone || profile?.phone, 40),
     address: cleanText(saved.address || profile?.address || profile?.location, 300),
     city: cleanText(saved.city || profile?.city, 100),
+    district: cleanText(saved.district, 100),
+    village: cleanText(saved.village, 100),
     province: cleanText(saved.province, 100),
     postalCode: cleanText(saved.postalCode, 20),
     note: cleanText(saved.note, 500),
@@ -200,8 +209,36 @@ function getSafeThumbnail(value) {
 }
 
 function getShippingFee() {
+  loadLocalEnvFallback();
   const value = Number(process.env.MARKETPLACE_SHIPPING_FEE || 0);
   return Number.isSafeInteger(value) && value >= 0 ? value : 0;
+}
+
+function getCodSetting(name, fallback) {
+  const value = Number(process.env[name]);
+  return Number.isSafeInteger(value) && value >= 0 ? value : fallback;
+}
+
+function getCodLimits() {
+  loadLocalEnvFallback();
+  return {
+    maxAmount: getCodSetting('MARKETPLACE_COD_MAX_AMOUNT', 500000),
+    maxActive: getCodSetting('MARKETPLACE_COD_MAX_ACTIVE', 2),
+    maxFail: getCodSetting('MARKETPLACE_COD_MAX_FAIL', 2),
+    fee: getCodSetting('MARKETPLACE_COD_FEE', 0)
+  };
+}
+
+function validateCodArea(shippingAddress) {
+  return KALSEL_CITIES.has(shippingAddress.city) &&
+    Boolean(shippingAddress.district) &&
+    shippingAddress.latitude >= -4.3 && shippingAddress.latitude <= -1.2 &&
+    shippingAddress.longitude >= 114.3 && shippingAddress.longitude <= 116.8;
+}
+
+function isValidCodPhone(value) {
+  const phone = String(value || '').replace(/[\s().-]/g, '');
+  return /^(\+62|62|0)8\d{7,12}$/.test(phone);
 }
 
 async function createDokuPayment(order, config) {
@@ -295,10 +332,9 @@ async function cancelStaleAwaitingOrders(userId) {
   }
 }
 
-// Membuat pesanan "menunggu pembayaran".
-// STOK TIDAK DIKURANGI DI SINI dan keranjang TIDAK dikosongkan.
-// Stok baru dikurangi saat pembayaran sukses (applyMarketplacePayment).
-async function createPendingOrder(claims) {
+// Membuat reservasi DOKU tanpa memotong stok; COD memotong stok dan
+// mengosongkan keranjang dalam transaksi yang sama dengan pembuatan order.
+async function createPendingOrder(claims, paymentMethod = 'DOKU') {
   const db = getAdminDb();
   const userId = String(claims.uid);
   const now = Date.now();
@@ -336,7 +372,14 @@ async function createPendingOrder(claims) {
 
     const productIds = [...combined.keys()];
     const productRefs = productIds.map((id) => db.collection('marketplace_products').doc(id));
-    const productSnapshots = await Promise.all(productRefs.map((productRef) => transaction.get(productRef)));
+    const codStatsRef = db.collection('marketplace_cod_stats').doc(userId);
+    const [productSnapshots, activeOrdersSnapshot, codStatsSnapshot] = await Promise.all([
+      Promise.all(productRefs.map((productRef) => transaction.get(productRef))),
+      paymentMethod === 'COD'
+        ? transaction.get(db.collection('marketplace_orders').where('userId', '==', userId))
+        : Promise.resolve(null),
+      paymentMethod === 'COD' ? transaction.get(codStatsRef) : Promise.resolve(null)
+    ]);
     const conflicts = [];
     const lineItems = [];
     let subtotal = 0;
@@ -383,14 +426,39 @@ async function createPendingOrder(claims) {
     }
 
     const shippingFee = getShippingFee();
-    const totalAmount = subtotal + shippingFee;
+    const codLimits = getCodLimits();
+    const codFee = paymentMethod === 'COD' ? codLimits.fee : 0;
+    const totalAmount = subtotal + shippingFee + codFee;
     if (!Number.isSafeInteger(totalAmount) || totalAmount < 1) {
       throw Object.assign(new Error('Total pembayaran tidak valid.'), { code: 'invalid-total' });
+    }
+    if (paymentMethod === 'COD') {
+      if (!validateCodArea(shippingAddress)) {
+        throw Object.assign(new Error('COD hanya tersedia untuk alamat lengkap di wilayah Kalimantan Selatan.'), { code: 'cod-not-available-area' });
+      }
+      if (!isValidCodPhone(shippingAddress.phone)) {
+        throw Object.assign(new Error('Nomor HP penerima belum valid. Gunakan nomor Indonesia yang diawali 08, 62, atau +62.'), { code: 'cod-invalid-phone' });
+      }
+      if (totalAmount > codLimits.maxAmount) {
+        throw Object.assign(new Error(`Total pesanan COD melebihi batas ${new Intl.NumberFormat('id-ID').format(codLimits.maxAmount)}.`), { code: 'cod-amount-exceeded' });
+      }
+      const activeCount = (activeOrdersSnapshot?.docs || []).filter((document) => {
+        const activeOrder = document.data() || {};
+        return activeOrder.paymentMethod === 'COD' &&
+          ['awaiting_confirmation', 'processing', 'shipped'].includes(String(activeOrder.status || '').toLowerCase());
+      }).length;
+      if (activeCount >= codLimits.maxActive) {
+        throw Object.assign(new Error(`Anda memiliki ${codLimits.maxActive} pesanan COD aktif. Selesaikan atau batalkan pesanan sebelumnya terlebih dahulu.`), { code: 'cod-too-many-active' });
+      }
+      const failCount = Number(codStatsSnapshot?.data()?.failCount || 0);
+      if (failCount >= codLimits.maxFail) {
+        throw Object.assign(new Error('Fitur COD sementara tidak tersedia untuk akun Anda. Silakan pilih pembayaran DOKU.'), { code: 'cod-blocked' });
+      }
     }
     const buyerName = cleanText(profile.name || claims.name || shippingAddress.recipientName, 120);
     const buyerEmail = cleanText(claims.email || profile.email || '', 180);
     const buyerPhone = shippingAddress.phone;
-    const paymentExpiresAt = now + PAYMENT_WINDOW_MS;
+    const isCod = paymentMethod === 'COD';
     const order = {
       orderId,
       orderCode: orderId,
@@ -401,50 +469,114 @@ async function createPendingOrder(claims) {
       items: lineItems,
       subtotal,
       shippingFee,
+      ...(isCod && codFee ? { codFee } : {}),
       totalAmount,
       shippingAddress,
-      status: 'awaiting_payment',
-      paymentStatus: 'UNPAID',
+      paymentMethod,
+      status: isCod ? 'awaiting_confirmation' : 'awaiting_payment',
+      paymentStatus: isCod ? 'COD_PENDING' : 'UNPAID',
       paymentUrl: '',
-      paymentExpiresAt,
+      ...(!isCod ? { paymentExpiresAt: now + PAYMENT_WINDOW_MS } : { codConfirmExpiresAt: now + COD_CONFIRM_WINDOW_MS }),
       paidAt: null,
       dokuRequestId: '',
       trackingNumber: '',
       courier: '',
-      statusHistory: [{ status: 'awaiting_payment', at: now, by: userId }],
-      // Penanda alur baru: stok baru dipotong ketika pembayaran sukses.
-      stockMode: 'on_payment',
-      stockDeducted: false,
+      statusHistory: [{ status: isCod ? 'awaiting_confirmation' : 'awaiting_payment', at: now, by: userId }],
+      stockMode: isCod ? 'on_order' : 'on_payment',
+      stockDeducted: isCod,
       stockReleased: false,
+      ...(isCod ? { cartSynced: true } : {}),
       needsAttention: Boolean(shippingAddress.outsideIndonesia),
       ...(shippingAddress.outsideIndonesia ? { attentionReason: 'Alamat pengiriman berada di luar wilayah Indonesia; validasi biaya dan layanan kurir.' } : {}),
       createdAt: now,
       updatedAt: now
     };
 
-    // TIDAK ADA transaction.update ke marketplace_products di sini.
-    // TIDAK ADA pengosongan keranjang di sini.
+    if (isCod) {
+      productSnapshots.forEach((snapshot, index) => {
+        const product = snapshot.data() || {};
+        const qty = combined.get(productIds[index]);
+        const stock = Number.isInteger(Number(product.stock)) && Number(product.stock) >= 0 ? Number(product.stock) : 1;
+        const nextStock = stock - qty;
+        transaction.update(productRefs[index], {
+          stock: nextStock,
+          status: nextStock > 0 ? 'Tersedia' : 'Habis',
+          updatedAt: now
+        });
+      });
+      transaction.set(cartRef, { items: [], updatedAt: now });
+    }
     transaction.create(orderRef, order);
     return { order };
   });
 }
 
+async function codEligibility(req, res, claims) {
+  const db = getAdminDb();
+  const userId = String(claims.uid);
+  const limits = getCodLimits();
+  const [ordersSnapshot, statsSnapshot] = await Promise.all([
+    db.collection('marketplace_orders').where('userId', '==', userId).get(),
+    db.collection('marketplace_cod_stats').doc(userId).get()
+  ]);
+  const activeCount = ordersSnapshot.docs.filter((document) => {
+    const order = document.data() || {};
+    return order.paymentMethod === 'COD' &&
+      ['awaiting_confirmation', 'processing', 'shipped'].includes(String(order.status || '').toLowerCase());
+  }).length;
+  const blocked = Number(statsSnapshot.data()?.failCount || 0) >= limits.maxFail;
+  return res.status(200).json({
+    success: true,
+    maxAmount: limits.maxAmount,
+    maxActive: limits.maxActive,
+    fee: limits.fee,
+    shippingFee: getShippingFee(),
+    blocked,
+    activeCount,
+    reason: blocked
+      ? 'COD sementara tidak tersedia untuk akun Anda.'
+      : activeCount >= limits.maxActive
+        ? 'Selesaikan atau batalkan pesanan COD aktif terlebih dahulu.'
+        : ''
+  });
+}
+
 async function checkout(req, res, claims) {
-  let config;
-  try {
-    config = getDokuConfig(req);
-  } catch (error) {
-    return responseError(res, 503, error.code, error.message);
+  const requestedMethod = req.body?.paymentMethod;
+  if (requestedMethod !== undefined && !['DOKU', 'COD'].includes(requestedMethod)) {
+    return responseError(res, 400, 'invalid-payment-method', 'Pilih metode pembayaran DOKU atau COD.');
+  }
+  const paymentMethod = requestedMethod || 'DOKU';
+  let config = null;
+  if (paymentMethod === 'DOKU') {
+    try {
+      config = getDokuConfig(req);
+    } catch (error) {
+      return responseError(res, 503, error.code, error.message);
+    }
   }
 
   try {
     await releaseExpiredReservations();
     await cancelStaleAwaitingOrders(String(claims.uid));
-    const reservation = await createPendingOrder(claims);
+    const reservation = await createPendingOrder(claims, paymentMethod);
     if (reservation.stockConflict) {
       return responseError(res, 409, 'insufficient-stock', 'Sebagian barang tidak lagi memiliki stok yang cukup.', reservation.conflicts);
     }
     const order = reservation.order;
+    if (paymentMethod === 'COD') {
+      try {
+        await notifyAdminNewCodOrder(order.orderId);
+      } catch (error) {
+        console.error('[marketplace] email COD dilewati:', { orderId: order.orderId, message: error.message });
+      }
+      return res.status(200).json({
+        success: true,
+        orderId: order.orderId,
+        orderCode: order.orderCode,
+        paymentMethod: 'COD'
+      });
+    }
     console.log('[marketplace] pesanan dibuat tanpa memotong stok:', { orderId: order.orderId, stockMode: order.stockMode });
     try {
       const doku = await createDokuPayment(order, config);
@@ -494,6 +626,9 @@ async function payAgain(req, res, claims) {
   const snapshot = await orderRef.get();
   if (!snapshot.exists || snapshot.data()?.userId !== claims.uid) return responseError(res, 404, 'not-found', 'Pesanan tidak ditemukan.');
   const order = snapshot.data() || {};
+  if (order.paymentMethod === 'COD') {
+    return responseError(res, 409, 'invalid-order-state', 'Pesanan COD tidak memiliki pembayaran ulang melalui DOKU.');
+  }
   if (order.status !== 'awaiting_payment') return responseError(res, 409, 'invalid-order-state', 'Pesanan ini tidak menunggu pembayaran.');
   if (Number(order.paymentExpiresAt || 0) <= Date.now()) {
     await releaseOrderStock(orderId, { status: 'expired', paymentStatus: 'EXPIRED', by: 'system', reason: 'Batas pembayaran terlewati.' });
@@ -509,7 +644,12 @@ async function cancelOrder(req, res, claims) {
   const orderRef = getAdminDb().collection('marketplace_orders').doc(orderId);
   const snapshot = await orderRef.get();
   if (!snapshot.exists || snapshot.data()?.userId !== claims.uid) return responseError(res, 404, 'not-found', 'Pesanan tidak ditemukan.');
-  if (snapshot.data()?.status !== 'awaiting_payment') return responseError(res, 409, 'invalid-order-state', 'Hanya pesanan yang menunggu pembayaran yang dapat dibatalkan.');
+  const order = snapshot.data() || {};
+  const isCod = order.paymentMethod === 'COD';
+  const canCancel = isCod
+    ? ['awaiting_confirmation', 'processing'].includes(order.status)
+    : order.status === 'awaiting_payment';
+  if (!canCancel) return responseError(res, 409, 'invalid-order-state', isCod ? 'Pesanan COD tidak dapat dibatalkan setelah dikirim.' : 'Hanya pesanan yang menunggu pembayaran yang dapat dibatalkan.');
   const result = await releaseOrderStock(orderId, { status: 'cancelled', paymentStatus: 'UNPAID', by: claims.uid, reason: 'Dibatalkan pembeli.' });
   if (result.needsAttention) return responseError(res, 409, 'payment-raced-with-cancel', 'Pembayaran telah berubah status saat pembatalan; hubungi admin untuk pemeriksaan.');
   return res.status(200).json({ success: true, orderId, released: Boolean(result.released || result.alreadyReleased) });
@@ -517,6 +657,10 @@ async function cancelOrder(req, res, claims) {
 
 // Tanya status ke DOKU lalu terapkan hasilnya (bayar sukses / expired / gagal).
 async function queryDokuAndApply(req, orderId) {
+  const orderSnapshot = await getAdminDb().collection('marketplace_orders').doc(String(orderId)).get();
+  if (!orderSnapshot.exists || orderSnapshot.data()?.paymentMethod === 'COD' || orderSnapshot.data()?.status !== 'awaiting_payment') {
+    return 'IGNORED';
+  }
   const config = getDokuConfig(req);
   const path = `/orders/v1/status/${encodeURIComponent(orderId)}`;
   const timestamp = new Date().toISOString().split('.')[0] + 'Z';
@@ -551,6 +695,10 @@ async function checkPayment(req, res, claims) {
   let snapshot = await orderRef.get();
   if (!snapshot.exists || snapshot.data()?.userId !== claims.uid) return responseError(res, 404, 'not-found', 'Pesanan tidak ditemukan.');
   let order = snapshot.data() || {};
+
+  if (order.paymentMethod === 'COD') {
+    return res.status(200).json({ success: true, order: { id: orderId, ...order }, dokuStatus: 'IGNORED' });
+  }
 
   if (order.status === 'awaiting_payment' && Number(order.paymentExpiresAt || 0) <= Date.now()) {
     await releaseOrderStock(orderId, { status: 'expired', paymentStatus: 'EXPIRED', by: 'system', reason: 'Batas pembayaran terlewati.' });
@@ -632,6 +780,9 @@ async function confirmReceived(req, res, claims) {
       return { status: 404, code: 'not-found', message: 'Pesanan tidak ditemukan.' };
     }
     const order = snapshot.data() || {};
+    if (order.paymentMethod === 'COD') {
+      return { status: 409, code: 'cod-admin-only', message: 'Pesanan COD ditutup admin setelah uang diterima.' };
+    }
     if (order.status === 'completed') return { ok: true, already: true };
     if (order.status !== 'shipped') {
       return { status: 409, code: 'invalid-order-state', message: 'Pesanan baru bisa dikonfirmasi setelah berstatus Dikirim.' };
@@ -1427,6 +1578,7 @@ export default async function handler(req, res) {
   if (!claims) return;
 
   try {
+    if (action === 'cod-eligibility') return await codEligibility(req, res, claims);
     if (action === 'checkout') return await checkout(req, res, claims);
     if (action === 'pay-again') return await payAgain(req, res, claims);
     if (action === 'cancel-order') return await cancelOrder(req, res, claims);

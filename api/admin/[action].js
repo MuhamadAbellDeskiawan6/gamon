@@ -999,7 +999,7 @@ async function handleUpdateMarketplaceOrderStatus(req, res) {
     const authResult = await requireAdmin(req, res);
     if (!authResult) return;
 
-    const { id, orderId, status, courier, trackingNumber, returnStock, note } = req.body || {};
+    const { id, orderId, status, courier, trackingNumber, returnStock, note, codFailed } = req.body || {};
     const targetOrderId = String(orderId || id || '').trim();
     if (!targetOrderId || !status) {
         return res.status(400).json({ success: false, message: 'Kode order dan status wajib diisi.' });
@@ -1013,7 +1013,8 @@ async function handleUpdateMarketplaceOrderStatus(req, res) {
             courier,
             trackingNumber,
             returnStock: returnStock === true,
-            note: String(note || '').trim()
+            note: String(note || '').trim(),
+            codFailed: codFailed === true
         });
         return res.status(200).json({ success: true, message: 'Status pesanan berhasil diperbarui.', data: result });
     } catch (error) {

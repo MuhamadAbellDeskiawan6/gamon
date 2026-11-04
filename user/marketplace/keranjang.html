@@ -47,7 +47,7 @@
         </aside>
         <div class="main-panel">
           <header class="mb-5">
-            <span class="eyebrow">Checkout DOKU</span>
+            <span class="eyebrow">Checkout</span>
             <h1 style="margin-top:10px;font-size:2rem;">Keranjang belanja</h1>
           </header>
           <div class="commerce-layout">
@@ -61,10 +61,21 @@
               <div data-cart-shipping>
                 <div class="commerce-section-heading"><div><h2>Alamat pengiriman</h2><p>Memuat alamat...</p></div><a href="profil.html">Ubah alamat</a></div>
               </div>
+              <fieldset class="commerce-payment-options">
+                <legend>Metode pembayaran</legend>
+                <label class="commerce-payment-option">
+                  <input type="radio" name="paymentMethod" value="DOKU" checked />
+                  <span><strong>QRIS / DOKU</strong><small>Bayar online sekarang</small></span>
+                </label>
+                <label class="commerce-payment-option" data-cod-option>
+                  <input type="radio" name="paymentMethod" value="COD" disabled />
+                  <span><strong>COD</strong><small>Bayar tunai saat barang sampai</small><small class="commerce-payment-hint" data-cod-reason>Memeriksa ketersediaan COD...</small></span>
+                </label>
+              </fieldset>
               <div class="commerce-summary-total"><span>Total pembayaran</span><strong data-cart-total>Rp 0</strong></div>
               <p class="commerce-error" data-cart-error role="alert" aria-live="polite"></p>
               <button class="btn btn-primary" type="button" data-checkout disabled style="width:100%;">Bayar dengan DOKU</button>
-              <small class="muted" style="display:block;margin-top:10px;">Pembayaran aman diproses melalui halaman resmi DOKU.</small>
+              <small class="muted" data-checkout-hint style="display:block;margin-top:10px;">Pembayaran aman diproses melalui halaman resmi DOKU.</small>
             </aside>
           </div>
         </div>

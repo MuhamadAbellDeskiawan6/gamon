@@ -27,7 +27,7 @@
     <script src="/admin/partials/sidebar.js"></script>
     <main class="px-4 py-8 lg:px-8">
       <header class="mb-6 flex flex-wrap items-start justify-between gap-3">
-        <div><h1 class="text-2xl font-bold text-slate-900">Pesanan Marketplace</h1><p class="mt-1 text-sm text-slate-500">Pembayaran DOKU dan pemenuhan pengiriman.</p></div>
+        <div><h1 class="text-2xl font-bold text-slate-900">Pesanan Marketplace</h1><p class="mt-1 text-sm text-slate-500">Pembayaran DOKU dan COD serta pemenuhan pengiriman.</p></div>
         <p id="pageStatus" class="text-sm text-rose-700" role="status" aria-live="polite"></p>
       </header>
       <section class="mb-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-6" aria-label="Ringkasan pesanan">
@@ -46,6 +46,7 @@
           <select id="statusFilter" class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
             <option value="all">Semua status</option>
             <option value="awaiting_payment">Menunggu pembayaran</option>
+            <option value="awaiting_confirmation">Menunggu konfirmasi</option>
             <option value="paid">Dibayar</option>
             <option value="processing">Diproses</option>
             <option value="shipped">Dikirim</option>
@@ -58,9 +59,9 @@
         <div class="overflow-x-auto">
           <table class="w-full min-w-[1000px] text-left text-sm">
             <thead class="bg-slate-50 text-[11px] uppercase text-slate-500"><tr>
-              <th class="px-4 py-3">Kode pesanan</th><th class="px-4 py-3">Pembeli</th><th class="px-4 py-3">Item</th><th class="px-4 py-3">Total</th><th class="px-4 py-3">Pembayaran</th><th class="px-4 py-3">Status</th><th class="px-4 py-3">Waktu</th><th class="px-4 py-3"></th>
+              <th class="px-4 py-3">Kode pesanan</th><th class="px-4 py-3">Pembeli</th><th class="px-4 py-3">Item</th><th class="px-4 py-3">Total</th><th class="px-4 py-3">Metode</th><th class="px-4 py-3">Pembayaran</th><th class="px-4 py-3">Status</th><th class="px-4 py-3">Waktu</th><th class="px-4 py-3"></th>
             </tr></thead>
-            <tbody id="ordersTableBody" class="divide-y divide-slate-100"><tr><td colspan="8" class="px-4 py-10 text-center text-slate-500">Memuat pesanan...</td></tr></tbody>
+            <tbody id="ordersTableBody" class="divide-y divide-slate-100"><tr><td colspan="9" class="px-4 py-10 text-center text-slate-500">Memuat pesanan...</td></tr></tbody>
           </table>
         </div>
       </section>
@@ -106,10 +107,12 @@
 
     const statusText = {
       awaiting_payment: 'Menunggu pembayaran', paid: 'Dibayar', processing: 'Diproses', shipped: 'Dikirim',
-      completed: 'Selesai', cancelled: 'Dibatalkan', expired: 'Kedaluwarsa', payment_failed: 'Pembayaran gagal'
+      awaiting_confirmation: 'Menunggu konfirmasi', completed: 'Selesai', cancelled: 'Dibatalkan',
+      expired: 'Kedaluwarsa', payment_failed: 'Pembayaran gagal'
     };
     const statusClass = {
       awaiting_payment: 'bg-amber-100 text-amber-800', paid: 'bg-blue-100 text-blue-800',
+      awaiting_confirmation: 'bg-orange-100 text-orange-800',
       processing: 'bg-indigo-100 text-indigo-800', shipped: 'bg-cyan-100 text-cyan-800',
       completed: 'bg-emerald-100 text-emerald-800', cancelled: 'bg-slate-100 text-slate-700',
       expired: 'bg-rose-100 text-rose-800', payment_failed: 'bg-rose-100 text-rose-800'
@@ -128,6 +131,7 @@
     }
     function phoneForWhatsApp(value) {
       let digits = String(value || '').replace(/\D/g, '');
+      if (!digits) return '';
       if (digits.startsWith('0')) digits = `62${digits.slice(1)}`;
       else if (!digits.startsWith('62')) digits = `62${digits}`;
       return digits;
@@ -157,7 +161,7 @@
       });
 
       const awaiting = orders.filter((order) => order.status === 'awaiting_payment').length;
-      const processing = orders.filter((order) => order.status === 'paid' || order.status === 'processing').length;
+      const processing = orders.filter((order) => ['awaiting_confirmation', 'paid', 'processing'].includes(order.status)).length;
       const shipped = orders.filter((order) => order.status === 'shipped').length;
       const completed = orders.filter((order) => order.status === 'completed').length;
       const closed = orders.filter((order) => ['cancelled', 'expired', 'payment_failed'].includes(order.status)).length;
@@ -170,7 +174,7 @@
       document.getElementById('statRevenue').textContent = money(revenue);
 
       if (!filtered.length) {
-        body.innerHTML = '<tr><td colspan="8" class="px-4 py-10 text-center text-slate-500">Belum ada pesanan yang cocok.</td></tr>';
+        body.innerHTML = '<tr><td colspan="9" class="px-4 py-10 text-center text-slate-500">Belum ada pesanan yang cocok.</td></tr>';
         return;
       }
       body.innerHTML = filtered.map((order) => {
@@ -181,7 +185,8 @@
           <td class="px-4 py-3"><strong>${escapeHtml(order.buyerName || 'Pembeli')}</strong><p class="text-xs text-slate-500">${escapeHtml(order.buyerPhone || '')}</p></td>
           <td class="px-4 py-3">${itemSummary}</td>
           <td class="px-4 py-3 font-semibold">${money(order.totalAmount)}</td>
-          <td class="px-4 py-3">${escapeHtml(order.paymentStatus || 'UNPAID')}</td>
+          <td class="px-4 py-3">${escapeHtml(order.paymentMethod === 'COD' ? 'COD' : 'DOKU')}</td>
+          <td class="px-4 py-3">${escapeHtml(order.paymentStatus === 'COD_PENDING' ? 'COD (belum dibayar)' : order.paymentStatus || 'UNPAID')}</td>
           <td class="px-4 py-3"><span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${badge}">${escapeHtml(statusText[order.status] || order.status || '—')}</span></td>
           <td class="px-4 py-3 whitespace-nowrap">${escapeHtml(formatDate(order.createdAt))}</td>
           <td class="px-4 py-3"><button type="button" data-open-order="${escapeHtml(order.id)}" class="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold hover:bg-slate-50">Detail</button></td>
@@ -200,9 +205,9 @@
         return image ? `<img src="${escapeHtml(image)}" alt="${escapeHtml(item.name || 'Foto produk')}" />` : '<span class="grid h-14 w-14 place-items-center rounded-lg bg-slate-100 font-bold text-pink-700">G</span>';
       };
       document.getElementById('detailItems').innerHTML = (order.items || []).map((item) => `<article class="order-line flex items-center gap-3 border-b border-slate-100 pb-3"><div>${imageForItem(item)}</div><div class="min-w-0 flex-1"><strong>${escapeHtml(item.name || 'Produk')}</strong><p class="text-xs text-slate-500">${money(item.unitPrice)} × ${Math.max(0, Number(item.qty) || 0)}</p></div><strong>${money(item.subtotal)}</strong></article>`).join('') || '<p class="text-sm text-slate-500">Rincian item tidak tersedia.</p>';
-      document.getElementById('detailTotals').innerHTML = `<div class="flex justify-between py-1"><span>Subtotal</span><strong>${money(order.subtotal)}</strong></div><div class="flex justify-between py-1"><span>Ongkos kirim</span><strong>${money(order.shippingFee)}</strong></div><div class="flex justify-between border-t border-slate-200 pt-2 text-base"><span>Total</span><strong>${money(order.totalAmount)}</strong></div>`;
+      document.getElementById('detailTotals').innerHTML = `<div class="flex justify-between py-1"><span>Metode</span><strong>${escapeHtml(order.paymentMethod === 'COD' ? 'COD (Bayar di Tempat)' : 'DOKU')}</strong></div><div class="flex justify-between py-1"><span>Subtotal</span><strong>${money(order.subtotal)}</strong></div><div class="flex justify-between py-1"><span>Ongkos kirim</span><strong>${money(order.shippingFee)}</strong></div>${Number(order.codFee) ? `<div class="flex justify-between py-1"><span>Biaya COD</span><strong>${money(order.codFee)}</strong></div>` : ''}<div class="flex justify-between border-t border-slate-200 pt-2 text-base"><span>Total</span><strong>${money(order.totalAmount)}</strong></div>`;
       const shipping = order.shippingAddress || {};
-      document.getElementById('detailShipping').innerHTML = `<p><strong>${escapeHtml(shipping.recipientName || '—')}</strong></p><p>${escapeHtml(shipping.phone || '—')}</p><p>${escapeHtml(shipping.address || 'Alamat belum tersedia')}${shipping.city ? `, ${escapeHtml(shipping.city)}` : ''}${shipping.province ? `, ${escapeHtml(shipping.province)}` : ''}${shipping.postalCode ? ` ${escapeHtml(shipping.postalCode)}` : ''}</p>${shipping.note ? `<p><strong>Catatan kurir:</strong> ${escapeHtml(shipping.note)}</p>` : ''}${shipping.latitude !== undefined && shipping.latitude !== '' ? `<p>Koordinat: ${Number(shipping.latitude).toFixed(6)}, ${Number(shipping.longitude).toFixed(6)}</p>` : ''}`;
+      document.getElementById('detailShipping').innerHTML = `<p><strong>${escapeHtml(shipping.recipientName || '—')}</strong></p><p>${escapeHtml(shipping.phone || '—')}</p><p>${escapeHtml(shipping.address || 'Alamat belum tersedia')}${shipping.village ? `, Kel./Desa ${escapeHtml(shipping.village)}` : ''}${shipping.district ? `, Kec. ${escapeHtml(shipping.district)}` : ''}${shipping.city ? `, ${escapeHtml(shipping.city)}` : ''}${shipping.province ? `, ${escapeHtml(shipping.province)}` : ''}${shipping.postalCode ? `, ${escapeHtml(shipping.postalCode)}` : ''}</p>${shipping.note ? `<p><strong>Catatan kurir:</strong> ${escapeHtml(shipping.note)}</p>` : ''}${shipping.latitude !== undefined && shipping.latitude !== '' ? `<p>Koordinat: ${Number(shipping.latitude).toFixed(6)}, ${Number(shipping.longitude).toFixed(6)}</p>` : ''}`;
       const detailMap = document.getElementById('detailMap');
       const detailActions = document.getElementById('detailShippingActions');
       const latitude = Number(shipping.latitude);
@@ -214,7 +219,7 @@
         const routeUrl = `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}`;
         detailActions.innerHTML = `<a class="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold" target="_blank" rel="noopener noreferrer" href="${mapUrl}">Buka di Google Maps</a><a class="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold" target="_blank" rel="noopener noreferrer" href="${routeUrl}">Rute ke lokasi</a><button type="button" id="copyShippingAddress" class="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold">Salin alamat</button>${shipping.phone ? `<a class="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-800" target="_blank" rel="noopener noreferrer" href="https://wa.me/${phoneForWhatsApp(shipping.phone)}">WhatsApp</a>` : ''}`;
         detailActions.querySelector('#copyShippingAddress')?.addEventListener('click', async () => {
-          const text = `${shipping.recipientName || ''}\n${shipping.phone || ''}\n${shipping.address || ''}${shipping.city ? `, ${shipping.city}` : ''}${shipping.province ? `, ${shipping.province}` : ''} ${shipping.postalCode || ''}\n${shipping.note || ''}\n${latitude}, ${longitude}\n${mapUrl}`;
+          const text = `${shipping.recipientName || ''}\n${shipping.phone || ''}\n${shipping.address || ''}${shipping.village ? `, Kel./Desa ${shipping.village}` : ''}${shipping.district ? `, Kec. ${shipping.district}` : ''}${shipping.city ? `, ${shipping.city}` : ''}${shipping.province ? `, ${shipping.province}` : ''} ${shipping.postalCode || ''}\n${shipping.note || ''}\n${latitude}, ${longitude}\n${mapUrl}`;
           try { await navigator.clipboard.writeText(text); pageStatus.textContent = 'Alamat dan koordinat disalin.'; } catch (error) { pageStatus.textContent = 'Gagal menyalin; salin alamat dari detail pesanan.'; }
         });
       } else {
@@ -235,8 +240,9 @@
       const shipmentFields = document.getElementById('shipmentFields');
       const returnStockLabel = document.getElementById('returnStockLabel');
       const status = order.status;
+      const isCod = order.paymentMethod === 'COD';
       shipmentFields.classList.toggle('hidden', status !== 'processing');
-      returnStockLabel.classList.toggle('hidden', !(order.paymentStatus === 'PAID' && !['cancelled', 'completed'].includes(status)));
+      returnStockLabel.classList.toggle('hidden', isCod || !(order.paymentStatus === 'PAID' && !['cancelled', 'completed'].includes(status)));
       actions.innerHTML = '';
       const addAction = (label, nextStatus, extra = {}) => {
         const button = document.createElement('button');
@@ -246,18 +252,39 @@
         button.addEventListener('click', () => updateStatus(nextStatus, extra));
         actions.appendChild(button);
       };
+      if (isCod && status === 'awaiting_confirmation') {
+        addAction('Konfirmasi pesanan COD', 'processing');
+        const phone = phoneForWhatsApp(order.buyerPhone || order.shippingAddress?.phone);
+        if (phone) {
+          const whatsapp = document.createElement('a');
+          whatsapp.href = `https://wa.me/${phone}`;
+          whatsapp.target = '_blank';
+          whatsapp.rel = 'noopener noreferrer';
+          whatsapp.className = 'rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-semibold text-emerald-800';
+          whatsapp.textContent = 'WhatsApp pembeli';
+          actions.appendChild(whatsapp);
+        }
+      }
       if (status === 'paid') addAction('Proses pesanan', 'processing');
       if (status === 'processing') addAction('Tandai dikirim', 'shipped', { shipment: true });
-      if (status === 'shipped') addAction('Tandai selesai', 'completed');
-      if (['awaiting_payment', 'paid', 'processing', 'shipped'].includes(status)) {
+      if (status === 'shipped') addAction(isCod ? 'Tandai selesai & uang COD diterima' : 'Tandai selesai', 'completed', isCod ? { confirmMessage: 'Pastikan uang tunai COD sudah diterima. Tandai pesanan selesai?' } : {});
+      if ((!isCod && ['awaiting_payment', 'paid', 'processing', 'shipped'].includes(status)) || (isCod && ['awaiting_confirmation', 'processing', 'shipped'].includes(status))) {
         const cancel = document.createElement('button');
         cancel.type = 'button';
         cancel.className = 'rounded-lg border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-semibold text-rose-700';
-        cancel.textContent = 'Batalkan pesanan';
+        cancel.textContent = isCod ? 'Batalkan' : 'Batalkan pesanan';
         cancel.addEventListener('click', () => updateStatus('cancelled', { cancellation: true }));
         actions.appendChild(cancel);
       }
-      if (order.paymentStatus === 'PAID' && !['completed', 'cancelled'].includes(status)) {
+      if (isCod && ['awaiting_confirmation', 'processing'].includes(status)) {
+        const failed = document.createElement('button');
+        failed.type = 'button';
+        failed.className = 'rounded-lg border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-semibold text-rose-700';
+        failed.textContent = 'COD gagal (pembeli menolak / tidak bisa dihubungi)';
+        failed.addEventListener('click', () => updateStatus('cancelled', { cancellation: true, codFailed: true }));
+        actions.appendChild(failed);
+      }
+      if ((order.paymentStatus === 'PAID' || isCod && ['processing', 'shipped'].includes(status)) && !['completed', 'cancelled'].includes(status)) {
         const printButton = document.createElement('button');
         printButton.type = 'button';
         printButton.className = 'rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-semibold';
@@ -269,19 +296,31 @@
 
     async function updateStatus(status, options = {}) {
       if (!activeOrder) return;
+      const isCod = activeOrder.paymentMethod === 'COD';
+      if (options.confirmMessage && !window.confirm(options.confirmMessage)) return;
       const payload = { orderId: activeOrder.id, status };
       if (status === 'shipped') {
         payload.courier = document.getElementById('courierInput').value.trim();
         payload.trackingNumber = document.getElementById('trackingInput').value.trim();
-        if (!payload.courier || !payload.trackingNumber) {
+        if (!isCod && (!payload.courier || !payload.trackingNumber)) {
           document.getElementById('actionError').textContent = 'Isi nama kurir dan nomor resi.';
           return;
         }
       }
       if (options.cancellation) {
-        if (!window.confirm('Batalkan pesanan ini? Pesanan yang sudah dibayar mungkin memerlukan refund manual DOKU.')) return;
-        payload.returnStock = document.getElementById('returnStockInput').checked;
-        payload.note = payload.returnStock ? 'Admin mengembalikan stok; refund dibayar manual melalui dashboard DOKU.' : 'Dibatalkan oleh admin.';
+        const prompt = options.codFailed
+          ? 'Catat COD gagal dan batalkan pesanan ini? Kegagalan ini akan dihitung ke batas COD pembeli.'
+          : isCod
+            ? 'Batalkan pesanan COD ini? Stok akan dikembalikan.'
+            : 'Batalkan pesanan ini? Pesanan yang sudah dibayar mungkin memerlukan refund manual DOKU.';
+        if (!window.confirm(prompt)) return;
+        if (!isCod) payload.returnStock = document.getElementById('returnStockInput').checked;
+        if (options.codFailed) payload.codFailed = true;
+        payload.note = options.codFailed
+          ? 'COD gagal: pembeli menolak atau tidak dapat dihubungi.'
+          : payload.returnStock
+            ? 'Admin mengembalikan stok; refund dibayar manual melalui dashboard DOKU.'
+            : 'Dibatalkan oleh admin.';
       }
       document.getElementById('actionError').textContent = '';
       try {
@@ -298,7 +337,8 @@
       const map = Number.isFinite(Number(shipping.latitude)) && Number.isFinite(Number(shipping.longitude))
         ? `https://www.google.com/maps/search/?api=1&query=${Number(shipping.latitude)},${Number(shipping.longitude)}` : '';
       const items = (order.items || []).map((item) => `${escapeHtml(item.name || 'Produk')} × ${Number(item.qty) || 0}`).join('<br>');
-      const label = `<main style="font:16px Arial,sans-serif;max-width:760px;margin:0 auto;padding:28px"><h1>Label Pengiriman</h1><p><b>Kode pesanan:</b> ${escapeHtml(order.orderCode || order.id)}</p><hr><h2>Penerima</h2><p><b>${escapeHtml(shipping.recipientName || order.buyerName || '')}</b><br>${escapeHtml(shipping.phone || order.buyerPhone || '')}<br>${escapeHtml(shipping.address || '')}${shipping.city ? `, ${escapeHtml(shipping.city)}` : ''}${shipping.province ? `, ${escapeHtml(shipping.province)}` : ''} ${escapeHtml(shipping.postalCode || '')}<br>${escapeHtml(shipping.note || '')}</p><h2>Isi paket</h2><p>${items}</p><p>${map ? `<a href="${map}">${map}</a>` : ''}</p><p><b>Pengirim:</b> Marketplace Mantan</p></main>`;
+      const codTag = order.paymentMethod === 'COD' ? `<h2 style="font-size:28px;border:3px solid #111;padding:12px;text-align:center;">COD - TAGIH TUNAI: ${money(order.totalAmount)}</h2>` : '';
+      const label = `<main style="font:16px Arial,sans-serif;max-width:760px;margin:0 auto;padding:28px"><h1>Label Pengiriman</h1><p><b>Kode pesanan:</b> ${escapeHtml(order.orderCode || order.id)}</p>${codTag}<hr><h2>Penerima</h2><p><b>${escapeHtml(shipping.recipientName || order.buyerName || '')}</b><br>${escapeHtml(shipping.phone || order.buyerPhone || '')}<br>${escapeHtml(shipping.address || '')}${shipping.village ? `, Kel./Desa ${escapeHtml(shipping.village)}` : ''}${shipping.district ? `, Kec. ${escapeHtml(shipping.district)}` : ''}${shipping.city ? `, ${escapeHtml(shipping.city)}` : ''}${shipping.province ? `, ${escapeHtml(shipping.province)}` : ''} ${escapeHtml(shipping.postalCode || '')}<br>${escapeHtml(shipping.note || '')}</p><h2>Isi paket</h2><p>${items}</p><p>${map ? `<a href="${map}">${map}</a>` : ''}</p><p><b>Pengirim:</b> Marketplace Mantan</p></main>`;
       const printWindow = window.open('', '_blank', 'width=800,height=700');
       if (!printWindow) {
         pageStatus.textContent = 'Popup label diblokir browser. Izinkan popup lalu coba lagi.';
@@ -357,5 +397,5 @@
     dialog.addEventListener('click', (event) => { if (event.target === dialog) dialog.close(); });
     boot();
   </script>
-+</body>
-+</html>
+</body>
+</html>

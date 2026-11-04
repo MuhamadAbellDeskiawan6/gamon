@@ -2261,10 +2261,10 @@ function createCheckoutOverlay() {
         <p data-co-sub>Mohon tunggu sebentar, kami sedang memproses pesanan Anda.</p>
         <div class="checkout-progress" aria-hidden="true"><span data-co-bar></span></div>
         <ul class="checkout-steps">
-          <li data-co-step><span class="dot"></span>Memeriksa stok barang</li>
-          <li data-co-step><span class="dot"></span>Membuat pesanan Anda</li>
-          <li data-co-step><span class="dot"></span>Menghubungkan ke DOKU</li>
-          <li data-co-step><span class="dot"></span>Mengalihkan ke halaman pembayaran</li>
+          <li data-co-step><span class="dot"></span><span class="co-label">Memeriksa stok barang</span></li>
+          <li data-co-step><span class="dot"></span><span class="co-label">Membuat pesanan Anda</span></li>
+          <li data-co-step><span class="dot"></span><span class="co-label">Menghubungkan ke DOKU</span></li>
+          <li data-co-step><span class="dot"></span><span class="co-label">Mengalihkan ke halaman pembayaran</span></li>
         </ul>
         <p class="checkout-note">Jangan tutup atau refresh halaman ini.</p>
       </div>
@@ -2283,34 +2283,50 @@ function createCheckoutOverlay() {
     timers = [];
   };
 
+  let activeItems = items;
+  let activeMode = 'DOKU';
+
   const setStep = (index) => {
-    items.forEach((item, itemIndex) => {
+    activeItems.forEach((item, itemIndex) => {
       const done = itemIndex < index;
       item.classList.toggle('done', done);
       item.classList.toggle('active', itemIndex === index);
       const dot = item.querySelector('.dot');
       if (dot) dot.textContent = done ? '✓' : '';
     });
-    bar.style.width = `${Math.round(((index + 0.5) / items.length) * 100)}%`;
+    bar.style.width = `${Math.round(((index + 0.5) / activeItems.length) * 100)}%`;
   };
 
   return {
-    show() {
+    show(mode = 'DOKU') {
       clearTimers();
-      title.textContent = 'Menyiapkan pembayaran';
+      activeMode = mode;
+      activeItems = mode === 'COD' ? items.slice(0, 3) : items;
+      items.forEach((item, index) => {
+        item.hidden = index >= activeItems.length;
+      });
+      if (mode === 'COD') {
+        ['Memeriksa stok', 'Membuat pesanan', 'Mengirim ke admin'].forEach((label, index) => {
+          activeItems[index].querySelector('.co-label').textContent = label;
+        });
+      } else {
+        ['Memeriksa stok barang', 'Membuat pesanan Anda', 'Menghubungkan ke DOKU', 'Mengalihkan ke halaman pembayaran'].forEach((label, index) => {
+          activeItems[index].querySelector('.co-label').textContent = label;
+        });
+      }
+      title.textContent = mode === 'COD' ? 'Membuat pesanan COD' : 'Menyiapkan pembayaran';
       sub.textContent = 'Mohon tunggu sebentar, kami sedang memproses pesanan Anda.';
       setStep(0);
       root.classList.add('show');
       document.body.style.overflow = 'hidden';
-      // Server memproses dalam satu panggilan; langkah dimajukan agar user melihat progres.
       timers.push(setTimeout(() => setStep(1), 1400));
       timers.push(setTimeout(() => setStep(2), 3200));
     },
     finish() {
       clearTimers();
-      title.textContent = 'Mengalihkan ke DOKU...';
-      sub.textContent = 'Pesanan siap. Anda akan dibawa ke halaman pembayaran.';
-      setStep(3);
+      title.textContent = activeMode === 'COD' ? 'Pesanan COD dibuat' : 'Mengalihkan ke DOKU...';
+      sub.textContent = activeMode === 'COD' ? 'Anda akan diarahkan ke detail pesanan.' : 'Pesanan siap. Anda akan dibawa ke halaman pembayaran.';
+      setStep(activeItems.length - 1);
       bar.style.width = '96%';
     },
     hide() {
@@ -2350,7 +2366,13 @@ async function renderCartPage() {
     console.error('[marketplace] gagal memuat alamat profil untuk keranjang:', profileResult.reason);
   }
 
-    const shipping = getShippingAddressFromUser(profile);
+  const shipping = getShippingAddressFromUser(profile);
+  let codEligibility = null;
+  try {
+    codEligibility = await callMarketplaceApi('cod-eligibility');
+  } catch (error) {
+    console.warn('[marketplace] ketersediaan COD tidak dapat dimuat:', error.code || error.message);
+  }
   const cartSummary = document.querySelector('[data-cart-shipping]');
   if (cartSummary) {
     const profileUrl = getProfileUrlWithReturn('keranjang.html');
@@ -2371,8 +2393,44 @@ async function renderCartPage() {
   let renderSequence = 0;
   let checkoutInFlight = false;
   let lastSync = { addressComplete: shipping.complete, hasInvalidItems: true };
+  let lastCartSubtotal = 0;
   let lastSyncAt = Date.now();
   const checkoutOverlay = createCheckoutOverlay();
+
+  const paymentRadios = [...document.querySelectorAll('input[name="paymentMethod"]')];
+  const codRadio = paymentRadios.find((radio) => radio.value === 'COD');
+  const codReason = document.querySelector('[data-cod-reason]');
+  const checkoutHint = document.querySelector('[data-checkout-hint]');
+  const selectedPaymentMethod = () => paymentRadios.find((radio) => radio.checked)?.value || 'DOKU';
+
+  function updateCodOption() {
+    const codAreaValid = shipping.complete && Boolean(KALSEL_REGIONS[shipping.city]) &&
+      Boolean(shipping.district.trim()) && !shipping.outsideKalsel;
+    const activeLimitReached = Boolean(codEligibility && codEligibility.activeCount >= codEligibility.maxActive);
+    const estimate = lastCartSubtotal + Number(codEligibility?.shippingFee || 0) + Number(codEligibility?.fee || 0);
+    let reason = '';
+    if (!codEligibility) reason = 'COD tidak tersedia saat ini.';
+    else if (codEligibility.blocked) reason = codEligibility.reason || 'COD sementara dibatasi.';
+    else if (activeLimitReached) reason = codEligibility.reason || 'Selesaikan pesanan COD aktif terlebih dahulu.';
+    else if (!codAreaValid) reason = shipping.outsideKalsel ? 'COD hanya tersedia di wilayah Kalimantan Selatan.' : 'Lengkapi alamat, kecamatan, dan titik peta di Profil.';
+    else if (estimate > Number(codEligibility.maxAmount)) reason = `Total melebihi batas COD ${formatCurrency(codEligibility.maxAmount)}.`;
+    if (codRadio) {
+      codRadio.disabled = Boolean(reason);
+      if (reason && codRadio.checked) paymentRadios.find((radio) => radio.value === 'DOKU').checked = true;
+    }
+    if (codReason) codReason.textContent = reason || `Biaya COD ${formatCurrency(codEligibility?.fee || 0)}.`;
+    return !reason;
+  }
+
+  function updateCartTotal() {
+    const totalEl = document.querySelector('[data-cart-total]');
+    if (!totalEl) return;
+    const isCod = selectedPaymentMethod() === 'COD';
+    const amount = lastCartSubtotal + (isCod
+      ? Number(codEligibility?.shippingFee || 0) + Number(codEligibility?.fee || 0)
+      : 0);
+    totalEl.textContent = formatCurrency(amount);
+  }
 
   const showCartError = (message) => {
     const errorEl = document.querySelector('[data-cart-error]');
@@ -2384,10 +2442,16 @@ async function renderCartPage() {
     lastSync = { addressComplete, hasInvalidItems };
     const button = document.querySelector('[data-checkout]');
     if (!button || checkoutInFlight) return;
-    button.disabled = !addressComplete || hasInvalidItems;
+    const isCod = selectedPaymentMethod() === 'COD';
+    const codAvailable = updateCodOption();
+    button.disabled = !addressComplete || hasInvalidItems || (isCod && !codAvailable);
     button.removeAttribute('aria-busy');
-    button.textContent = 'Bayar dengan DOKU';
-    button.title = !addressComplete ? 'Lengkapi alamat pengiriman di Profil.' : hasInvalidItems ? 'Hapus barang habis atau periksa stok.' : '';
+    button.textContent = isCod ? 'Pesan (Bayar di Tempat)' : 'Bayar dengan DOKU';
+    button.title = !addressComplete ? 'Lengkapi alamat pengiriman di Profil.' : hasInvalidItems ? 'Hapus barang habis atau periksa stok.' : isCod && !codAvailable ? codReason?.textContent || 'COD tidak tersedia.' : '';
+    if (checkoutHint) checkoutHint.textContent = isCod
+      ? 'Siapkan uang pas. Admin akan menghubungi lewat WhatsApp untuk konfirmasi.'
+      : 'Pembayaran aman diproses melalui halaman resmi DOKU.';
+    updateCartTotal();
   }
 
   // Kembalikan seluruh UI checkout ke kondisi normal (gagal, timeout, atau kembali dari DOKU).
@@ -2404,6 +2468,8 @@ async function renderCartPage() {
       container.innerHTML = '<div class="commerce-empty">Keranjang masih kosong. <a href="beli.html">Lihat katalog</a></div>';
       const totalEl = document.querySelector('[data-cart-total]');
       if (totalEl) totalEl.textContent = formatCurrency(0);
+      lastCartSubtotal = 0;
+      updateCodOption();
       showCartError('');
       syncCheckoutButton(shipping.complete, true);
       return;
@@ -2468,8 +2534,15 @@ async function renderCartPage() {
 
     const totalEl = document.querySelector('[data-cart-total]');
     if (totalEl) totalEl.textContent = formatCurrency(total);
+    lastCartSubtotal = total;
     syncCheckoutButton(shipping.complete, !resolved.length || hasUnavailable);
   };
+
+  paymentRadios.forEach((radio) => radio.addEventListener('change', () => {
+    updateCodOption();
+    syncCheckoutButton(lastSync.addressComplete, lastSync.hasInvalidItems);
+  }));
+  updateCodOption();
 
   container.addEventListener('click', async (event) => {
     if (checkoutInFlight) return;
@@ -2504,19 +2577,25 @@ async function renderCartPage() {
   checkoutButton?.addEventListener('click', async () => {
     if (checkoutInFlight || checkoutButton.disabled) return;
 
+    const paymentMethod = selectedPaymentMethod();
     checkoutInFlight = true;
     showCartError('');
     checkoutButton.disabled = true;
     checkoutButton.setAttribute('aria-busy', 'true');
     checkoutButton.innerHTML = '<span class="co-btn-spinner" aria-hidden="true"></span>Memproses...';
-    checkoutOverlay.show();
+    checkoutOverlay.show(paymentMethod);
 
     try {
       const result = await withTimeout(
-        callMarketplaceApi('checkout', { shippingAddress: shipping }),
+        callMarketplaceApi('checkout', { shippingAddress: shipping, paymentMethod }),
         60000,
         'Checkout'
       );
+      if (paymentMethod === 'COD') {
+        checkoutOverlay.finish();
+        window.location.href = `pesanan.html?orderId=${encodeURIComponent(result.orderId)}`;
+        return;
+      }
       if (!result.paymentUrl || !/^https:\/\//i.test(result.paymentUrl)) {
         throw new Error('DOKU tidak mengembalikan link pembayaran HTTPS.');
       }
@@ -2530,7 +2609,15 @@ async function renderCartPage() {
     } catch (error) {
       console.error('[marketplace] checkout gagal:', error);
       const stockIssues = Array.isArray(error.details) ? error.details.map((item) => `${item.name || 'Produk'}: stok ${item.stock ?? 0}`).join(' · ') : '';
-      showCartError(`Checkout gagal (${error.code || 'unknown'}): ${error.message}${stockIssues ? ` ${stockIssues}` : ''}`);
+      const codMessages = {
+        'cod-not-available-area': 'COD hanya tersedia untuk alamat lengkap di wilayah Kalimantan Selatan.',
+        'cod-invalid-phone': 'Nomor HP penerima belum valid. Periksa kembali nomor di Profil.',
+        'cod-amount-exceeded': 'Total pesanan melebihi batas pembayaran COD.',
+        'cod-too-many-active': 'Selesaikan atau batalkan pesanan COD aktif terlebih dahulu.',
+        'cod-blocked': 'COD sementara tidak tersedia untuk akun Anda. Silakan pilih DOKU.'
+      };
+      const friendlyMessage = codMessages[error.code] || error.message;
+      showCartError(`Checkout gagal (${error.code || 'unknown'}): ${friendlyMessage}${stockIssues ? ` ${stockIssues}` : ''}`);
       resetCheckoutUi();
     }
   });
@@ -3108,7 +3195,7 @@ async function renderDashboard() {
   if (productsResult.status === 'fulfilled') cacheMarketplaceProducts(products);
   const normalizedProducts = normalizeMarketplaceProducts(products)
     .sort((a, b) => getCreatedAtMs(b.createdAt) - getCreatedAtMs(a.createdAt));
-  const awaitingPaymentOrders = orders.filter((order) => String(order.status || '').toLowerCase() === 'awaiting_payment');
+  const awaitingPaymentOrders = orders.filter((order) => ['awaiting_payment', 'awaiting_confirmation'].includes(String(order.status || '').toLowerCase()));
   const activeOrders = orders.filter((order) => ['paid', 'processing', 'shipped'].includes(String(order.status || '').toLowerCase()));
   const completedOrders = orders.filter((order) => String(order.status || '').toLowerCase() === 'completed');
   const unreadMessages = chatDocs.reduce((total, threadDoc) => total + Math.max(0, Number(threadDoc.data().unreadForUser || 0)), 0);
@@ -3204,6 +3291,7 @@ async function renderOrdersForBuyer() {
 
   const statusLabels = {
     awaiting_payment: ['Menunggu Pembayaran', 'bg-amber-100 text-amber-800'],
+    awaiting_confirmation: ['Menunggu Konfirmasi', 'bg-orange-100 text-orange-800'],
     paid: ['Dibayar', 'bg-blue-100 text-blue-800'],
     processing: ['Diproses', 'bg-indigo-100 text-indigo-800'],
     shipped: ['Dikirim', 'bg-cyan-100 text-cyan-800'],
@@ -3278,7 +3366,10 @@ async function renderOrdersForBuyer() {
     }));
 
     container.querySelectorAll('[data-cancel-order]').forEach((button) => button.addEventListener('click', async () => {
-      if (!window.confirm('Batalkan pesanan ini dan lepaskan stok yang dicadangkan?')) return;
+      const confirmMessage = button.dataset.cancelMethod === 'COD'
+        ? 'Batalkan pesanan COD ini? Stok akan dikembalikan.'
+        : 'Batalkan pesanan ini dan lepaskan stok yang dicadangkan?';
+      if (!window.confirm(confirmMessage)) return;
       button.disabled = true;
       try {
         await callMarketplaceApi('cancel-order', { orderId: button.dataset.cancelOrder });
@@ -3322,6 +3413,25 @@ async function renderOrdersForBuyer() {
   function getBanner(order) {
     const status = order.status;
     const paid = order.paymentStatus === 'PAID';
+    const isCod = order.paymentMethod === 'COD';
+    if (isCod && status === 'awaiting_confirmation') {
+      return { tone: 'pending', icon: 'schedule', title: 'Menunggu konfirmasi admin', text: `Pesanan COD diterima. Admin akan mengonfirmasi lewat WhatsApp. Siapkan uang tunai sebesar ${formatCurrency(order.totalAmount || 0)}.` };
+    }
+    if (isCod && status === 'processing') {
+      return { tone: 'info', icon: 'inventory_2', title: 'Pesanan sedang diproses', text: 'Admin sedang menyiapkan pesanan. Pembayaran tunai dilakukan saat barang sampai.' };
+    }
+    if (isCod && status === 'shipped') {
+      return { tone: 'info', icon: 'local_shipping', title: 'Pesanan diantar', text: 'Bayar tunai ke kurir saat barang sampai. Admin akan menandai pesanan selesai setelah uang diterima.' };
+    }
+    if (isCod && status === 'completed') {
+      return { tone: 'success', icon: 'task_alt', title: 'Pesanan selesai', text: 'Pembayaran tunai diterima, pesanan selesai.' };
+    }
+    if (isCod && status === 'cancelled') {
+      return { tone: 'neutral', icon: 'cancel', title: 'Pesanan dibatalkan', text: 'Pesanan COD dibatalkan dan stok telah dikembalikan.' };
+    }
+    if (isCod && status === 'expired') {
+      return { tone: 'danger', icon: 'timer_off', title: 'Konfirmasi COD kedaluwarsa', text: 'Admin tidak mengonfirmasi pesanan dalam 24 jam. Stok telah dilepas.' };
+    }
     if (status === 'awaiting_payment') {
       return { tone: 'pending', icon: 'schedule', title: 'Menunggu pembayaran', text: 'Kami sedang memeriksa pembayaran Anda. Jika sudah membayar, halaman ini akan diperbarui otomatis.' };
     }
@@ -3488,7 +3598,12 @@ async function renderOrdersForBuyer() {
         }).join('')}</ol>`
       : '<p class="muted">Belum ada riwayat status.</p>';
 
-    const paymentLabel = order.paymentStatus === 'PAID' ? 'Lunas' : order.paymentStatus === 'EXPIRED' ? 'Kedaluwarsa' : order.paymentStatus === 'FAILED' ? 'Gagal' : 'Belum dibayar';
+    const isCod = order.paymentMethod === 'COD';
+    const paymentLabel = isCod
+      ? order.paymentStatus === 'PAID' ? 'Lunas (tunai)' : order.paymentStatus === 'COD_PENDING' ? 'Bayar saat barang sampai' : 'Belum dibayar'
+      : order.paymentStatus === 'PAID' ? 'Lunas' : order.paymentStatus === 'EXPIRED' ? 'Kedaluwarsa' : order.paymentStatus === 'FAILED' ? 'Gagal' : 'Belum dibayar';
+    const methodLabel = isCod ? 'COD (Bayar di Tempat)' : 'DOKU';
+    const canCancelCod = isCod && ['awaiting_confirmation', 'processing'].includes(order.status);
 
     container.innerHTML = `
       <div class="order-banner tone-${banner.tone}" role="status">
@@ -3516,6 +3631,7 @@ async function renderOrdersForBuyer() {
             <div style="margin-top:10px;">
               <div class="order-sum-row"><span>Subtotal</span><span>${formatCurrency(order.subtotal || 0)}</span></div>
               <div class="order-sum-row"><span>Ongkos kirim</span><span>${formatCurrency(order.shippingFee || 0)}</span></div>
+              ${Number(order.codFee) ? `<div class="order-sum-row"><span>Biaya COD</span><span>${formatCurrency(order.codFee)}</span></div>` : ''}
                             <div class="order-sum-row is-total"><span>Total</span><span>${formatCurrency(order.totalAmount || 0)}</span></div>
             </div>
           </section>
@@ -3532,7 +3648,7 @@ async function renderOrdersForBuyer() {
             <ul class="order-meta-list">
               <li><span>Status bayar</span><strong>${escapeHtml(paymentLabel)}</strong></li>
               ${order.paidAt ? `<li><span>Dibayar pada</span><strong>${escapeHtml(formatOrderDate(order.paidAt))}</strong></li>` : ''}
-              <li><span>Metode</span><strong>DOKU</strong></li>
+              <li><span>Metode</span><strong>${escapeHtml(methodLabel)}</strong></li>
             </ul>
           </section>
           <section class="order-detail-card">
@@ -3550,8 +3666,9 @@ async function renderOrdersForBuyer() {
       </div>
 
       <div class="order-detail-actions">
-              ${order.status === 'shipped' ? `<button class="btn btn-primary" type="button" data-confirm-received="${escapeHtml(order.id)}">Pesanan Diterima</button>` : ''}
+              ${order.status === 'shipped' && !isCod ? `<button class="btn btn-primary" type="button" data-confirm-received="${escapeHtml(order.id)}">Pesanan Diterima</button>` : ''}
         ${canPay ? `<button class="btn btn-primary" type="button" data-pay-order="${escapeHtml(order.id)}">Bayar Sekarang</button><button class="btn btn-secondary" type="button" data-cancel-order="${escapeHtml(order.id)}">Batalkan Pesanan</button>` : ''}
+        ${canCancelCod ? `<button class="btn btn-secondary" type="button" data-cancel-order="${escapeHtml(order.id)}" data-cancel-method="COD">Batalkan Pesanan</button>` : ''}
         <a class="btn btn-secondary" href="chat.html?orderId=${encodeURIComponent(order.id)}">Tanya Admin</a>
         <a class="btn btn-soft" href="pesanan.html">Lihat semua pesanan</a>
         <a class="btn btn-soft" href="beli.html">Lanjut belanja</a>
@@ -3610,9 +3727,10 @@ async function renderOrdersForBuyer() {
       (error) => console.error('[marketplace] gagal memuat ulasan pesanan:', error)
     );
 
-       // Setelah kembali dari DOKU, webhook bisa tiba beberapa detik kemudian.
-    // Tanya status ke DOKU beberapa kali sampai status berubah dari "menunggu".
+    // Setelah kembali dari DOKU, webhook bisa tiba beberapa detik kemudian.
     (async () => {
+      const initialSnapshot = await getDoc(orderRef);
+      if (initialSnapshot.exists() && initialSnapshot.data()?.paymentMethod === 'COD') return;
       for (let attempt = 0; attempt < 4 && !stopPaymentPolling; attempt += 1) {
         try {
           const result = await callMarketplaceApi('check-payment', { orderId: requestedOrderId });
@@ -3644,19 +3762,26 @@ async function renderOrdersForBuyer() {
       const point = getMapPoint(shipping);
       const mapUrl = point ? `https://www.google.com/maps/search/?api=1&query=${point.latitude},${point.longitude}` : '';
       const canPay = order.status === 'awaiting_payment' && Number(order.paymentExpiresAt || 0) > Date.now();
+      const isCod = order.paymentMethod === 'COD';
+      const paymentLabel = isCod
+        ? order.paymentStatus === 'PAID' ? 'Lunas (tunai)' : order.paymentStatus === 'COD_PENDING' ? 'Bayar saat barang sampai' : 'Belum dibayar'
+        : order.paymentStatus === 'PAID' ? 'Lunas' : 'Belum dibayar';
+      const canCancelCod = isCod && ['awaiting_confirmation', 'processing'].includes(order.status);
       const itemMarkup = items.map((item) => `<li>${escapeHtml(item.name || 'Produk')} × ${Math.max(1, Number(item.qty || 1))} <span>${formatCurrency(item.subtotal || 0)}</span></li>`).join('');
       return `<article class="commerce-panel commerce-order-card" data-order-id="${escapeHtml(order.id)}">
         <header class="commerce-order-header"><div><strong>${escapeHtml(order.orderCode || order.id)}</strong><p class="muted">${escapeHtml(formatOrderDate(order.createdAt))}</p></div><span class="commerce-status ${badgeClass}">${label}</span></header>
         <ul class="commerce-order-items">${itemMarkup}</ul>
         <div class="commerce-order-total"><span>Total</span><strong>${formatCurrency(order.totalAmount || 0)}</strong></div>
+        <p class="muted">Metode: ${escapeHtml(isCod ? 'COD (Bayar di Tempat)' : 'DOKU')} · ${escapeHtml(paymentLabel)}</p>
         ${canPay ? `<p class="commerce-payment-countdown" data-payment-countdown="${Number(order.paymentExpiresAt)}"></p>` : ''}
         <div class="commerce-order-shipping"><strong>Alamat pengiriman</strong><p>${escapeHtml(shipping.recipientName || '')} · ${escapeHtml(shipping.phone || '')}<br>${formatAddress(shipping)}${shipping.note ? `<br>Catatan: ${escapeHtml(shipping.note)}` : ''}</p>${mapUrl ? `<a href="${mapUrl}" target="_blank" rel="noopener noreferrer">Lihat di Google Maps</a>` : ''}</div>
         ${order.trackingNumber ? `<p class="commerce-tracking"><strong>${escapeHtml(order.courier || 'Kurir')}:</strong> ${escapeHtml(order.trackingNumber)}</p>` : ''}
                        <footer class="commerce-order-actions">
           <a class="btn btn-soft" href="pesanan.html?orderId=${encodeURIComponent(order.id)}">Lihat detail</a>
-          ${order.status === 'shipped' ? `<button class="btn btn-primary" type="button" data-confirm-received="${escapeHtml(order.id)}">Pesanan Diterima</button>` : ''}
+          ${order.status === 'shipped' && !isCod ? `<button class="btn btn-primary" type="button" data-confirm-received="${escapeHtml(order.id)}">Pesanan Diterima</button>` : ''}
           ${order.status === 'completed' ? `<a class="btn btn-primary" href="pesanan.html?orderId=${encodeURIComponent(order.id)}">Beri / lihat ulasan</a>` : ''}
           ${canPay ? `<button class="btn btn-primary" type="button" data-pay-order="${escapeHtml(order.id)}">Bayar Sekarang</button><button class="btn btn-secondary" type="button" data-cancel-order="${escapeHtml(order.id)}">Batalkan</button>` : ''}
+          ${canCancelCod ? `<button class="btn btn-secondary" type="button" data-cancel-order="${escapeHtml(order.id)}" data-cancel-method="COD">Batalkan Pesanan</button>` : ''}
           <a class="btn btn-secondary" href="chat.html?orderId=${encodeURIComponent(order.id)}">Tanya Admin</a>
         </footer>
       </article>`;
@@ -3685,7 +3810,7 @@ async function renderOrdersForBuyer() {
       // Pesanan "menunggu pembayaran" bisa saja sebenarnya sudah dibayar
       // (webhook terlambat). Cek ke DOKU lalu muat ulang bila statusnya berubah.
       const awaiting = orders
-        .filter((order) => order.status === 'awaiting_payment' && Number(order.paymentExpiresAt || 0) > Date.now())
+        .filter((order) => order.paymentMethod !== 'COD' && order.status === 'awaiting_payment' && Number(order.paymentExpiresAt || 0) > Date.now())
         .slice(0, 3);
       if (awaiting.length) {
         const results = await Promise.allSettled(awaiting.map((order) => callMarketplaceApi('check-payment', { orderId: order.id })));

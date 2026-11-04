@@ -64,6 +64,10 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
+    match /marketplace_cod_stats/{userId} {
+      allow read, write: if false;
+    }
+
     match /marketplace_carts/{userId} {
       allow read: if isSignedIn() && (request.auth.uid == userId || isAdmin());
       allow create, update: if isSignedIn() && request.auth.uid == userId &&

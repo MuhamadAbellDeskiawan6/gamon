@@ -224,6 +224,10 @@ const targetUrl = '/';
                         console.warn('[DOKU marketplace] order tidak ditemukan; event valid sudah diterima:', orderId);
                         return res.status(200).send('Marketplace Order Not Found');
                     }
+                    if (result.ignored) {
+                        console.warn('[DOKU marketplace] notifikasi pembayaran diabaikan untuk order COD:', orderId);
+                        return res.status(200).send('COD Order Ignored');
+                    }
                     if (result.amountMismatch || result.needsAttention) {
                         console.error('[DOKU marketplace] pembayaran perlu perhatian admin:', { orderId, amountMismatch: Boolean(result.amountMismatch) });
                     }
