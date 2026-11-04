@@ -2,81 +2,21 @@
 <html lang="id">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Jual Barang — Marketplace Mantan</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;800&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="assets/style.css" />
     <link rel="stylesheet" href="assets/commerce.css" />
-    <style>
-      /* Gaya khusus halaman Jual Barang. Semua class diawali "sell-" agar tidak bentrok dengan style.css */
-      .sell-steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin:18px 0 0;padding:0;list-style:none;counter-reset:sell}
-      .sell-steps li{counter-increment:sell;padding:14px 16px;border:1px solid rgba(148,163,184,.35);border-radius:14px;background:#fff}
-      .sell-steps li::before{content:counter(sell);display:grid;place-items:center;width:30px;height:30px;margin-bottom:10px;border-radius:50%;background:#111827;color:#fff;font-weight:700;font-size:.9rem}
-      .sell-steps strong{display:block;margin-bottom:4px}
-      .sell-steps span{font-size:.92rem;color:#475569}
-
-      .sell-location{margin-top:18px;padding:16px 18px;border:1px dashed #94a3b8;border-radius:14px;background:#f8fafc}
-      .sell-location strong{display:block;margin-bottom:6px}
-      .sell-location p{margin:0 0 4px;color:#334155}
-      .sell-location a{font-weight:600}
-
-      .sell-form{display:grid;gap:16px}
-      .sell-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
-      .sell-field{display:grid;gap:6px;min-width:0}
-      .sell-field.is-wide{grid-column:1 / -1}
-      .sell-field label{font-weight:600;font-size:.94rem}
-      .sell-field small{color:#64748b}
-      .sell-field input[type="text"],
-      .sell-field input[type="tel"],
-      .sell-field select,
-      .sell-field textarea{width:100%;padding:11px 12px;border:1px solid #cbd5e1;border-radius:12px;background:#fff;font:inherit;color:inherit}
-      .sell-field textarea{min-height:104px;resize:vertical}
-      .sell-field input:focus-visible,.sell-field select:focus-visible,.sell-field textarea:focus-visible{outline:3px solid #93c5fd;outline-offset:1px}
-
-      .sell-photo-picker{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-start}
-      .sell-photo-add{display:grid;place-items:center;align-content:center;gap:4px;width:112px;height:112px;border:2px dashed #94a3b8;border-radius:14px;background:#f8fafc;color:#334155;font-family:inherit;font-weight:600;font-size:.85rem;cursor:pointer;text-align:center}
-      .sell-photo-add:hover{background:#eef2f7}
-      .sell-photo-add[disabled]{opacity:.5;cursor:not-allowed}
-      .sell-photo-item{position:relative;width:112px;height:112px;border-radius:14px;overflow:hidden;border:1px solid #cbd5e1;background:#f1f5f9}
-      .sell-photo-item img{width:100%;height:100%;object-fit:cover;display:block}
-      .sell-photo-remove{position:absolute;top:6px;right:6px;width:26px;height:26px;border:0;border-radius:50%;background:rgba(15,23,42,.8);color:#fff;font-size:16px;line-height:1;cursor:pointer}
-      .sell-photo-input{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
-
-      .sell-agree{display:flex;gap:10px;align-items:flex-start;padding:14px 16px;border-radius:14px;background:#f8fafc;border:1px solid #e2e8f0;cursor:pointer}
-      .sell-agree input{margin-top:4px;width:18px;height:18px;flex:none}
-      .sell-agree span{font-size:.93rem;color:#334155}
-
-      .sell-status{min-height:1.2em;margin:0;font-weight:600;color:#b91c1c}
-      .sell-status.is-ok{color:#15803d}
-      .sell-actions{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
-
-      .sell-list{display:grid;gap:14px}
-      .sell-card{display:grid;grid-template-columns:96px minmax(0,1fr);gap:14px;padding:14px;border:1px solid #e2e8f0;border-radius:16px;background:#fff}
-      .sell-card-thumb{width:96px;height:96px;border-radius:12px;overflow:hidden;background:#f1f5f9;display:grid;place-items:center;font-weight:800;font-size:1.6rem;color:#64748b}
-      .sell-card-thumb img{width:100%;height:100%;object-fit:cover}
-      .sell-card-head{display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;align-items:flex-start}
-      .sell-card-head h3{margin:0;font-size:1.05rem}
-      .sell-card-meta{margin:4px 0 0;color:#64748b;font-size:.88rem}
-      .sell-card-hint{margin:10px 0 0;color:#334155;font-size:.93rem}
-      .sell-card-note{margin:10px 0 0;padding:10px 12px;border-radius:10px;background:#fffbeb;border:1px solid #fde68a;color:#78350f;font-size:.92rem}
-      .sell-card-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
-
-      @media (max-width:720px){
-        .sell-grid{grid-template-columns:1fr}
-        .sell-card{grid-template-columns:72px minmax(0,1fr)}
-        .sell-card-thumb{width:72px;height:72px}
-      }
-      @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
-    </style>
+    <link rel="stylesheet" href="assets/neo.css" />
   </head>
   <body data-page="jual.html">
     <header class="topbar">
       <div class="container nav">
         <a href="../../index.html" class="brand" aria-label="Home">
-          <span class="brand-mark">G</span>
+          <span class="brand-mark"><img src="../../image/logo/gamonspace-transparan.png" alt="Gamon Space" width="40" height="40" /></span>
           <span>Marketplace Mantan</span>
         </a>
 

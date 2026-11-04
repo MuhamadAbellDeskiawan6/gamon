@@ -294,6 +294,7 @@ function showPopup(message, title = 'Info', tone = 'info') {
     overlay.setAttribute('data-popup-overlay', '');
     overlay.innerHTML = `
       <div class="modal-card" role="dialog" aria-modal="true">
+        <div class="modal-icon" data-popup-icon><span class="material-symbols-outlined">info</span></div>
         <h3 data-popup-title></h3>
         <p data-popup-message></p>
         <div class="modal-actions">
@@ -307,14 +308,17 @@ function showPopup(message, title = 'Info', tone = 'info') {
   const titleEl = overlay.querySelector('[data-popup-title]');
   const messageEl = overlay.querySelector('[data-popup-message]');
   const card = overlay.querySelector('.modal-card');
+  const iconEl = overlay.querySelector('[data-popup-icon]');
   const closeBtn = overlay.querySelector('[data-popup-close]');
 
   if (titleEl) titleEl.textContent = title;
   if (messageEl) messageEl.textContent = message;
 
   card.dataset.tone = tone;
-  card.style.borderColor = tone === 'error' ? '#f6c0c0' : tone === 'success' ? '#c8f0d2' : '#dce7ff';
-  card.style.boxShadow = tone === 'error' ? '0 18px 50px rgba(177, 54, 54, 0.14)' : tone === 'success' ? '0 18px 50px rgba(40, 133, 79, 0.14)' : '0 18px 50px rgba(0,0,0,0.16)';
+  if (iconEl) {
+    const iconMap = { error: 'error', success: 'check_circle', warning: 'warning' };
+    iconEl.innerHTML = `<span class="material-symbols-outlined">${iconMap[tone] || 'info'}</span>`;
+  }
 
   const close = () => {
     overlay.classList.remove('show');
@@ -372,8 +376,6 @@ function showConfirm({
   if (confirmBtn) confirmBtn.textContent = confirmText;
 
   card.dataset.tone = tone;
-  card.style.borderColor = tone === 'error' ? '#f6c0c0' : tone === 'warning' ? '#f5d7ae' : '#dce7ff';
-  card.style.boxShadow = tone === 'error' ? '0 18px 50px rgba(177, 54, 54, 0.14)' : tone === 'warning' ? '0 18px 50px rgba(210, 129, 36, 0.14)' : '0 18px 50px rgba(0,0,0,0.16)';
   if (iconEl) {
     const iconMap = {
       error: 'delete',
@@ -939,9 +941,9 @@ function setAuthMessage(message, tone = 'info') {
 
   messageBox.textContent = message || '';
   messageBox.style.display = message ? 'block' : 'none';
-  messageBox.style.background = tone === 'error' ? '#fff2f2' : '#f0f5ff';
-  messageBox.style.color = tone === 'error' ? '#a13232' : '#3654a8';
-  messageBox.style.border = tone === 'error' ? '1px solid #f1b3b3' : '1px solid #c8d7ff';
+  messageBox.classList.add('auth-message');
+  messageBox.classList.toggle('is-error', tone === 'error');
+  messageBox.classList.toggle('is-info', tone !== 'error');
 }
 
 function formatCurrency(value) {
@@ -1343,14 +1345,14 @@ function marketplaceLoadErrorMarkup() {
   if (!error) return '';
 
   const cacheLabel = window.__marketplaceProductsFromCache
-    ? '<p style="margin: 8px 0 0;">Menampilkan data tersimpan di perangkat.</p>'
+    ? '<p class="marketplace-error-cache">Menampilkan data tersimpan di perangkat.</p>'
     : '';
   return `
-    <div class="panel" role="alert" style="margin-bottom: 14px; padding: 14px; color: #991b1b; background: #fff1f2; border: 1px solid #fecdd3;">
+    <div class="panel marketplace-load-error" role="alert">
       <strong>Gagal memuat katalog (${escapeHtml(error.code)}).</strong>
-      <p style="margin: 6px 0 0;">${escapeHtml(error.message)}</p>
+      <p>${escapeHtml(error.message)}</p>
       ${cacheLabel}
-      <button class="btn btn-secondary" type="button" data-marketplace-retry style="margin-top: 10px;">Muat ulang</button>
+      <button class="btn btn-secondary" type="button" data-marketplace-retry>Muat ulang</button>
     </div>
   `;
 }
@@ -1517,8 +1519,6 @@ function getCurrentUserIdentifier() {
   return normalizeUserIdentifier(auth.currentUser?.uid || user.uid || user.id || user.email || user.name || 'guest');
 }
 
-const CHAT_BADGE_STYLE = 'display:none;margin-left:6px;min-width:18px;height:18px;padding:0 6px;border-radius:999px;background:#e0313f;color:#fff;font-size:11px;line-height:18px;text-align:center;font-weight:700;vertical-align:middle;box-sizing:border-box;';
-
 function ensureChatBadgeElements() {
   // 1) Badge di link "Chat Admin" pada sidebar
   document.querySelectorAll('.sidebar nav a[href*="chat.html"]').forEach((link) => {
@@ -1526,7 +1526,7 @@ function ensureChatBadgeElements() {
     const badge = document.createElement('span');
     badge.setAttribute('data-chat-nav-badge', '');
     badge.className = 'chat-nav-badge';
-    badge.style.cssText = CHAT_BADGE_STYLE;
+    badge.hidden = true;
     link.appendChild(badge);
   });
 
@@ -1544,7 +1544,8 @@ function ensureChatBadgeElements() {
     const badge = document.createElement('span');
     badge.setAttribute('data-chat-nav-badge', '');
     badge.className = 'chat-nav-badge';
-    badge.style.cssText = CHAT_BADGE_STYLE + 'position:absolute;top:-7px;right:-7px;margin-left:0;box-shadow:0 0 0 2px #fff;';
+    badge.hidden = true;
+    badge.classList.add('chat-nav-badge-topbar');
     link.appendChild(badge);
 
     const cartLink = actions.querySelector('[data-cart-link]');
@@ -1558,7 +1559,8 @@ function ensureChatBadgeElements() {
     if (getComputedStyle(toggle).position === 'static') toggle.style.position = 'relative';
     const dot = document.createElement('i');
     dot.setAttribute('data-chat-dot', '');
-    dot.style.cssText = 'display:none;position:absolute;top:2px;right:2px;width:10px;height:10px;border-radius:50%;background:#e0313f;box-shadow:0 0 0 2px #fff;';
+    dot.className = 'chat-nav-dot';
+    dot.hidden = true;
     toggle.appendChild(dot);
   }
 }
@@ -1571,18 +1573,16 @@ function updateChatBadges(count) {
   document.querySelectorAll('[data-chat-badge], [data-chat-nav-badge]').forEach((badge) => {
     if (total > 0) {
       badge.textContent = total > 99 ? '99+' : String(total);
-      badge.style.display = 'inline-block';
+      badge.hidden = false;
       badge.classList.add('show');
     } else {
       badge.textContent = '';
-      badge.style.display = 'none';
+      badge.hidden = true;
       badge.classList.remove('show');
     }
   });
 
-  document.querySelectorAll('[data-chat-dot]').forEach((dot) => {
-    dot.style.display = total > 0 ? 'block' : 'none';
-  });
+  document.querySelectorAll('[data-chat-dot]').forEach((dot) => { dot.hidden = total === 0; });
 
   document.title = total > 0 ? `(${total > 99 ? '99+' : total}) ${BASE_DOCUMENT_TITLE}` : BASE_DOCUMENT_TITLE;
 }
@@ -2150,21 +2150,19 @@ async function refreshMarketplaceLandingMetrics() {
 function renderBuyerProductsLoadingState() {
   return `
     <div class="product-loading-state" aria-live="polite" aria-label="Sedang memuat barang untuk dibeli">
-      <div class="product-loading-indicator" role="status" aria-live="polite">
-        <span class="product-loading-spinner" aria-hidden="true"></span>
-        <span>Sedang memuat barang untuk dibeli...</span>
-      </div>
+      <div class="mm-loading-pill" role="status" aria-live="polite">Sedang memuat barang untuk dibeli...</div>
       <div class="product-loading-grid">
         ${Array.from({ length: 4 }, () => `
-          <article class="product-card compact-card product-loading-card" aria-busy="true">
-            <div class="product-loading-image"></div>
-            <div class="product-body product-loading-body">
-              <div class="product-loading-line product-loading-price"></div>
-              <div class="product-loading-line"></div>
-              <div class="product-loading-line product-loading-line-short"></div>
+          <article class="mm-card mm-card-skel product-loading-card" aria-busy="true">
+            <div class="sk sk-media"></div>
+            <div class="mm-card-body product-loading-body">
+              <div class="sk sk-price"></div>
+              <div class="sk sk-line"></div>
+              <div class="sk sk-chip"></div>
+              <div class="sk sk-btn"></div>
               <div class="product-loading-meta">
-                <span class="product-loading-avatar"></span>
-                <span class="product-loading-line product-loading-meta-line"></span>
+                <span class="sk product-loading-avatar"></span>
+                <span class="sk product-loading-meta-line"></span>
               </div>
             </div>
           </article>
@@ -2220,23 +2218,23 @@ function ensureCheckoutOverlayStyles() {
   const style = document.createElement('style');
   style.id = 'checkout-overlay-styles';
   style.textContent = `
-    .checkout-overlay{position:fixed;inset:0;z-index:9999;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(23,26,30,.55);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)}
+    .checkout-overlay{position:fixed;inset:0;z-index:9999;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(11,35,66,.55)}
     .checkout-overlay.show{display:flex;animation:coFade .2s ease}
-    .checkout-overlay-card{width:min(420px,100%);background:#fff;border-radius:22px;padding:28px 24px;box-shadow:0 24px 60px rgba(0,0,0,.25);text-align:center}
-    .checkout-spinner{width:64px;height:64px;margin:0 auto 16px;border-radius:50%;border:5px solid #fde4ee;border-top-color:#ec4f86;animation:coSpin .9s linear infinite}
-    .checkout-overlay-card h3{margin:0 0 4px;font-size:1.15rem;color:#2a1f3d}
-    .checkout-overlay-card p{margin:0;font-size:.9rem;color:#6b6078}
-    .checkout-progress{height:6px;border-radius:999px;background:#f3e8ee;overflow:hidden;margin:18px 0 14px}
-    .checkout-progress span{display:block;height:100%;width:8%;border-radius:inherit;background:linear-gradient(90deg,#f472a6,#8b5cf6);transition:width .6s ease}
+    .checkout-overlay-card{width:min(420px,100%);background:var(--white,#fff);border:2px solid var(--ink,#0b2342);border-radius:18px;padding:28px 24px;box-shadow:6px 6px 0 var(--ink,#0b2342);text-align:center}
+    .checkout-spinner{width:64px;height:64px;margin:0 auto 16px;border-radius:50%;border:5px solid var(--sky,#d4e9f5);border-top-color:var(--coral,#ff5c7a);animation:coSpin .9s linear infinite}
+    .checkout-overlay-card h3{margin:0 0 4px;font-size:1.15rem;color:var(--ink,#0b2342)}
+    .checkout-overlay-card p{margin:0;font-size:.9rem;color:var(--mute,#47607c)}
+    .checkout-progress{height:8px;border:2px solid var(--ink,#0b2342);border-radius:999px;background:var(--sky,#d4e9f5);overflow:hidden;margin:18px 0 14px}
+    .checkout-progress span{display:block;height:100%;width:8%;border-radius:inherit;background:var(--coral,#ff5c7a);transition:width .6s ease}
     .checkout-steps{list-style:none;margin:0;padding:0;text-align:left;display:grid;gap:10px}
-    .checkout-steps li{display:flex;align-items:center;gap:10px;font-size:.92rem;color:#a79bb2;transition:color .3s}
-    .checkout-steps .dot{width:22px;height:22px;border-radius:50%;border:2px solid #e5d9e2;display:grid;place-items:center;font-size:12px;line-height:1;flex:none;color:#fff;transition:background .3s,border-color .3s}
-    .checkout-steps li.active{color:#2a1f3d;font-weight:600}
-    .checkout-steps li.active .dot{border-color:#ec4f86;border-top-color:transparent;animation:coSpin .8s linear infinite}
-    .checkout-steps li.done{color:#15803d}
-    .checkout-steps li.done .dot{background:#22c55e;border-color:#22c55e}
-    .checkout-note{margin-top:16px;font-size:.8rem;color:#8a7f96}
-    .co-btn-spinner{display:inline-block;width:14px;height:14px;margin-right:8px;vertical-align:-2px;border-radius:50%;border:2px solid rgba(255,255,255,.45);border-top-color:#fff;animation:coSpin .8s linear infinite}
+    .checkout-steps li{display:flex;align-items:center;gap:10px;font-size:.92rem;color:var(--mute,#47607c);transition:color .3s}
+    .checkout-steps .dot{width:22px;height:22px;border-radius:50%;border:2px solid var(--ink,#0b2342);display:grid;place-items:center;font-size:12px;line-height:1;flex:none;color:var(--ink,#0b2342);transition:background .3s,border-color .3s}
+    .checkout-steps li.active{color:var(--ink,#0b2342);font-weight:600}
+    .checkout-steps li.active .dot{border-top-color:transparent;animation:coSpin .8s linear infinite}
+    .checkout-steps li.done{color:#176035}
+    .checkout-steps li.done .dot{background:#c8f0d2;border-color:var(--ink,#0b2342)}
+    .checkout-note{margin-top:16px;font-size:.8rem;color:var(--mute,#47607c)}
+    .co-btn-spinner{display:inline-block;width:14px;height:14px;margin-right:8px;vertical-align:-2px;border-radius:50%;border:2px solid rgba(11,35,66,.25);border-top-color:var(--ink,#0b2342);animation:coSpin .8s linear infinite}
     @keyframes coSpin{to{transform:rotate(360deg)}}
     @keyframes coFade{from{opacity:0}to{opacity:1}}
     @media (prefers-reduced-motion:reduce){.checkout-spinner,.checkout-steps li.active .dot,.co-btn-spinner{animation-duration:2.4s}.checkout-progress span{transition:none}}
@@ -3206,31 +3204,39 @@ async function renderDashboard() {
   if (awaitingEl) awaitingEl.textContent = String(awaitingPaymentOrders.length);
   const finishedEl = document.querySelector('[data-stat-finished]');
   if (finishedEl) finishedEl.textContent = String(completedOrders.length);
+  const finishedNoteEl = document.querySelector('[data-stat-finished-note]');
+  if (finishedNoteEl) finishedNoteEl.textContent = completedOrders.length
+    ? `${completedOrders.length} pesanan selesai`
+    : 'Belum ada pesanan selesai';
   const chatEl = document.querySelector('[data-stat-chat]');
   if (chatEl) chatEl.textContent = String(unreadMessages);
+  const chatNoteEl = document.querySelector('[data-stat-chat-note]');
+  if (chatNoteEl) chatNoteEl.textContent = unreadMessages
+    ? `${unreadMessages} pesan belum dibaca`
+    : 'Belum ada pesan baru';
 
   const productList = document.querySelector('[data-dashboard-products]');
   if (productList) {
     if (!normalizedProducts.length) {
       productList.innerHTML = `
-        <div style="display: grid; place-items: center; text-align: center; min-height: 180px;">
+        <div class="empty-state">
           <div>
-            <h3 style="margin: 0 0 8px;">Belum ada produk toko</h3>
-            <p class="muted" style="margin: 0;">Produk terbaru dari Marketplace Mantan akan tampil di sini.</p>
+            <h3>Belum ada produk toko</h3>
+            <p>Produk terbaru dari Marketplace Mantan akan tampil di sini.</p>
           </div>
         </div>
       `;
     } else {
       productList.innerHTML = normalizedProducts.slice(0, 3).map((item) => `
-        <div class="mini-product-item" style="display: grid; grid-template-columns: 72px 1fr auto; gap: 12px; align-items: center; padding: 12px 0; border-bottom: 1px solid rgba(148,163,184,0.18);">
-          <div style="width: 72px; height: 72px; border-radius: 14px; overflow: hidden; background: #f4f6ff; display: grid; place-items: center;">
-            ${item.imageUrl ? `<img src="${item.imageUrl}" alt="${escapeHtml(item.name)}" style="width:100%; height:100%; object-fit:cover;" />` : `<span style="font-size: 1.5rem;">${escapeHtml(item.label?.charAt(0) || 'B')}</span>`}
+        <div class="mini-product-item">
+          <div class="mini-product-thumb">
+            ${item.imageUrl ? `<img src="${item.imageUrl}" alt="${escapeHtml(item.name)}" />` : `<span>${escapeHtml(item.label?.charAt(0) || 'B')}</span>`}
           </div>
           <div>
-            <div style="font-weight:700;color:var(--primary-strong);">${escapeHtml(item.name)}</div>
+            <div class="mini-product-name">${escapeHtml(item.name)}</div>
             <small class="muted">${escapeHtml(item.category || 'Barang')} • ${formatCurrency(item.price)}</small>
           </div>
-          <span class="condition" style="${item.stock === 0 ? 'background: #fee2e2; color: #991b1b; border: 1px solid #fecaca;' : item.stock <= 2 ? 'background: #fef3c7; color: #92400e; border: 1px solid #fde68a;' : 'background: #dcfce7; color: #166534; border: 1px solid #bbf7d0;'}">${item.stock > 0 ? `Stok: ${item.stock}` : 'Habis'}</span>
+          <span class="mm-card-stock ${item.stock === 0 ? 'is-out' : ''}">${item.stock > 0 ? `Stok: ${item.stock}` : 'Habis'}</span>
         </div>
       `).join('');
     }
@@ -3290,15 +3296,15 @@ async function renderOrdersForBuyer() {
   let stopPaymentPolling = false;
 
   const statusLabels = {
-    awaiting_payment: ['Menunggu Pembayaran', 'bg-amber-100 text-amber-800'],
-    awaiting_confirmation: ['Menunggu Konfirmasi', 'bg-orange-100 text-orange-800'],
-    paid: ['Dibayar', 'bg-blue-100 text-blue-800'],
-    processing: ['Diproses', 'bg-indigo-100 text-indigo-800'],
-    shipped: ['Dikirim', 'bg-cyan-100 text-cyan-800'],
-    completed: ['Selesai', 'bg-emerald-100 text-emerald-800'],
-    cancelled: ['Dibatalkan', 'bg-slate-100 text-slate-700'],
-    expired: ['Kedaluwarsa', 'bg-rose-100 text-rose-800'],
-    payment_failed: ['Pembayaran Gagal', 'bg-rose-100 text-rose-800']
+    awaiting_payment: ['Menunggu Pembayaran', 'status-awaiting_payment'],
+    awaiting_confirmation: ['Menunggu Konfirmasi', 'status-awaiting_confirmation'],
+    paid: ['Dibayar', 'status-paid'],
+    processing: ['Diproses', 'status-processing'],
+    shipped: ['Dikirim', 'status-shipped'],
+    completed: ['Selesai', 'status-completed'],
+    cancelled: ['Dibatalkan', 'status-cancelled'],
+    expired: ['Kedaluwarsa', 'status-expired'],
+    payment_failed: ['Pembayaran Gagal', 'status-payment_failed']
   };
 
   const setStatus = (message) => {
@@ -3570,7 +3576,7 @@ async function renderOrdersForBuyer() {
   }
 
   function renderOrderDetail(order) {
-    const [label, badgeClass] = statusLabels[order.status] || ['Status diperiksa admin', 'bg-slate-100 text-slate-700'];
+    const [label, badgeClass] = statusLabels[order.status] || ['Status diperiksa admin', 'status-error'];
     const banner = getBanner(order);
     const items = Array.isArray(order.items) ? order.items : [];
     const shipping = order.shippingAddress || {};
@@ -3756,7 +3762,7 @@ async function renderOrdersForBuyer() {
       return;
     }
     container.innerHTML = orders.map((order) => {
-      const [label, badgeClass] = statusLabels[order.status] || ['Status diperiksa admin', 'bg-slate-100 text-slate-700'];
+      const [label, badgeClass] = statusLabels[order.status] || ['Status diperiksa admin', 'status-error'];
       const items = Array.isArray(order.items) ? order.items : [];
       const shipping = order.shippingAddress || {};
       const point = getMapPoint(shipping);
@@ -3857,8 +3863,8 @@ async function renderProductsForBuyer() {
       container.innerHTML = window.__marketplaceProductsError
         ? marketplaceLoadErrorMarkup()
         : `
-        <div class="panel" style="padding: 20px; grid-column: 1 / -1;">
-          <p class="muted">Belum ada barang yang tersedia saat ini.</p>
+        <div class="empty-state" style="grid-column: 1 / -1;">
+          <p>Belum ada barang yang tersedia saat ini.</p>
         </div>
       `;
       return;
@@ -3878,36 +3884,29 @@ async function renderProductsForBuyer() {
       const imageMarkup = normalized.imageUrl ? `<img src="${normalized.imageUrl}" alt="${escapeHtml(normalized.name)}" style="width: 100%; height: 100%; object-fit: cover;" />` : normalized.image;
       const available = normalized.stock > 0;
       const chatHref = currentUser() ? getBuyerChatUrl(normalized.id, normalized.name) : 'login.html';
-      const statusStyle = normalized.stock === 0
-        ? 'background: #fee2e2; color: #991b1b; border: 1px solid #fecaca;'
-        : normalized.stock <= 2
-          ? 'background: #fef3c7; color: #92400e; border: 1px solid #fde68a;'
-          : 'background: #dcfce7; color: #166534; border: 1px solid #bbf7d0;';
       return `
-        <article class="product-card">
-          <div class="image">${imageMarkup} <span class="chip">${escapeHtml(normalized.label)}</span></div>
-          <div class="product-body">
-            <div class="product-head">
-              <div class="price">${formatCurrency(normalized.price)}</div>
-              <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; justify-content:flex-end;">
-                <span class="condition">${escapeHtml(normalized.condition)}</span>
-                <span class="condition" style="${statusStyle}">${normalized.stock > 0 ? `Stok: ${normalized.stock}` : 'Terjual/Habis'}</span>
-              </div>
-            </div>
-            <h3>${escapeHtml(normalized.name)}</h3>
-                        <p class="product-desc" title="${escapeHtml(normalized.description)}">${escapeHtml(normalized.description)}</p>
+        <article class="mm-card">
+          <a class="mm-card-media" href="${getProductDetailUrl(normalized.id)}" aria-label="Detail ${escapeHtml(normalized.name)}">
+            ${imageMarkup}<span class="mm-card-chip">${escapeHtml(normalized.label)}</span>
+          </a>
+          <div class="mm-card-body">
+            <div class="mm-card-price">${formatCurrency(normalized.price)}</div>
+            <h3 class="mm-card-title">${escapeHtml(normalized.name)}</h3>
+            <span class="mm-card-stock ${normalized.stock === 0 ? 'is-out' : ''}">${normalized.stock > 0 ? `Stok: ${normalized.stock}` : 'Habis'}</span>
+            <span class="condition">${escapeHtml(normalized.condition)}</span>
+            <p class="product-desc desc-clamp" title="${escapeHtml(normalized.description)}">${escapeHtml(normalized.description)}</p>
             <div class="seller-row">
               <span>${escapeHtml(normalized.city)}</span>
               <span>Marketplace Mantan</span>
             </div>
-            <div class="card-actions">
-              <a class="btn btn-soft" href="${getProductDetailUrl(normalized.id)}">Detail</a>
-              ${available ? `<button class="btn btn-primary" type="button" data-add-cart="${escapeHtml(normalized.id)}">+ Keranjang</button><a class="btn btn-secondary" href="${chatHref}">Chat admin</a>` : '<button class="btn btn-secondary" type="button" disabled>Stok habis</button>'}
+            <div class="mm-card-actions">
+              <a class="mm-card-btn" href="${getProductDetailUrl(normalized.id)}">Detail</a>
+              ${available ? `<button class="mm-card-btn primary" type="button" data-add-cart="${escapeHtml(normalized.id)}">+ Keranjang</button><a class="mm-card-btn" href="${chatHref}">Chat admin</a>` : '<button class="mm-card-btn" type="button" disabled>Stok habis</button>'}
             </div>
           </div>
         </article>
       `;
-    }).join('') : '<div class="panel" style="padding: 20px; grid-column: 1 / -1;"><p class="muted">Tidak ada produk yang cocok dengan pencarian dan filter.</p></div>'}`;
+    }).join('') : '<div class="empty-state" style="grid-column: 1 / -1;">Tidak ada produk yang cocok dengan pencarian dan filter.</div>'}`;
   };
 
   const reload = async () => {
@@ -4100,7 +4099,8 @@ function renderProfile() {
 
     if (shippingStatus) {
       shippingStatus.textContent = addressComplete ? 'Alamat lengkap' : 'Alamat belum lengkap';
-      shippingStatus.style.color = addressComplete ? '#15803d' : '#b45309';
+      shippingStatus.classList.toggle('is-complete', addressComplete);
+      shippingStatus.classList.toggle('is-incomplete', !addressComplete);
     }
 
     if (!coordinates) {
@@ -4735,11 +4735,11 @@ const SELL_PHOTO_STEPS = [
   { targetWidth: 340, targetHeight: 340, quality: 0.4 }
 ];
 const SELL_STATUS = {
-  pending: { label: 'Menunggu tinjauan', color: '#92400e', bg: '#fef3c7', hint: 'Pengajuanmu sudah masuk. Admin akan meninjau lalu menghubungimu lewat Chat Admin atau WhatsApp.' },
-  approved: { label: 'Disetujui', color: '#166534', bg: '#dcfce7', hint: 'Pengajuan disetujui. Datang ke lokasi COD sesuai jadwal, barang dicek bersama lalu dibayar tunai.' },
-  rejected: { label: 'Ditolak', color: '#991b1b', bg: '#fee2e2', hint: 'Pengajuan belum bisa kami terima. Lihat catatan admin di bawah atau tanya lewat Chat Admin.' },
-  completed: { label: 'Selesai', color: '#1e40af', bg: '#dbeafe', hint: 'Transaksi selesai. Terima kasih sudah menjual barangmu!' },
-  cancelled: { label: 'Dibatalkan', color: '#475569', bg: '#e2e8f0', hint: 'Pengajuan ini dibatalkan.' }
+  pending: { label: 'Menunggu tinjauan', hint: 'Pengajuanmu sudah masuk. Admin akan meninjau lalu menghubungimu lewat Chat Admin atau WhatsApp.' },
+  approved: { label: 'Disetujui', hint: 'Pengajuan disetujui. Datang ke lokasi COD sesuai jadwal, barang dicek bersama lalu dibayar tunai.' },
+  rejected: { label: 'Ditolak', hint: 'Pengajuan belum bisa kami terima. Lihat catatan admin di bawah atau tanya lewat Chat Admin.' },
+  completed: { label: 'Selesai', hint: 'Transaksi selesai. Terima kasih sudah menjual barangmu!' },
+  cancelled: { label: 'Dibatalkan', hint: 'Pengajuan ini dibatalkan.' }
 };
 
 async function sellCompressPhoto(file) {
@@ -4985,7 +4985,7 @@ async function renderSellPage() {
         <div>
           <div class="sell-card-head">
             <h3>${escapeHtml(item.name)}</h3>
-            <span class="condition" style="background:${st.bg};color:${st.color};">${escapeHtml(st.label)}</span>
+            <span class="sell-status-pill status-${escapeHtml(item.status)}">${escapeHtml(st.label)}</span>
           </div>
           <p class="sell-card-meta">${escapeHtml(item.requestCode || '')} · ${escapeHtml(productLabel(item.category))} · ${escapeHtml(item.condition || '')} · Harapan ${formatCurrency(item.askingPrice)} · ${escapeHtml(formatDate(item.createdAt))}</p>
           <p class="sell-card-hint">${escapeHtml(st.hint)}</p>
@@ -5031,7 +5031,7 @@ async function renderSellPage() {
     },
     (error) => {
       console.error('[marketplace jual] gagal memuat daftar pengajuan:', error);
-      listEl.innerHTML = `<p class="muted" style="color:#b91c1c;">Daftar pengajuan gagal dimuat (${escapeHtml(error?.code || 'unknown')}).</p>`;
+      listEl.innerHTML = `<p class="sell-status" role="alert">Daftar pengajuan gagal dimuat (${escapeHtml(error?.code || 'unknown')}).</p>`;
     }
   );
 

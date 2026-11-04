@@ -2,54 +2,21 @@
 <html lang="id">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Chat — Marketplace Mantan</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;800&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="assets/style.css" />
     <link rel="stylesheet" href="assets/commerce.css" />
-    <style>
-      .chat-multi { display: grid; grid-template-columns: minmax(260px, 320px) minmax(0, 1fr); gap: 16px; align-items: stretch; }
-      .chat-list-panel { border: 1px solid #e2e8f0; border-radius: 14px; background: #fff; overflow: hidden; display: flex; flex-direction: column; min-height: 420px; max-height: 76vh; }
-      .chat-list-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 12px 14px; border-bottom: 1px solid #f1f5f9; }
-      .chat-list-head strong { font-size: 1rem; }
-      .chat-list { overflow-y: auto; flex: 1; }
-      .chat-list-empty { padding: 20px 16px; color: #64748b; font-size: 14px; line-height: 1.5; margin: 0; }
-      .chat-list-item { display: flex; gap: 12px; align-items: center; width: 100%; padding: 12px 14px; border: 0; border-bottom: 1px solid #f1f5f9; background: #fff; text-align: left; cursor: pointer; font: inherit; color: inherit; }
-      .chat-list-item:hover { background: #fff7fb; }
-      .chat-list-item.is-active { background: #fdf2f8; }
-      .chat-list-thumb { width: 48px; height: 48px; border-radius: 10px; background: #f1f5f9; overflow: hidden; display: grid; place-items: center; flex-shrink: 0; color: #be185d; font-weight: 800; }
-      .chat-list-thumb img { width: 100%; height: 100%; object-fit: cover; }
-      .chat-list-body { min-width: 0; flex: 1; }
-      .chat-list-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-      .chat-list-title { font-weight: 700; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-      .chat-list-time { font-size: 11px; color: #94a3b8; flex-shrink: 0; }
-      .chat-list-last { font-size: 12px; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
-      .chat-list-badge { flex-shrink: 0; min-width: 20px; padding: 1px 6px; border-radius: 999px; background: #db2777; color: #fff; font-size: 11px; font-weight: 700; text-align: center; }
-      .chat-list-new { font-size: 10px; font-weight: 700; color: #be185d; background: #fce7f3; border-radius: 999px; padding: 1px 6px; }
-      .chat-multi .chat-conversation { min-width: 0; }
-      .chat-multi .chat-thread { min-height: 320px; max-height: 56vh; overflow-y: auto; }
-      .chat-conv-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
-      .chat-conv-head h3 { margin: 0; font-size: 1.05rem; }
-      .chat-conv-head small { color: #64748b; }
-      .chat-back-btn { display: none; }
-      .chat-product-context-link img { width: 40px; height: 40px; border-radius: 8px; object-fit: cover; }
-      @media (max-width: 899px) {
-        .chat-multi { display: block; }
-        .chat-multi[data-view="list"] .chat-conversation { display: none; }
-        .chat-multi[data-view="conversation"] .chat-list-panel { display: none; }
-        .chat-back-btn { display: inline-flex; }
-        .chat-list-panel { max-height: none; }
-      }
-    </style>
+    <link rel="stylesheet" href="assets/neo.css" />
   </head>
   <body data-page="chat.html">
     <header class="topbar">
       <div class="container nav">
         <a href="../../index.html" class="brand" aria-label="Home">
-          <span class="brand-mark">G</span>
+          <span class="brand-mark"><img src="../../image/logo/gamonspace-transparan.png" alt="Gamon Space" width="40" height="40" /></span>
           <span>Marketplace Mantan</span>
         </a>
         <div class="nav-actions">
