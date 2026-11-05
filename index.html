@@ -3,10 +3,10 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
-<title>Gamon Space | Ruang untuk Urusan Hubungan</title>
-<meta name="description" content="Gamon Space: kumpulan fitur untuk urusan hubungan. Foto LDR bareng pasangan, Marketplace Mantan, Hitung Pentol, dan AI Curhat."/>
-<meta property="og:title" content="Gamon Space | Ruang untuk Urusan Hubungan"/>
-<meta property="og:description" content="Foto LDR, Marketplace Mantan, Hitung Pentol, dan AI Curhat dalam satu tempat."/>
+<title>Gamon Space | Solusi untuk Setiap Babak Kehidupan</title>
+<meta name="description" content="Gamon Space: ekosistem layanan, teknologi, dan produk yang membantu manusia menjalani, menjaga, dan melanjutkan kehidupan bersama orang-orang yang berarti."/>
+<meta property="og:title" content="Gamon Space | Beyond Relationships. Into Life."/>
+<meta property="og:description" content="Solusi nyata untuk setiap babak kehidupan, dari hubungan sampai melanjutkan hidup."/>
 <meta property="og:type" content="website"/>
 <meta property="og:locale" content="id_ID"/>
 <meta property="og:image" content="https://gamon-space.vercel.app/image/logo/gamonspace.png"/>
@@ -31,19 +31,17 @@ a{color:inherit}
 .material-symbols-outlined{font-family:"Material Symbols Outlined";font-weight:400;font-style:normal;line-height:1;display:inline-block;vertical-align:middle}
 .wrap{width:min(1080px,calc(100% - 32px));margin:0 auto}
 
-/* Tombol */
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:12px 20px;border:2px solid var(--ink);border-radius:12px;background:var(--coral);color:var(--ink);font:600 1rem var(--f-b);text-decoration:none;cursor:pointer;box-shadow:4px 4px 0 var(--ink);transition:transform .12s,box-shadow .12s}
 .btn:hover{transform:translate(2px,2px);box-shadow:2px 2px 0 var(--ink)}
 .btn.alt{background:var(--white)}
 .btn.sun{background:var(--sun)}
 
-/* Header (sama dengan Marketplace Mantan) */
 .topbar{position:sticky;top:0;z-index:50;background:var(--sky);border-bottom:2px solid var(--ink);padding-top:env(safe-area-inset-top,0px)}
 .nav{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 0}
 .brand{display:inline-flex;align-items:center;gap:10px;font:800 1.15rem var(--f-d);text-decoration:none;letter-spacing:-.02em}
 .brand-mark{display:grid;place-items:center;flex:none;width:40px;height:40px;padding:3px;border:2px solid var(--ink);border-radius:10px;background:var(--white);box-shadow:2px 2px 0 var(--ink);overflow:hidden}
 .brand-mark img{display:block;width:100%;height:100%;object-fit:contain}
-.nav-links{display:flex;align-items:center;gap:22px;font-weight:600;font-size:.95rem}
+.nav-links{display:flex;align-items:center;gap:20px;font-weight:600;font-size:.93rem}
 .nav-links a{text-decoration:none}
 .nav-links a:hover{text-decoration:underline;text-underline-offset:4px}
 .header-actions-wrap{display:flex;align-items:center;gap:12px;position:relative}
@@ -54,19 +52,17 @@ a{color:inherit}
 .mobile-menu-toggle span{display:block;height:3px;border-radius:2px;background:var(--ink)}
 .mobile-menu-panel{display:none}
 
-/* Hero */
 .hero{display:grid;grid-template-columns:1.2fr .8fr;gap:48px;align-items:center;padding:64px 0 80px}
 .eyebrow{display:inline-block;padding:5px 14px;border:2px solid var(--ink);border-radius:999px;background:var(--sun);color:var(--ink);font:600 .85rem var(--f-b);margin-bottom:18px;box-shadow:3px 3px 0 var(--ink)}
 .hero h1{font-size:clamp(2.6rem,8vw,5.2rem)}
 .hero h1 .hl{display:inline-block;background:var(--coral);padding:0 .18em;border:2px solid var(--ink);border-radius:14px;box-shadow:5px 5px 0 var(--ink);transform:rotate(-1.5deg);margin-top:8px}
 .tagline{margin-top:20px;font:800 clamp(1.1rem,2.6vw,1.45rem) var(--f-d);letter-spacing:-.01em}
-.lead{margin-top:14px;max-width:54ch;font-size:1.08rem;color:var(--mute)}
+.lead{margin-top:14px;max-width:56ch;font-size:1.08rem;color:var(--mute)}
 .cta{display:flex;flex-wrap:wrap;gap:14px;margin-top:30px}
 .sticker{justify-self:center;width:min(300px,70%);padding:30px;border:2px solid var(--ink);border-radius:28px;background:var(--white);box-shadow:8px 8px 0 var(--ink);transform:rotate(2.5deg)}
 .sticker img{display:block;width:100%;height:auto;animation:beat 2.4s ease-in-out infinite}
 @keyframes beat{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
 
-/* Section */
 .band{padding:72px 0;border-top:2px solid var(--ink)}
 .band.white{background:var(--white)}
 .band.sunny{background:#fff0bf}
@@ -74,15 +70,22 @@ a{color:inherit}
 .band.dark h2,.band.dark h3{color:var(--white)}
 .head{display:flex;justify-content:space-between;align-items:flex-end;gap:24px;flex-wrap:wrap;margin-bottom:34px}
 .head h2{font-size:clamp(1.8rem,4.6vw,2.8rem)}
-.head p{max-width:42ch;color:var(--mute);font-size:1.02rem}
+.head p{max-width:44ch;color:var(--mute);font-size:1.02rem}
+.head.center{flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:14px;margin-bottom:36px}
+.head.center .eyebrow{margin-bottom:14px}
 
 .values{display:grid;grid-template-columns:repeat(3,1fr);gap:22px}
 .card{padding:28px;border:2px solid var(--ink);border-radius:20px;background:var(--white);box-shadow:6px 6px 0 var(--ink)}
 .card h3{font-size:1.4rem;margin-bottom:8px}
 .card p{color:var(--mute)}
 .icon{display:grid;place-items:center;width:52px;height:52px;margin-bottom:16px;border:2px solid var(--ink);border-radius:14px;background:var(--sun);font-size:28px}
-.card:nth-child(2) .icon{background:var(--coral)}
-.card:nth-child(3) .icon{background:var(--sky)}
+.values .card:nth-child(2) .icon{background:var(--coral)}
+.values .card:nth-child(3) .icon{background:var(--sky)}
+
+.vm{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-top:22px}
+.vm ol{margin:10px 0 0;padding-left:22px;color:var(--mute)}
+.vm li{margin-bottom:6px}
+
 
 .feature{display:grid;grid-template-columns:.9fr 1.1fr;gap:40px;align-items:start}
 .feature h2{font-size:clamp(1.9rem,4.8vw,3rem);margin-bottom:16px}
@@ -98,19 +101,49 @@ a{color:inherit}
 .step h3{font-size:1.2rem;margin-bottom:6px;color:var(--ink)}
 .step p{color:var(--mute);font-size:.94rem}
 
-.tools{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+/* Peta produk */
+.map{width:100%;border-collapse:separate;border-spacing:0;border:2px solid var(--ink);border-radius:20px;overflow:hidden;background:var(--white);box-shadow:6px 6px 0 var(--ink)}
+.map th,.map td{padding:14px 18px;text-align:left;vertical-align:top;border-bottom:2px solid var(--ink);font-size:.96rem}
+.map th{background:var(--sun);font:800 .98rem var(--f-d)}
+.map tr:last-child td{border-bottom:0}
+.map td:first-child{font-weight:700;white-space:nowrap}
+.map td a{text-underline-offset:3px}
+.scroll-x{overflow-x:auto;padding:0 6px 8px 0}
+.scroll-x .map{min-width:640px}
+
+.tools{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-top:34px}
 .tool{display:flex;flex-direction:column;align-items:flex-start;gap:6px}
 .tool .btn{margin-top:14px}
 
+
+/* Pembuat */
+.maker{display:flex;flex-direction:column;align-items:center;text-align:center;gap:22px;width:min(440px,100%);margin:0 auto;padding:36px 28px 32px;border:2px solid var(--ink);border-radius:24px;background:var(--white);box-shadow:6px 6px 0 var(--ink)}
+.avatar{position:relative;display:grid;place-items:center;width:180px;height:180px;border:2px solid var(--ink);border-radius:50%;background:var(--sun);box-shadow:5px 5px 0 var(--ink);overflow:hidden;font-size:72px}
+.avatar img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center 20%}
+.maker h3{font-size:1.7rem}
+.maker .role{display:inline-block;margin:10px 0 0;padding:3px 12px;border:2px solid var(--ink);border-radius:999px;background:var(--coral);font:600 .85rem var(--f-b)}
+.maker .cta{justify-content:center;margin-top:22px;gap:12px}
+.maker .cta .btn{padding:9px 16px;font-size:.92rem;box-shadow:3px 3px 0 var(--ink)}
+.maker .cta .btn:hover{box-shadow:2px 2px 0 var(--ink)}
+
+.about-grid{display:grid;grid-template-columns:.8fr 1.2fr;gap:22px;align-items:stretch}
+.about-grid .maker{width:100%;margin:0;justify-content:center}
+.about-stack{display:grid;gap:22px}
+.about-card{padding:24px}
+.about-card h3{font-size:1.3rem;margin-bottom:12px}
+.about-card .checks{margin-top:0;gap:8px}
+.about-card .checks li{font-size:.95rem}
+.about-card .limit{margin-top:14px;font-size:.93rem}
+.about-card .limit-list{margin:6px 0 0;padding-left:20px;color:var(--mute);font-size:.93rem}
+.about-card .limit-list li{margin-bottom:4px}
+.about-card .btn{margin-top:16px}
 .note{margin-top:28px;padding:18px 22px;border:2px solid var(--ink);border-radius:16px;background:#fff0bf;font-size:.95rem}
 
-/* Footer (sama dengan Marketplace Mantan) */
 footer{padding:28px 0 calc(40px + env(safe-area-inset-bottom,0px));border-top:2px solid var(--ink);color:var(--mute);font-size:.9rem}
 .foot{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}
 .footer-brand{display:flex;align-items:center;gap:10px}
 .footer-brand img{width:34px;height:34px;padding:3px;border:2px solid var(--ink);border-radius:10px;background:var(--white);object-fit:contain;flex:none}
 
-/* Tombol scroll atas / bawah */
 .scroll-nav{position:fixed;right:max(16px,env(safe-area-inset-right,0px));bottom:max(16px,calc(env(safe-area-inset-bottom,0px) + 12px));z-index:60;display:flex;flex-direction:column;gap:10px}
 .scroll-btn{display:grid;place-items:center;width:44px;height:44px;padding:0;border:2px solid var(--ink);border-radius:12px;background:var(--white);color:var(--ink);box-shadow:3px 3px 0 var(--ink);cursor:pointer;transition:transform .12s,box-shadow .12s,opacity .2s,visibility .2s}
 .scroll-btn.up{background:var(--sun)}
@@ -118,9 +151,8 @@ footer{padding:28px 0 calc(40px + env(safe-area-inset-bottom,0px));border-top:2p
 .scroll-btn .material-symbols-outlined{font-size:26px}
 .scroll-btn.is-hidden{opacity:0;visibility:hidden;pointer-events:none}
 
-/* Responsif */
-@media(max-width:900px){
- .nav-links,.nav-actions{display:none}
+@media(max-width:1000px){
+ .nav-links{display:none}
  .mobile-menu-toggle{display:flex}
  .mobile-menu-panel{position:absolute;right:0;top:calc(100% + 12px);width:min(300px,calc(100vw - 32px));padding:18px;border:2px solid var(--ink);border-radius:18px;background:var(--white);box-shadow:6px 6px 0 var(--ink)}
  .mobile-menu-panel.open{display:block}
@@ -128,7 +160,11 @@ footer{padding:28px 0 calc(40px + env(safe-area-inset-bottom,0px));border-top:2p
  .mobile-nav-links a{padding:10px 12px;border-radius:10px;text-decoration:none;font-weight:600}
  .mobile-nav-links a:hover{background:var(--sky)}
  .mobile-menu-actions{display:grid;gap:10px}
- .hero,.feature,.tools,.values{grid-template-columns:1fr}
+}
+@media(max-width:900px){
+ .nav-actions{display:none}
+ .hero,.feature,.tools,.values,.vm,.about-grid{grid-template-columns:1fr}
+ 
  .hero{padding:36px 0 56px;gap:34px}
  .sticker{order:-1;width:150px;padding:18px;border-radius:20px;box-shadow:5px 5px 0 var(--ink);justify-self:start}
  .band{padding:52px 0}
@@ -151,10 +187,10 @@ footer{padding:28px 0 calc(40px + env(safe-area-inset-bottom,0px));border-top:2p
     </a>
 
     <nav class="nav-links" aria-label="Navigasi utama">
-      <a href="#tentang">Tentang</a>
+      <a href="#visi">Visi</a>
+      <a href="#produk">Produk</a>
       <a href="#foto-ldr">Foto LDR</a>
       <a href="#marketplace">Marketplace Mantan</a>
-      <a href="#lainnya">Fitur Lain</a>
     </nav>
 
     <div class="header-actions-wrap">
@@ -164,10 +200,10 @@ footer{padding:28px 0 calc(40px + env(safe-area-inset-bottom,0px));border-top:2p
 
       <div class="mobile-menu-panel" data-mobile-menu-panel>
         <nav class="mobile-nav-links" aria-label="Navigasi utama mobile">
-          <a href="#tentang">Tentang</a>
+          <a href="#visi">Visi</a>
+          <a href="#produk">Produk</a>
           <a href="#foto-ldr">Foto LDR</a>
           <a href="#marketplace">Marketplace Mantan</a>
-          <a href="#lainnya">Fitur Lain</a>
         </nav>
         <div class="mobile-menu-actions">
           <a class="btn sun" href="foto-ldr.html">Coba Foto LDR</a>
@@ -186,14 +222,14 @@ footer{padding:28px 0 calc(40px + env(safe-area-inset-bottom,0px));border-top:2p
 <main>
   <section class="wrap hero">
     <div>
-      <span class="eyebrow">Ruang untuk urusan hubungan</span>
+      <span class="eyebrow">Solusi untuk setiap babak kehidupan</span>
       <h1>Gamon<br/><span class="hl">Space</span></h1>
-      <p class="tagline">Dekat, jauh, atau sudah jadi mantan.</p>
-      <p class="lead">Gamon Space adalah kumpulan fitur untuk urusan hubungan: foto bareng pasangan yang beda kota, jual beli barang kenangan, sampai teman cerita saat hati sedang berat. Semua bisa dibuka langsung dari browser.</p>
+      <p class="tagline">Beyond Relationships. Into Life.</p>
+      <p class="lead">Gamon Space adalah ekosistem layanan, teknologi, dan produk yang membantu manusia menjalani, menjaga, dan melanjutkan kehidupan bersama orang-orang yang berarti. Dari hubungan yang dekat, yang berjauhan, sampai memulai lagi setelah perpisahan.</p>
       <div class="cta">
         <a class="btn" href="foto-ldr.html">Foto LDR</a>
         <a class="btn sun" href="user/marketplace/index.html">Marketplace Mantan</a>
-        <a class="btn alt" href="#lainnya">Fitur lainnya</a>
+        <a class="btn alt" href="#produk">Semua produk</a>
       </div>
     </div>
     <div class="sticker" aria-hidden="true">
@@ -201,36 +237,92 @@ footer{padding:28px 0 calc(40px + env(safe-area-inset-bottom,0px));border-top:2p
     </div>
   </section>
 
-  <section id="tentang" class="band white">
+  <section id="visi" class="band white">
     <div class="wrap">
       <div class="head">
         <div>
-          <span class="eyebrow">Tentang Gamon Space</span>
-          <h2>Satu tempat, banyak sisi hubungan</h2>
+          <span class="eyebrow">Visi dan misi</span>
+          <h2>Bukan hanya soal menemukan seseorang</h2>
         </div>
-        <p>Gamon Space dibuat untuk hal-hal yang biasanya kita hadapi sendirian dalam sebuah hubungan. Fiturnya dipilih supaya langsung berguna, tanpa ribet.</p>
+        <p>Gamon Space berangkat dari hubungan antarmanusia, tetapi tidak dibatasi olehnya. Kami peduli pada cara orang menjalani hidup, menjaga orang terdekat, menghadapi perubahan, dan melanjutkan perjalanan.</p>
       </div>
       <div class="values">
         <div class="card">
-          <span class="material-symbols-outlined icon" aria-hidden="true">photo_camera_front</span>
-          <h3>Untuk yang berjauhan</h3>
-          <p>Foto LDR mempertemukan dua kamera dalam satu bingkai, walau kalian berada di kota yang berbeda.</p>
+          <span class="material-symbols-outlined icon" aria-hidden="true">favorite</span>
+          <h3>Hubungan</h3>
+          <p>Dekat atau berjauhan, hubungan tetap perlu dirawat.</p>
         </div>
         <div class="card">
-          <span class="material-symbols-outlined icon" aria-hidden="true">sell</span>
-          <h3>Untuk yang sudah selesai</h3>
-          <p>Marketplace Mantan memberi barang kenangan kesempatan kedua, dengan kondisi yang dijelaskan jujur.</p>
+          <span class="material-symbols-outlined icon" aria-hidden="true">family_restroom</span>
+          <h3>Kebersamaan</h3>
+          <p>Momen penting bersama orang-orang terdekat layak dirayakan dan diabadikan.</p>
         </div>
         <div class="card">
-          <span class="material-symbols-outlined icon" aria-hidden="true">chat_bubble</span>
-          <h3>Untuk yang butuh didengar</h3>
-          <p>AI Curhat menemani kamu bercerita kapan saja. Ia teman bicara, bukan pengganti konselor profesional.</p>
+          <span class="material-symbols-outlined icon" aria-hidden="true">route</span>
+          <h3>Kehidupan</h3>
+          <p>Menghadapi perubahan dan melanjutkan hidup dengan bantuan yang nyata dan mudah diakses.</p>
+        </div>
+      </div>
+      <div class="vm">
+        <div class="card">
+          <h3>Visi</h3>
+          <p>Menjadi ekosistem digital yang menghadirkan solusi nyata bagi berbagai kebutuhan dan persoalan manusia dalam setiap perjalanan kehidupannya.</p>
+        </div>
+        <div class="card">
+          <h3>Misi</h3>
+          <ol>
+            <li>Menghadirkan solusi praktis atas masalah yang sering dialami manusia.</li>
+            <li>Mempermudah akses terhadap produk dan layanan yang dibutuhkan.</li>
+            <li>Menghubungkan kebutuhan masyarakat dengan penyedia solusi.</li>
+            <li>Memanfaatkan teknologi untuk meningkatkan kualitas kehidupan.</li>
+            <li>Mendukung manusia membangun hubungan, keluarga, dan kehidupan yang lebih baik.</li>
+          </ol>
         </div>
       </div>
     </div>
   </section>
 
-  <section id="foto-ldr" class="band sunny">
+
+  <section id="produk" class="band sunny">
+    <div class="wrap">
+      <div class="head">
+        <div>
+          <span class="eyebrow">Produk Gamon Space</span>
+          <h2>Setiap produk membantu satu masalah hidup</h2>
+        </div>
+        <p>Setiap produk dibuat untuk membantu satu kebutuhan nyata dalam perjalanan hidup bersama orang lain.</p>
+      </div>
+      <div class="scroll-x">
+        <table class="map">
+          <thead><tr><th scope="col">Produk</th><th scope="col">Masalah kehidupan yang dibantu</th></tr></thead>
+          <tbody>
+            <tr><td><a href="ai.html">AI Curhat</a></td><td>Kesulitan emosional dan komunikasi</td></tr>
+            <tr><td><a href="foto-ldr.html">Foto LDR</a></td><td>Menjaga kedekatan meski berjauhan</td></tr>
+            <tr><td><a href="user/marketplace/index.html">Marketplace Mantan</a></td><td>Mengelola barang yang tidak terpakai</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="tools">
+        <div class="card tool">
+          <span class="material-symbols-outlined icon" aria-hidden="true">kebab_dining</span>
+          <h3>Hitung Pentol</h3>
+          <p>Hitung pentol dengan cepat dan hindari debat soal siapa makan berapa.</p>
+          <a class="btn sun" href="hitung-pentol.html">Buka Hitung Pentol</a>
+        </div>
+        <div class="card tool">
+          <span class="material-symbols-outlined icon" style="background:var(--coral)" aria-hidden="true">smart_toy</span>
+          <h3>AI Curhat</h3>
+          <p>Ceritakan perasaanmu lewat teks atau suara. Dukungan awal dari AI yang mendengarkan tanpa menghakimi.</p>
+          <a class="btn" href="ai.html">Mulai curhat</a>
+        </div>
+      </div>
+      <div class="note">
+        <strong>Perlu bantuan segera?</strong> AI Curhat bukan pengganti konseling profesional. Hubungi layanan Sejiwa Kementerian Kesehatan RI di <strong>119 ext. 8</strong> (gratis, 24 jam) bila kamu atau temanmu membutuhkan bantuan.
+      </div>
+    </div>
+  </section>
+
+  <section id="foto-ldr" class="band white">
     <div class="wrap feature">
       <div>
         <span class="eyebrow">Foto LDR</span>
@@ -257,7 +349,7 @@ footer{padding:28px 0 calc(40px + env(safe-area-inset-bottom,0px));border-top:2p
       <div>
         <span class="eyebrow">Marketplace Mantan</span>
         <h2>Barang lama, manfaat baru.</h2>
-        <p class="lede">Toko barang bekas pilihan di Banjarmasin. Foto asli, kondisi dan kekurangan dijelaskan jujur, bayar lewat DOKU, dan gratis ongkir untuk area Banjarmasin. Punya barang yang sudah tidak terpakai? Ajukan penjualannya dan dibayar tunai (COD).</p>
+        <p class="lede">Bukan menjual mantan, melainkan membantu orang menjual barang yang sudah tidak dipakai setelah hubungan berakhir. Toko barang bekas pilihan di Banjarmasin: foto asli, kondisi dan kekurangan dijelaskan jujur, bayar lewat DOKU, dan gratis ongkir untuk area Banjarmasin. Punya barang yang sudah tidak terpakai? Ajukan penjualannya dan dibayar tunai (COD).</p>
         <ul class="checks">
           <li><span class="material-symbols-outlined" aria-hidden="true">check</span>Katalog pakaian, aksesori, dan barang lain</li>
           <li><span class="material-symbols-outlined" aria-hidden="true">check</span>Pembayaran tercatat otomatis di akunmu</li>
@@ -277,30 +369,52 @@ footer{padding:28px 0 calc(40px + env(safe-area-inset-bottom,0px));border-top:2p
     </div>
   </section>
 
-  <section id="lainnya" class="band white">
+
+
+  <section id="pembuat" class="band sunny">
     <div class="wrap">
-      <div class="head">
+      <div class="head center">
         <div>
-          <span class="eyebrow">Fitur lain</span>
-          <h2>Dua teman kecil di Gamon Space</h2>
+          <span class="eyebrow">Di balik Gamon Space</span>
+          <h2>Dibuat sendiri, dari yang serba gratis</h2>
         </div>
+        <p>Gamon Space dikembangkan tanpa modal besar. Begini cara kerjanya.</p>
       </div>
-      <div class="tools">
-        <div class="card tool">
-          <span class="material-symbols-outlined icon" aria-hidden="true">kebab_dining</span>
-          <h3>Hitung Pentol</h3>
-          <p>Hitung pentol dengan cepat dan hindari debat soal siapa makan berapa.</p>
-          <a class="btn sun" href="hitung-pentol.html">Buka Hitung Pentol</a>
+      <div class="about-grid">
+        <div class="maker">
+          <div class="avatar">
+            <span class="material-symbols-outlined" aria-hidden="true" style="font-size:inherit">person</span>
+            <img src="image/team/abell.jpg" alt="Foto Abell Deskiawan" width="180" height="180" loading="lazy" onerror="this.remove()"/>
+          </div>
+          <div>
+            <h3>Muhamad Abell Deskiawan</h3>
+            <span class="role">Founder &amp; Developer</span>
+            <div class="cta">
+              <a class="btn sun" href="https://www.instagram.com/abldskwn/" target="_blank" rel="noopener noreferrer">Instagram</a>
+              <a class="btn alt" href="https://www.linkedin.com/in/abelldeskiawan/" target="_blank" rel="noopener noreferrer">LinkedIn</a>
+            </div>
+          </div>
         </div>
-        <div class="card tool">
-          <span class="material-symbols-outlined icon" style="background:var(--coral)" aria-hidden="true">smart_toy</span>
-          <h3>AI Curhat</h3>
-          <p>Ceritakan perasaanmu lewat teks atau suara. Dukungan awal dari AI yang mendengarkan tanpa menghakimi.</p>
-          <a class="btn" href="ai.html">Mulai curhat</a>
+        <div class="about-stack">
+          <div class="card about-card">
+            <h3>Dibuat dengan apa</h3>
+            <ul class="checks">
+              <li><span class="material-symbols-outlined" aria-hidden="true">check</span>Hosting di Vercel, memakai paket gratis</li>
+              <li><span class="material-symbols-outlined" aria-hidden="true">check</span>Halaman ditulis dengan HTML, CSS, dan JavaScript</li>
+              <li><span class="material-symbols-outlined" aria-hidden="true">check</span>AI Curhat ditenagai Groq API</li>
+              <li><span class="material-symbols-outlined" aria-hidden="true">check</span>Font dan ikon dari Google Fonts</li>
+              <li><span class="material-symbols-outlined" aria-hidden="true">check</span>Pembayaran lewat QRIS dan DOKU</li>
+            </ul>
+            <p class="limit"><strong>Keterbatasannya</strong>, karena serba gratis:</p>
+            <ul class="limit-list">
+              <li>Domain masih bawaan Vercel (gamon-space.vercel.app)</li>
+              <li>Vercel gratis membatasi maksimal 12 fungsi server (file JS di folder api) per deployment, jadi fitur baru harus dihemat atau digabung</li>
+              <li>Kuota layanan, termasuk untuk AI Curhat, terbatas</li>
+            </ul>
+            <p class="limit">Ada pertanyaan atau masukan? Kabari lewat pesan Instagram.</p>
+            <a class="btn" href="https://www.instagram.com/abldskwn/" target="_blank" rel="noopener noreferrer">Hubungi</a>
+          </div>
         </div>
-      </div>
-      <div class="note">
-        <strong>Perlu bantuan segera?</strong> AI Curhat bukan pengganti konseling profesional. Hubungi layanan Sejiwa Kementerian Kesehatan RI di <strong>119 ext. 8</strong> (gratis, 24 jam) bila kamu atau temanmu membutuhkan bantuan.
       </div>
     </div>
   </section>
@@ -309,7 +423,7 @@ footer{padding:28px 0 calc(40px + env(safe-area-inset-bottom,0px));border-top:2p
 <footer>
   <div class="wrap foot">
     <div class="footer-brand"><img src="image/logo/gamonspace-transparan.png" alt="Gamon Space" width="34" height="34"/><span>© 2026 Gamon Space</span></div>
-    <div>Ruang untuk urusan hubungan.</div>
+    <div>Beyond Relationships. Into Life.</div>
   </div>
 </footer>
 
@@ -334,7 +448,7 @@ footer{padding:28px 0 calc(40px + env(safe-area-inset-bottom,0px));border-top:2p
     panel.addEventListener('click',function(e){if(e.target.closest('a'))setMenu(false);});
     document.addEventListener('click',function(e){if(!panel.contains(e.target))setMenu(false);});
     document.addEventListener('keydown',function(e){if(e.key==='Escape')setMenu(false);});
-    window.addEventListener('resize',function(){if(window.innerWidth>900)setMenu(false);});
+    window.addEventListener('resize',function(){if(window.innerWidth>1000)setMenu(false);});
   }
 
   /* Tombol scroll atas / bawah */
