@@ -4,11 +4,11 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
 <title>Marketplace Mantan | Toko Barang Bekas Pilihan di Banjarmasin</title>
-<meta name="description" content="Marketplace Mantan: toko barang bekas pilihan di Banjarmasin, Kalimantan Selatan. Kondisi barang jelas, harga transparan, gratis ongkir area Banjarmasin. Bisa juga jual barangmu lewat pengajuan dan COD."/>
+<meta name="description" content="Marketplace Mantan: toko barang bekas pilihan di Banjarmasin, Kalimantan Selatan. Kondisi barang jelas, harga transparan, gratis ongkir area Banjarmasin. Bayar lewat QRIS/DOKU atau COD, dan bisa juga jual barangmu lewat pengajuan."/>
 <meta name="geo.region" content="ID-KS"/>
 <meta name="geo.placename" content="Banjarmasin, Kalimantan Selatan"/>
 <meta property="og:title" content="Marketplace Mantan | Toko Barang Bekas Pilihan di Banjarmasin"/>
-<meta property="og:description" content="Barang bekas pilihan dengan kondisi jelas dan harga transparan. Melayani Banjarmasin, Kalimantan Selatan."/>
+<meta property="og:description" content="Barang bekas pilihan dengan kondisi jelas dan harga transparan. Bayar via QRIS/DOKU atau COD. Melayani Banjarmasin, Kalimantan Selatan."/>
 <meta property="og:type" content="website"/>
 <meta property="og:locale" content="id_ID"/>
 <link rel="icon" type="image/png" href="../../image/logo/gamonspace.png"/>
@@ -24,6 +24,7 @@
   "@type": "Store",
   "name": "Marketplace Mantan",
   "description": "Toko barang bekas pilihan di Banjarmasin, Kalimantan Selatan.",
+  "paymentAccepted": "QRIS, DOKU, Cash on Delivery",
   "areaServed": { "@type": "City", "name": "Banjarmasin" },
   "address": {
     "@type": "PostalAddress",
@@ -59,7 +60,7 @@ a{color:inherit}
 .brand{display:inline-flex;align-items:center;gap:10px;font:800 1.15rem var(--f-d);text-decoration:none;letter-spacing:-.02em}
 .brand-mark{display:grid;place-items:center;flex:none;width:40px;height:40px;padding:3px;border:2px solid var(--ink);border-radius:10px;background:var(--white);box-shadow:2px 2px 0 var(--ink);overflow:hidden}
 .brand-mark img{display:block;width:100%;height:100%;object-fit:contain}
-.nav-links{display:flex;align-items:center;gap:22px;font-weight:600;font-size:.95rem}
+.nav-links{display:flex;align-items:center;gap:20px;font-weight:600;font-size:.93rem}
 .nav-links a{text-decoration:none}
 .nav-links a:hover{text-decoration:underline;text-underline-offset:4px}
 .header-actions-wrap{display:flex;align-items:center;gap:12px;position:relative}
@@ -109,9 +110,10 @@ a{color:inherit}
 .filter-pill:hover{background:var(--sky)}
 .filter-pill.active{background:var(--ink);color:var(--white)}
 
-/* Catatan katalog */
+/* Catatan */
 .mm-note{display:flex;gap:12px;align-items:flex-start;margin-bottom:24px;padding:14px 18px;border:2px solid var(--ink);border-radius:14px;background:#fff0bf;font-size:.94rem;color:var(--ink)}
 .mm-note .material-symbols-outlined{flex:none;font-size:22px}
+.mm-note.below{margin:24px 0 0}
 
 /* =========================================================
    KATALOG PRODUK (markup dibuat oleh assets/app.js)
@@ -152,7 +154,7 @@ a{color:inherit}
 #explore .product-carousel-dot.is-active{background:var(--ink)!important}
 #explore .product-carousel-empty{padding:28px;border:2px dashed var(--ink);border-radius:16px;text-align:center;color:var(--mute)}
 
-/* Loading (dipakai katalog & testimoni): pill + spinner + kerangka kartu */
+/* Loading (katalog & testimoni) */
 .mm-loading-wrap{display:grid;gap:18px}
 .mm-loading-pill{display:inline-flex;align-items:center;gap:10px;width:fit-content;justify-self:start;padding:10px 18px;border:2px solid var(--ink);border-radius:12px;background:var(--sun);color:var(--ink);box-shadow:3px 3px 0 var(--ink);font:600 .95rem var(--f-b)}
 .mm-loading-pill::before{content:"";flex:none;width:18px;height:18px;border:3px solid var(--ink);border-top-color:var(--coral);border-radius:50%;animation:mm-spin .8s linear infinite}
@@ -168,15 +170,16 @@ a{color:inherit}
 .sk-w60{width:60%!important}
 .sk-w80{width:80%!important}
 
-/* Area layanan Banjarmasin */
+/* Area layanan & metode pembayaran (kartu dua kolom) */
 .mm-area{display:grid;grid-template-columns:1fr 1fr;gap:22px}
 .mm-area-card{padding:26px 28px;border:2px solid var(--ink);border-radius:20px;background:var(--white);box-shadow:6px 6px 0 var(--ink)}
 .mm-area-card h3{font-size:1.35rem;margin-bottom:10px;display:flex;align-items:center;gap:10px}
-.mm-area-card h3 .material-symbols-outlined{display:grid;place-items:center;width:38px;height:38px;border:2px solid var(--ink);border-radius:12px;background:var(--sun);font-size:22px}
+.mm-area-card h3 .material-symbols-outlined{display:grid;place-items:center;flex:none;width:38px;height:38px;border:2px solid var(--ink);border-radius:12px;background:var(--sun);font-size:22px}
 .mm-area-card:nth-child(2) h3 .material-symbols-outlined{background:var(--coral)}
 .mm-area-card p,.mm-area-card li{color:var(--mute);font-size:.98rem}
 .mm-area-card ul{margin:10px 0 0;padding-left:20px;display:grid;gap:4px}
 .mm-area-card p+p{margin-top:10px}
+.mm-band.white .mm-area-card{background:var(--sky)}
 
 /* Section Jual Barang */
 .mm-sell{display:grid;grid-template-columns:.9fr 1.1fr;gap:40px;align-items:start}
@@ -276,6 +279,9 @@ footer{padding:28px 0 calc(40px + env(safe-area-inset-bottom,0px));border-top:2p
 @media(max-width:520px){.scroll-btn{width:40px;height:40px;border-radius:10px}.scroll-btn .material-symbols-outlined{font-size:24px}}
 
 /* Responsif */
+@media(max-width:1020px){
+ .nav-links{gap:14px;font-size:.88rem}
+}
 @media(max-width:900px){
  .mm-review-grid{grid-template-columns:1fr}
  .mm-review-skel .mm-review:nth-child(n+2){display:none}
@@ -326,6 +332,7 @@ footer{padding:28px 0 calc(40px + env(safe-area-inset-bottom,0px));border-top:2p
       <a href="../../index.html">Gamon</a>
       <a href="#explore">Katalog</a>
       <a href="#area">Area Layanan</a>
+      <a href="#payment">Pembayaran</a>
       <a href="#sell">Jual Barang</a>
       <a href="keranjang.html" data-cart-link>Keranjang <span data-cart-count hidden>0</span></a>
       <a href="#why">Kenapa Kami</a>
@@ -344,6 +351,7 @@ footer{padding:28px 0 calc(40px + env(safe-area-inset-bottom,0px));border-top:2p
           <a href="../../index.html">Gamon</a>
           <a href="#explore">Katalog</a>
           <a href="#area">Area Layanan</a>
+          <a href="#payment">Pembayaran</a>
           <a href="#sell">Jual Barang</a>
           <a href="#why">Kenapa Kami</a>
           <a href="#how">Cara Kerja</a>
@@ -378,7 +386,7 @@ footer{padding:28px 0 calc(40px + env(safe-area-inset-bottom,0px));border-top:2p
         </h1>
         <p class="mm-tagline">Barang lama, manfaat baru.</p>
         <p class="mm-lead">
-          Marketplace Mantan adalah toko barang bekas pilihan di Banjarmasin, Kalimantan Selatan. Setiap barang kami pilih sendiri, difoto apa adanya, dan dijelaskan kondisinya dengan jujur, termasuk kekurangannya. Belanja bayar lewat DOKU dengan gratis ongkir untuk pengantaran area Banjarmasin. Punya barang yang sudah tidak terpakai? Ajukan penjualannya, lalu bawa ke lokasi kami di Banjarmasin dan dibayar tunai di tempat.
+          Marketplace Mantan adalah toko barang bekas pilihan di Banjarmasin, Kalimantan Selatan. Setiap barang kami pilih sendiri, difoto apa adanya, dan dijelaskan kondisinya dengan jujur, termasuk kekurangannya. Saat checkout kamu bisa memilih bayar online lewat QRIS/DOKU, atau COD (bayar tunai saat barang sampai) bila tersedia, dengan gratis ongkir untuk pengantaran area Banjarmasin. Punya barang yang sudah tidak terpakai? Ajukan penjualannya, lalu bawa ke lokasi kami di Banjarmasin dan dibayar tunai di tempat.
         </p>
 
         <div class="mm-cta">
@@ -388,11 +396,12 @@ footer{padding:28px 0 calc(40px + env(safe-area-inset-bottom,0px));border-top:2p
         </div>
 
         <div class="mm-pills">
-          <span class="mm-pill"><span class="material-symbols-outlined" style="font-size:16px">location_on</span> Banjarmasin, Kalsel</span>
-          <span class="mm-pill"><span class="material-symbols-outlined" style="font-size:16px">verified</span> Kondisi dijelaskan jujur</span>
-          <span class="mm-pill"><span class="material-symbols-outlined" style="font-size:16px">lock</span> Bayar via DOKU</span>
-          <span class="mm-pill"><span class="material-symbols-outlined" style="font-size:16px">local_shipping</span> Gratis ongkir area Banjarmasin</span>
-          <span class="mm-pill"><span class="material-symbols-outlined" style="font-size:16px">payments</span> Jual &amp; COD</span>
+          <span class="mm-pill"><span class="material-symbols-outlined" style="font-size:16px" aria-hidden="true">location_on</span> Banjarmasin, Kalsel</span>
+          <span class="mm-pill"><span class="material-symbols-outlined" style="font-size:16px" aria-hidden="true">verified</span> Kondisi dijelaskan jujur</span>
+          <span class="mm-pill"><span class="material-symbols-outlined" style="font-size:16px" aria-hidden="true">lock</span> Bayar via QRIS/DOKU</span>
+          <span class="mm-pill"><span class="material-symbols-outlined" style="font-size:16px" aria-hidden="true">payments</span> COD tersedia</span>
+          <span class="mm-pill"><span class="material-symbols-outlined" style="font-size:16px" aria-hidden="true">local_shipping</span> Gratis ongkir area Banjarmasin</span>
+          <span class="mm-pill"><span class="material-symbols-outlined" style="font-size:16px" aria-hidden="true">sell</span> Bisa jual barang</span>
         </div>
 
         <!-- Penghitung disembunyikan agar tidak menampilkan angka 0. Elemen dipertahankan supaya assets/app.js tidak error. -->
@@ -420,14 +429,14 @@ footer{padding:28px 0 calc(40px + env(safe-area-inset-bottom,0px));border-top:2p
 
       <div class="mm-note">
         <span class="material-symbols-outlined" aria-hidden="true">info</span>
-        <p>Semua barang di sini adalah barang bekas (preloved). Stok terbatas dan umumnya hanya satu unit per produk, jadi baca deskripsi kondisi sebelum membeli. Ada pertanyaan? Hubungi admin lewat Chat Admin setelah masuk ke akunmu.</p>
+        <p>Semua barang di sini adalah barang bekas (preloved). Stok terbatas dan umumnya hanya satu unit per produk, jadi baca deskripsi kondisi sebelum membeli. Pembayaran bisa lewat QRIS/DOKU atau COD (bila tersedia untuk pesananmu). Ada pertanyaan? Hubungi admin lewat Chat Admin setelah masuk ke akunmu.</p>
       </div>
 
-      <div class="filter-row" aria-label="Filter produk">
-        <button class="filter-pill active" data-filter="all">Semua</button>
-        <button class="filter-pill" data-filter="pakaian">Pakaian</button>
-        <button class="filter-pill" data-filter="aksesori">Aksesori</button>
-        <button class="filter-pill" data-filter="barang">Barang Lain</button>
+      <div class="filter-row" role="group" aria-label="Filter produk">
+        <button class="filter-pill active" type="button" data-filter="all">Semua</button>
+        <button class="filter-pill" type="button" data-filter="pakaian">Pakaian</button>
+        <button class="filter-pill" type="button" data-filter="aksesori">Aksesori</button>
+        <button class="filter-pill" type="button" data-filter="barang">Barang Lain</button>
       </div>
 
       <div class="grid-products" data-product-list></div>
@@ -447,11 +456,11 @@ footer{padding:28px 0 calc(40px + env(safe-area-inset-bottom,0px));border-top:2p
       <div class="mm-area">
         <div class="mm-area-card">
           <h3><span class="material-symbols-outlined" aria-hidden="true">local_shipping</span> Gratis ongkir area Banjarmasin</h3>
-          <p>Pesanan yang dibayar lewat DOKU diantar gratis ke alamat tujuan di wilayah Kota Banjarmasin.</p>
+          <p>Pesanan, baik yang dibayar lewat QRIS/DOKU maupun COD, diantar gratis ke alamat tujuan di wilayah Kota Banjarmasin.</p>
           <ul>
             <li>Pastikan alamat pengiriman lengkap dan benar saat checkout.</li>
             <li>Alamat di luar Banjarmasin bisa ditanyakan dulu ke admin lewat Chat Admin.</li>
-            <li>Jadwal antar akan dikonfirmasi admin setelah pembayaran tercatat.</li>
+            <li>Jadwal antar akan dikonfirmasi admin setelah pesananmu tercatat.</li>
           </ul>
         </div>
         <div class="mm-area-card">
@@ -459,6 +468,44 @@ footer{padding:28px 0 calc(40px + env(safe-area-inset-bottom,0px));border-top:2p
           <p>Saat ini Marketplace Mantan masih dijalankan dari rumah di Banjarmasin, Kalimantan Selatan. Toko fisik belum dibuka.</p>
           <p>Alamat lengkap untuk penjual hanya ditampilkan di halaman Jual Barang setelah pengajuanmu disetujui admin, demi keamanan dan kenyamanan bersama. Kunjungan dilakukan sesuai jadwal yang disepakati, bukan datang langsung tanpa janji.</p>
         </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="payment" class="mm-band white">
+    <div class="mm-wrap">
+      <div class="mm-head">
+        <div>
+          <span class="mm-eyebrow">Metode pembayaran</span>
+          <h2>Bayar online atau bayar di tempat</h2>
+        </div>
+        <p>Dua pilihan pembayaran untuk belanjamu. Pilih salah satu saat checkout di halaman Keranjang.</p>
+      </div>
+
+      <div class="mm-area">
+        <div class="mm-area-card">
+          <h3><span class="material-symbols-outlined" aria-hidden="true">qr_code_2</span> QRIS / DOKU</h3>
+          <p>Bayar online sekarang lewat halaman resmi DOKU. Status pembayaran tercatat otomatis di sistem, jadi pesananmu langsung kami proses.</p>
+          <ul>
+            <li>Tersedia untuk semua pesanan.</li>
+            <li>Pembayaran diproses di halaman resmi DOKU, bukan transfer manual.</li>
+            <li>Pantau status pesanan di halaman Pesanan Saya.</li>
+          </ul>
+        </div>
+        <div class="mm-area-card">
+          <h3><span class="material-symbols-outlined" aria-hidden="true">payments</span> COD (bayar tunai saat barang sampai)</h3>
+          <p>Pilih COD kalau kamu lebih nyaman membayar tunai setelah barang tiba di alamat tujuanmu.</p>
+          <ul>
+            <li>Opsi COD muncul di halaman Keranjang saat checkout.</li>
+            <li>Ketersediaan COD diperiksa otomatis untuk setiap pesanan dan alamat. Kalau belum tersedia, pilihan COD dinonaktifkan dan alasannya ditampilkan.</li>
+            <li>Siapkan uang tunai sesuai total pesanan, dan pastikan alamat serta nomor kontakmu benar.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="mm-note below">
+        <span class="material-symbols-outlined" aria-hidden="true">info</span>
+        <p>COD di bagian ini adalah untuk pembeli (bayar saat barang sampai). Untuk penjual yang menjual barang ke kami, pembayaran tunai dilakukan di lokasi COD resmi di Banjarmasin, lihat bagian Jual Barang di bawah.</p>
       </div>
     </div>
   </section>
@@ -543,8 +590,8 @@ footer{padding:28px 0 calc(40px + env(safe-area-inset-bottom,0px));border-top:2p
         </div>
         <div class="mm-value">
           <div class="big">02</div>
-          <h3>Pembayaran aman via DOKU</h3>
-          <p>Bayar langsung di sistem lewat DOKU. Setiap akun harus login, dan status pesananmu tercatat otomatis.</p>
+          <h3>Bayar sesuai kenyamananmu</h3>
+          <p>Bayar online lewat QRIS/DOKU dengan status tercatat otomatis, atau pilih COD dan bayar tunai saat barang sampai. Setiap akun harus login, dan status pesananmu tercatat di sistem.</p>
         </div>
         <div class="mm-value">
           <div class="big">03</div>
@@ -575,12 +622,12 @@ footer{padding:28px 0 calc(40px + env(safe-area-inset-bottom,0px));border-top:2p
           <p>Jelajahi katalog, baca kondisi dan kekurangan barang, lalu masukkan pilihanmu ke keranjang.</p>
         </li>
         <li>
-          <h3>Bayar via DOKU</h3>
-          <p>Checkout dan selesaikan pembayaran langsung di sistem lewat DOKU. Status pembayaran tercatat otomatis.</p>
+          <h3>Pilih pembayaran</h3>
+          <p>Di Keranjang, pilih QRIS/DOKU untuk bayar online sekarang, atau COD untuk bayar tunai saat barang sampai (bila tersedia).</p>
         </li>
         <li>
           <h3>Barang diantar</h3>
-          <p>Pesananmu diantar ke alamat tujuan di Banjarmasin dengan gratis ongkir.</p>
+          <p>Pesananmu diantar ke alamat tujuan di Banjarmasin dengan gratis ongkir. Untuk COD, bayar tunai saat barang diterima.</p>
         </li>
       </ol>
 
@@ -606,7 +653,7 @@ footer{padding:28px 0 calc(40px + env(safe-area-inset-bottom,0px));border-top:2p
 
       <div class="mm-warn">
         <p><strong>Catatan untuk pembeli:</strong>
-        Semua pembayaran belanja dilakukan lewat sistem Marketplace Mantan menggunakan DOKU, bukan COD. Jangan transfer uang ke rekening pribadi atau di luar platform, jangan bagikan kode OTP atau PIN kepada siapa pun, dan pastikan alamat pengiriman yang kamu isi sudah benar.</p>
+        Pembayaran belanja dilakukan lewat sistem Marketplace Mantan, yaitu QRIS/DOKU atau COD yang kamu pilih saat checkout. Jangan transfer uang ke rekening pribadi atau di luar platform, jangan bagikan kode OTP atau PIN kepada siapa pun, dan pastikan alamat pengiriman yang kamu isi sudah benar. Untuk COD, bayarlah tunai hanya saat barang sampai dan sesuai total yang tertera di pesananmu.</p>
         <p><strong>Catatan untuk penjual:</strong>
         Pembayaran penjualan hanya dilakukan tunai di lokasi COD resmi di Banjarmasin setelah pengajuanmu disetujui dan barang dicek bersama. Datanglah sesuai jadwal yang disepakati lewat sistem, dan jangan menyerahkan barang kepada pihak yang mengaku sebagai admin di luar lokasi tersebut.</p>
       </div>
@@ -653,14 +700,14 @@ footer{padding:28px 0 calc(40px + env(safe-area-inset-bottom,0px));border-top:2p
 
       <div class="review-empty-state" data-review-empty hidden>
         <div class="review-empty-content">
-          <span class="material-symbols-outlined">rate_review</span>
+          <span class="material-symbols-outlined" aria-hidden="true">rate_review</span>
           <p>Belum ada testimoni saat ini. Setelah ada transaksi dan ulasan dari pembeli, review ini akan muncul di sini.</p>
         </div>
       </div>
 
       <div class="review-empty-state" data-review-error hidden>
         <div class="review-empty-content">
-          <span class="material-symbols-outlined">error</span>
+          <span class="material-symbols-outlined" aria-hidden="true">error</span>
           <p>Testimoni gagal dimuat. Periksa koneksi lalu coba lagi.</p>
           <button class="mm-btn" type="button" data-review-retry>Muat ulang testimoni</button>
         </div>
@@ -672,7 +719,7 @@ footer{padding:28px 0 calc(40px + env(safe-area-inset-bottom,0px));border-top:2p
 <footer>
   <div class="mm-wrap footer-line">
     <div class="footer-brand"><img src="../../image/logo/gamonspace-transparan.png" alt="Gamon Space" width="34" height="34"/><span>© 2026 Marketplace Mantan · Banjarmasin, Kalimantan Selatan</span></div>
-    <div>Toko barang bekas pilihan. Barang lama, manfaat baru.</div>
+    <div>Toko barang bekas pilihan. Bayar via QRIS/DOKU atau COD. Barang lama, manfaat baru.</div>
   </div>
 </footer>
 
