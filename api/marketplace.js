@@ -21,6 +21,20 @@ function responseError(res, status, code, message, details) {
   return res.status(status).json({ success: false, code, message, ...(details ? { details } : {}) });
 }
 
+function withFirestoreTimeout(operation, label, timeoutMs = 15000) {
+  let timeoutId;
+  const timeout = new Promise((resolve, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(Object.assign(new Error(`Firestore timeout saat ${label} setelah ${timeoutMs / 1000} detik.`), {
+        code: 'firestore-timeout'
+      }));
+    }, timeoutMs);
+  });
+
+  return Promise.race([Promise.resolve().then(operation), timeout])
+    .finally(() => clearTimeout(timeoutId));
+}
+
 function readBearerToken(req) {
   const header = String(req.headers?.authorization || '');
   const match = header.match(/^Bearer\s+(.+)$/i);
@@ -55,7 +69,7 @@ function loadLocalEnvFallback() {
   localEnvLoaded = true;
   if (process.env.VERCEL_ENV === 'production' || process.env.NODE_ENV === 'production') return;
 
-  const wanted = ['DOKU_CLIENT_ID', 'DOKU_SECRET_KEY', 'DOKU_BASE_URL', 'SITE_URL', 'DOKU_PAYMENT_METHODS', 'MARKETPLACE_SHIPPING_FEE', 'MARKETPLACE_COD_MAX_AMOUNT', 'MARKETPLACE_COD_MAX_ACTIVE', 'MARKETPLACE_COD_MAX_FAIL', 'MARKETPLACE_COD_FEE', 'GMAIL_APP_PASSWORD', 'ADMIN_NOTIFY_EMAIL', 'EMAIL_VERIFY_SECRET'];
+  const wanted = ['DOKU_CLIENT_ID', 'DOKU_SECRET_KEY', 'DOKU_BASE_URL', 'SITE_URL', 'DOKU_PAYMENT_METHODS', 'MARKETPLACE_SHIPPING_FEE', 'MARKETPLACE_COD_MAX_AMOUNT', 'MARKETPLACE_COD_MAX_ACTIVE', 'MARKETPLACE_COD_MAX_FAIL', 'MARKETPLACE_COD_FEE', 'GMAIL_APP_PASSWORD', 'ADMIN_NOTIFY_EMAIL', 'EMAIL_VERIFY_SECRET', 'FIREBASE_SERVICE_ACCOUNT', 'FIREBASE_PROJECT_ID', 'FIREBASE_CLIENT_EMAIL', 'FIREBASE_PRIVATE_KEY'];
   const files = ['.env.local', '.env.development.local', '.env.development', '.env'];
   const found = [];
 
@@ -860,6 +874,40 @@ async function publicReviews(req, res) {
   return res.status(200).json({ success: true, reviews: result });
 }
 
+async function publicProducts(req, res) {
+  const db = getAdminDb();
+  const snapshot = await db.collection('marketplace_products').get();
+  const products = snapshot.docs
+    .map((document) => {
+      const data = document.data() || {};
+      if (data.active === false) return null;
+
+      return {
+        id: document.id,
+        name: data.name,
+        category: data.category,
+        price: data.price,
+        stock: data.stock,
+        sold: data.sold,
+        active: data.active,
+        condition: data.condition,
+        label: data.label,
+        city: data.city,
+        address: data.address,
+        createdAt: data.createdAt,
+        imageUrl: data.thumbUrl || data.imageUrl || (Array.isArray(data.images) ? data.images[0] : '') || data.image || ''
+      };
+    })
+    .filter(Boolean);
+
+  res.setHeader('Cache-Control', 'public, s-maxage=10, stale-while-revalidate=30');
+  const payload = { success: true, products };
+  if (Buffer.byteLength(JSON.stringify(payload), 'utf8') > 3 * 1024 * 1024) {
+    console.warn('[marketplace] payload public-products melebihi 3 MB.');
+  }
+  return res.status(200).json(payload);
+}
+
 async function submitReview(req, res, claims) {
   const orderId = String(req.body?.orderId || '').trim();
   const productId = String(req.body?.productId || '').trim();
@@ -1505,6 +1553,7 @@ async function verifyEmail(req, res) {
 }
 
 export default async function handler(req, res) {
+ loadLocalEnvFallback();
  const action = String(req.query?.action || '').trim().toLowerCase();
 
    // Link dari email dibuka lewat GET.
@@ -1515,8 +1564,28 @@ export default async function handler(req, res) {
     return showResetPage(req, res);
   }
 
-  if (req.method !== 'POST') return responseError(res, 405, 'method-not-allowed', 'Method not allowed.');
+  // Endpoint publik katalog menerima GET agar dapat di-cache CDN.
+  if (action === 'public-products' && (req.method === 'GET' || req.method === 'POST')) {
+    try {
+      return await withFirestoreTimeout(
+        () => publicProducts(req, res),
+        'memuat katalog produk'
+      );
+    } catch (error) {
+      console.error('[marketplace] public-products gagal:', { code: error.code || 'unknown', message: error.message });
+      return responseError(
+        res,
+        500,
+        error.code || 'products-failed',
+        'Katalog gagal dimuat.',
+        process.env.NODE_ENV !== 'production'
+          ? { message: error.message, code: error.code || 'unknown' }
+          : undefined
+      );
+    }
+  }
 
+  if (req.method !== 'POST') return responseError(res, 405, 'method-not-allowed', 'Method not allowed.');
 
   // Aksi publik (tanpa login): mencatat jumlah dilihat produk.
   if (action === 'view-product') {
@@ -1531,10 +1600,21 @@ export default async function handler(req, res) {
   // Aksi publik (tanpa login): testimoni beranda dengan foto profil terbaru.
   if (action === 'public-reviews') {
     try {
-      return await publicReviews(req, res);
+      return await withFirestoreTimeout(
+        () => publicReviews(req, res),
+        'memuat ulasan publik'
+      );
     } catch (error) {
       console.error('[marketplace] public-reviews gagal:', { code: error.code || 'unknown', message: error.message });
-      return responseError(res, 500, error.code || 'reviews-failed', 'Testimoni gagal dimuat.');
+      return responseError(
+        res,
+        500,
+        error.code || 'reviews-failed',
+        'Testimoni gagal dimuat.',
+        process.env.NODE_ENV !== 'production'
+          ? { message: error.message, code: error.code || 'unknown' }
+          : undefined
+      );
     }
   }
 

@@ -123,7 +123,7 @@ a{color:inherit}
 
 .mm-grid,
 #explore .product-carousel-slide.is-active{
-  display:grid;grid-template-columns:repeat(auto-fill,minmax(176px,1fr));gap:18px;align-items:start}
+  display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:18px;align-items:start}
 #explore .product-carousel-track{display:block;transform:none!important}
 #explore .product-carousel-slide:not(.is-active){display:none}
 
@@ -316,6 +316,10 @@ footer{padding:28px 0 calc(40px + env(safe-area-inset-bottom,0px));border-top:2p
  .mm-cta .mm-btn{width:100%}
  .mm-sell-steps{grid-template-columns:1fr}
  .mm-sell-step:nth-child(n){transform:none}
+}
+@media(min-width:521px) and (max-width:900px){
+ .mm-grid,
+ #explore .product-carousel-slide.is-active{grid-template-columns:repeat(3,minmax(0,1fr))}
 }
 @media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}html{scroll-behavior:auto}}
 </style>

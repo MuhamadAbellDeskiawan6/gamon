@@ -1,6 +1,6 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut, sendPasswordResetEmail, GoogleAuthProvider, signInWithPopup } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
-import { getFirestore, collection, doc, setDoc, getDoc, getDocs, query, where, orderBy, limit, onSnapshot, updateDoc, writeBatch, increment, deleteField, runTransaction } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+import { initializeFirestore, collection, doc, setDoc, getDoc, getDocs, query, where, orderBy, limit, onSnapshot, updateDoc, writeBatch, increment, deleteField, runTransaction } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
 
 const firebaseConfig = {
@@ -15,7 +15,7 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
-const db = getFirestore(app);
+const db = initializeFirestore(app, { experimentalAutoDetectLongPolling: true });
 const ADMIN_ACCOUNT_EMAIL = 'muhamadabelldeskiawan@gmail.com';
 
 const STORAGE_KEYS = {
@@ -1311,20 +1311,79 @@ function cacheMarketplaceProducts(items) {
   }
 }
 
+async function loadHomeProducts() {
+  let items = [];
+  let source = 'none';
+  let lastError = null;
+
+  try {
+    const response = await withTimeout(fetch('/api/marketplace?action=public-products', {
+      method: 'GET'
+    }), 8000, 'Memuat katalog dari server');
+    const contentType = response.headers.get('Content-Type') || '';
+    if (!response.ok || !contentType.toLowerCase().includes('application/json')) {
+      throw new Error(`API katalog tidak tersedia (status ${response.status})`);
+    }
+    const result = await response.json();
+    if (result?.success !== true || !Array.isArray(result.products)) {
+      throw new Error(result?.message || `Server katalog merespons ${response.status}.`);
+    }
+    if (result.products.length) {
+      items = result.products;
+      source = 'api';
+    }
+  } catch (error) {
+    lastError = error;
+    console.error('[marketplace] gagal memuat produk dari API:', error);
+  }
+
+  if (!items.length) {
+    try {
+      const snapshot = await withTimeout(
+        getDocs(collection(db, 'marketplace_products')),
+        8000,
+        'Memuat katalog dari Firestore'
+      );
+      const firestoreItems = snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
+      if (firestoreItems.length) {
+        items = firestoreItems;
+        source = 'firestore';
+      }
+    } catch (error) {
+      lastError = error;
+      console.error('[marketplace] gagal memuat produk dari Firestore:', error);
+    }
+  }
+
+  if (!items.length) {
+    const cachedItems = readStorage(STORAGE_KEYS.PRODUCTS, []);
+    if (Array.isArray(cachedItems) && cachedItems.length) {
+      items = cachedItems;
+      source = 'cache';
+    }
+  }
+
+  const failed = items.length === 0;
+  if (failed) {
+    window.__marketplaceProductsError = {
+      code: lastError?.code || 'catalog-unavailable',
+      message: 'Katalog belum bisa dimuat. Periksa koneksi lalu coba lagi.'
+    };
+  } else {
+    cacheMarketplaceProducts(items);
+    delete window.__marketplaceProductsError;
+    delete window.__marketplaceProductsFromCache;
+  }
+
+  return { items, source, failed };
+}
+
 async function fetchProductsFromFirebase() {
   try {
     const snapshot = await getDocs(collection(db, 'marketplace_products'));
     const items = snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
     cacheMarketplaceProducts(items);
     console.log('[marketplace] produk dimuat:', items.length);
-    if (snapshot.metadata.fromCache) {
-      window.__marketplaceProductsError = {
-        code: 'unavailable',
-        message: 'Firestore belum memberikan data terbaru; katalog memakai data tersimpan.'
-      };
-      window.__marketplaceProductsFromCache = items.length > 0;
-      return items;
-    }
     delete window.__marketplaceProductsError;
     delete window.__marketplaceProductsFromCache;
     return items;
@@ -1340,18 +1399,14 @@ async function fetchProductsFromFirebase() {
   }
 }
 
-function marketplaceLoadErrorMarkup() {
+function marketplaceLoadErrorMarkup(hasProducts = false) {
   const error = window.__marketplaceProductsError;
-  if (!error) return '';
+  if (!error || hasProducts) return '';
 
-  const cacheLabel = window.__marketplaceProductsFromCache
-    ? '<p class="marketplace-error-cache">Menampilkan data tersimpan di perangkat.</p>'
-    : '';
   return `
     <div class="panel marketplace-load-error" role="alert">
-      <strong>Gagal memuat katalog (${escapeHtml(error.code)}).</strong>
-      <p>${escapeHtml(error.message)}</p>
-      ${cacheLabel}
+      <strong>Katalog belum bisa dimuat.</strong>
+      <p>Periksa koneksi lalu coba lagi.</p>
       <button class="btn btn-secondary" type="button" data-marketplace-retry>Muat ulang</button>
     </div>
   `;
@@ -1376,9 +1431,17 @@ function bindMarketplaceRetry(container, reload) {
   container.addEventListener('click', async (event) => {
     const button = event.target.closest('[data-marketplace-retry]');
     if (!button) return;
+    const originalText = button.textContent;
     button.disabled = true;
     button.textContent = 'Memuat...';
-    await reload();
+    try {
+      await reload();
+    } catch (error) {
+      console.error('[marketplace] muat ulang katalog gagal:', error);
+    } finally {
+      button.disabled = false;
+      button.textContent = originalText || 'Muat ulang';
+    }
   });
 }
 
@@ -2020,6 +2083,12 @@ async function getUserAvatarMarkupByName(userName, userId, fallbackText = 'P', p
 }
 
 /* ---------- 1. ---------- */
+function getProductsPerSlide() {
+  if (window.matchMedia('(max-width: 520px)').matches) return 6;
+  if (window.matchMedia('(max-width: 900px)').matches) return 6;
+  return 5;
+}
+
 function chunkProducts(items, chunkSize = 5) {
   const chunks = [];
   for (let index = 0; index < items.length; index += chunkSize) {
@@ -2031,7 +2100,7 @@ function chunkProducts(items, chunkSize = 5) {
 
 /* ---------- 2. ---------- */
 function renderProductCarousel(items) {
-  const chunks = chunkProducts(items, 5);
+  const chunks = chunkProducts(items, getProductsPerSlide());
   if (!chunks.length) {
     return `
       <div class="product-carousel product-carousel-empty">
@@ -2047,7 +2116,7 @@ function renderProductCarousel(items) {
       : `<span class="mm-card-noimg"><span class="material-symbols-outlined" aria-hidden="true">${escapeHtml(productEmoji(item.category))}</span></span>`;
     const out = item.stock <= 0;
     return `
-      <article class="mm-card" data-category="${escapeHtml(item.category)}">
+      <article class="mm-card" data-category="${escapeHtml(item.category)}" data-product-id="${escapeHtml(item.id)}">
         <a class="mm-card-media" href="${getProductDetailUrl(item.id)}" aria-label="Lihat detail ${escapeHtml(item.name)}">
           ${media}
           <span class="mm-card-chip">${escapeHtml(item.label)}</span>
@@ -2107,7 +2176,7 @@ function renderHomeProductsLoadingState() {
   return `
     <div class="mm-loading-wrap" role="status" aria-live="polite" aria-label="Memuat barang">
       <div class="mm-loading-pill">Memuat barang yang sedang dijual...</div>
-      <div class="mm-grid">${skeleton.repeat(5)}</div>
+      <div class="mm-grid">${skeleton.repeat(getProductsPerSlide())}</div>
     </div>
   `;
 }
@@ -2654,6 +2723,8 @@ async function renderHomeProducts() {
 
   let activeFilter = 'all';
   let latestProducts = [];
+  let activeSlideIndex = 0;
+  let homeProductsRefreshPromise = null;
 
   container.innerHTML = renderHomeProductsLoadingState();
   ensureDemoData();
@@ -2667,14 +2738,17 @@ async function renderHomeProducts() {
     const dots = [...carousel.querySelectorAll('.product-carousel-dot')];
     const prevButton = carousel.querySelector('.product-carousel-prev');
     const nextButton = carousel.querySelector('.product-carousel-next');
-    let activeIndex = 0;
+    let activeIndex = Math.min(activeSlideIndex, slides.length - 1);
 
     const setActiveSlide = (index) => {
+      if (!slides.length) return;
       activeIndex = (index + slides.length) % slides.length;
+      activeSlideIndex = activeIndex;
       slides.forEach((slide, slideIndex) => slide.classList.toggle('is-active', slideIndex === activeIndex));
       dots.forEach((dot, dotIndex) => dot.classList.toggle('is-active', dotIndex === activeIndex));
     };
 
+    setActiveSlide(activeIndex);
     prevButton?.addEventListener('click', () => setActiveSlide(activeIndex - 1));
     nextButton?.addEventListener('click', () => setActiveSlide(activeIndex + 1));
     dots.forEach((dot) => {
@@ -2682,17 +2756,19 @@ async function renderHomeProducts() {
     });
   };
 
-  const rerenderProducts = async () => {
+  const rerenderProducts = async ({ preserveSlideIndex = true } = {}) => {
+    const activeSlide = container.querySelector('.product-carousel-slide.is-active');
+    if (preserveSlideIndex && activeSlide) activeSlideIndex = Number(activeSlide.dataset.slideIndex || 0);
+
     const normalizedItems = normalizeMarketplaceProducts(
       [...latestProducts].sort((a, b) => getCreatedAtMs(b.createdAt) - getCreatedAtMs(a.createdAt))
     );
     const normalized = activeFilter === 'all'
       ? normalizedItems
       : normalizedItems.filter((item) => item.category === activeFilter);
-    const loadNotice = marketplaceLoadErrorMarkup();
-    container.innerHTML = window.__marketplaceProductsError && !normalized.length
-      ? loadNotice
-      : `${loadNotice}${renderProductCarousel(normalized)}`;
+    container.innerHTML = !normalizedItems.length && window.__marketplaceProductsError
+      ? marketplaceLoadErrorMarkup()
+      : renderProductCarousel(normalized);
     bindProductCarouselControls();
 
     const filterButtons = document.querySelectorAll('[data-filter]');
@@ -2700,42 +2776,77 @@ async function renderHomeProducts() {
       button.classList.toggle('active', button.dataset.filter === activeFilter);
       button.onclick = () => {
         activeFilter = button.dataset.filter || 'all';
-        rerenderProducts();
+        activeSlideIndex = 0;
+        rerenderProducts({ preserveSlideIndex: false });
       };
     });
   };
 
-  bindMarketplaceRetry(container, async () => {
-    latestProducts = await fetchProductsFromFirebase();
-    await rerenderProducts();
-  });
-
-  const products = await fetchProductsFromFirebase();
-  latestProducts = products;
-  await rerenderProducts();
-
-  const productsQuery = collection(db, 'marketplace_products');
-  const unsubscribe = onSnapshot(productsQuery, { includeMetadataChanges: true }, (snapshot) => {
-    const items = snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
-    console.log('[marketplace] produk dimuat:', items.length);
-    latestProducts = items;
-    cacheMarketplaceProducts(items);
-    if (snapshot.metadata.fromCache) {
-      window.__marketplaceProductsError ||= { code: 'unavailable', message: 'Firestore belum memberikan data terbaru; katalog memakai data tersimpan.' };
-      window.__marketplaceProductsFromCache = items.length > 0;
-    } else {
-      delete window.__marketplaceProductsError;
-      delete window.__marketplaceProductsFromCache;
+  let lastHomeProductsRefreshAt = Date.now();
+  const refreshProducts = async () => {
+    if (homeProductsRefreshPromise) return homeProductsRefreshPromise;
+    lastHomeProductsRefreshAt = Date.now();
+    homeProductsRefreshPromise = (async () => {
+      const result = await loadHomeProducts();
+      latestProducts = result.items;
+      await rerenderProducts();
+    })();
+    try {
+      await homeProductsRefreshPromise;
+    } finally {
+      homeProductsRefreshPromise = null;
     }
-    rerenderProducts();
-  }, (error) => {
-    console.error('[marketplace] realtime home products gagal:', error);
-    window.__marketplaceProductsError = { code: error?.code || 'unknown', message: error?.message || 'Terjadi kesalahan saat membaca katalog.' };
-    window.__marketplaceProductsFromCache = readStorage(STORAGE_KEYS.PRODUCTS, []).length > 0;
-    rerenderProducts();
-  });
+  };
 
-  window.__marketplaceHomeProductsCleanup = unsubscribe;
+  bindMarketplaceRetry(container, refreshProducts);
+  let refreshInterval = null;
+  const startRefreshInterval = () => {
+    if (refreshInterval || document.visibilityState !== 'visible') return;
+    refreshInterval = window.setInterval(() => {
+      if (document.visibilityState === 'visible') refreshProducts();
+    }, 60000);
+  };
+  const stopRefreshInterval = () => {
+    if (refreshInterval) window.clearInterval(refreshInterval);
+    refreshInterval = null;
+  };
+  const refreshOnVisible = () => {
+    if (document.visibilityState !== 'visible') {
+      stopRefreshInterval();
+      return;
+    }
+    startRefreshInterval();
+    if (Date.now() - lastHomeProductsRefreshAt >= 30000) refreshProducts();
+  };
+  document.addEventListener('visibilitychange', refreshOnVisible);
+
+  const resizeMediaQueries = [
+    window.matchMedia('(max-width: 520px)'),
+    window.matchMedia('(max-width: 900px)')
+  ];
+  const rerenderOnResize = () => {
+    const activeSlide = container.querySelector('.product-carousel-slide.is-active');
+    const firstVisibleProductId = activeSlide?.querySelector('[data-product-id]')?.dataset.productId;
+    const normalizedItems = normalizeMarketplaceProducts(
+      [...latestProducts].sort((a, b) => getCreatedAtMs(b.createdAt) - getCreatedAtMs(a.createdAt))
+    );
+    const filteredItems = activeFilter === 'all'
+      ? normalizedItems
+      : normalizedItems.filter((item) => item.category === activeFilter);
+    const productIndex = filteredItems.findIndex((item) => String(item.id) === firstVisibleProductId);
+    activeSlideIndex = productIndex >= 0 ? Math.floor(productIndex / getProductsPerSlide()) : 0;
+    rerenderProducts({ preserveSlideIndex: false });
+  };
+  resizeMediaQueries.forEach((mediaQuery) => mediaQuery.addEventListener('change', rerenderOnResize));
+
+  await refreshProducts();
+  startRefreshInterval();
+
+  window.__marketplaceHomeProductsCleanup = () => {
+    stopRefreshInterval();
+    document.removeEventListener('visibilitychange', refreshOnVisible);
+    resizeMediaQueries.forEach((mediaQuery) => mediaQuery.removeEventListener('change', rerenderOnResize));
+  };
 }
 
 // Cek email ke server: format, domain punya MX, bukan email sekali pakai, saran salah ketik.
@@ -3880,7 +3991,7 @@ async function renderProductsForBuyer() {
       (status === 'all' || item.status === status)
     );
 
-    container.innerHTML = `${marketplaceLoadErrorMarkup()}${filteredItems.length ? filteredItems.map((normalized) => {
+    container.innerHTML = `${marketplaceLoadErrorMarkup(visibleItems.length > 0)}${filteredItems.length ? filteredItems.map((normalized) => {
       const imageMarkup = normalized.imageUrl ? `<img src="${normalized.imageUrl}" alt="${escapeHtml(normalized.name)}" style="width: 100%; height: 100%; object-fit: cover;" />` : normalized.image;
       const available = normalized.stock > 0;
       const chatHref = currentUser() ? getBuyerChatUrl(normalized.id, normalized.name) : 'login.html';
@@ -3926,24 +4037,31 @@ async function renderProductsForBuyer() {
   await reload();
 
   const productsQuery = collection(db, 'marketplace_products');
-  const unsubscribe = onSnapshot(productsQuery, { includeMetadataChanges: true }, (snapshot) => {
+  const unsubscribe = onSnapshot(productsQuery, (snapshot) => {
+    const currentlyDisplayedProducts = normalizeMarketplaceProducts(latestItems).length > 0;
+    if (snapshot.metadata.fromCache && currentlyDisplayedProducts) return;
+
     const liveItems = snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
     console.log('[marketplace] produk dimuat:', liveItems.length);
     latestItems = liveItems;
     cacheMarketplaceProducts(liveItems);
-    if (snapshot.metadata.fromCache) {
-      window.__marketplaceProductsError ||= { code: 'unavailable', message: 'Firestore belum memberikan data terbaru; katalog memakai data tersimpan.' };
-      window.__marketplaceProductsFromCache = liveItems.length > 0;
-    } else {
+    if (liveItems.length) {
+      delete window.__marketplaceProductsError;
+      delete window.__marketplaceProductsFromCache;
+    } else if (!snapshot.metadata.fromCache) {
       delete window.__marketplaceProductsError;
       delete window.__marketplaceProductsFromCache;
     }
     renderFromItems(liveItems);
   }, (error) => {
     console.error('[marketplace] realtime buyer products gagal:', error);
-    window.__marketplaceProductsError = { code: error?.code || 'unknown', message: error?.message || 'Terjadi kesalahan saat membaca katalog.' };
-    window.__marketplaceProductsFromCache = latestItems.length > 0;
-    renderFromItems(latestItems);
+    if (!normalizeMarketplaceProducts(latestItems).length) {
+      window.__marketplaceProductsError = {
+        code: error?.code || 'unknown',
+        message: 'Katalog belum bisa dimuat. Periksa koneksi lalu coba lagi.'
+      };
+      renderFromItems(latestItems);
+    }
   });
 
   window.__marketplaceBuyerProductsCleanup = unsubscribe;
@@ -5300,7 +5418,6 @@ async function init() {
  
   renderHomeReviews();
   await renderHomeProducts();
-  await refreshMarketplaceLandingMetrics();
 }
  
 document.addEventListener('DOMContentLoaded', init);

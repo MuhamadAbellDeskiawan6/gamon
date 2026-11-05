@@ -1,5 +1,6 @@
 .vercel
 .env*
+.env*.local
 # Kredensial Firebase lokal (Printer Service)
 server/serviceAccountKey.json
-node_modules
+node_modules/
