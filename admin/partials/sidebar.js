@@ -21,6 +21,11 @@
         { href: '/admin/marketplace-sell.html', label: 'Penjualan dari User', icon: 'sell', sell: true },
         { href: '/admin/marketplace-chat.html', label: 'Chat Pembeli', icon: 'chat', chat: true }
     ];
+    menuItems.push(
+        { section: 'Gamon Jasa (Beta)' },
+        { href: '/admin/jasa.html', label: 'Layanan Jasa', icon: 'handyman' },
+        { href: '/admin/jasa-orders.html', label: 'Pesanan Jasa', icon: 'receipt_long' }
+    );
 
     const menuMarkup = menuItems.map((item) => {
         if (item.section) {

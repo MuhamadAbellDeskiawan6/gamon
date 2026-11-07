@@ -2,9 +2,11 @@ import { getAdminAuth, getAdminDb } from '../lib/firebase-admin.js';
 import { verifyAdminSession } from '../lib/admin-session.js';
 import { FieldValue } from 'firebase-admin/firestore';
 import { releaseExpiredReservations, sendEmail, updateMarketplaceOrderStatus } from '../lib/marketplace-orders.js';
+import { createJasaDokuPayment, getDokuConfig } from '../marketplace.js';
 import fs from 'fs';
 import path from 'path';
 import nodemailer from 'nodemailer';
+import crypto from 'crypto';
 
 const OWNER_EMAIL = 'muhamadabelldeskiawan@gmail.com';
 const REDEEM_CODES_COLLECTION = 'photobox_redeem_codes';
@@ -1309,6 +1311,833 @@ async function handleNotifyMarketplaceChatReply(req, res) {
     }
 }
 
+function jasaAdminError(statusCode, code, message) {
+    return Object.assign(new Error(message), { statusCode, code });
+}
+
+function jasaAdminText(value, maxLength, label, required = false) {
+    const text = String(value ?? '').replace(/[\u0000-\u001f\u007f]/g, ' ').trim().slice(0, maxLength);
+    if (required && !text) throw jasaAdminError(400, 'invalid-input', `${label} wajib diisi.`);
+    return text;
+}
+
+function jasaAdminId(value, label) {
+    const id = jasaAdminText(value, 120, label, true);
+    if (!/^[A-Za-z0-9_-]{1,120}$/.test(id)) throw jasaAdminError(400, 'invalid-id', `${label} tidak valid.`);
+    return id;
+}
+
+function jasaAdminOrderCode() {
+    const date = new Date();
+    const prefix = [String(date.getUTCFullYear()).slice(-2), String(date.getUTCMonth() + 1).padStart(2, '0'), String(date.getUTCDate()).padStart(2, '0')].join('');
+    const alphabet = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const suffix = Array.from({ length: 6 }, () => alphabet[crypto.randomInt(alphabet.length)]).join('');
+    return `JS-${prefix}-${suffix}`;
+}
+
+async function jasaAdminSendEmail(message, context) {
+    try {
+        await sendEmail(message);
+    } catch (error) {
+        console.error('[jasa admin] email gagal:', { ...context, code: error.code || 'unknown', message: error.message });
+    }
+}
+
+function jasaAdminEscape(value) {
+    return String(value ?? '').replace(/[&<>"']/g, (char) => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[char]));
+}
+
+function jasaAdminImage(value) {
+    const image = jasaAdminText(value, 800, 'URL gambar');
+    if (!image) return '';
+    if (/^https:\/\/[^\s]+$/i.test(image) || /^\/(?!\/)[^\s]*$/.test(image)) return image;
+    throw jasaAdminError(400, 'invalid-image', 'Gambar harus memakai URL HTTPS atau path relatif situs.');
+}
+
+function jasaAdminCategoryData(body) {
+    if (body.active !== undefined && typeof body.active !== 'boolean') throw jasaAdminError(400, 'invalid-active', 'Status kategori harus berupa boolean.');
+    const name = jasaAdminText(body.name, 100, 'Nama kategori', true);
+    const slug = jasaAdminText(body.slug, 100, 'Slug', true).toLowerCase();
+    if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) throw jasaAdminError(400, 'invalid-slug', 'Slug hanya boleh berisi huruf kecil, angka, dan tanda hubung.');
+    const order = Number(body.order ?? 0);
+    if (!Number.isSafeInteger(order) || order < 0 || order > 10000) throw jasaAdminError(400, 'invalid-order', 'Urutan kategori harus berupa bilangan bulat 0 sampai 10000.');
+    return {
+        name,
+        slug,
+        icon: jasaAdminText(body.icon || 'handyman', 60, 'Ikon'),
+        tagline: jasaAdminText(body.tagline, 200, 'Tagline'),
+        description: jasaAdminText(body.description, 1200, 'Deskripsi'),
+        active: body.active !== false,
+        order,
+        updatedAt: Date.now()
+    };
+}
+
+function jasaAdminServiceData(body) {
+    if (body.active !== undefined && typeof body.active !== 'boolean') throw jasaAdminError(400, 'invalid-active', 'Status layanan harus berupa boolean.');
+    const categoryId = jasaAdminId(body.categoryId, 'Kategori');
+    const name = jasaAdminText(body.name, 120, 'Nama layanan', true);
+    const summary = jasaAdminText(body.summary, 300, 'Ringkasan', true);
+    const description = jasaAdminText(body.description, 3000, 'Deskripsi');
+    const disclaimer = jasaAdminText(body.disclaimer, 1500, 'Disclaimer');
+    const pricingNote = jasaAdminText(body.pricingNote, 300, 'Catatan harga');
+    const scheduleMode = body.scheduleMode === undefined ? 'recurring' : jasaAdminText(body.scheduleMode, 20, 'Pengaturan jadwal', true);
+    if (!['none', 'date', 'datetime', 'recurring'].includes(scheduleMode)) throw jasaAdminError(400, 'invalid-schedule-mode', 'Pengaturan jadwal layanan tidak valid.');
+    const scheduleLabelInput = jasaAdminText(body.scheduleLabel, 80, 'Judul bagian jadwal');
+    const recipientLabelInput = jasaAdminText(body.recipientLabel, 60, 'Sebutan penerima');
+    const consentText = jasaAdminText(body.consentText, 300, 'Teks persetujuan');
+    if (String(body.scheduleLabel ?? '').trim().length > 80) throw jasaAdminError(400, 'invalid-schedule-label', 'Judul bagian jadwal maksimal 80 karakter.');
+    if (String(body.recipientLabel ?? '').trim().length > 60) throw jasaAdminError(400, 'invalid-recipient-label', 'Sebutan penerima maksimal 60 karakter.');
+    if (String(body.consentText ?? '').trim().length > 300) throw jasaAdminError(400, 'invalid-consent-text', 'Teks persetujuan maksimal 300 karakter.');
+    const paymentOptions = body.paymentOptions === undefined ? ['full'] : body.paymentOptions;
+    if (!Array.isArray(paymentOptions) || !paymentOptions.length ||
+        paymentOptions.some((option) => !['full', 'dp', 'cash'].includes(option)) ||
+        new Set(paymentOptions).size !== paymentOptions.length) {
+        throw jasaAdminError(400, 'invalid-payment-options', 'Cara bayar yang ditawarkan harus berisi pilihan Full, DP, atau Tunai yang unik.');
+    }
+    if (!Array.isArray(body.packages) || body.packages.length > 20) throw jasaAdminError(400, 'invalid-packages', 'Paket wajib berupa daftar maksimal 20 item.');
+    const packages = body.packages.map((item, index) => {
+        if (!item || typeof item !== 'object' || Array.isArray(item)) throw jasaAdminError(400, 'invalid-package', `Paket ${index + 1} tidak valid.`);
+        if (item.active !== undefined && typeof item.active !== 'boolean') throw jasaAdminError(400, 'invalid-active', `Status paket ${index + 1} harus berupa boolean.`);
+        const id = jasaAdminId(item?.id, `ID paket ${index + 1}`);
+        const packageName = jasaAdminText(item.name, 120, `Nama paket ${index + 1}`, true);
+        const priceType = jasaAdminText(item.priceType, 20, `Jenis harga ${index + 1}`, true);
+        const price = Number(item.price);
+        const dpPercent = item.dpPercent === undefined ? 30 : Number(item.dpPercent);
+        if (!['fixed', 'monthly', 'quote'].includes(priceType)) throw jasaAdminError(400, 'invalid-price-type', `Jenis harga paket ${packageName} tidak valid.`);
+        if (!Number.isSafeInteger(price) || price < 0 || price > 1000000000 || (priceType === 'quote' ? price !== 0 : price < 1)) {
+            throw jasaAdminError(400, 'invalid-price', `Harga paket ${packageName} tidak valid.`);
+        }
+        if (!Number.isSafeInteger(dpPercent) || dpPercent < 10 || dpPercent > 90) throw jasaAdminError(400, 'invalid-dp-percent', `Persen DP paket ${packageName} harus berupa bilangan bulat 10 sampai 90.`);
+        return {
+            id,
+            name: packageName,
+            description: jasaAdminText(item.description, 500, `Deskripsi paket ${packageName}`),
+            duration: jasaAdminText(item.duration, 80, `Durasi paket ${packageName}`),
+            priceType,
+            price,
+            dpPercent,
+            active: item.active !== false
+        };
+    });
+    if (new Set(packages.map((item) => item.id)).size !== packages.length) throw jasaAdminError(400, 'duplicate-package-id', 'ID paket harus unik.');
+    if (body.active !== false && !packages.some((item) => item.active)) throw jasaAdminError(400, 'no-active-package', 'Layanan aktif harus memiliki minimal satu paket aktif.');
+    if (packages.some((item) => item.priceType === 'monthly') && paymentOptions.some((option) => option !== 'full')) {
+        throw jasaAdminError(400, 'monthly-full-only', 'Layanan dengan paket bulanan hanya boleh menawarkan pembayaran Full.');
+    }
+
+    if (!Array.isArray(body.options) || body.options.length > 30) throw jasaAdminError(400, 'invalid-options', 'Opsi harus berupa daftar maksimal 30 item.');
+    const options = body.options.map((item, index) => {
+        if (!item || typeof item !== 'object' || Array.isArray(item)) throw jasaAdminError(400, 'invalid-option', `Opsi ${index + 1} tidak valid.`);
+        return {
+            id: jasaAdminId(item.id, `ID opsi ${index + 1}`),
+            label: jasaAdminText(item.label, 150, `Label opsi ${index + 1}`, true)
+        };
+    });
+    if (new Set(options.map((item) => item.id)).size !== options.length) throw jasaAdminError(400, 'duplicate-option-id', 'ID opsi harus unik.');
+
+    if (!Array.isArray(body.formFields) || body.formFields.length > 20) throw jasaAdminError(400, 'invalid-form-fields', 'Field formulir harus berupa daftar maksimal 20 item.');
+    const allowedTypes = new Set(['text', 'textarea', 'number', 'address', 'date', 'time', 'select']);
+    const reservedFieldKeys = new Set(['packageId', 'paymentPlan', 'selectedOptions', 'scheduleDate', 'scheduleTime', 'scheduleRecurring', 'scheduleDays', 'buyerName', 'buyerPhone']);
+    const formFields = body.formFields.map((item, index) => {
+        if (!item || typeof item !== 'object' || Array.isArray(item)) throw jasaAdminError(400, 'invalid-form-field', `Field ${index + 1} tidak valid.`);
+        if (item.required !== undefined && typeof item.required !== 'boolean') throw jasaAdminError(400, 'invalid-required', `Status wajib field ${index + 1} harus berupa boolean.`);
+        const key = jasaAdminText(item?.key, 60, `Key field ${index + 1}`, true);
+        if (!/^[A-Za-z][A-Za-z0-9_]*$/.test(key)) throw jasaAdminError(400, 'invalid-field-key', `Key field ${key} tidak valid.`);
+        if (reservedFieldKeys.has(key)) throw jasaAdminError(400, 'reserved-field-key', `Key field ${key} dipakai oleh formulir pemesanan.`);
+        const type = jasaAdminText(item.type, 20, `Tipe field ${key}`, true);
+        if (!allowedTypes.has(type)) throw jasaAdminError(400, 'invalid-field-type', `Tipe field ${key} tidak valid.`);
+        const field = {
+            key,
+            label: jasaAdminText(item.label, 120, `Label field ${key}`, true),
+            type,
+            required: item.required === true
+        };
+        if (type === 'select') {
+            if (!Array.isArray(item.options) || !item.options.length || item.options.length > 30) throw jasaAdminError(400, 'invalid-field-options', `Pilihan field ${key} wajib diisi (maksimal 30).`);
+            field.options = item.options.map((option) => jasaAdminText(option, 100, `Pilihan field ${key}`, true));
+        }
+        return field;
+    });
+    if (new Set(formFields.map((item) => item.key)).size !== formFields.length) throw jasaAdminError(400, 'duplicate-field-key', 'Key field formulir harus unik.');
+    return {
+        categoryId,
+        name,
+        summary,
+        description,
+        image: jasaAdminImage(body.image),
+        active: body.active !== false,
+        disclaimer,
+        pricingNote,
+        paymentOptions,
+        packages,
+        options,
+        formFields,
+        needsParentProfile: body.needsParentProfile === true,
+        scheduleMode,
+        scheduleLabel: scheduleLabelInput || 'Preferensi jadwal',
+        recipientLabel: recipientLabelInput || 'Penerima layanan',
+        consentText,
+        updatedAt: Date.now()
+    };
+}
+
+function jasaAdminPayments(order) {
+    if (Array.isArray(order.payments)) return order.payments;
+    if (order.paymentMethod === 'CASH' && order.paymentStatus !== 'PAID') return [];
+    const orderCode = order.orderCode || order.id;
+    if (!orderCode) return [];
+    const isPaid = order.paymentStatus === 'PAID' || ['paid', 'scheduled', 'in_progress', 'completed'].includes(order.status);
+    return [{
+        id: orderCode,
+        kind: 'full',
+        amount: Number(order.totalAmount || 0),
+        method: order.paymentMethod === 'CASH' ? 'CASH' : 'DOKU',
+        status: isPaid ? 'PAID' : order.paymentStatus === 'EXPIRED' ? 'EXPIRED' : order.paymentStatus === 'CANCELLED' ? 'CANCELLED' : 'UNPAID',
+        invoiceNumber: orderCode,
+        paymentUrl: String(order.paymentUrl || ''),
+        expiresAt: Number(order.paymentExpiresAt || 0),
+        paidAt: Number(order.paidAt || 0)
+    }];
+}
+
+function jasaAdminAmounts(order, payments = jasaAdminPayments(order)) {
+    const total = Number(order.totalAmount || 0);
+    const paidAmount = payments.filter((payment) => payment.status === 'PAID').reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
+    return { paidAmount, remainingAmount: Math.max(0, total - paidAmount) };
+}
+
+// Untuk dev lokal yang mengalami DNS/socket reset, jalankan dengan NODE_OPTIONS=--dns-result-order=ipv4first.
+function jasaAdminIsRetryableNetworkError(error) {
+    const message = `${error?.code || ''} ${error?.message || ''}`.toLowerCase();
+    return /unavailable|econnreset|socket hang up|econnrefused|etimedout|deadline exceeded/.test(message);
+}
+
+async function jasaAdminRetryNetworkQuery(query) {
+    for (let retry = 0; ; retry += 1) {
+        try {
+            return await query();
+        } catch (error) {
+            if (retry >= 3 || !jasaAdminIsRetryableNetworkError(error)) throw error;
+            await new Promise((resolve) => setTimeout(resolve, 400));
+        }
+    }
+}
+
+async function jasaAdminAction(req, res, action) {
+    const method = action === 'jasa-get-catalog' || action === 'jasa-get-orders' ? 'GET' : 'POST';
+    if (req.method !== method) return res.status(405).json({ success: false, message: 'Method Not Allowed' });
+    const authResult = await requireAdmin(req, res);
+    if (!authResult) return;
+    const db = getAdminDb();
+    const body = req.body || {};
+    try {
+        if (action === 'jasa-get-catalog') {
+            const [categories, services] = await jasaAdminRetryNetworkQuery(() => Promise.all([
+                db.collection('jasa_categories').get(),
+                db.collection('jasa_services').get()
+            ]));
+            return res.status(200).json({
+                success: true,
+                categories: categories.docs.map((item) => ({ id: item.id, ...item.data() })).sort((a, b) => Number(a.order || 0) - Number(b.order || 0)),
+                services: services.docs.map((item) => ({ id: item.id, ...item.data() }))
+            });
+        }
+        if (action === 'jasa-save-category') {
+            const data = jasaAdminCategoryData(body);
+            const id = body.id ? jasaAdminId(body.id, 'ID kategori') : data.slug;
+            const ref = db.collection('jasa_categories').doc(id);
+            await ref.set({ ...data, ...(body.id ? {} : { createdAt: Date.now() }) }, { merge: true });
+            return res.status(200).json({ success: true, id, message: 'Kategori jasa berhasil disimpan.' });
+        }
+        if (action === 'jasa-save-service') {
+            const data = jasaAdminServiceData(body);
+            const category = await db.collection('jasa_categories').doc(data.categoryId).get();
+            if (!category.exists) throw jasaAdminError(400, 'category-not-found', 'Kategori jasa tidak ditemukan.');
+            const id = body.id ? jasaAdminId(body.id, 'ID layanan') : undefined;
+            const ref = id ? db.collection('jasa_services').doc(id) : db.collection('jasa_services').doc();
+            await ref.set({ ...data, ...(!id ? { createdAt: Date.now() } : {}) }, { merge: true });
+            return res.status(200).json({ success: true, id: ref.id, message: 'Layanan jasa berhasil disimpan.' });
+        }
+        if (action === 'jasa-delete-service') {
+            const id = jasaAdminId(body.id, 'ID layanan');
+            await db.collection('jasa_services').doc(id).delete();
+            return res.status(200).json({ success: true, message: 'Layanan berhasil dihapus.' });
+        }
+        if (action === 'jasa-toggle-active') {
+            const id = jasaAdminId(body.id, 'ID');
+            const collectionName = body.type === 'category' ? 'jasa_categories' : body.type === 'service' ? 'jasa_services' : '';
+            if (!collectionName || typeof body.active !== 'boolean') throw jasaAdminError(400, 'invalid-toggle', 'Tipe dan status aktif wajib valid.');
+            const ref = db.collection(collectionName).doc(id);
+            const snapshot = await ref.get();
+            if (!snapshot.exists) throw jasaAdminError(404, 'not-found', 'Data jasa tidak ditemukan.');
+            await ref.set({ active: body.active, updatedAt: Date.now() }, { merge: true });
+            return res.status(200).json({ success: true, message: 'Status jasa berhasil diperbarui.' });
+        }
+        if (action === 'jasa-get-orders') {
+            const snapshot = await jasaAdminRetryNetworkQuery(() => db.collection('jasa_orders').orderBy('createdAt', 'desc').limit(300).get());
+            const orders = snapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
+            return res.status(200).json({ success: true, orders });
+        }
+        if (action === 'jasa-update-order-status') {
+            const id = jasaAdminId(body.orderId || body.id, 'Kode pesanan');
+            const target = jasaAdminText(body.status, 30, 'Status', true);
+            const transitions = {
+                awaiting_quote: ['cancelled'],
+                awaiting_payment: ['cancelled'],
+                awaiting_confirmation: ['scheduled', 'cancelled'],
+                paid: ['scheduled', 'cancelled'],
+                scheduled: ['in_progress', 'cancelled'],
+                in_progress: ['completed', 'cancelled']
+            };
+            const ref = db.collection('jasa_orders').doc(id);
+            const result = await db.runTransaction(async (transaction) => {
+                const snapshot = await transaction.get(ref);
+                if (!snapshot.exists) throw jasaAdminError(404, 'not-found', 'Pesanan jasa tidak ditemukan.');
+                const order = snapshot.data() || {};
+                if (!(transitions[order.status] || []).includes(target)) throw jasaAdminError(409, 'invalid-transition', `Status ${order.status} tidak dapat diubah menjadi ${target}.`);
+                const note = jasaAdminText(body.note, 300, 'Catatan');
+                const payments = jasaAdminPayments(order);
+                const amounts = jasaAdminAmounts(order, payments);
+                if (target === 'completed' && amounts.remainingAmount > 0) {
+                    throw jasaAdminError(409, 'payment-incomplete', `Pesanan belum dapat diselesaikan. Masih ada sisa pembayaran ${amounts.remainingAmount.toLocaleString('id-ID')} rupiah.`);
+                }
+                if (target === 'cancelled' && amounts.paidAmount > 0 && !note) {
+                    throw jasaAdminError(400, 'cancellation-note-required', 'Catatan wajib diisi saat membatalkan pesanan yang sudah menerima pembayaran.');
+                }
+                const now = Date.now();
+                const updatedPayments = target === 'cancelled'
+                    ? payments.map((payment) => payment.status === 'UNPAID' ? { ...payment, status: 'CANCELLED' } : payment)
+                    : payments;
+                transaction.update(ref, {
+                    status: target,
+                    ...(target === 'cancelled' ? { paymentStatus: 'CANCELLED', payments: updatedPayments } : {}),
+                    ...(target === 'cancelled' && amounts.paidAmount > 0 ? { needsAttention: true, attentionReason: 'Refund perlu diproses manual; catatan pembatalan admin tersedia di riwayat.' } : {}),
+                    ...amounts,
+                    statusHistory: [...(Array.isArray(order.statusHistory) ? order.statusHistory : []), { status: target, at: now, by: authResult.claims?.email || OWNER_EMAIL, note }],
+                    updatedAt: now
+                });
+                return { order, note };
+            });
+            if (target === 'scheduled') {
+                await jasaAdminSendEmail({
+                    to: result.order.buyerEmail,
+                    subject: `Jadwal Gamon Jasa dikonfirmasi — ${id}`,
+                    text: `Pesanan ${id} telah dijadwalkan untuk ${result.order.schedule?.date || '-'} pukul ${result.order.schedule?.time || '-'}.`,
+                    html: `<p>Pesanan <b>${jasaAdminEscape(id)}</b> telah dijadwalkan untuk ${jasaAdminEscape(result.order.schedule?.date || '-')} pukul ${jasaAdminEscape(result.order.schedule?.time || '-')}.</p>`
+                }, { orderId: id, emailType: 'scheduled' });
+            }
+            return res.status(200).json({ success: true, message: 'Status pesanan jasa diperbarui.' });
+        }
+        if (action === 'jasa-create-balance-invoice') {
+            const id = jasaAdminId(body.orderId || body.id, 'Kode pesanan');
+            let config;
+            try { config = getDokuConfig(req); } catch (error) { throw jasaAdminError(503, error.code || 'doku-config-missing', error.message); }
+            const orderRef = db.collection('jasa_orders').doc(id);
+            const reservation = await db.runTransaction(async (transaction) => {
+                const snapshot = await transaction.get(orderRef);
+                if (!snapshot.exists) throw jasaAdminError(404, 'not-found', 'Pesanan jasa tidak ditemukan.');
+                const order = snapshot.data() || {};
+                const payments = jasaAdminPayments(order);
+                const amounts = jasaAdminAmounts(order, payments);
+                if (order.paymentPlan !== 'dp' || amounts.remainingAmount < 1 ||
+                    ['cancelled', 'expired', 'completed', 'awaiting_quote', 'awaiting_payment', 'awaiting_confirmation'].includes(order.status)) {
+                    throw jasaAdminError(409, 'balance-not-available', 'Tagihan pelunasan hanya dapat dibuat untuk pesanan DP aktif yang sudah membayar DP.');
+                }
+                const now = Date.now();
+                const index = payments.findIndex((payment) => payment.kind === 'balance' && payment.status === 'UNPAID' && Number(payment.expiresAt || 0) > now);
+                if (index >= 0) return { order, payment: payments[index], existing: true, creating: !payments[index].paymentUrl };
+                const invoiceNumber = `${id}-B`;
+                const previousIndex = payments.findIndex((payment) => payment.kind === 'balance');
+                const entry = {
+                    ...(previousIndex >= 0 ? payments[previousIndex] : {}),
+                    id: invoiceNumber,
+                    kind: 'balance',
+                    amount: amounts.remainingAmount,
+                    method: 'DOKU',
+                    status: 'UNPAID',
+                    invoiceNumber,
+                    paymentUrl: '',
+                    expiresAt: now + 60 * 60 * 1000,
+                    paidAt: 0
+                };
+                if (previousIndex >= 0) payments[previousIndex] = entry;
+                else payments.push(entry);
+                transaction.update(orderRef, {
+                    payments,
+                    ...amounts,
+                    paymentStatus: 'PARTIAL',
+                    statusHistory: [...(Array.isArray(order.statusHistory) ? order.statusHistory : []), { status: 'balance_invoice_created', at: now, by: authResult.claims?.email || OWNER_EMAIL }],
+                    updatedAt: now
+                });
+                return { order: { ...order, ...amounts }, payment: entry, existing: false, creating: true };
+            });
+            if (reservation.existing && reservation.payment.paymentUrl) {
+                return res.status(200).json({ success: true, paymentUrl: reservation.payment.paymentUrl, existing: true, message: 'Tagihan pelunasan aktif sudah tersedia.' });
+            }
+            if (reservation.existing && reservation.creating) {
+                throw jasaAdminError(409, 'invoice-being-created', 'Tagihan pelunasan sedang disiapkan. Muat ulang beberapa saat lagi.');
+            }
+            let payment;
+            try {
+                payment = await createJasaDokuPayment({ ...reservation.order, orderCode: id }, config, reservation.payment);
+            } catch (error) {
+                await db.runTransaction(async (transaction) => {
+                    const snapshot = await transaction.get(orderRef);
+                    if (!snapshot.exists) return;
+                    const order = snapshot.data() || {};
+                    const payments = jasaAdminPayments(order).map((item) =>
+                        item.invoiceNumber === reservation.payment.invoiceNumber ? { ...item, status: 'EXPIRED' } : item);
+                    const failedAt = Date.now();
+                    transaction.update(orderRef, {
+                        payments,
+                        statusHistory: [...(Array.isArray(order.statusHistory) ? order.statusHistory : []), { status: 'balance_invoice_failed', at: failedAt, by: authResult.claims?.email || OWNER_EMAIL }],
+                        updatedAt: failedAt
+                    });
+                });
+                console.error('[jasa admin] tagihan pelunasan DOKU gagal:', { orderId: id, code: error.code || 'unknown', message: error.message });
+                throw jasaAdminError(502, 'balance-invoice-failed', 'Tagihan pelunasan belum dapat disiapkan. Silakan coba lagi.');
+            }
+            const now = Date.now();
+            await db.runTransaction(async (transaction) => {
+                const snapshot = await transaction.get(orderRef);
+                if (!snapshot.exists) throw jasaAdminError(404, 'not-found', 'Pesanan jasa tidak ditemukan.');
+                const order = snapshot.data() || {};
+                const payments = jasaAdminPayments(order);
+                const index = payments.findIndex((item) => item.invoiceNumber === reservation.payment.invoiceNumber && item.status === 'UNPAID');
+                if (index < 0) throw jasaAdminError(409, 'payment-changed', 'Tagihan berubah saat tautan pembayaran dibuat.');
+                payments[index] = { ...payments[index], paymentUrl: payment.paymentUrl, expiresAt: now + 60 * 60 * 1000 };
+                transaction.update(orderRef, { payments, updatedAt: now });
+            });
+            const paymentUrl = payment.paymentUrl;
+            await jasaAdminSendEmail({
+                to: reservation.order.buyerEmail,
+                subject: `Tagihan pelunasan Gamon Jasa — ${id}`,
+                text: `Tagihan pelunasan untuk pesanan ${id} sebesar Rp ${reservation.payment.amount.toLocaleString('id-ID')}. Bayar dalam 60 menit: ${paymentUrl}`,
+                html: `<p>Tagihan pelunasan untuk pesanan <b>${jasaAdminEscape(id)}</b> tersedia.</p><p>Sisa pembayaran: <b>Rp ${reservation.payment.amount.toLocaleString('id-ID')}</b>. Link berlaku 60 menit.</p><p><a href="${jasaAdminEscape(paymentUrl)}">Bayar sisa</a></p>`
+            }, { orderId: id, emailType: 'balance-invoice' });
+            return res.status(200).json({ success: true, paymentUrl, existing: false, message: 'Tagihan pelunasan dibuat dan dikirim ke email pembeli.' });
+        }
+        if (action === 'jasa-mark-cash-paid' || action === 'jasa-mark-balance-cash-paid') {
+            const id = jasaAdminId(body.orderId || body.id, 'Kode pesanan');
+            const note = jasaAdminText(body.note, 300, 'Catatan');
+            const ref = db.collection('jasa_orders').doc(id);
+            const updated = await db.runTransaction(async (transaction) => {
+                const snapshot = await transaction.get(ref);
+                if (!snapshot.exists) throw jasaAdminError(404, 'not-found', 'Pesanan jasa tidak ditemukan.');
+                const order = snapshot.data() || {};
+                const isBalance = action === 'jasa-mark-balance-cash-paid';
+                if (order.status === 'cancelled' || order.status === 'expired' || order.status === 'completed') {
+                    throw jasaAdminError(409, 'invalid-order-state', 'Pembayaran tunai tidak dapat dicatat untuk pesanan ini.');
+                }
+                if ((!isBalance && order.paymentPlan !== 'cash') || (isBalance && order.paymentPlan !== 'dp')) {
+                    throw jasaAdminError(409, 'invalid-payment-plan', isBalance ? 'Pelunasan tunai hanya tersedia untuk pesanan DP.' : 'Aksi ini hanya tersedia untuk pesanan dengan cara bayar tunai.');
+                }
+                const payments = jasaAdminPayments(order);
+                const amounts = jasaAdminAmounts(order, payments);
+                if (amounts.remainingAmount < 1) throw jasaAdminError(409, 'already-paid', 'Pesanan sudah lunas.');
+                const now = Date.now();
+                if (isBalance) {
+                    for (let index = 0; index < payments.length; index += 1) {
+                        if (payments[index].kind === 'balance' && payments[index].status === 'UNPAID') {
+                            payments[index] = { ...payments[index], status: 'CANCELLED' };
+                        }
+                    }
+                }
+                payments.push({
+                    id: `CASH-${now}`,
+                    kind: 'cash',
+                    amount: amounts.remainingAmount,
+                    method: 'CASH',
+                    status: 'PAID',
+                    invoiceNumber: '',
+                    paymentUrl: '',
+                    expiresAt: 0,
+                    paidAt: now
+                });
+                const nextAmounts = jasaAdminAmounts(order, payments);
+                transaction.update(ref, {
+                    payments,
+                    ...nextAmounts,
+                    paymentStatus: 'PAID',
+                    paidAt: now,
+                    statusHistory: [...(Array.isArray(order.statusHistory) ? order.statusHistory : []), {
+                        status: isBalance ? 'balance_cash_paid' : 'cash_paid',
+                        at: now,
+                        by: authResult.claims?.email || OWNER_EMAIL,
+                        ...(note ? { note } : {})
+                    }],
+                    updatedAt: now
+                });
+                return { order, amount: amounts.remainingAmount };
+            });
+            await jasaAdminSendEmail({
+                to: updated.order.buyerEmail,
+                subject: `Pembayaran tunai diterima — Gamon Jasa ${id}`,
+                text: `Pembayaran tunai sebesar Rp ${updated.amount.toLocaleString('id-ID')} untuk pesanan ${id} telah dicatat.`,
+                html: `<p>Pembayaran tunai sebesar <b>Rp ${updated.amount.toLocaleString('id-ID')}</b> untuk pesanan <b>${jasaAdminEscape(id)}</b> telah dicatat.</p>`
+            }, { orderId: id, emailType: 'cash-payment' });
+            return res.status(200).json({ success: true, message: 'Pembayaran tunai berhasil dicatat.' });
+        }
+        if (action === 'jasa-assign-staff') {
+            const id = jasaAdminId(body.orderId || body.id, 'Kode pesanan');
+            const name = jasaAdminText(body.name, 120, 'Nama petugas', true);
+            const note = jasaAdminText(body.note, 300, 'Catatan petugas');
+            const ref = db.collection('jasa_orders').doc(id);
+            const snapshot = await ref.get();
+            if (!snapshot.exists) throw jasaAdminError(404, 'not-found', 'Pesanan jasa tidak ditemukan.');
+            await ref.set({ assignedStaff: { name, note, at: Date.now() }, updatedAt: Date.now() }, { merge: true });
+            return res.status(200).json({ success: true, message: 'Petugas pesanan berhasil diperbarui.' });
+        }
+        if (action === 'jasa-create-next-invoice') {
+            const id = jasaAdminId(body.orderId || body.id, 'Kode pesanan');
+            const orderRef = db.collection('jasa_orders').doc(id);
+            const orderSnapshot = await orderRef.get();
+            if (!orderSnapshot.exists) throw jasaAdminError(404, 'not-found', 'Pesanan jasa tidak ditemukan.');
+            const sourceOrder = orderSnapshot.data() || {};
+            if (sourceOrder.status !== 'paid' || sourceOrder.paymentStatus !== 'PAID' || sourceOrder.subscription?.status !== 'active') {
+                throw jasaAdminError(409, 'invalid-subscription', 'Tagihan berikutnya hanya dapat dibuat untuk langganan aktif yang sudah dibayar.');
+            }
+            const rootId = sourceOrder.parentOrderId || id;
+            const rootRef = db.collection('jasa_orders').doc(rootId);
+            const reservation = await db.runTransaction(async (transaction) => {
+                const rootSnapshot = await transaction.get(rootRef);
+                if (!rootSnapshot.exists) throw jasaAdminError(404, 'not-found', 'Pesanan induk langganan tidak ditemukan.');
+                const root = rootSnapshot.data() || {};
+                if (root.status !== 'paid' || root.paymentStatus !== 'PAID' || root.subscription?.status !== 'active') {
+                    throw jasaAdminError(409, 'invalid-subscription', 'Langganan induk tidak aktif atau belum dibayar.');
+                }
+                const pendingId = root.subscription.pendingInvoiceId;
+                if (pendingId) {
+                    const pendingRef = db.collection('jasa_orders').doc(pendingId);
+                    const pendingSnapshot = await transaction.get(pendingRef);
+                    if (pendingSnapshot.exists && pendingSnapshot.data()?.paymentStatus !== 'PAID') {
+                        return { orderId: pendingId, order: pendingSnapshot.data(), root, existing: true };
+                    }
+                }
+                const cycle = Number(root.subscription.cycle || 1) + 1;
+                const invoiceId = jasaAdminOrderCode();
+                const now = Date.now();
+                const nextOrder = {
+                    orderCode: invoiceId,
+                    userId: root.userId,
+                    buyerName: root.buyerName,
+                    buyerEmail: root.buyerEmail,
+                    buyerPhone: root.buyerPhone,
+                    serviceId: root.serviceId,
+                    serviceName: root.serviceName,
+                    categoryId: root.categoryId,
+                    disclaimer: root.disclaimer || '',
+                    pricingNote: root.pricingNote || '',
+                    ...(root.parent ? { parent: root.parent } : {}),
+                    consentAt: root.consentAt || now,
+                    package: root.package,
+                    selectedOptions: root.selectedOptions || [],
+                    formData: root.formData || {},
+                    formFieldLabels: root.formFieldLabels || {},
+                    schedule: root.schedule || {},
+                    totalAmount: Number(root.totalAmount),
+                    paymentMethod: 'DOKU',
+                    paymentStatus: 'UNPAID',
+                    status: 'awaiting_payment',
+                    statusHistory: [{ status: 'awaiting_payment', at: now, by: authResult.claims?.email || OWNER_EMAIL }],
+                    visits: [],
+                    paymentUrl: '',
+                    paymentExpiresAt: now + 60 * 60 * 1000,
+                    parentOrderId: rootId,
+                    orderType: 'subscription_cycle',
+                    subscription: { status: 'active', startedAt: root.subscription.startedAt || root.createdAt || now, cycle },
+                    createdAt: now,
+                    updatedAt: now
+                };
+                const invoiceRef = db.collection('jasa_orders').doc(invoiceId);
+                transaction.create(invoiceRef, nextOrder);
+                transaction.update(rootRef, { subscription: { ...root.subscription, cycle, pendingInvoiceId: invoiceId }, updatedAt: now });
+                return { orderId: invoiceId, order: nextOrder, root, existing: false };
+            });
+            let invoice = reservation.order || {};
+            let paymentCreated = false;
+            if (invoice.paymentStatus !== 'PAID' && (!/^https:\/\//i.test(String(invoice.paymentUrl || '')) || Number(invoice.paymentExpiresAt || 0) <= Date.now())) {
+                let config;
+                try { config = getDokuConfig(req); } catch (error) { throw jasaAdminError(503, error.code || 'doku-config-missing', error.message); }
+                const now = Date.now();
+                invoice = {
+                    ...invoice,
+                    orderCode: reservation.orderId,
+                    status: 'awaiting_payment',
+                    paymentStatus: 'UNPAID',
+                    totalAmount: Number(invoice.totalAmount),
+                    paymentExpiresAt: now + 60 * 60 * 1000
+                };
+                const payment = await createJasaDokuPayment(invoice, config);
+                paymentCreated = true;
+                await db.collection('jasa_orders').doc(reservation.orderId).set({
+                    status: 'awaiting_payment',
+                    paymentStatus: 'UNPAID',
+                    paymentUrl: payment.paymentUrl,
+                    dokuRequestId: payment.requestId,
+                    paymentExpiresAt: now + 60 * 60 * 1000,
+                    updatedAt: now
+                }, { merge: true });
+                invoice.paymentUrl = payment.paymentUrl;
+                invoice.paymentExpiresAt = now + 60 * 60 * 1000;
+            }
+            if (invoice.paymentUrl && paymentCreated) {
+                await jasaAdminSendEmail({
+                    to: invoice.buyerEmail,
+                    subject: `Tagihan langganan Gamon Jasa — siklus ${invoice.subscription?.cycle || ''}`,
+                    text: `Tagihan siklus ${invoice.subscription?.cycle || ''} untuk pesanan ${invoice.orderCode || reservation.orderId} telah tersedia. Bayar dalam 60 menit: ${invoice.paymentUrl}`,
+                    html: `<p>Tagihan siklus <b>${Number(invoice.subscription?.cycle || 0)}</b> untuk langganan Gamon Jasa sudah tersedia.</p><p><a href="${jasaAdminEscape(invoice.paymentUrl)}">Bayar tagihan</a> (berlaku 60 menit).</p>`
+                }, { orderId: reservation.orderId, emailType: 'subscription-invoice' });
+            }
+            return res.status(200).json({ success: true, orderId: reservation.orderId, cycle: invoice.subscription?.cycle || 1, paymentUrl: invoice.paymentUrl || '', existing: reservation.existing, message: reservation.existing ? 'Tagihan siklus yang sama sudah tersedia.' : 'Tagihan siklus berikutnya berhasil dibuat.' });
+        }
+        if (action === 'jasa-end-subscription') {
+            const id = jasaAdminId(body.orderId || body.id, 'Kode pesanan');
+            const ref = db.collection('jasa_orders').doc(id);
+            const snapshot = await ref.get();
+            if (!snapshot.exists) throw jasaAdminError(404, 'not-found', 'Pesanan jasa tidak ditemukan.');
+            const order = snapshot.data() || {};
+            if (order.subscription?.status !== 'active') throw jasaAdminError(409, 'invalid-subscription', 'Langganan ini tidak aktif.');
+            const rootId = order.parentOrderId || id;
+            const endedAt = Date.now();
+            await db.collection('jasa_orders').doc(rootId).set({ subscription: { ...order.subscription, status: 'ended', endedAt }, updatedAt: endedAt }, { merge: true });
+            if (rootId !== id) await ref.set({ subscription: { ...order.subscription, status: 'ended', endedAt }, updatedAt: endedAt }, { merge: true });
+            return res.status(200).json({ success: true, message: 'Langganan berhasil diakhiri.' });
+        }
+        if (action === 'jasa-set-quote') {
+            const id = jasaAdminId(body.orderId || body.id, 'Kode pesanan');
+            const amount = Number(body.amount);
+            if (!Number.isSafeInteger(amount) || amount < 1 || amount > 1000000000) throw jasaAdminError(400, 'invalid-quote', 'Harga penawaran harus berupa bilangan bulat rupiah lebih dari nol.');
+            const ref = db.collection('jasa_orders').doc(id);
+            const snapshot = await ref.get();
+            if (!snapshot.exists) throw jasaAdminError(404, 'not-found', 'Pesanan jasa tidak ditemukan.');
+            const order = snapshot.data() || {};
+            if (order.status !== 'awaiting_quote' || order.package?.priceType !== 'quote') throw jasaAdminError(409, 'invalid-order-state', 'Pesanan ini tidak menunggu penawaran harga.');
+            const paymentPlan = order.paymentPlan || 'full';
+            const dpPercent = Number.isSafeInteger(order.package?.dpPercent) ? order.package.dpPercent : 30;
+            if (!['full', 'dp', 'cash'].includes(paymentPlan)) throw jasaAdminError(409, 'invalid-payment-plan', 'Cara pembayaran penawaran tidak valid.');
+            const dpAmount = paymentPlan === 'dp' ? Math.round(amount * dpPercent / 100) : amount;
+            if (!Number.isSafeInteger(dpAmount) || dpAmount < 1 || dpAmount > amount || (paymentPlan === 'dp' && dpAmount >= amount)) {
+                throw jasaAdminError(409, 'invalid-dp-amount', 'Nominal DP dari penawaran tidak valid.');
+            }
+            let payment = null;
+            let paymentEntry = null;
+            if (paymentPlan !== 'cash') {
+                let config;
+                try { config = getDokuConfig(req); } catch (error) {
+                    if (error.code === 'doku-config-missing' || error.code === 'invalid-server-url') throw jasaAdminError(503, error.code, error.message);
+                    throw error;
+                }
+                const now = Date.now();
+                paymentEntry = {
+                    id,
+                    kind: paymentPlan,
+                    amount: dpAmount,
+                    method: 'DOKU',
+                    status: 'UNPAID',
+                    invoiceNumber: id,
+                    paymentUrl: '',
+                    expiresAt: now + 60 * 60 * 1000,
+                    paidAt: 0
+                };
+                const quotedOrder = { ...order, orderCode: id, totalAmount: amount, package: { ...order.package, price: amount } };
+                try { payment = await createJasaDokuPayment(quotedOrder, config, paymentEntry); }
+                catch (error) {
+                    console.error('[jasa admin] penawaran gagal:', { orderId: id, code: error.code || 'unknown', message: error.message });
+                    throw jasaAdminError(502, error.code || 'quote-payment-failed', 'Penawaran belum dapat disiapkan. Periksa konfigurasi pembayaran lalu coba lagi.');
+                }
+                paymentEntry.paymentUrl = payment.paymentUrl;
+            }
+            const now = Date.now();
+            const nextStatus = paymentPlan === 'cash' ? 'awaiting_confirmation' : 'awaiting_payment';
+            const paymentStatus = paymentPlan === 'cash' ? 'CASH_PENDING' : 'UNPAID';
+            const remainingAmount = amount - (paymentPlan === 'dp' ? dpAmount : 0);
+            await db.runTransaction(async (transaction) => {
+                const current = await transaction.get(ref);
+                if (!current.exists || current.data()?.status !== 'awaiting_quote') throw jasaAdminError(409, 'invalid-order-state', 'Status pesanan berubah saat penawaran disiapkan.');
+                const currentOrder = current.data() || {};
+                if (paymentPlan === 'cash') {
+                    const activeOrders = await transaction.get(db.collection('jasa_orders').where('userId', '==', currentOrder.userId));
+                    const activeCashCount = activeOrders.docs.filter((item) => {
+                        const active = item.data() || {};
+                        return item.id !== id && active.paymentPlan === 'cash' && ['awaiting_confirmation', 'scheduled', 'in_progress'].includes(active.status);
+                    }).length;
+                    if (activeCashCount >= 2) throw jasaAdminError(409, 'cash-order-limit', 'Pembeli sudah memiliki dua pesanan jasa tunai aktif.');
+                }
+                transaction.update(ref, {
+                    totalAmount: amount,
+                    quoteAmount: amount,
+                    package: { ...currentOrder.package, price: amount, dpPercent },
+                    paymentPlan,
+                    paymentMethod: paymentPlan === 'cash' ? 'CASH' : 'DOKU',
+                    payments: paymentEntry ? [paymentEntry] : [],
+                    paidAmount: 0,
+                    remainingAmount,
+                    status: nextStatus,
+                    paymentStatus,
+                    ...(payment ? {
+                        paymentUrl: payment.paymentUrl,
+                        dokuRequestId: payment.requestId,
+                        paymentExpiresAt: now + 60 * 60 * 1000
+                    } : {
+                        confirmationExpiresAt: now + 24 * 60 * 60 * 1000
+                    }),
+                    statusHistory: [...(Array.isArray(currentOrder.statusHistory) ? currentOrder.statusHistory : []), { status: nextStatus, at: now, by: authResult.claims?.email || OWNER_EMAIL, note: `Penawaran ${amount}` }],
+                    updatedAt: now
+                });
+            });
+            const paymentDetails = payment
+                ? ` DP ${dpAmount.toLocaleString('id-ID')} rupiah.` : ' Pembayaran dilakukan tunai setelah jadwal dikonfirmasi.';
+            await jasaAdminSendEmail({
+                to: order.buyerEmail,
+                subject: `Penawaran Jasa Gamon ${id}`,
+                text: payment
+                    ? `Penawaran untuk pesanan ${id}: Rp ${amount.toLocaleString('id-ID')}.${paymentDetails} Bayar melalui ${payment.paymentUrl}. Link berlaku 60 menit.`
+                    : `Penawaran untuk pesanan ${id}: Rp ${amount.toLocaleString('id-ID')}. Admin akan menghubungi untuk konfirmasi jadwal dan pembayaran tunai.`,
+                html: payment
+                    ? `<p>Penawaran untuk pesanan <b>${jasaAdminEscape(id)}</b> sudah tersedia.</p><p>Total: <b>Rp ${amount.toLocaleString('id-ID')}</b>. Bayar sekarang: <b>Rp ${dpAmount.toLocaleString('id-ID')}</b>${paymentPlan === 'dp' ? `, sisa Rp ${(amount - dpAmount).toLocaleString('id-ID')}` : ''}. Link berlaku 60 menit.</p><p><a href="${jasaAdminEscape(payment.paymentUrl)}">Lanjutkan pembayaran</a></p>`
+                    : `<p>Penawaran untuk pesanan <b>${jasaAdminEscape(id)}</b> sudah tersedia.</p><p>Total: <b>Rp ${amount.toLocaleString('id-ID')}</b>. Admin akan menghubungi Anda untuk konfirmasi jadwal dan pembayaran tunai.</p>`
+            }, { orderId: id, emailType: 'quote' });
+            return res.status(200).json({ success: true, paymentUrl: payment?.paymentUrl || '', message: payment ? 'Penawaran tersimpan dan tagihan pembayaran berhasil dibuat.' : 'Penawaran tersimpan. Pesanan menunggu konfirmasi tunai.' });
+        }
+        if (action === 'jasa-add-visit-report') {
+            const id = jasaAdminId(body.orderId || body.id, 'Kode pesanan');
+            const note = jasaAdminText(body.note, 300, 'Ringkasan pembaruan', true);
+            const reportText = jasaAdminText(body.reportText, 3000, 'Isi pembaruan', true);
+            const staffName = jasaAdminText(body.staffName, 120, 'Nama petugas', true);
+            const ref = db.collection('jasa_orders').doc(id);
+            const visit = { at: Date.now(), by: jasaAdminText(authResult.claims?.email || OWNER_EMAIL, 180, 'Admin'), staffName, note, reportText };
+            const snapshot = await ref.get();
+            if (!snapshot.exists) throw jasaAdminError(404, 'not-found', 'Pesanan jasa tidak ditemukan.');
+            const order = snapshot.data() || {};
+            if (!['paid', 'scheduled', 'in_progress', 'completed'].includes(order.status)) throw jasaAdminError(409, 'invalid-order-state', 'Laporan hanya dapat ditambahkan pada pesanan yang telah dibayar.');
+            await db.runTransaction(async (transaction) => {
+                const current = await transaction.get(ref);
+                if (!current.exists || !['paid', 'scheduled', 'in_progress', 'completed'].includes(current.data()?.status)) throw jasaAdminError(409, 'invalid-order-state', 'Status pesanan berubah; laporan tidak dapat disimpan.');
+                const currentOrder = current.data() || {};
+                transaction.update(ref, { visits: [...(Array.isArray(currentOrder.visits) ? currentOrder.visits : []), visit], updatedAt: Date.now() });
+            });
+            try {
+                await sendEmail({
+                    to: order.buyerEmail,
+                    subject: `Laporan pengerjaan ${id} — Gamon Jasa`,
+                    text: `Penyedia jasa: ${staffName}\n${note}\n\n${reportText}`,
+                    html: `<p>Penyedia jasa: <b>${jasaAdminEscape(staffName)}</b></p><p><b>${jasaAdminEscape(note)}</b></p><p style="white-space:pre-wrap">${jasaAdminEscape(reportText)}</p><p>Waktu: ${new Date(visit.at).toLocaleString('id-ID')}</p>`
+                });
+            } catch (error) {
+                console.error('[jasa admin] email pembaruan layanan gagal:', { orderId: id, code: error.code || 'unknown', message: error.message });
+            }
+            return res.status(200).json({ success: true, message: 'Pembaruan layanan berhasil disimpan.' });
+        }
+        if (action === 'jasa-seed') {
+            const now = Date.now();
+            const categories = [
+                { id: 'kebersihan', name: 'Kebersihan', slug: 'kebersihan', icon: 'cleaning_services', tagline: 'Jaga rumah tetap bersih dan nyaman.', description: 'Layanan kebersihan untuk kebutuhan rumah dan tempat usaha.', active: true, order: 10 },
+                { id: 'perbaikan-rumah', name: 'Perbaikan Rumah', slug: 'perbaikan-rumah', icon: 'home_repair_service', tagline: 'Bantu rumah kembali berfungsi.', description: 'Bantuan perbaikan dan perawatan rumah.', active: true, order: 20 },
+                { id: 'jaga-orang-tua', name: 'Jaga Orang Tua', slug: 'jaga-orang-tua', icon: 'elderly', tagline: 'Tetap hadir, meski hari-hari sedang penuh.', description: 'Bantuan pendampingan non-medis untuk keluarga.', active: true, order: 30 }
+            ].map((item) => ({ ...item, createdAt: now, updatedAt: now }));
+            const services = [
+                {
+                    id: 'cuci-ac', data: {
+                        categoryId: 'kebersihan', name: 'Cuci AC',
+                        summary: 'Layanan pembersihan AC untuk membantu menjaga sirkulasi udara.',
+                        description: 'Petugas membersihkan unit AC sesuai paket yang dipilih.',
+                        image: '', active: true, disclaimer: '', pricingNote: '',
+                        needsParentProfile: false, scheduleMode: 'datetime', scheduleLabel: 'Waktu pengerjaan',
+                        recipientLabel: 'Lokasi layanan', consentText: '',
+                        paymentOptions: ['full'],
+                        packages: [
+                            { id: 'cuci-ac-1-unit', name: 'Cuci 1 unit', description: 'Pembersihan satu unit AC.', duration: '1 unit', priceType: 'fixed', price: 75000, dpPercent: 30, active: true },
+                            { id: 'cuci-ac-2-unit', name: 'Cuci 2 unit', description: 'Pembersihan dua unit AC.', duration: '2 unit', priceType: 'fixed', price: 140000, dpPercent: 30, active: true }
+                        ],
+                        options: [],
+                        formFields: [
+                            { key: 'lokasiPengerjaan', label: 'Lokasi pengerjaan', type: 'address', required: true },
+                            { key: 'jumlahUnit', label: 'Jumlah unit', type: 'number', required: true }
+                        ]
+                    }
+                },
+                {
+                    id: 'perbaikan-ringan', data: {
+                        categoryId: 'perbaikan-rumah', name: 'Perbaikan Ringan',
+                        summary: 'Bantuan untuk menangani kerusakan ringan di rumah.',
+                        description: 'Ceritakan jenis kerusakan dan lokasi agar admin dapat menyiapkan penawaran.',
+                        image: '', active: true, disclaimer: '', pricingNote: '',
+                        needsParentProfile: false, scheduleMode: 'datetime', scheduleLabel: 'Waktu pengerjaan',
+                        recipientLabel: 'Lokasi layanan', consentText: '',
+                        paymentOptions: ['full'],
+                        packages: [
+                            { id: 'perbaikan-sesuai-kebutuhan', name: 'Perbaikan sesuai kebutuhan', description: 'Admin menentukan harga setelah meninjau permintaan.', duration: 'Disepakati', priceType: 'quote', price: 0, dpPercent: 30, active: true }
+                        ],
+                        options: [],
+                        formFields: [
+                            { key: 'jenisKerusakan', label: 'Jenis kerusakan', type: 'textarea', required: true },
+                            { key: 'alamatPengerjaan', label: 'Alamat pengerjaan', type: 'address', required: true }
+                        ]
+                    }
+                },
+                {
+                    id: 'pendampingan-orang-tua', data: {
+                        categoryId: 'jaga-orang-tua', name: 'Pendampingan Jaga Orang Tua',
+                        summary: 'Ketenangan untuk keluarga yang tetap ingin hadir.',
+                        description: 'Pendamping dapat berkunjung, menemani kegiatan, dan menyampaikan laporan kunjungan.',
+                        image: '', active: true,
+                        disclaimer: 'Layanan NON-MEDIS: tidak memberi obat, perawatan, atau tindakan medis. Petugas bukan tenaga kesehatan.',
+                        pricingNote: 'Harga contoh untuk uji konsep, belum tervalidasi.',
+                        needsParentProfile: true, scheduleMode: 'recurring', scheduleLabel: 'Preferensi jadwal',
+                        recipientLabel: 'Penerima layanan', consentText: 'Saya memahami batas layanan dan menyetujui ketentuan pemesanan.',
+                        paymentOptions: ['full'],
+                        packages: [
+                            { id: 'kunjungan-1-jam', name: 'Kunjungan 1 jam', description: 'Satu kunjungan pendampingan ringan.', duration: '1 jam', priceType: 'fixed', price: 75000, dpPercent: 30, active: true },
+                            { id: 'pendampingan-3-jam', name: 'Pendampingan 3 jam', description: 'Waktu lebih leluasa untuk menemani kegiatan.', duration: '3 jam', priceType: 'fixed', price: 175000, dpPercent: 30, active: true }
+                        ],
+                        options: [
+                            { id: 'kunjungan-rumah', label: 'Kunjungan pendamping ke rumah' },
+                            { id: 'temani-belanja', label: 'Menemani belanja' }
+                        ],
+                        formFields: []
+                    }
+                }
+            ].map((item) => ({ ...item, data: { ...item.data, createdAt: now, updatedAt: now } }));
+            const categoryRefs = categories.map((item) => db.collection('jasa_categories').doc(item.id));
+            const serviceRefs = services.map((item) => db.collection('jasa_services').doc(item.id));
+            const result = await db.runTransaction(async (transaction) => {
+                const snapshots = await Promise.all([...categoryRefs, ...serviceRefs].map((ref) => transaction.get(ref)));
+                const createdCategories = [];
+                const createdServices = [];
+                categories.forEach((item, index) => {
+                    if (!snapshots[index].exists) {
+                        transaction.create(categoryRefs[index], item);
+                        createdCategories.push(item.name);
+                    }
+                });
+                services.forEach((item, index) => {
+                    const snapshotIndex = categories.length + index;
+                    if (!snapshots[snapshotIndex].exists) {
+                        transaction.create(serviceRefs[index], item.data);
+                        createdServices.push(item.data.name);
+                    }
+                });
+                return { createdCategories, createdServices };
+            });
+            return res.status(200).json({
+                success: true,
+                ...result,
+                message: result.createdServices.length || result.createdCategories.length
+                    ? 'Contoh kategori dan layanan yang belum ada berhasil ditambahkan.'
+                    : 'Semua contoh data sudah ada.'
+            });
+        }
+        return res.status(404).json({ success: false, code: 'unknown-action', message: 'Aksi Gamon Jasa tidak dikenal.' });
+    } catch (error) {
+        console.error('[jasa admin] aksi gagal:', { action, code: error.code || 'unknown', message: error.message });
+        return res.status(error.statusCode || 500).json({ success: false, code: error.code || 'jasa-admin-failed', message: error.message || 'Permintaan admin jasa gagal.' });
+    }
+}
+
 export default async function handler(req, res) {
     const action = String(req?.query?.action || '').toLowerCase();
 
@@ -1381,6 +2210,23 @@ export default async function handler(req, res) {
             return handleDeleteRedeemCode(req, res);
                     case 'notify-marketplace-chat-reply':
             return handleNotifyMarketplaceChatReply(req, res);
+                    case 'jasa-get-catalog':
+                    case 'jasa-save-category':
+                    case 'jasa-save-service':
+                    case 'jasa-delete-service':
+                    case 'jasa-toggle-active':
+                    case 'jasa-get-orders':
+                    case 'jasa-update-order-status':
+                    case 'jasa-assign-staff':
+                    case 'jasa-create-balance-invoice':
+                    case 'jasa-mark-cash-paid':
+                    case 'jasa-mark-balance-cash-paid':
+                    case 'jasa-create-next-invoice':
+                    case 'jasa-end-subscription':
+                    case 'jasa-set-quote':
+                    case 'jasa-add-visit-report':
+                    case 'jasa-seed':
+                        return jasaAdminAction(req, res, action);
         default:
             return res.status(404).json({ success: false, message: 'Admin action tidak ditemukan.' });
     }

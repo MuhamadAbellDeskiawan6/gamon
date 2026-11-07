@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Masuk | Gamon Jasa (Beta)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;800&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../marketplace/assets/style.css" />
+  <link rel="stylesheet" href="../marketplace/assets/neo.css" />
+</head>
+<body data-page="jasa-login">
+  <div class="auth-shell">
+    <div class="auth-card">
+      <div class="auth-grid">
+        <section class="auth-visual"><div class="stack">
+          <a href="index.html" class="brand" aria-label="Gamon Jasa (Beta)"><span class="brand-mark"><img src="../../image/logo/gamonspace-transparan.png" alt="Gamon Space" width="40" height="40" /></span><span>Gamon Jasa (Beta)</span></a>
+          <article class="mini-card"><span class="eyebrow">Satu akun untuk semua layanan Gamon Space</span><h2 style="margin-top:14px;font-size:2rem">Tetap hadir untuk yang berarti.</h2><p class="muted" style="margin-top:10px;line-height:1.7">Masuk untuk mengatur layanan, melihat pesanan, dan menerima kabar kunjungan keluarga.</p></article>
+          <article class="mini-card"><strong>Masuk dengan tenang</strong><p style="margin-top:10px;color:var(--muted)">Akun Gamon Space yang sama dapat digunakan di seluruh layanan kami.</p></article>
+        </div></section>
+        <section class="auth-form">
+          <div class="head"><h1>Masuk</h1><a class="btn btn-secondary" href="index.html">Kembali</a></div>
+          <button type="button" class="btn btn-secondary" data-google-auth style="width:100%;margin-bottom:12px">Masuk dengan Google</button>
+          <form class="form-grid" data-auth-form>
+            <div class="field"><label for="email">Email</label><input id="email" name="email" type="email" autocomplete="email" placeholder="nama@email.com" required /></div>
+            <div class="field" data-auth-message role="status" aria-live="polite" style="display:none;padding:10px 12px;border-radius:12px"></div>
+            <div class="field"><label for="password">Password</label><div class="password-field"><input id="password" name="password" type="password" autocomplete="current-password" placeholder="Masukkan password" required /><button type="button" class="password-toggle" data-password-toggle aria-label="Tampilkan password">Tampilkan</button></div></div>
+            <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap"><a href="#" data-resend-verification>Kirim ulang email verifikasi</a><a href="#" data-forgot-password>Lupa password?</a></div>
+            <label class="check-row"><input type="checkbox" name="remember" checked /> Ingat saya</label>
+            <button class="btn btn-primary" type="submit">Masuk ke Gamon Jasa (Beta)</button>
+          </form>
+          <p class="alt-text">Belum punya akun? <a href="daftar.html">Daftar</a></p>
+        </section>
+      </div>
+    </div>
+  </div>
+  <script type="module" src="../marketplace/assets/app.js"></script>
+</body>
+</html>

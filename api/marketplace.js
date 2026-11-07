@@ -35,6 +35,27 @@ function withFirestoreTimeout(operation, label, timeoutMs = 15000) {
     .finally(() => clearTimeout(timeoutId));
 }
 
+function isRetryableNetworkError(error) {
+  const message = `${error?.code || ''} ${error?.message || ''}`.toLowerCase();
+  return /socket hang up|econnreset|etimedout|unavailable|deadline exceeded|firestore-timeout/.test(message);
+}
+
+async function retryNetwork(operation) {
+  const delays = [400, 800];
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      return await operation();
+    } catch (error) {
+      if (!isRetryableNetworkError(error) || attempt >= delays.length) throw error;
+      await new Promise((resolve) => setTimeout(resolve, delays[attempt]));
+    }
+  }
+}
+
+function isAlreadyExistsError(error) {
+  return error?.code === 6 || error?.code === '6' || error?.code === 'already-exists' || error?.code === 'ALREADY_EXISTS';
+}
+
 function readBearerToken(req) {
   const header = String(req.headers?.authorization || '');
   const match = header.match(/^Bearer\s+(.+)$/i);
@@ -336,7 +357,7 @@ async function cancelStaleAwaitingOrders(userId) {
     try {
       await releaseOrderStock(orderDoc.id, {
         status: 'cancelled',
-        paymentStatus: 'UNPAID',
+        paymentStatus: selectedPackage.priceType !== 'quote' && paymentPlan === 'cash' ? 'CASH_PENDING' : 'UNPAID',
         by: 'system',
         reason: 'Diganti checkout baru.'
       });
@@ -1126,9 +1147,21 @@ function signVerifyPayload(payloadB64, secret) {
   return base64Url(crypto.createHmac('sha256', secret).update(payloadB64).digest());
 }
 
-function createVerifyToken(uid, email) {
+function normalizeAuthApp(value) {
+  return value === 'jasa' ? 'jasa' : 'marketplace';
+}
+
+function authBrand(app) {
+  return normalizeAuthApp(app) === 'jasa' ? 'Gamon Jasa' : 'Marketplace Mantan';
+}
+
+function authLoginPath(app) {
+  return normalizeAuthApp(app) === 'jasa' ? '/user/jasa/masuk.html' : '/user/marketplace/login.html';
+}
+
+function createVerifyToken(uid, email, app = 'marketplace') {
   const secret = getVerifySecret();
-  const payloadB64 = base64Url(JSON.stringify({ uid, email: String(email).toLowerCase(), exp: Date.now() + VERIFY_TOKEN_TTL_MS }));
+  const payloadB64 = base64Url(JSON.stringify({ uid, email: String(email).toLowerCase(), app: normalizeAuthApp(app), exp: Date.now() + VERIFY_TOKEN_TTL_MS }));
   return `${payloadB64}.${signVerifyPayload(payloadB64, secret)}`;
 }
 
@@ -1252,11 +1285,11 @@ const RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 1 jam
 const RESET_RESEND_INTERVAL_MS = 30 * 1000;
 const resetRequestHits = new Map(); // best-effort per instance serverless
 
-function createResetToken(uid, email, passwordHash) {
+function createResetToken(uid, email, passwordHash, app = 'marketplace') {
   const secret = getVerifySecret();
   // "ph" = potongan hash password saat ini: token otomatis hangus begitu password diganti (sekali pakai).
   const ph = crypto.createHash('sha256').update(String(passwordHash || 'no-password')).digest('hex').slice(0, 16);
-  const payloadB64 = base64Url(JSON.stringify({ t: 'reset', uid, email: String(email).toLowerCase(), ph, exp: Date.now() + RESET_TOKEN_TTL_MS }));
+  const payloadB64 = base64Url(JSON.stringify({ t: 'reset', uid, email: String(email).toLowerCase(), ph, app: normalizeAuthApp(app), exp: Date.now() + RESET_TOKEN_TTL_MS }));
   return `${payloadB64}.${signVerifyPayload(payloadB64, secret)}`;
 }
 
@@ -1292,6 +1325,8 @@ function tooManyResetRequests(key) {
 
 // Publik. Selalu membalas sukses agar tidak membocorkan email mana yang terdaftar.
 async function sendPasswordReset(req, res) {
+  const app = normalizeAuthApp(req.body?.app);
+  const brand = authBrand(app);
   const email = String(req.body?.email || '').trim().toLowerCase();
   if (!EMAIL_FORMAT_RE.test(email) || email.length > 254) {
     return responseError(res, 400, 'invalid-email', 'Format email tidak valid.');
@@ -1323,18 +1358,19 @@ async function sendPasswordReset(req, res) {
     const host = String(req.headers?.host || '');
     const isLocalHost = /^(localhost|127\.0\.0\.1)(:\d+)?$/i.test(host);
     const baseUrl = isLocalHost ? `http://${host}` : getSiteUrl();
-    const link = `${baseUrl}/api/marketplace?action=reset-password&token=${encodeURIComponent(createResetToken(user.uid, email, user.passwordHash))}`;
+    const appQuery = app === 'jasa' ? '&app=jasa' : '';
+    const link = `${baseUrl}/api/marketplace?action=reset-password&token=${encodeURIComponent(createResetToken(user.uid, email, user.passwordHash, app))}${appQuery}`;
 
     const name = cleanText(profileSnap.exists ? profileSnap.data()?.name : '', 80) || 'Pembeli';
     const safeLink = escapeMailHtml(link);
     await sendEmail({
       to: email,
-      subject: 'Atur ulang password akun Marketplace Mantan',
+      subject: `Atur ulang password akun ${brand}`,
       html: `
       <div style="font-family:Arial,Helvetica,sans-serif;max-width:520px;margin:auto;padding:28px;color:#111827;line-height:1.6;border:1px solid #eee;border-radius:16px">
         <h2 style="margin:0 0 12px;color:#2a1f3d">Atur ulang password</h2>
         <p>Halo ${escapeMailHtml(name)},</p>
-        <p>Kami menerima permintaan untuk mengatur ulang password akun Marketplace Mantan Anda. Klik tombol di bawah untuk membuat password baru.</p>
+        <p>Kami menerima permintaan untuk mengatur ulang password akun ${escapeMailHtml(brand)} Anda. Klik tombol di bawah untuk membuat password baru.</p>
         <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:24px 0">
           <tr>
             <td align="center" bgcolor="#ec4f86" style="border-radius:10px">
@@ -1349,7 +1385,7 @@ async function sendPasswordReset(req, res) {
         <p style="font-size:12px;word-break:break-all;color:#374151">${safeLink}</p>
         <p style="font-size:13px;color:#6b6078">Link berlaku 1 jam dan hanya bisa dipakai sekali. Jika Anda tidak meminta ini, abaikan email ini; password Anda tidak berubah.</p>
       </div>`,
-      text: `Halo ${name},\n\nKlik link berikut untuk mengatur ulang password akun Marketplace Mantan Anda:\n\n${link}\n\nLink berlaku 1 jam dan hanya bisa dipakai sekali. Jika Anda tidak meminta ini, abaikan email ini.\n\nMarketplace Mantan`
+      text: `Halo ${name},\n\nKlik link berikut untuk mengatur ulang password akun ${brand} Anda:\n\n${link}\n\nLink berlaku 1 jam dan hanya bisa dipakai sekali. Jika Anda tidak meminta ini, abaikan email ini.\n\n${brand}`
     });
     await profileRef.set({ resetSentAt: Date.now() }, { merge: true });
     return genericOk();
@@ -1359,7 +1395,9 @@ async function sendPasswordReset(req, res) {
   }
 }
 
-function renderResetPage(res, { token = '', error = '' } = {}) {
+function renderResetPage(res, { token = '', error = '', app = 'marketplace' } = {}) {
+  const brand = authBrand(app);
+  const loginUrl = `${authLoginPath(app)}?reset=1`;
   res.statusCode = error ? 400 : 200;
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
   res.setHeader('Cache-Control', 'no-store');
@@ -1395,7 +1433,7 @@ function renderResetPage(res, { token = '', error = '' } = {}) {
           const result = await response.json().catch(() => ({}));
           if (!response.ok || result.success === false) throw new Error(result.message || 'Password gagal disimpan.');
           msg.textContent = 'Password berhasil diganti. Mengarahkan ke halaman masuk...'; msg.className = 'ok';
-          setTimeout(() => { location.href = '/user/marketplace/login.html?reset=1'; }, 1500);
+          setTimeout(() => { location.href = ${JSON.stringify(loginUrl)}; }, 1500);
         } catch (err) {
           msg.textContent = err.message; msg.className = 'err';
           btn.disabled = false; btn.textContent = 'Simpan password';
@@ -1404,7 +1442,7 @@ function renderResetPage(res, { token = '', error = '' } = {}) {
     </script>`;
   res.end(`<!DOCTYPE html>
 <html lang="id"><head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Atur ulang password — Marketplace Mantan</title>
+<title>Atur ulang password — ${escapeMailHtml(brand)}</title>
 <style>
   body{margin:0;min-height:100vh;display:grid;place-items:center;background:#fff5f9;font-family:Arial,Helvetica,sans-serif;color:#2a1f3d}
   .card{width:min(420px,92vw);background:#fff;border-radius:20px;padding:28px;box-shadow:0 18px 50px rgba(0,0,0,.1)}
@@ -1417,25 +1455,26 @@ function renderResetPage(res, { token = '', error = '' } = {}) {
   a{color:#ec4f86;font-weight:700}
 </style></head><body><div class="card">
   <h1>Atur ulang password</h1>
-  <p class="sub">Buat password baru untuk akun Marketplace Mantan Anda.</p>
-  ${error ? `<div class="error-box">${escapeMailHtml(error)}</div><p><a href="/user/marketplace/login.html">Kembali ke halaman masuk</a></p>` : form}
+  <p class="sub">Buat password baru untuk akun ${escapeMailHtml(brand)} Anda.</p>
+  ${error ? `<div class="error-box">${escapeMailHtml(error)}</div><p><a href="${loginUrl}">Kembali ke halaman masuk</a></p>` : form}
 </div></body></html>`);
 }
 
 // Dibuka dari link di email (GET): tampilkan form password baru.
 async function showResetPage(req, res) {
+  const requestedApp = normalizeAuthApp(req.query?.app);
   try {
     const payload = readResetToken(req.query?.token);
-    if (!payload) return renderResetPage(res, { error: 'Link tidak valid atau sudah kedaluwarsa. Minta link baru dari halaman masuk.' });
+    if (!payload) return renderResetPage(res, { error: 'Link tidak valid atau sudah kedaluwarsa. Minta link baru dari halaman masuk.', app: requestedApp });
     const user = await getAdminAuth().getUser(payload.uid);
     const ph = crypto.createHash('sha256').update(String(user.passwordHash || 'no-password')).digest('hex').slice(0, 16);
     if (String(user.email || '').toLowerCase() !== payload.email || ph !== payload.ph) {
-      return renderResetPage(res, { error: 'Link ini sudah dipakai atau tidak berlaku lagi. Minta link baru dari halaman masuk.' });
+      return renderResetPage(res, { error: 'Link ini sudah dipakai atau tidak berlaku lagi. Minta link baru dari halaman masuk.', app: payload.app });
     }
-    return renderResetPage(res, { token: String(req.query.token) });
+    return renderResetPage(res, { token: String(req.query.token), app: payload.app });
   } catch (error) {
     console.error('[marketplace] reset-password gagal:', { code: error.code || 'unknown', message: error.message });
-    return renderResetPage(res, { error: 'Terjadi kesalahan. Silakan minta link baru.' });
+    return renderResetPage(res, { error: 'Terjadi kesalahan. Silakan minta link baru.', app: requestedApp });
   }
 }
 
@@ -1463,6 +1502,8 @@ async function confirmPasswordReset(req, res) {
 }
 
 async function sendVerification(req, res) {
+  const app = normalizeAuthApp(req.body?.app);
+  const brand = authBrand(app);
   const token = readBearerToken(req);
   if (!token) return responseError(res, 401, 'unauthenticated', 'Silakan masuk kembali.');
 
@@ -1492,18 +1533,19 @@ async function sendVerification(req, res) {
     const host = String(req.headers?.host || '');
     const isLocalHost = /^(localhost|127\.0\.0\.1)(:\d+)?$/i.test(host);
     const baseUrl = isLocalHost ? `http://${host}` : getSiteUrl();
-    const link = `${baseUrl}/api/marketplace?action=verify-email&token=${encodeURIComponent(createVerifyToken(claims.uid, email))}`;
+    const appQuery = app === 'jasa' ? '&app=jasa' : '';
+    const link = `${baseUrl}/api/marketplace?action=verify-email&token=${encodeURIComponent(createVerifyToken(claims.uid, email, app))}${appQuery}`;
 
              const name = cleanText(claims.name || profileSnap.data()?.name || '', 80) || 'Pembeli';
     const safeLink = escapeMailHtml(link);
     await sendEmail({
       to: email,
-      subject: 'Verifikasi email akun Marketplace Mantan',
+      subject: `Verifikasi email akun ${brand}`,
       html: `
       <div style="font-family:Arial,Helvetica,sans-serif;max-width:520px;margin:auto;padding:28px;color:#111827;line-height:1.6;border:1px solid #eee;border-radius:16px">
         <h2 style="margin:0 0 12px;color:#2a1f3d">Verifikasi email Anda</h2>
         <p>Halo ${escapeMailHtml(name)},</p>
-        <p>Terima kasih sudah mendaftar di Marketplace Mantan. Klik tombol di bawah untuk mengaktifkan akun Anda.</p>
+        <p>Terima kasih sudah mendaftar di ${escapeMailHtml(brand)}. Klik tombol di bawah untuk mengaktifkan akun Anda.</p>
         <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:24px 0">
           <tr>
             <td align="center" bgcolor="#ec4f86" style="border-radius:10px">
@@ -1518,7 +1560,7 @@ async function sendVerification(req, res) {
         <p style="font-size:12px;word-break:break-all;color:#374151">${safeLink}</p>
         <p style="font-size:13px;color:#6b6078">Link berlaku 24 jam. Jika Anda tidak merasa mendaftar, abaikan email ini.</p>
       </div>`,
-      text: `Halo ${name},\n\nKlik link berikut untuk memverifikasi email Anda:\n\n${link}\n\nLink berlaku 24 jam. Jika Anda tidak merasa mendaftar, abaikan email ini.\n\nMarketplace Mantan`
+      text: `Halo ${name},\n\nKlik link berikut untuk memverifikasi email Anda di ${brand}:\n\n${link}\n\nLink berlaku 24 jam. Jika Anda tidak merasa mendaftar, abaikan email ini.\n\n${brand}`
     });
     await profileRef.set({ verificationSentAt: Date.now() }, { merge: true });
     return res.status(200).json({ success: true, sent: true });
@@ -1530,15 +1572,17 @@ async function sendVerification(req, res) {
 
 // Dibuka dari link di email (GET). Menandai email terverifikasi lalu mengarahkan ke halaman login.
 async function verifyEmail(req, res) {
+  let app = normalizeAuthApp(req.query?.app);
   const redirect = (flag) => {
     res.statusCode = 302;
-    res.setHeader('Location', `/user/marketplace/login.html?verified=${flag}`);
+    res.setHeader('Location', `${authLoginPath(app)}?verified=${flag}`);
     res.setHeader('Cache-Control', 'no-store');
     res.end();
   };
 
   try {
     const payload = readVerifyToken(req.query?.token);
+    if (payload?.app) app = normalizeAuthApp(payload.app);
     if (!payload) return redirect('invalid');
 
     const adminAuth = getAdminAuth();
@@ -1552,6 +1596,790 @@ async function verifyEmail(req, res) {
   }
 }
 
+function jasaFailure(statusCode, code, message) {
+  return Object.assign(new Error(message), { statusCode, code });
+}
+
+function jasaOrderCode() {
+  const now = new Date();
+  const date = [String(now.getUTCFullYear()).slice(-2), String(now.getUTCMonth() + 1).padStart(2, '0'), String(now.getUTCDate()).padStart(2, '0')].join('');
+  const alphabet = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  const suffix = Array.from({ length: 6 }, () => alphabet[crypto.randomInt(alphabet.length)]).join('');
+  return `JS-${date}-${suffix}`;
+}
+
+function jasaHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, (char) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[char]));
+}
+
+function jasaImageUrl(value) {
+  const image = cleanText(value, 800);
+  if (!image) return '';
+  if (/^https:\/\/[^\s]+$/i.test(image)) return image;
+  return /^\/(?!\/)[^\s]*$/.test(image) ? image : '';
+}
+
+function jasaValidateId(value, label = 'ID') {
+  const id = cleanText(value, 120);
+  if (!/^[A-Za-z0-9_-]{1,120}$/.test(id)) throw jasaFailure(400, 'invalid-id', `${label} tidak valid.`);
+  return id;
+}
+
+async function jasaPublicCatalog(req, res) {
+  const db = getAdminDb();
+  const [categorySnapshot, serviceSnapshot] = await retryNetwork(() => Promise.all([
+    db.collection('jasa_categories').get(),
+    db.collection('jasa_services').get()
+  ]));
+  const categories = categorySnapshot.docs
+    .map((item) => {
+      const data = item.data() || {};
+      return {
+        id: item.id,
+        name: cleanText(data.name, 100),
+        slug: cleanText(data.slug, 100),
+        icon: cleanText(data.icon, 60),
+        tagline: cleanText(data.tagline, 200),
+        description: cleanText(data.description, 1200),
+        active: data.active === true,
+        order: Number(data.order || 0)
+      };
+    })
+    .filter((item) => item.active === true)
+    .sort((a, b) => Number(a.order || 0) - Number(b.order || 0));
+  const activeCategoryIds = new Set(categories.map((item) => item.id));
+  const services = serviceSnapshot.docs
+    .map((item) => ({ id: item.id, ...item.data() }))
+    .filter((item) => item.active === true && activeCategoryIds.has(item.categoryId) &&
+      Array.isArray(item.packages) && item.packages.some((packageItem) => packageItem?.active !== false))
+    .map((item) => ({
+      id: item.id,
+      categoryId: item.categoryId,
+      name: item.name,
+      summary: cleanText(item.summary, 300),
+      description: cleanText(item.description, 3000),
+      image: jasaImageUrl(item.image),
+      disclaimer: cleanText(item.disclaimer, 1500),
+      pricingNote: cleanText(item.pricingNote, 300),
+      paymentOptions: Array.isArray(item.paymentOptions)
+        ? item.paymentOptions.filter((option) => ['full', 'dp', 'cash'].includes(option))
+        : ['full'],
+      needsParentProfile: item.needsParentProfile === true,
+      scheduleMode: ['none', 'date', 'datetime', 'recurring'].includes(item.scheduleMode) ? item.scheduleMode : 'recurring',
+      scheduleLabel: cleanText(item.scheduleLabel, 80) || 'Preferensi jadwal',
+      recipientLabel: cleanText(item.recipientLabel, 60) || 'Penerima layanan',
+      consentText: cleanText(item.consentText, 300) || 'Saya memahami batas layanan dan menyetujui ketentuan pemesanan.',
+      packages: Array.isArray(item.packages) ? item.packages.filter((packageItem) => packageItem?.active !== false).map((packageItem) => ({
+        id: cleanText(packageItem.id, 120),
+        name: cleanText(packageItem.name, 120),
+        description: cleanText(packageItem.description, 500),
+        duration: cleanText(packageItem.duration, 80),
+        priceType: cleanText(packageItem.priceType, 20),
+        price: Number(packageItem.price || 0),
+        dpPercent: Number.isSafeInteger(packageItem.dpPercent) ? packageItem.dpPercent : 30
+      })) : [],
+      options: Array.isArray(item.options) ? item.options.map((option) => ({
+        id: cleanText(option.id, 120),
+        label: cleanText(option.label, 150)
+      })) : [],
+      formFields: Array.isArray(item.formFields) ? item.formFields.map((field) => ({
+        key: cleanText(field.key, 60),
+        label: cleanText(field.label, 120),
+        type: cleanText(field.type, 20),
+        required: field.required === true,
+        ...(field.type === 'select' ? { options: Array.isArray(field.options) ? field.options.slice(0, 30).map((option) => cleanText(option, 100)) : [] } : {})
+      })) : []
+    }));
+  res.setHeader('Cache-Control', 'public, s-maxage=10, stale-while-revalidate=30');
+  return res.status(200).json({ success: true, categories, services });
+}
+
+async function createJasaDokuPayment(order, config, paymentEntry = {}) {
+  const requestId = crypto.randomUUID();
+  const timestamp = new Date().toISOString().split('.')[0] + 'Z';
+  const returnUrl = `${config.returnBaseUrl}/user/jasa/pesanan.html?orderId=${encodeURIComponent(order.orderCode)}`;
+  const amount = paymentEntry.amount ?? order.totalAmount;
+  const invoiceNumber = paymentEntry.invoiceNumber || order.orderCode;
+  const paymentMethodsRaw = String(process.env.DOKU_PAYMENT_METHODS || 'QRIS').trim();
+  const paymentMethods = paymentMethodsRaw.toUpperCase() === 'ALL'
+    ? []
+    : paymentMethodsRaw.split(',').map((value) => value.trim()).filter(Boolean);
+  const payment = { payment_due_date: 60, return_url: returnUrl };
+  if (paymentMethods.length) payment.payment_method_types = paymentMethods;
+  const body = {
+    order: {
+      amount,
+      invoice_number: invoiceNumber,
+      callback_url: returnUrl,
+      line_items: [{
+        name: dokuSafeText(order.serviceName, 100, 'Jasa Gamon'),
+        price: amount,
+        quantity: 1
+      }],
+      currency: 'IDR'
+    },
+    payment,
+    customer: {
+      name: dokuSafeText(order.buyerName, 100, 'Pembeli'),
+      email: dokuSafeEmail(order.buyerEmail),
+      phone: dokuSafePhone(order.buyerPhone),
+      address: dokuSafeText(order.parent?.address || order.buyerName, 200, 'Pemesanan jasa')
+    },
+    additional_info: { override_notification_url: `${config.siteUrl}/api/doku-notify` }
+  };
+  const path = '/checkout/v1/payment';
+  const bodyText = JSON.stringify(body);
+  const response = await fetch(`${config.baseUrl}${path}`, {
+    method: 'POST',
+    headers: createDokuHeaders({ ...config, requestId, timestamp, path, bodyText }),
+    body: bodyText
+  });
+  const raw = await response.text();
+  let payload = {};
+  try { payload = JSON.parse(raw); } catch (error) { payload = { raw: raw.slice(0, 1000) }; }
+  const paymentUrl = payload?.response?.payment?.url;
+  if (!response.ok || typeof paymentUrl !== 'string' || !/^https:\/\//i.test(paymentUrl)) {
+    console.error('[jasa] respons DOKU:', response.status, JSON.stringify(payload).slice(0, 1200));
+    throw Object.assign(new Error(payload?.error_messages?.join?.(', ') || payload?.message || `DOKU menolak checkout (${response.status}).`), {
+      code: 'doku-checkout-failed',
+      dokuRequestId: requestId
+    });
+  }
+  return { paymentUrl, requestId };
+}
+
+function jasaPaymentEntries(order) {
+  if (Array.isArray(order.payments)) return order.payments;
+  if ((order.paymentPlan === 'cash' || order.paymentMethod === 'CASH') && order.paymentStatus !== 'PAID') return [];
+  if (!order.orderCode && !order.id) return [];
+  const orderCode = order.orderCode || order.id;
+  const isPaid = order.paymentStatus === 'PAID' || ['paid', 'scheduled', 'in_progress', 'completed'].includes(order.status);
+  return [{
+    id: orderCode,
+    kind: 'full',
+    amount: Number(order.totalAmount || 0),
+    method: order.paymentMethod === 'CASH' ? 'CASH' : 'DOKU',
+    status: isPaid ? 'PAID' : order.paymentStatus === 'EXPIRED' ? 'EXPIRED' : order.paymentStatus === 'CANCELLED' ? 'CANCELLED' : 'UNPAID',
+    invoiceNumber: orderCode,
+    paymentUrl: cleanText(order.paymentUrl, 1000),
+    expiresAt: Number(order.paymentExpiresAt || 0),
+    paidAt: Number(order.paidAt || 0)
+  }];
+}
+
+function jasaAmounts(order, payments = jasaPaymentEntries(order)) {
+  const total = Number(order.totalAmount || 0);
+  const paidAmount = payments.filter((payment) => payment.status === 'PAID')
+    .reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
+  return { paidAmount, remainingAmount: Math.max(0, total - paidAmount) };
+}
+
+function jasaPaymentStatus(order, payments, remainingAmount) {
+  if (order.status === 'cancelled') return 'CANCELLED';
+  if (order.status === 'expired' && remainingAmount > 0) return 'EXPIRED';
+  if (remainingAmount === 0) return 'PAID';
+  if (payments.some((payment) => payment.status === 'PAID')) return 'PARTIAL';
+  if (order.paymentPlan === 'cash' && order.status !== 'awaiting_quote') return 'CASH_PENDING';
+  return 'UNPAID';
+}
+
+function jasaDpAmount(total, percent) {
+  if (!Number.isSafeInteger(total) || !Number.isSafeInteger(percent) || percent < 10 || percent > 90) {
+    throw jasaFailure(409, 'invalid-dp-config', 'Persentase DP layanan tidak valid. Hubungi admin.');
+  }
+  const amount = Math.round(total * percent / 100);
+  if (!Number.isSafeInteger(amount) || amount < 1 || amount >= total) {
+    throw jasaFailure(409, 'invalid-dp-amount', 'Nominal DP layanan tidak valid. Hubungi admin.');
+  }
+  return amount;
+}
+
+function jasaCleanFormData(service, input) {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) {
+    throw jasaFailure(400, 'invalid-form', 'Data formulir jasa tidak valid.');
+  }
+  const fields = Array.isArray(service.formFields) ? service.formFields.slice(0, 20) : [];
+  const values = {};
+  for (const field of fields) {
+    const key = cleanText(field.key, 60);
+    const value = cleanText(input[key], 1000);
+    if (field.required && !value) throw jasaFailure(400, 'required-field', `${cleanText(field.label, 100) || key} wajib diisi.`);
+    if (field.type === 'select' && value && !((field.options || []).map((option) => cleanText(option, 100)).includes(value))) {
+      throw jasaFailure(400, 'invalid-field-option', `Pilihan ${cleanText(field.label, 100) || key} tidak valid.`);
+    }
+    if (field.type === 'number' && value && !/^[0-9.,]{1,20}$/.test(value)) {
+      throw jasaFailure(400, 'invalid-field-value', `${cleanText(field.label, 100) || key} hanya boleh berisi angka, titik, atau koma (maksimal 20 karakter).`);
+    }
+    if (value) values[key] = value;
+  }
+  return values;
+}
+
+function jasaCleanSchedule(input, mode = 'recurring') {
+  const schedule = input && typeof input === 'object' && !Array.isArray(input) ? input : {};
+  if (!['none', 'date', 'datetime', 'recurring'].includes(mode)) throw jasaFailure(400, 'invalid-schedule', 'Pengaturan jadwal layanan tidak valid.');
+  if (mode === 'none') return { mode, date: '', time: '', recurring: false, days: [] };
+  if (schedule.recurring !== undefined && typeof schedule.recurring !== 'boolean') throw jasaFailure(400, 'invalid-schedule', 'Pilihan jadwal rutin tidak valid.');
+  if (schedule.days !== undefined && !Array.isArray(schedule.days)) throw jasaFailure(400, 'invalid-schedule', 'Hari jadwal rutin tidak valid.');
+  const date = cleanText(schedule.date, 10);
+  const time = cleanText(schedule.time, 5);
+  const dateParts = date.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  const dateObject = dateParts ? new Date(Date.UTC(Number(dateParts[1]), Number(dateParts[2]) - 1, Number(dateParts[3]))) : null;
+  if (!dateObject || dateObject.getUTCFullYear() !== Number(dateParts[1]) || dateObject.getUTCMonth() !== Number(dateParts[2]) - 1 || dateObject.getUTCDate() !== Number(dateParts[3])) {
+    throw jasaFailure(400, 'invalid-schedule', 'Pilih tanggal yang valid.');
+  }
+  if (date < new Date().toISOString().slice(0, 10)) throw jasaFailure(400, 'invalid-schedule', 'Tanggal tidak boleh sudah lewat.');
+  if (mode === 'datetime' || mode === 'recurring') {
+    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(time)) throw jasaFailure(400, 'invalid-schedule', 'Pilih jam yang valid.');
+  }
+  const recurring = mode === 'recurring' && schedule.recurring === true;
+  const allowedDays = new Set(['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu']);
+  const days = Array.isArray(schedule.days)
+    ? [...new Set(schedule.days.map((day) => cleanText(day, 12)).filter((day) => allowedDays.has(day)))].slice(0, 7)
+    : [];
+  if (recurring && !days.length) throw jasaFailure(400, 'invalid-schedule', 'Pilih minimal satu hari untuk jadwal rutin.');
+  return { mode, date, time: mode === 'date' ? '' : time, recurring, days: recurring ? days : [] };
+}
+
+function jasaValidPhone(value) {
+  const phone = cleanText(value, 30);
+  return /^\+?[0-9][0-9\s().-]{6,23}$/.test(phone) && phone.replace(/\D/g, '').length >= 8;
+}
+
+function jasaCleanParents(input) {
+  if (!Array.isArray(input) || input.length > 5) throw jasaFailure(400, 'invalid-parent-profiles', 'Simpan maksimal 5 data penerima layanan.');
+  const ids = new Set();
+  return input.map((item, index) => {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) throw jasaFailure(400, 'invalid-parent-profile', `Data penerima layanan nomor ${index + 1} tidak valid.`);
+    const id = jasaValidateId(item.id, 'ID data penerima');
+    if (ids.has(id)) throw jasaFailure(400, 'duplicate-parent-id', 'ID data penerima harus unik.');
+    ids.add(id);
+    const name = cleanText(item.name, 120);
+    const address = cleanText(item.address, 500);
+    const city = cleanText(item.city, 120);
+    const emergencyContactName = cleanText(item.emergencyContactName, 120);
+    const emergencyContactPhone = cleanText(item.emergencyContactPhone, 30);
+    const notes = cleanText(item.notes, 700);
+    if (!name || !address || (emergencyContactPhone && !jasaValidPhone(emergencyContactPhone))) {
+      throw jasaFailure(400, 'invalid-parent-profile', `Nama dan alamat wajib diisi untuk data penerima layanan nomor ${index + 1}; nomor telepon harus valid jika diisi.`);
+    }
+    return { id, name, address, city, emergencyContactName, emergencyContactPhone, notes };
+  });
+}
+
+async function jasaGetProfile(req, res, claims) {
+  const ref = getAdminDb().collection('jasa_profiles').doc(claims.uid);
+  const snapshot = await retryNetwork(() => ref.get());
+  const data = snapshot.exists ? snapshot.data() || {} : {};
+  return res.status(200).json({ success: true, profile: { parents: Array.isArray(data.parents) ? data.parents : [] } });
+}
+
+async function jasaSaveProfile(req, res, claims) {
+  const parents = jasaCleanParents(req.body?.parents);
+  await retryNetwork(() => getAdminDb().collection('jasa_profiles').doc(claims.uid).set({ parents, updatedAt: Date.now() }));
+  return res.status(200).json({ success: true, profile: { parents }, message: 'Data penerima layanan berhasil disimpan.' });
+}
+
+async function jasaSendBuyerEmail(order, subject, text, html) {
+  try {
+    await sendEmail({ to: cleanText(order.buyerEmail, 180), subject, text, html });
+  } catch (error) {
+    console.error('[jasa] email pembeli gagal:', { orderCode: order.orderCode, code: error.code || 'unknown', message: error.message });
+  }
+}
+
+async function jasaSendPaymentConfirmation(order) {
+  const assigned = order.assignedStaff?.name ? ` Petugas yang ditugaskan: ${cleanText(order.assignedStaff.name, 120)}.` : '';
+  await jasaSendBuyerEmail(
+    order,
+    `Pembayaran diterima — Gamon Jasa ${order.orderCode}`,
+    `Pembayaran untuk ${order.serviceName} (${order.orderCode}) berhasil diterima.${assigned}`,
+    `<p>Pembayaran untuk <b>${jasaHtml(order.serviceName)}</b> (${jasaHtml(order.orderCode)}) berhasil diterima.</p>${assigned ? `<p>${jasaHtml(assigned.trim())}</p>` : ''}<p>Kami akan mengabari Anda saat jadwal dikonfirmasi.</p>`
+  );
+}
+
+async function jasaNotifyAdmin(order) {
+  const to = String(process.env.ADMIN_NOTIFY_EMAIL || 'muhamadabelldeskiawan@gmail.com').trim();
+  const adminUrl = `${String(process.env.SITE_URL || DEFAULT_SITE_URL).replace(/\/$/, '')}/admin/jasa-orders.html`;
+  const subject = `Pesanan Jasa Baru ${order.orderCode}`;
+  const text = `Pesanan ${order.orderCode}\nJasa: ${order.serviceName}\nPaket: ${order.package.name}\nPembeli: ${order.buyerName} (${order.buyerEmail})\nStatus: ${order.status}`;
+  const html = `<p>Pesanan jasa baru masuk.</p><p><b>${jasaHtml(order.orderCode)}</b> — ${jasaHtml(order.serviceName)}</p><p>Paket: ${jasaHtml(order.package.name)}<br>Pembeli: ${jasaHtml(order.buyerName)} (${jasaHtml(order.buyerEmail)})<br>Status: ${jasaHtml(order.status)}</p><p><a href="${jasaHtml(adminUrl)}">Buka panel pesanan jasa</a></p>`;
+  try {
+    await sendEmail({ to, subject, html, text });
+  } catch (error) {
+    console.error('[jasa] email pesanan admin gagal:', { orderCode: order.orderCode, code: error.code || 'unknown', message: error.message });
+  }
+}
+
+async function jasaCheckout(req, res, claims) {
+  const body = req.body || {};
+  const serviceId = jasaValidateId(body.serviceId, 'Layanan');
+  const packageId = jasaValidateId(body.packageId, 'Paket');
+  const requestedCategoryId = jasaValidateId(body.categoryId, 'Kategori');
+  const db = getAdminDb();
+  const serviceRef = db.collection('jasa_services').doc(serviceId);
+  const categoryRef = db.collection('jasa_categories').doc(requestedCategoryId);
+  const profileRef = db.collection('jasa_profiles').doc(claims.uid);
+  const [serviceSnapshot, categorySnapshot, profileSnapshot] = await retryNetwork(() =>
+    db.getAll(serviceRef, categoryRef, profileRef));
+  if (!serviceSnapshot.exists || serviceSnapshot.data()?.active !== true) throw jasaFailure(404, 'service-unavailable', 'Layanan tidak ditemukan atau sedang tidak tersedia.');
+  const service = serviceSnapshot.data() || {};
+  if (String(service.categoryId || '') !== requestedCategoryId) throw jasaFailure(400, 'invalid-category', 'Kategori layanan tidak cocok.');
+  const packages = Array.isArray(service.packages) ? service.packages : [];
+  const selectedPackage = packages.find((item) => item.id === packageId && item.active !== false);
+  if (!selectedPackage || !['fixed', 'monthly', 'quote'].includes(selectedPackage.priceType)) throw jasaFailure(400, 'package-unavailable', 'Paket tidak tersedia.');
+  const paymentOptions = service.paymentOptions === undefined ? ['full'] : service.paymentOptions;
+  if (!Array.isArray(paymentOptions) || !paymentOptions.length ||
+      paymentOptions.some((option) => !['full', 'dp', 'cash'].includes(option)) ||
+      new Set(paymentOptions).size !== paymentOptions.length) {
+    throw jasaFailure(409, 'invalid-payment-options', 'Pilihan pembayaran layanan tidak valid. Hubungi admin.');
+  }
+  const paymentPlan = body.paymentPlan === undefined ? 'full' : cleanText(body.paymentPlan, 10);
+  if (!['full', 'dp', 'cash'].includes(paymentPlan) || !paymentOptions.includes(paymentPlan)) {
+    throw jasaFailure(400, 'invalid-payment-plan', 'Pilih cara pembayaran yang tersedia untuk layanan ini.');
+  }
+  if (selectedPackage.priceType === 'monthly' && paymentPlan !== 'full') {
+    throw jasaFailure(400, 'monthly-full-only', 'Paket bulanan hanya dapat dibayar penuh.');
+  }
+  const price = Number(selectedPackage.price);
+  if (!Number.isSafeInteger(price) || price < 0 || (selectedPackage.priceType !== 'quote' && price < 1) || (selectedPackage.priceType === 'quote' && price !== 0)) {
+    throw jasaFailure(409, 'invalid-service-price', 'Harga paket tidak valid. Hubungi admin.');
+  }
+  if (!categorySnapshot.exists || categorySnapshot.data()?.active !== true) throw jasaFailure(404, 'service-unavailable', 'Kategori layanan sedang tidak tersedia.');
+
+  const buyerName = cleanText(body.buyerName || claims.name, 120);
+  const buyerPhone = cleanText(body.buyerPhone, 40);
+  const buyerEmail = cleanText(claims.email, 180).toLowerCase();
+  if (!buyerName) throw jasaFailure(400, 'buyer-name-required', 'Nama pemesan wajib diisi.');
+  if (!/^\+?[0-9\s().-]{8,24}$/.test(buyerPhone)) throw jasaFailure(400, 'buyer-phone-invalid', 'Nomor telepon pemesan belum valid.');
+  if (!buyerEmail) throw jasaFailure(400, 'buyer-email-required', 'Email akun tidak tersedia.');
+
+  if (body.selectedOptions !== undefined && !Array.isArray(body.selectedOptions)) throw jasaFailure(400, 'invalid-option', 'Pilihan kebutuhan tidak valid.');
+  const selectedOptions = Array.isArray(body.selectedOptions) ? [...new Set(body.selectedOptions.map((item) => jasaValidateId(item, 'Opsi')))] : [];
+  const availableOptions = Array.isArray(service.options) ? service.options : [];
+  if (selectedOptions.some((id) => !availableOptions.some((option) => option.id === id))) throw jasaFailure(400, 'invalid-option', 'Pilihan kebutuhan tidak valid.');
+  if (selectedOptions.length > 20) throw jasaFailure(400, 'too-many-options', 'Pilihan kebutuhan terlalu banyak.');
+  const formData = jasaCleanFormData(service, body.formData);
+  let parent = null;
+  if (service.needsParentProfile === true) {
+    if (body.parentConsent !== true) throw jasaFailure(400, 'parent-consent-required', 'Setujui ketentuan layanan sebelum melanjutkan.');
+    const parentId = jasaValidateId(body.parentId, 'Profil penerima layanan');
+    const parentEntry = (profileSnapshot.data()?.parents || []).find((item) => item.id === parentId);
+    if (!parentEntry) throw jasaFailure(400, 'parent-profile-required', 'Pilih profil penerima layanan yang tersimpan sebelum memesan.');
+    parent = {
+      id: jasaValidateId(parentEntry.id, 'ID data penerima'),
+      name: cleanText(parentEntry.name, 120),
+      address: cleanText(parentEntry.address, 500),
+      city: cleanText(parentEntry.city, 120),
+      emergencyContactName: cleanText(parentEntry.emergencyContactName, 120),
+      emergencyContactPhone: cleanText(parentEntry.emergencyContactPhone, 30),
+      notes: cleanText(parentEntry.notes, 700)
+    };
+  } else if (body.parentConsent !== true) {
+    throw jasaFailure(400, 'parent-consent-required', 'Konfirmasi persetujuan layanan dan penggunaan data sebelum melanjutkan.');
+  }
+  const scheduleMode = ['none', 'date', 'datetime', 'recurring'].includes(service.scheduleMode) ? service.scheduleMode : 'recurring';
+  const schedule = jasaCleanSchedule(body.schedule, scheduleMode);
+  const now = Date.now();
+  const orderCode = jasaOrderCode();
+  const order = {
+    orderCode,
+    userId: claims.uid,
+    buyerName,
+    buyerEmail,
+    buyerPhone,
+    serviceId,
+    serviceName: cleanText(service.name, 120),
+    categoryId: cleanText(service.categoryId, 120),
+    scheduleMode,
+    scheduleLabel: cleanText(service.scheduleLabel, 80) || 'Preferensi jadwal',
+    recipientLabel: cleanText(service.recipientLabel, 60) || 'Penerima layanan',
+    consentText: cleanText(service.consentText, 300) || 'Saya memahami batas layanan dan menyetujui ketentuan pemesanan.',
+    disclaimer: cleanText(service.disclaimer, 1500),
+    pricingNote: cleanText(service.pricingNote, 300),
+    formFieldLabels: Object.fromEntries((Array.isArray(service.formFields) ? service.formFields : []).map((field) => [cleanText(field.key, 60), cleanText(field.label, 120)])),
+    ...(parent ? { parent } : {}),
+    consentAt: now,
+    package: {
+      id: selectedPackage.id,
+      name: cleanText(selectedPackage.name, 120),
+      description: cleanText(selectedPackage.description, 500),
+      duration: cleanText(selectedPackage.duration, 80),
+      priceType: selectedPackage.priceType,
+      price,
+      dpPercent: Number.isSafeInteger(selectedPackage.dpPercent) ? selectedPackage.dpPercent : 30
+    },
+    selectedOptions,
+    formData,
+    schedule,
+    totalAmount: selectedPackage.priceType === 'quote' ? 0 : price,
+    paymentPlan,
+    payments: [],
+    paidAmount: 0,
+    remainingAmount: selectedPackage.priceType === 'quote' ? 0 : price,
+    paymentMethod: paymentPlan === 'cash' ? 'CASH' : 'DOKU',
+    paymentStatus: 'UNPAID',
+    status: selectedPackage.priceType === 'quote' ? 'awaiting_quote' : paymentPlan === 'cash' ? 'awaiting_confirmation' : 'awaiting_payment',
+    statusHistory: [{ status: selectedPackage.priceType === 'quote' ? 'awaiting_quote' : paymentPlan === 'cash' ? 'awaiting_confirmation' : 'awaiting_payment', at: now, by: claims.uid }],
+    visits: [],
+    paymentUrl: '',
+    createdAt: now,
+    updatedAt: now,
+    ...(selectedPackage.priceType === 'quote' ? {} : paymentPlan === 'cash'
+      ? { confirmationExpiresAt: now + 24 * 60 * 60 * 1000 }
+      : { paymentExpiresAt: now + PAYMENT_WINDOW_MS })
+  };
+  if (selectedPackage.priceType === 'monthly') {
+    order.subscription = { status: 'active', startedAt: now, cycle: 1 };
+    order.orderType = 'subscription_start';
+  }
+  if (selectedPackage.priceType !== 'quote' && paymentPlan !== 'cash') {
+    const firstAmount = paymentPlan === 'dp' ? jasaDpAmount(price, order.package.dpPercent) : price;
+    const paymentEntry = {
+      id: orderCode,
+      kind: paymentPlan,
+      amount: firstAmount,
+      method: 'DOKU',
+      status: 'UNPAID',
+      invoiceNumber: orderCode,
+      paymentUrl: '',
+      expiresAt: now + PAYMENT_WINDOW_MS,
+      paidAt: 0
+    };
+    let config;
+    try { config = getDokuConfig(req); } catch (error) { throw jasaFailure(503, error.code || 'doku-config-missing', error.message); }
+    try {
+      const payment = await createJasaDokuPayment(order, config, paymentEntry);
+      order.paymentUrl = payment.paymentUrl;
+      order.dokuRequestId = payment.requestId;
+      paymentEntry.paymentUrl = payment.paymentUrl;
+      order.payments = [paymentEntry];
+    } catch (error) {
+      console.error('[jasa] pembayaran gagal disiapkan:', { orderCode, code: error.code || 'unknown', message: error.message });
+      throw jasaFailure(502, 'doku-checkout-failed', 'Pembayaran belum dapat disiapkan. Silakan coba beberapa saat lagi.');
+    }
+  }
+  const orderRef = db.collection('jasa_orders').doc(orderCode);
+  try {
+    if (paymentPlan === 'cash' && selectedPackage.priceType !== 'quote') {
+      await retryNetwork(() => db.runTransaction(async (transaction) => {
+        const activeQuery = db.collection('jasa_orders').where('userId', '==', claims.uid);
+        const activeOrders = await transaction.get(activeQuery);
+        const activeCashCount = activeOrders.docs.filter((item) => {
+          const current = item.data() || {};
+          return current.paymentPlan === 'cash' && ['awaiting_confirmation', 'scheduled', 'in_progress'].includes(current.status);
+        }).length;
+        if (activeCashCount >= 2) throw jasaFailure(409, 'cash-order-limit', 'Maksimal dua pesanan jasa tunai aktif per akun. Selesaikan atau hubungi admin untuk pesanan yang sedang berjalan.');
+        transaction.create(orderRef, order);
+      }));
+    } else {
+      await retryNetwork(() => orderRef.create(order));
+    }
+  } catch (error) {
+    if (!isAlreadyExistsError(error)) throw error;
+    const existing = await retryNetwork(() => orderRef.get());
+    const existingOrder = existing.data() || {};
+    if (!existing.exists || existingOrder.userId !== claims.uid || existingOrder.createdAt !== now || existingOrder.serviceId !== serviceId) throw error;
+  }
+  await jasaNotifyAdmin(order);
+  return res.status(200).json({ success: true, orderId: orderCode, orderCode, status: order.status, paymentUrl: order.paymentUrl || '' });
+}
+
+async function jasaMyOrders(req, res, claims) {
+  const db = getAdminDb();
+  const snapshot = await retryNetwork(() => db.collection('jasa_orders').where('userId', '==', claims.uid).get());
+  const now = Date.now();
+  for (const item of snapshot.docs) {
+    const order = item.data() || {};
+    const expiresAt = Number(order.confirmationExpiresAt || (Number(order.createdAt || 0) + 24 * 60 * 60 * 1000));
+    if (order.status === 'awaiting_confirmation' && expiresAt <= now) {
+      const ref = item.ref;
+      await retryNetwork(() => db.runTransaction(async (transaction) => {
+        const current = await transaction.get(ref);
+        if (current.exists && current.data()?.status === 'awaiting_confirmation') {
+          const currentOrder = current.data() || {};
+          transaction.update(ref, {
+            status: 'expired',
+            paymentStatus: 'EXPIRED',
+            statusHistory: [...(Array.isArray(currentOrder.statusHistory) ? currentOrder.statusHistory : []), { status: 'expired', at: now, by: 'system', note: 'Batas konfirmasi pembayaran tunai 24 jam telah lewat.' }],
+            updatedAt: now
+          });
+        }
+      }));
+    }
+  }
+  const refreshed = await retryNetwork(() => db.collection('jasa_orders').where('userId', '==', claims.uid).get());
+  const orders = refreshed.docs
+    .map((item) => {
+      const order = { id: item.id, ...item.data() };
+      const payments = jasaPaymentEntries(order);
+      const amounts = jasaAmounts(order, payments);
+      return {
+        ...order,
+        paymentPlan: order.paymentPlan || 'full',
+        payments,
+        paidAmount: Number.isSafeInteger(order.paidAmount) ? order.paidAmount : amounts.paidAmount,
+        remainingAmount: Number.isSafeInteger(order.remainingAmount) ? order.remainingAmount : amounts.remainingAmount
+      };
+    })
+    .sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0))
+    .slice(0, 100);
+  return res.status(200).json({ success: true, orders });
+}
+
+async function jasaCancelOrder(req, res, claims) {
+  const orderId = jasaValidateId(req.body?.orderId, 'Kode pesanan');
+  const ref = getAdminDb().collection('jasa_orders').doc(orderId);
+  const result = await retryNetwork(() => getAdminDb().runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(ref);
+    if (!snapshot.exists || snapshot.data()?.userId !== claims.uid) throw jasaFailure(404, 'not-found', 'Pesanan tidak ditemukan.');
+    const order = snapshot.data() || {};
+    if (!['awaiting_quote', 'awaiting_payment', 'awaiting_confirmation'].includes(order.status)) throw jasaFailure(409, 'invalid-order-state', 'Pesanan ini tidak dapat dibatalkan pada tahap sekarang.');
+    const payments = jasaPaymentEntries(order);
+    if (payments.some((payment) => payment.status === 'PAID')) throw jasaFailure(409, 'already-paid', 'Pesanan yang sudah menerima pembayaran hanya dapat dibatalkan oleh admin.');
+    const now = Date.now();
+    const cancelledPayments = payments.map((payment) => payment.status === 'UNPAID' ? { ...payment, status: 'CANCELLED' } : payment);
+    transaction.update(ref, {
+      status: 'cancelled',
+      paymentStatus: 'CANCELLED',
+      payments: cancelledPayments,
+      statusHistory: [...(Array.isArray(order.statusHistory) ? order.statusHistory : []), { status: 'cancelled', at: now, by: claims.uid }],
+      updatedAt: now
+    });
+    return { success: true, orderId };
+  }));
+  return res.status(200).json(result);
+}
+
+async function jasaPayAgain(req, res, claims) {
+  const orderId = jasaValidateId(req.body?.orderId, 'Kode pesanan');
+  const db = getAdminDb();
+  const ref = db.collection('jasa_orders').doc(orderId);
+  const snapshot = await retryNetwork(() => ref.get());
+  if (!snapshot.exists || snapshot.data()?.userId !== claims.uid) throw jasaFailure(404, 'not-found', 'Pesanan tidak ditemukan.');
+  const order = snapshot.data() || {};
+  const kind = req.body?.paymentKind === 'balance' ? 'balance' : '';
+  const payments = jasaPaymentEntries(order);
+  const entry = kind === 'balance'
+    ? payments.find((payment) => payment.kind === 'balance' && payment.status === 'UNPAID')
+    : payments.find((payment) => ['full', 'dp'].includes(payment.kind) && payment.status === 'UNPAID');
+  if (kind === 'balance') {
+    if (!entry || Number(entry.expiresAt || 0) <= Date.now()) throw jasaFailure(409, 'balance-invoice-unavailable', 'Tagihan pelunasan belum tersedia atau sudah kedaluwarsa. Hubungi admin untuk membuat tagihan baru.');
+    if (/^https:\/\//i.test(String(entry.paymentUrl || ''))) return res.status(200).json({ success: true, orderId, paymentUrl: entry.paymentUrl });
+    throw jasaFailure(409, 'balance-invoice-pending', 'Tagihan pelunasan sedang disiapkan. Muat ulang halaman beberapa saat lagi.');
+  } else {
+    if (order.status !== 'awaiting_payment' || !entry) throw jasaFailure(409, 'invalid-order-state', 'Pesanan ini tidak menunggu pembayaran.');
+    if (Number(entry.expiresAt || order.paymentExpiresAt || 0) <= Date.now()) {
+      const now = Date.now();
+      await retryNetwork(() => db.runTransaction(async (transaction) => {
+        const current = await transaction.get(ref);
+        if (current.exists && current.data()?.status === 'awaiting_payment') {
+          const currentOrder = current.data() || {};
+          const currentPayments = jasaPaymentEntries(currentOrder).map((payment) =>
+            payment.invoiceNumber === entry.invoiceNumber ? { ...payment, status: 'EXPIRED' } : payment);
+          transaction.update(ref, {
+            status: 'expired',
+            paymentStatus: 'EXPIRED',
+            payments: currentPayments,
+            statusHistory: [...(currentOrder.statusHistory || []), { status: 'expired', at: now, by: 'system' }],
+            updatedAt: now
+          });
+        }
+      }));
+      throw jasaFailure(409, 'payment-expired', 'Batas pembayaran 60 menit telah lewat.');
+    }
+    if (/^https:\/\//i.test(String(entry.paymentUrl || order.paymentUrl || ''))) {
+      return res.status(200).json({ success: true, orderId, paymentUrl: entry.paymentUrl || order.paymentUrl });
+    }
+  }
+  let config;
+  try { config = getDokuConfig(req); } catch (error) { throw jasaFailure(503, error.code || 'doku-config-missing', error.message); }
+  let payment;
+  try { payment = await createJasaDokuPayment(order, config, entry); } catch (error) {
+    console.error('[jasa] pembayaran ulang gagal disiapkan:', { orderId, code: error.code || 'unknown', message: error.message });
+    throw jasaFailure(502, 'doku-payment-failed', 'Pembayaran belum dapat disiapkan. Silakan coba beberapa saat lagi.');
+  }
+  const now = Date.now();
+  await retryNetwork(() => db.runTransaction(async (transaction) => {
+    const current = await transaction.get(ref);
+    if (!current.exists || current.data()?.userId !== claims.uid) throw jasaFailure(404, 'not-found', 'Pesanan tidak ditemukan.');
+    const currentOrder = current.data() || {};
+    const currentPayments = jasaPaymentEntries(currentOrder);
+    const index = currentPayments.findIndex((item) => item.invoiceNumber === entry.invoiceNumber);
+    if (index < 0 || currentPayments[index].status !== 'UNPAID') throw jasaFailure(409, 'payment-changed', 'Tagihan berubah saat pembayaran disiapkan. Muat ulang pesanan.');
+    currentPayments[index] = { ...currentPayments[index], paymentUrl: payment.paymentUrl, expiresAt: now + PAYMENT_WINDOW_MS };
+    transaction.update(ref, {
+      payments: currentPayments,
+      ...(entry.kind !== 'balance' ? { paymentUrl: payment.paymentUrl, dokuRequestId: payment.requestId, paymentExpiresAt: now + PAYMENT_WINDOW_MS } : {}),
+      updatedAt: now
+    });
+  }));
+  return res.status(200).json({ success: true, orderId, paymentUrl: payment.paymentUrl });
+}
+
+async function jasaApplyPayment(orderId, invoiceNumber, amount, requestId, source) {
+  const db = getAdminDb();
+  const ref = db.collection('jasa_orders').doc(orderId);
+  return retryNetwork(() => db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(ref);
+    if (!snapshot.exists) return { found: false };
+    const order = snapshot.data() || {};
+    const now = Date.now();
+    const payments = jasaPaymentEntries(order);
+    const index = payments.findIndex((payment) => payment.invoiceNumber === invoiceNumber);
+    if (index < 0) return { found: true, ignored: true, missingPayment: true };
+    const paymentEntry = payments[index];
+    if (!Number.isSafeInteger(Number(amount)) || Number(amount) !== Number(paymentEntry.amount)) {
+      transaction.set(ref, {
+        needsAttention: true,
+        attentionReason: 'Nominal pembayaran DOKU tidak cocok dengan tagihan pembayaran.',
+        amountMismatch: { expected: Number(paymentEntry.amount), received: Number(amount), invoiceNumber, at: now, source },
+        updatedAt: Date.now()
+      }, { merge: true });
+      return { found: true, amountMismatch: true };
+    }
+    if (paymentEntry.status === 'PAID') return { found: true, alreadyPaid: true };
+    const inactivePayment = ['CANCELLED', 'EXPIRED'].includes(paymentEntry.status);
+    if (paymentEntry.status !== 'UNPAID' && !inactivePayment) return { found: true, ignored: true };
+    payments[index] = { ...paymentEntry, status: 'PAID', paidAt: now, requestId: cleanText(requestId, 120) };
+    const amounts = jasaAmounts(order, payments);
+    const paymentStatus = jasaPaymentStatus(order, payments, amounts.remainingAmount);
+    if (['cancelled', 'expired'].includes(order.status)) {
+      transaction.update(ref, {
+        payments,
+        ...amounts,
+        paymentStatus,
+        webhookRequestId: cleanText(requestId, 120),
+        needsAttention: true,
+        attentionReason: 'Pembayaran diterima setelah pesanan dibatalkan/kedaluwarsa; tinjau refund manual.',
+        updatedAt: now
+      });
+      return { found: true, paid: true, needsAttention: true, order };
+    }
+    if (inactivePayment) {
+      transaction.update(ref, {
+        payments,
+        ...amounts,
+        paymentStatus,
+        webhookRequestId: cleanText(requestId, 120),
+        needsAttention: true,
+        attentionReason: 'Pembayaran diterima untuk tagihan yang dibatalkan atau kedaluwarsa; periksa kemungkinan pembayaran ganda.',
+        statusHistory: [...(Array.isArray(order.statusHistory) ? order.statusHistory : []), { status: 'late_payment_received', at: now, by: source }],
+        updatedAt: now
+      });
+      return { found: true, paid: true, needsAttention: true, order };
+    }
+    if (paymentEntry.kind !== 'balance' && order.status !== 'awaiting_payment') return { found: true, ignored: true };
+    if (paymentEntry.kind === 'balance' && !['paid', 'scheduled', 'in_progress', 'completed'].includes(order.status)) return { found: true, ignored: true };
+    const history = Array.isArray(order.statusHistory) ? order.statusHistory : [];
+    transaction.update(ref, {
+      ...(paymentEntry.kind === 'balance' ? {} : { status: 'paid' }),
+      payments,
+      ...amounts,
+      paymentStatus,
+      paidAt: amounts.remainingAmount === 0 ? now : order.paidAt || now,
+      webhookRequestId: cleanText(requestId, 120),
+      statusHistory: [...history, { status: paymentEntry.kind === 'balance' ? 'balance_paid' : 'paid', at: now, by: source }],
+      updatedAt: now
+    });
+    return { found: true, paid: true, order, paymentEntry, paymentStatus };
+  }));
+}
+
+async function jasaCheckPayment(req, res, claims) {
+  const orderId = jasaValidateId(req.body?.orderId, 'Kode pesanan');
+  const db = getAdminDb();
+  const ref = db.collection('jasa_orders').doc(orderId);
+  let snapshot = await retryNetwork(() => ref.get());
+  if (!snapshot.exists || snapshot.data()?.userId !== claims.uid) throw jasaFailure(404, 'not-found', 'Pesanan tidak ditemukan.');
+  let order = snapshot.data() || {};
+  let dokuStatus = 'IGNORED';
+  const payments = jasaPaymentEntries(order);
+  const requestedInvoice = cleanText(req.body?.invoiceNumber, 80);
+  const entry = requestedInvoice
+    ? payments.find((payment) => payment.invoiceNumber === requestedInvoice && payment.status === 'UNPAID')
+    : payments.find((payment) => payment.status === 'UNPAID');
+  if (requestedInvoice && !entry) throw jasaFailure(400, 'invalid-payment-invoice', 'Tagihan pembayaran tidak ditemukan atau sudah tidak aktif.');
+  if (entry?.method === 'DOKU' && entry.status === 'UNPAID') {
+    const invoiceMatch = String(entry.invoiceNumber || '').match(/^(JS-\d{6}-[A-Z0-9]{6})(?:-B)?$/i);
+    if (!invoiceMatch || invoiceMatch[1] !== orderId) throw jasaFailure(409, 'invalid-payment-invoice', 'Nomor tagihan pembayaran tidak cocok dengan pesanan.');
+    if (Number(entry.expiresAt || order.paymentExpiresAt || 0) <= Date.now()) {
+      const now = Date.now();
+      await retryNetwork(() => db.runTransaction(async (transaction) => {
+        const current = await transaction.get(ref);
+        if (current.exists) {
+          const currentOrder = current.data() || {};
+          const currentPayments = jasaPaymentEntries(currentOrder).map((payment) =>
+            payment.invoiceNumber === entry.invoiceNumber ? { ...payment, status: 'EXPIRED' } : payment);
+          const initialPayment = entry.kind !== 'balance';
+          transaction.update(ref, {
+            ...(initialPayment && currentOrder.status === 'awaiting_payment' ? { status: 'expired' } : {}),
+            payments: currentPayments,
+            paymentStatus: initialPayment ? 'EXPIRED' : jasaPaymentStatus(currentOrder, currentPayments, jasaAmounts(currentOrder, currentPayments).remainingAmount),
+            statusHistory: [...(Array.isArray(currentOrder.statusHistory) ? currentOrder.statusHistory : []), { status: initialPayment ? 'expired' : 'balance_expired', at: now, by: 'system' }],
+            updatedAt: now
+          });
+        }
+      }));
+      dokuStatus = 'EXPIRED';
+    } else {
+      let config;
+      try { config = getDokuConfig(req); } catch (error) { throw jasaFailure(503, error.code || 'doku-config-missing', error.message); }
+      const path = `/orders/v1/status/${encodeURIComponent(entry.invoiceNumber)}`;
+      const timestamp = new Date().toISOString().split('.')[0] + 'Z';
+      const requestId = crypto.randomUUID();
+      const response = await fetch(`${config.baseUrl}${path}`, { method: 'GET', headers: createDokuHeaders({ ...config, requestId, timestamp, path }) });
+      const raw = await response.text();
+      let payload = {};
+      try { payload = JSON.parse(raw); } catch (error) { payload = {}; }
+      if (!response.ok) throw jasaFailure(502, 'doku-status-failed', 'Status pembayaran belum dapat diperiksa. Coba lagi sebentar.');
+      dokuStatus = String(payload.transaction?.status || payload.order?.status || payload.status || 'PENDING').toUpperCase();
+      if (['SUCCESS', 'PAID'].includes(dokuStatus)) {
+        const result = await jasaApplyPayment(orderId, entry.invoiceNumber, payload.order?.amount ?? payload.amount, payload.transaction?.request_id || requestId, 'doku-check');
+        if (result.amountMismatch) throw jasaFailure(409, 'amount-mismatch', 'Nominal pembayaran tidak cocok. Admin akan memeriksa pesanan ini.');
+        if (result.paid) await jasaSendPaymentConfirmation({ ...order, orderCode: orderId });
+      } else if (dokuStatus === 'EXPIRED' || ['FAILED', 'CANCELLED', 'DENIED'].includes(dokuStatus)) {
+        const now = Date.now();
+        await retryNetwork(() => db.runTransaction(async (transaction) => {
+          const current = await transaction.get(ref);
+          if (current.exists) {
+            const currentOrder = current.data() || {};
+            const currentPayments = jasaPaymentEntries(currentOrder).map((payment) =>
+              payment.invoiceNumber === entry.invoiceNumber ? { ...payment, status: dokuStatus } : payment);
+            const initialPayment = entry.kind !== 'balance';
+            const status = dokuStatus === 'EXPIRED' ? 'expired' : 'cancelled';
+            transaction.update(ref, {
+              ...(initialPayment && currentOrder.status === 'awaiting_payment' ? { status } : {}),
+              payments: currentPayments,
+              paymentStatus: initialPayment ? dokuStatus : jasaPaymentStatus(currentOrder, currentPayments, jasaAmounts(currentOrder, currentPayments).remainingAmount),
+              statusHistory: [...(Array.isArray(currentOrder.statusHistory) ? currentOrder.statusHistory : []), { status: initialPayment ? status : `balance_${dokuStatus.toLowerCase()}`, at: now, by: 'doku-check' }],
+              updatedAt: now
+            });
+          }
+        }));
+      }
+    }
+  }
+  snapshot = await retryNetwork(() => ref.get());
+  order = snapshot.data() || order;
+  return res.status(200).json({ success: true, order: { id: orderId, ...order }, dokuStatus });
+}
+
+async function handleJasaBuyerAction(action, req, res, claims) {
+  if (action === 'jasa-checkout') return jasaCheckout(req, res, claims);
+  if (action === 'jasa-get-profile') return jasaGetProfile(req, res, claims);
+  if (action === 'jasa-save-profile') return jasaSaveProfile(req, res, claims);
+  if (action === 'jasa-my-orders') return jasaMyOrders(req, res, claims);
+  if (action === 'jasa-cancel-order') return jasaCancelOrder(req, res, claims);
+  if (action === 'jasa-pay-again') return jasaPayAgain(req, res, claims);
+  if (action === 'jasa-check-payment') return jasaCheckPayment(req, res, claims);
+  return responseError(res, 404, 'unknown-action', 'Aksi Gamon Jasa tidak dikenal.');
+}
+
+export { createJasaDokuPayment, getDokuConfig };
+
 export default async function handler(req, res) {
  loadLocalEnvFallback();
  const action = String(req.query?.action || '').trim().toLowerCase();
@@ -1562,6 +2390,33 @@ export default async function handler(req, res) {
   }
   if (req.method === 'GET' && action === 'reset-password') {
     return showResetPage(req, res);
+  }
+
+  if (action === 'jasa-public-catalog' && (req.method === 'GET' || req.method === 'POST')) {
+    try {
+      return await withFirestoreTimeout(() => jasaPublicCatalog(req, res), 'memuat katalog jasa');
+    } catch (error) {
+      console.error('[jasa] katalog publik gagal:', { code: error.code || 'unknown', message: error.message });
+      if (isRetryableNetworkError(error) || error?.code === 'firestore-timeout') {
+        return responseError(res, 503, 'network-error', 'Koneksi ke database terputus. Coba lagi.');
+      }
+      return responseError(res, 500, 'jasa-catalog-failed', 'Katalog jasa gagal dimuat.');
+    }
+  }
+
+  if (action.startsWith('jasa-')) {
+    if (req.method !== 'POST') return responseError(res, 405, 'method-not-allowed', 'Method not allowed.');
+    const jasaClaims = await requireBuyer(req, res);
+    if (!jasaClaims) return;
+    try {
+      return await handleJasaBuyerAction(action, req, res, jasaClaims);
+    } catch (error) {
+      console.error('[jasa] aksi pembeli gagal:', { action, uid: jasaClaims.uid, code: error.code || 'unknown', message: error.message });
+      if (isRetryableNetworkError(error) || error?.code === 'firestore-timeout') {
+        return responseError(res, 503, 'network-error', 'Koneksi ke database terputus. Coba lagi.');
+      }
+      return responseError(res, error.statusCode || 500, error.code || 'jasa-request-failed', error.message || 'Permintaan jasa gagal diproses.');
+    }
   }
 
   // Endpoint publik katalog menerima GET agar dapat di-cache CDN.

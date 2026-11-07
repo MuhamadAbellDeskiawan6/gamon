@@ -4,6 +4,7 @@ import { getFirestore } from 'firebase-admin/firestore';
 import fs from 'fs';
 import path from 'path';
 
+// Local Vercel dev with Firestore may need NODE_OPTIONS=--dns-result-order=ipv4first.
 function fail(code, message) {
   return Object.assign(new Error(message), { code });
 }

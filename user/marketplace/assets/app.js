@@ -975,6 +975,41 @@ function getSafeReturnUrl() {
   return raw;
 }
 
+function getAppContext() {
+  const jasa = String(document.body.dataset.page || '').startsWith('jasa-');
+  return jasa
+    ? { app: 'jasa', brand: 'Gamon Jasa (Beta)', destination: 'dashboard.html', loginPage: 'masuk.html', registerPage: 'daftar.html' }
+    : { app: 'marketplace', brand: 'Marketplace Mantan', destination: 'dashboard.html', loginPage: 'login.html', registerPage: 'register.html' };
+}
+
+function getSafeJasaReturnTo() {
+  const raw = String(localStorage.getItem('gamon_return_to') || '').trim();
+  if (/^[A-Za-z0-9_-]+\.html(\?[A-Za-z0-9_=&%.-]*)?$/.test(raw)) return raw;
+  const legacy = raw.match(/^\.\.\/jasa\/([A-Za-z0-9_-]+\.html(?:\?[A-Za-z0-9_=&%.-]*)?)$/);
+  return legacy ? legacy[1] : '';
+}
+
+function getPostAuthDestination() {
+  const context = getAppContext();
+  const raw = String(localStorage.getItem('gamon_return_to') || '').trim();
+  if (context.app === 'jasa') {
+    const returnTo = getSafeJasaReturnTo();
+    if (returnTo) {
+      localStorage.removeItem('gamon_return_to');
+      return returnTo;
+    }
+    if (raw) localStorage.removeItem('gamon_return_to');
+    return context.destination;
+  }
+  const marketplaceReturnTo = /^\.\.\/jasa\/[A-Za-z0-9_-]+\.html(\?[A-Za-z0-9_=&%.-]*)?$/.test(raw) ? raw : '';
+  if (marketplaceReturnTo) {
+    localStorage.removeItem('gamon_return_to');
+    return marketplaceReturnTo;
+  }
+  if (raw) localStorage.removeItem('gamon_return_to');
+  return 'dashboard.html';
+}
+
 function getProfileUrlWithReturn(returnTo = 'keranjang.html') {
   return `profil.html?returnTo=${encodeURIComponent(returnTo)}`;
 }
@@ -2365,6 +2400,18 @@ function createCheckoutOverlay() {
   };
 
   return {
+    setLabels(labels, heading = 'Menyiapkan pesanan', message = 'Mohon tunggu, pesanan sedang diproses.') {
+      clearTimers();
+      activeItems.forEach((item, index) => {
+        const label = item.querySelector('.co-label');
+        if (label && labels[index]) label.textContent = labels[index];
+      });
+      title.textContent = heading;
+      sub.textContent = message;
+    },
+    updateStep(index) {
+      setStep(Math.max(0, Math.min(index, activeItems.length - 1)));
+    },
     show(mode = 'DOKU') {
       clearTimers();
       activeMode = mode;
@@ -2917,7 +2964,7 @@ async function handleGoogleAuth(event) {
     setCurrentUser(user, rememberMe);
     const users = readStorage(STORAGE_KEYS.USERS, []) || [];
     writeStorage(STORAGE_KEYS.USERS, [...users.filter((item) => item.email !== user.email), user]);
-    window.location.href = 'dashboard.html';
+    window.location.href = getPostAuthDestination();
   } catch (error) {
     console.error('[marketplace] login Google gagal:', error);
     const code = String(error?.code || '');
@@ -2943,8 +2990,9 @@ async function handleAuthSubmit(event) {
   event.preventDefault();
   const form = event.currentTarget;
   const submitButton = form.querySelector('button[type="submit"]');
-  const isRegister = document.body.dataset.page === 'register';
-  const idleLabel = isRegister ? 'Buat akun' : 'Masuk ke dashboard';
+  const context = getAppContext();
+  const isRegister = ['register', 'jasa-register'].includes(document.body.dataset.page);
+  const idleLabel = isRegister ? 'Buat akun' : `Masuk ke ${context.brand}`;
 
   const resetButton = () => {
     if (!submitButton) return;
@@ -2995,7 +3043,7 @@ async function handleAuthSubmit(event) {
       let mailSent = true;
       let mailErrorText = '';
       try {
-        await callMarketplaceApi('send-verification');
+        await callMarketplaceApi('send-verification', { app: getAppContext().app });
       } catch (serverMailError) {
         mailSent = false;
         mailErrorText = `${serverMailError?.code || 'unknown'}: ${serverMailError?.message || ''}`;
@@ -3005,13 +3053,14 @@ async function handleAuthSubmit(event) {
       await signOut(auth);
       clearCurrentUser();
 
+      const context = getAppContext();
       const doneMessage = mailSent
-        ? `Akun dibuat. Link verifikasi dikirim ke ${email}. Jika tidak ada di Kotak Masuk, buka folder Spam lalu tekan "Bukan spam" dan klik linknya. Setelah itu silakan masuk.`
+        ? `Akun ${context.brand} dibuat. Link verifikasi dikirim ke ${email}. Jika tidak ada di Kotak Masuk, buka folder Spam lalu tekan "Bukan spam" dan klik linknya. Setelah itu silakan masuk.`
         : `Akun dibuat, tetapi email verifikasi gagal terkirim (${mailErrorText}). Buka halaman Masuk lalu klik "Kirim ulang email verifikasi".`;
       setAuthMessage(doneMessage, mailSent ? 'info' : 'error');
       showPopup(doneMessage, mailSent ? 'Cek email Anda' : 'Verifikasi belum terkirim', mailSent ? 'success' : 'error');
       if (submitButton) submitButton.textContent = 'Akun dibuat';
-      setTimeout(() => { window.location.href = 'login.html'; }, 6000);
+      setTimeout(() => { window.location.href = context.loginPage; }, 6000);
       return;
     }
 
@@ -3041,7 +3090,7 @@ async function handleAuthSubmit(event) {
 
     setCurrentUser(user, rememberMe);
     writeStorage(STORAGE_KEYS.USERS, [...(readStorage(STORAGE_KEYS.USERS, []) || []), user].filter((item, index, arr) => arr.findIndex((entry) => entry.email === item.email) === index));
-    window.location.href = 'dashboard.html';
+    window.location.href = getPostAuthDestination();
   } catch (error) {
     console.error(error);
 
@@ -3093,11 +3142,11 @@ async function handleResendVerification(event) {
 
     if (cred.user.emailVerified) {
       await signOut(auth);
-      setAuthMessage('Email Anda sudah terverifikasi. Silakan klik "Masuk ke dashboard".', 'info');
+      setAuthMessage(`Email Anda sudah terverifikasi. Silakan klik "Masuk ke ${getAppContext().brand}".`, 'info');
       return;
     }
 
-        await callMarketplaceApi('send-verification');
+        await callMarketplaceApi('send-verification', { app: getAppContext().app });
     await signOut(auth);
     clearCurrentUser();
     const message = `Link verifikasi dikirim ke ${email}. Cek inbox dan folder Spam.`;
@@ -3134,7 +3183,7 @@ async function handleForgotPassword(event) {
     const response = await withTimeout(fetch('/api/marketplace?action=send-password-reset', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email })
+      body: JSON.stringify({ email, app: getAppContext().app })
     }), 20000, 'Pengiriman email reset');
     const result = await response.json().catch(() => ({}));
     if (!response.ok || result.success === false) {
@@ -3153,13 +3202,21 @@ async function handleForgotPassword(event) {
 
 async function bindAuthPage() {
   const page = document.body.dataset.page;
-  if (!page || !['login', 'register'].includes(page)) return;
+  const appContext = getAppContext();
+  const isRegister = page === 'register' || page === 'jasa-register';
+  const isLogin = page === 'login' || page === 'jasa-login';
+  if (!isLogin && !isRegister) return;
 
   const form = document.querySelector('[data-auth-form]');
   if (!form) return;
-  form.addEventListener('submit', handleAuthSubmit);
+  form.addEventListener('submit', (event) => {
+    if (!page.startsWith('jasa-')) return handleAuthSubmit(event);
+    event.preventDefault();
+    const button = form.querySelector('button[type="submit"]');
+    return jasaRun(button, { loadingText: isRegister ? 'Membuat akun…' : 'Memeriksa akun…' }, () => handleAuthSubmit(event));
+  });
 
-      if (page === 'login') {
+      if (isLogin) {
     const query = new URLSearchParams(window.location.search);
     const verified = query.get('verified');
     if (verified === '1') {
@@ -3186,13 +3243,16 @@ async function bindAuthPage() {
 
     const googleBtn = document.querySelector('[data-google-auth]');
   if (googleBtn) {
-    googleBtn.addEventListener('click', handleGoogleAuth);
-  }
+      googleBtn.addEventListener('click', (event) => {
+        if (!page.startsWith('jasa-')) return handleGoogleAuth(event);
+        return jasaRun(event.currentTarget, { loadingText: 'Menghubungkan ke Google…' }, () => handleGoogleAuth(event));
+      });
+    }
 
   const savedUser = currentUser();
-  if (savedUser) {
-    if (window.location.pathname.endsWith('login.html') || window.location.pathname.endsWith('register.html')) {
-      window.location.href = 'dashboard.html';
+  if (savedUser && appContext.app === 'marketplace') {
+    if (isLogin || isRegister) {
+      window.location.href = getPostAuthDestination();
     }
     return;
   }
@@ -3203,8 +3263,8 @@ async function bindAuthPage() {
 
     try {
       await syncCurrentUserFromFirebase(firebaseUser, true);
-      if (window.location.pathname.endsWith('login.html') || window.location.pathname.endsWith('register.html')) {
-        window.location.href = 'dashboard.html';
+      if (isLogin || isRegister) {
+        window.location.href = getPostAuthDestination();
       }
     } catch (error) {
       console.error('[marketplace] gagal memuat sesi pada halaman login:', error);
@@ -5322,6 +5382,26 @@ async function renderHomeReviews() {
 }
 
 async function init() {
+  const initialPage = String(document.body.dataset.page || '');
+  if (initialPage.startsWith('jasa-')) {
+    bindPasswordToggles();
+    onAuthStateChanged(auth, async (firebaseUser) => {
+      if (window.__marketplaceAuthBusy) return;
+      try {
+        if (firebaseUser && firebaseUser.emailVerified && String(firebaseUser.email || '').toLowerCase() !== ADMIN_ACCOUNT_EMAIL) {
+          await syncCurrentUserFromFirebase(firebaseUser, localStorage.getItem('gamon_marketplace_remember_me') === '1');
+        } else if (!firebaseUser) {
+          clearCurrentUser();
+        }
+        hydrateUserProfileUI();
+      } catch (error) {
+        console.error('[jasa] gagal menyinkronkan sesi:', error);
+      }
+    });
+    if (initialPage === 'jasa-login' || initialPage === 'jasa-register') return bindAuthPage();
+    return initJasaPage(initialPage);
+  }
+
   ensureDemoData();
    renderUserSidebar();   
   handleSidebarState();
@@ -5419,6 +5499,655 @@ async function init() {
   renderHomeReviews();
   await renderHomeProducts();
 }
+
+// === JASA START ===
+function jasaFormatRupiah(value) {
+  return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(Number(value || 0));
+}
+
+function jasaFormatDate(value) {
+  const date = new Date(Number(value) || value);
+  return Number.isNaN(date.getTime()) ? '-' : date.toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' });
+}
+
+function jasaWaitForUser() {
+  if (auth.currentUser) return Promise.resolve(auth.currentUser);
+  return new Promise((resolve) => {
+    let unsubscribe = () => {};
+    unsubscribe = onAuthStateChanged(auth, (user) => {
+      unsubscribe();
+      resolve(user || null);
+    }, () => resolve(null));
+  });
+}
+
+function jasaSetReturnTo(pathname = window.location.pathname, search = window.location.search) {
+  const file = pathname.split('/').pop() || 'index.html';
+  const candidate = `${file}${search || ''}`;
+  if (/^[A-Za-z0-9_-]+\.html(\?[A-Za-z0-9_=&%.-]*)?$/.test(candidate) && !candidate.startsWith('//')) {
+    localStorage.setItem('gamon_return_to', candidate);
+    return true;
+  }
+  return false;
+}
+
+async function jasaRequest(action, body, user) {
+  const response = await fetch(`/api/marketplace?action=${encodeURIComponent(action)}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(user ? { Authorization: `Bearer ${await user.getIdToken()}` } : {})
+    },
+    body: JSON.stringify(body || {})
+  });
+  let result = {};
+  try { result = await response.json(); } catch (error) { throw new Error('Respons server tidak dapat dibaca. Coba lagi.'); }
+  if (!response.ok || !result.success) throw Object.assign(new Error(result.message || 'Permintaan jasa gagal. Coba lagi.'), { code: result.code || '' });
+  return result;
+}
+
+function jasaIsNetworkError(error) {
+  return error?.code === 'network-error' || error?.code === 'firestore-timeout' ||
+    (error instanceof TypeError && /fetch|network|load/i.test(error.message || ''));
+}
+
+function jasaSetBanner(message, tone = 'info') {
+  const status = document.querySelector('[data-jasa-status]');
+  if (!status) return;
+  status.textContent = message || '';
+  status.hidden = !message;
+  status.classList.toggle('is-error', tone === 'error');
+  status.classList.toggle('is-success', tone === 'success');
+  status.classList.toggle('is-info', tone === 'info' && Boolean(message));
+}
+
+function jasaShowActionError(title, error, retry) {
+  const message = jasaIsNetworkError(error) ? 'Koneksi ke database terputus. Coba lagi.' : error?.message || 'Koneksi bermasalah. Coba lagi.';
+  jasaSetBanner(message, 'error');
+  showPopup(message, title || 'Permintaan gagal', 'error');
+  const overlay = document.querySelector('[data-popup-overlay]');
+  const actions = overlay?.querySelector('.modal-actions');
+  if (!actions) return;
+  actions.querySelector('[data-jasa-retry]')?.remove();
+  if (!jasaIsNetworkError(error) || !retry) return;
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'btn btn-secondary';
+  button.dataset.jasaRetry = '';
+  button.textContent = 'Coba lagi';
+  button.addEventListener('click', () => {
+    overlay.classList.remove('show');
+    retry();
+  }, { once: true });
+  actions.prepend(button);
+}
+
+async function jasaRun(button, { loadingText = 'Memproses…', successMessage = '', errorTitle = 'Permintaan gagal' } = {}, asyncFn) {
+  if (button?.disabled) return null;
+  setButtonLoading(button, true, loadingText);
+  jasaSetBanner(loadingText, 'info');
+  try {
+    const result = await asyncFn();
+    if (successMessage) {
+      showToast(successMessage, 'success');
+      jasaSetBanner(successMessage, 'success');
+    }
+    return result;
+  } catch (error) {
+    jasaShowActionError(errorTitle, error, () => jasaRun(button, { loadingText, successMessage, errorTitle }, asyncFn));
+    return null;
+  } finally {
+    setButtonLoading(button, false);
+  }
+}
+
+function jasaStatusLabel(status) {
+  return ({
+    awaiting_confirmation: 'Menunggu konfirmasi tunai',
+    awaiting_payment: 'Menunggu pembayaran',
+    awaiting_quote: 'Menunggu penawaran harga',
+    paid: 'Sudah dibayar',
+    scheduled: 'Terjadwal',
+    in_progress: 'Sedang berlangsung',
+    completed: 'Selesai',
+    cancelled: 'Dibatalkan',
+    expired: 'Kedaluwarsa'
+  })[status] || status || 'Status belum tersedia';
+}
+
+function jasaPaymentStatusLabel(status) {
+  return ({
+    UNPAID: 'Belum dibayar',
+    PARTIAL: 'DP lunas · menunggu pelunasan',
+    PAID: 'Lunas',
+    CASH_PENDING: 'Menunggu pembayaran tunai',
+    CANCELLED: 'Dibatalkan',
+    EXPIRED: 'Kedaluwarsa'
+  })[status] || status || 'Belum dibayar';
+}
+
+async function initJasaPage(page) {
+  const content = document.querySelector('[data-jasa-content]');
+  const status = document.querySelector('[data-jasa-status]');
+  const setStatus = (message, isError = false, isSuccess = false) => {
+    if (!status) return;
+    status.textContent = message || '';
+    status.classList.toggle('is-error', Boolean(isError));
+    status.classList.toggle('is-success', Boolean(message) && isSuccess);
+    status.classList.toggle('is-info', Boolean(message) && !isError && !isSuccess);
+    status.hidden = !message;
+  };
+  const nav = document.querySelector('[data-jasa-nav], .nav-actions');
+  const renderNav = (user) => {
+    if (!nav) return;
+    if (user?.emailVerified) {
+      nav.innerHTML = `<span class="muted">${escapeHtml(user.displayName || user.email || 'Akun')}</span><a class="btn btn-secondary" href="dashboard.html">Beranda akun</a><a class="btn btn-secondary" href="pesanan.html">Pesanan saya</a><a class="btn btn-secondary" href="profil.html">Profil penerima</a><button class="btn btn-primary" type="button" data-jasa-logout>Keluar</button>`;
+    } else {
+      nav.innerHTML = `<a class="btn btn-secondary" href="index.html">Semua jasa</a><a class="btn btn-primary" data-jasa-return href="masuk.html">Masuk</a><a class="btn btn-secondary" data-jasa-return href="daftar.html">Daftar</a>`;
+    }
+    nav.querySelectorAll('[data-jasa-return]').forEach((link) => link.addEventListener('click', () => jasaSetReturnTo()));
+    nav.querySelectorAll('[data-jasa-logout]').forEach((button) => button.addEventListener('click', async () => {
+      await signOut(auth);
+      renderNav(null);
+    }));
+  };
+  renderNav(auth.currentUser);
+  onAuthStateChanged(auth, renderNav, () => renderNav(null));
+  document.querySelectorAll('[data-jasa-logout]').forEach((button) => {
+    button.addEventListener('click', async (event) => {
+      event.preventDefault();
+      await signOut(auth);
+      window.location.href = 'index.html';
+    });
+  });
+
+  const catalog = async () => {
+    let response;
+    try {
+      response = await fetch('/api/marketplace?action=jasa-public-catalog', { headers: { Accept: 'application/json' } });
+    } catch (error) {
+      throw Object.assign(new Error('Koneksi ke database terputus. Coba lagi.'), { code: 'network-error' });
+    }
+    let result;
+    try { result = await response.json(); } catch (error) { throw new Error('Respons katalog jasa tidak dapat dibaca. Coba lagi.'); }
+    if (!response.ok || !result.success) throw Object.assign(new Error(result.message || 'Katalog jasa gagal dimuat.'), { code: result.code || '' });
+    return result;
+  };
+
+  if (page === 'jasa-home') {
+    try {
+      setStatus('Memuat layanan jasa…');
+      const data = await catalog();
+      setStatus('');
+      const categories = Array.isArray(data.categories) ? data.categories : [];
+      const services = Array.isArray(data.services) ? data.services : [];
+      if (!content) return;
+      if (!categories.length || !services.length) {
+        content.innerHTML = '<div class="panel"><h2>Jasa sedang disiapkan</h2><p class="muted">Belum ada layanan yang aktif. Silakan kembali lagi nanti.</p></div>';
+        return;
+      }
+      content.innerHTML = `
+        <section class="panel">
+          <span class="eyebrow">Gamon Jasa (Beta)</span>
+          <h1 style="margin:12px 0">Cari jasa yang kamu butuhkan, kami bantu urus.</h1>
+          <p class="muted">Gamon Jasa adalah tempat memesan berbagai jasa dengan harga jelas dan proses yang tercatat: pilih jasa, pilih paket, bayar penuh, DP, atau tunai, lalu pantau statusnya sampai selesai. Layanan masih tahap Beta dan akan terus bertambah.</p>
+        </section>
+        <section class="jasa-grid" aria-label="Keunggulan Gamon Jasa">
+          <article class="commerce-panel"><h2>Harga jelas</h2><p>Paket dan harga tampil di awal.</p></article>
+          <article class="commerce-panel"><h2>Bayar fleksibel</h2><p>Penuh, DP, atau tunai sesuai layanan.</p></article>
+          <article class="commerce-panel"><h2>Pantau pesanan</h2><p>Status dan kabar tersimpan di akun.</p></article>
+        </section>
+        <section class="panel">
+          <h2>Layanan yang tersedia</h2>
+          <div class="jasa-actions" role="group" aria-label="Filter kategori jasa">
+            <button type="button" class="btn btn-primary" data-jasa-category-filter="all" aria-pressed="true">Semua</button>
+            ${categories.map((category) => `<button type="button" class="btn btn-secondary" data-jasa-category-filter="${escapeHtml(category.id)}" aria-pressed="false">${escapeHtml(category.name || 'Kategori')}</button>`).join('')}
+          </div>
+          <div class="jasa-grid" data-jasa-service-list>${services.map((service) => {
+            const category = categories.find((item) => item.id === service.categoryId);
+            const prices = (service.packages || []).filter((item) => item.priceType !== 'quote' && Number(item.price) > 0).map((item) => Number(item.price));
+            const priceLine = prices.length ? `Mulai ${jasaFormatRupiah(Math.min(...prices))}` : 'Harga melalui penawaran';
+            return `<article class="commerce-panel" data-jasa-category-card="${escapeHtml(service.categoryId || '')}">
+              ${service.image ? `<img src="${escapeHtml(service.image)}" alt="" loading="lazy" style="width:100%;max-height:200px;object-fit:cover;border-radius:12px">` : ''}
+              <p class="eyebrow">${escapeHtml(category?.name || 'Kategori lainnya')}</p>
+              <h3>${escapeHtml(service.name || 'Layanan')}</h3>
+              <p>${escapeHtml(service.summary || '')}</p>
+              <p><strong>${escapeHtml(priceLine)}</strong></p>
+              <a class="btn btn-primary" href="layanan.html?id=${encodeURIComponent(service.id)}">Lihat layanan</a>
+            </article>`;
+          }).join('')}</div>
+        </section>
+        <section class="panel"><h2>Cara kerja</h2><ol class="jasa-steps"><li>Pilih jasa.</li><li>Pilih paket dan isi detail.</li><li>Bayar atau tunggu konfirmasi.</li><li>Pantau pesanan.</li></ol></section>
+        <section class="panel"><h2>Pertanyaan yang sering muncul</h2><details><summary>Bagaimana cara membayar?</summary><p>Kamu bisa membayar penuh, DP, atau tunai sesuai pilihan yang tersedia pada layanan.</p></details><details><summary>Apa itu Beta?</summary><p>Layanan masih dalam tahap awal. Layanan dan fitur dapat berubah atau bertambah.</p></details><details><summary>Bagaimana jika harganya 'penawaran'?</summary><p>Admin menyiapkan harga setelah kamu mengirim permintaan.</p></details></section>`;
+      const filterButtons = content.querySelectorAll('[data-jasa-category-filter]');
+      const serviceCards = content.querySelectorAll('[data-jasa-category-card]');
+      filterButtons.forEach((button) => button.addEventListener('click', () => {
+        const categoryId = button.dataset.jasaCategoryFilter;
+        filterButtons.forEach((filterButton) => {
+          const selected = filterButton === button;
+          filterButton.setAttribute('aria-pressed', String(selected));
+          filterButton.classList.toggle('btn-primary', selected);
+          filterButton.classList.toggle('btn-secondary', !selected);
+        });
+        serviceCards.forEach((card) => {
+          card.hidden = categoryId !== 'all' && card.dataset.jasaCategoryCard !== categoryId;
+        });
+      }));
+    } catch (error) {
+      setStatus(error.message || 'Katalog jasa gagal dimuat. Coba muat ulang halaman.', true);
+      jasaShowActionError('Katalog jasa belum dapat dimuat', error, () => window.location.reload());
+      if (content) content.innerHTML = '<div class="panel" role="status">Katalog belum dapat ditampilkan.</div>';
+    }
+    return;
+  }
+
+  if (page === 'jasa-detail') {
+    try {
+      setStatus('Memuat detail layanan…');
+      const data = await catalog();
+      setStatus('');
+      const id = new URLSearchParams(window.location.search).get('id') || '';
+      const service = (data.services || []).find((item) => item.id === id);
+      const category = (data.categories || []).find((item) => item.id === service?.categoryId);
+      if (!service || !content) {
+        setStatus('Layanan tidak ditemukan atau sedang tidak tersedia.', true);
+        if (content) content.innerHTML = '<div class="panel"><p>Layanan ini mungkin sudah dinonaktifkan.</p><a class="btn btn-secondary" href="index.html">Kembali ke Gamon Jasa (Beta)</a></div>';
+        return;
+      }
+      const packages = Array.isArray(service.packages) ? service.packages : [];
+      const options = Array.isArray(service.options) ? service.options : [];
+      const scheduleMode = ['none', 'date', 'datetime', 'recurring'].includes(service.scheduleMode) ? service.scheduleMode : 'recurring';
+      const scheduleLabel = service.scheduleLabel || 'Preferensi jadwal';
+      const recipientLabel = service.recipientLabel || 'Penerima layanan';
+      const consentText = service.consentText || 'Saya memahami batas layanan dan menyetujui ketentuan pemesanan.';
+      const paymentOptions = Array.isArray(service.paymentOptions) && service.paymentOptions.length
+        ? service.paymentOptions : ['full'];
+      const currentUser = await jasaWaitForUser();
+      const canOrder = Boolean(currentUser?.emailVerified);
+      const profiles = service.needsParentProfile && canOrder
+        ? (await jasaRequest('jasa-get-profile', {}, currentUser)).profile?.parents || []
+        : [];
+      const configuredFields = Array.isArray(service.formFields) ? service.formFields : [];
+      const fields = service.needsParentProfile
+        ? configuredFields.filter((field) => !['namaOrangTua', 'alamatOrangTua', 'catatanKhusus', 'kontakDarurat'].includes(field.key))
+        : configuredFields;
+      const formFieldMarkup = fields.map((field) => {
+        const key = escapeHtml(field.key);
+        const label = escapeHtml(field.label);
+        const required = field.required ? 'required' : '';
+        const control = field.type === 'textarea' || field.type === 'address'
+          ? `<textarea id="jasa-field-${key}" name="${key}" ${required} maxlength="1000" ${field.type === 'address' ? 'rows="2"' : ''}></textarea>`
+          : field.type === 'select'
+            ? `<select id="jasa-field-${key}" name="${key}" ${required}><option value="">Pilih ${label.toLowerCase()}</option>${(field.options || []).map((option) => `<option value="${escapeHtml(option)}">${escapeHtml(option)}</option>`).join('')}</select>`
+            : field.type === 'number'
+              ? `<input id="jasa-field-${key}" name="${key}" type="text" inputmode="decimal" pattern="[0-9.,]{0,20}" maxlength="20" ${required}>`
+              : `<input id="jasa-field-${key}" name="${key}" type="${['text', 'date', 'time'].includes(field.type) ? field.type : 'text'}" maxlength="1000" ${required}>`;
+        return `<div class="field"><label for="jasa-field-${key}">${label}${field.required ? ' *' : ''}</label>${control}</div>`;
+      }).join('');
+      const scheduleMarkup = scheduleMode === 'none' ? '' : `
+          <h3>${escapeHtml(scheduleLabel)}</h3>
+          <div class="form-row">
+            <div class="field"><label for="jasaScheduleDate">Tanggal yang diharapkan *</label><input id="jasaScheduleDate" name="scheduleDate" type="date" required></div>
+            ${scheduleMode === 'date' ? '' : '<div class="field"><label for="jasaScheduleTime">Jam yang diharapkan *</label><input id="jasaScheduleTime" name="scheduleTime" type="time" required></div>'}
+          </div>
+          ${scheduleMode === 'recurring' ? `<label class="jasa-check"><input name="scheduleRecurring" type="checkbox"><span>Ini preferensi jadwal rutin mingguan</span></label>
+          <div class="jasa-days" data-jasa-days hidden>${['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'].map((day) => `<label><input type="checkbox" name="scheduleDays" value="${day}">${day}</label>`).join('')}</div>` : ''}`;
+      content.innerHTML = `
+        <section class="panel">
+          <a class="btn btn-secondary" href="index.html">← Semua layanan</a>
+          <p class="eyebrow" style="margin-top:20px">${escapeHtml(category?.name || 'Gamon Jasa (Beta)')}</p>
+          <h1>${escapeHtml(service.name || 'Layanan')}</h1>
+          <p class="muted">${escapeHtml(service.summary || '')}</p>
+          ${service.image ? `<img src="${escapeHtml(service.image)}" alt="" loading="lazy" style="width:100%;max-height:320px;object-fit:cover;border-radius:16px;margin-top:16px">` : ''}
+          <p style="white-space:pre-line;margin-top:16px">${escapeHtml(service.description || '')}</p>
+          ${service.pricingNote ? `<p class="jasa-note" role="note">${escapeHtml(service.pricingNote)}</p>` : ''}
+          ${service.disclaimer ? `<div class="jasa-disclaimer" role="note"><strong>Batas layanan penting</strong><p>${escapeHtml(service.disclaimer)}</p></div>` : ''}
+        </section>
+        ${canOrder ? `<form class="panel form-panel" data-jasa-checkout-form>
+          <h2>Pilih paket dan kebutuhan</h2>
+          <fieldset class="jasa-fieldset"><legend>Paket layanan *</legend>
+            ${packages.map((item, index) => {
+              const label = item.priceType === 'quote' ? 'Harga melalui penawaran' : jasaFormatRupiah(item.price) + (item.priceType === 'monthly' ? ' / bulan' : '');
+              return `<label class="jasa-choice"><input type="radio" name="packageId" value="${escapeHtml(item.id)}" ${index === 0 ? 'checked' : ''} required><span><strong>${escapeHtml(item.name)}</strong><small>${escapeHtml(item.description || '')} ${escapeHtml(item.duration || '')}</small><b>${escapeHtml(label)}</b></span></label>`;
+            }).join('')}
+          </fieldset>
+          <fieldset class="jasa-fieldset" data-jasa-payment-options><legend>Cara bayar *</legend>
+            ${paymentOptions.map((plan, index) => `<label class="jasa-choice" data-payment-plan-option="${escapeHtml(plan)}"><input type="radio" name="paymentPlan" value="${escapeHtml(plan)}" ${index === 0 ? 'checked' : ''} required><span><strong>${plan === 'full' ? 'Bayar penuh' : plan === 'dp' ? 'Bayar DP' : 'Bayar tunai'}</strong><small>${plan === 'full' ? 'Bayar seluruh biaya melalui DOKU.' : plan === 'dp' ? 'Bayar sebagian melalui DOKU, lalu lunasi sisanya.' : 'Bayar kepada petugas setelah pesanan dikonfirmasi.'}</small></span></label>`).join('')}
+            <p class="jasa-note" data-jasa-payment-summary aria-live="polite"></p>
+          </fieldset>
+          ${options.length ? `<fieldset class="jasa-fieldset"><legend>Hal yang ingin dibantu</legend>${options.map((option) => `<label class="jasa-check"><input type="checkbox" name="selectedOptions" value="${escapeHtml(option.id)}"><span>${escapeHtml(option.label)}</span></label>`).join('')}</fieldset>` : ''}
+          ${fields.length ? `<h3>Informasi kebutuhan</h3>${formFieldMarkup}` : ''}
+          ${service.needsParentProfile ? `<div class="field"><label for="jasaParentId">${escapeHtml(recipientLabel)} *</label><select id="jasaParentId" name="parentId" required><option value="">Pilih ${escapeHtml(recipientLabel.toLowerCase())}</option>${profiles.map((parent) => `<option value="${escapeHtml(parent.id)}">${escapeHtml(parent.name)}</option>`).join('')}</select><a href="profil.html?recipientLabel=${encodeURIComponent(recipientLabel)}" class="jasa-inline-link">Tambah data ${escapeHtml(recipientLabel.toLowerCase())}</a>${profiles.length ? '' : `<p class="muted">Belum ada data tersimpan. Tambahkan profil ${escapeHtml(recipientLabel.toLowerCase())} terlebih dahulu.</p>`}</div>` : ''}
+          ${scheduleMarkup}
+          <h3>Kontak pemesan</h3>
+          <div class="field"><label for="jasaBuyerName">Nama pemesan *</label><input id="jasaBuyerName" name="buyerName" type="text" maxlength="120" value="${escapeHtml(auth.currentUser?.displayName || '')}" required></div>
+          <div class="field"><label for="jasaBuyerPhone">Nomor telepon pemesan *</label><input id="jasaBuyerPhone" name="buyerPhone" type="tel" autocomplete="tel" maxlength="40" required></div>
+          <p class="muted">Email akun terverifikasi digunakan untuk konfirmasi dan pembaruan pesanan.</p>
+          ${service.disclaimer ? `<div class="jasa-disclaimer" role="note"><strong>Harap pastikan layanan sesuai kebutuhan</strong><p>${escapeHtml(service.disclaimer)}</p></div>` : ''}
+          <label class="jasa-check"><input name="parentConsent" type="checkbox" required><span>${escapeHtml(consentText)}</span></label>
+          <button class="btn btn-primary" type="submit">Lanjutkan pemesanan</button>
+        </form>` : `<section class="panel"><h2>Masuk atau daftar akun Gamon Space untuk memesan</h2><p class="muted">${currentUser ? 'Email akun Anda belum terverifikasi. Masuk dan pilih “Kirim ulang email verifikasi”, lalu kembali untuk memesan.' : 'Gunakan akun Gamon Space yang emailnya sudah terverifikasi untuk melanjutkan pemesanan.'}</p><a class="btn btn-primary" data-jasa-return href="masuk.html">${currentUser ? 'Masuk untuk verifikasi' : 'Masuk untuk memesan'}</a>${currentUser ? '<a class="btn btn-secondary" href="masuk.html">Kirim ulang email verifikasi</a>' : '<a class="btn btn-secondary" data-jasa-return href="daftar.html">Daftar</a>'}</section>`}`;
+      content.querySelectorAll('[data-jasa-return]').forEach((link) => link.addEventListener('click', () => jasaSetReturnTo()));
+      const form = content.querySelector('[data-jasa-checkout-form]');
+      if (!form) return;
+      const recurring = form.querySelector('[name="scheduleRecurring"]');
+      recurring?.addEventListener('change', () => { form.querySelector('[data-jasa-days]').hidden = !recurring.checked; });
+      const paymentSummary = form.querySelector('[data-jasa-payment-summary]');
+      const updatePaymentSummary = () => {
+        const selectedPackage = packages.find((item) => item.id === form.querySelector('[name="packageId"]:checked')?.value);
+        const selectedPlan = form.querySelector('[name="paymentPlan"]:checked')?.value || 'full';
+        const monthly = selectedPackage?.priceType === 'monthly';
+        form.querySelectorAll('[data-payment-plan-option]').forEach((option) => {
+          const input = option.querySelector('input');
+          const unavailable = monthly && input.value !== 'full';
+          option.hidden = unavailable;
+          input.disabled = unavailable;
+        });
+        if (monthly && selectedPlan !== 'full') {
+          const full = form.querySelector('[name="paymentPlan"][value="full"]');
+          if (full) full.checked = true;
+        }
+        const plan = form.querySelector('[name="paymentPlan"]:checked')?.value || 'full';
+        if (!selectedPackage || selectedPackage.priceType === 'quote') {
+          paymentSummary.textContent = plan === 'cash' ? 'Admin akan menentukan nominal penawaran dan menghubungi untuk konfirmasi pembayaran tunai.' : 'Nominal pembayaran mengikuti penawaran admin.';
+        } else if (plan === 'cash') {
+          paymentSummary.textContent = 'Bayar tunai ke petugas setelah pesanan dikonfirmasi.';
+        } else if (plan === 'dp') {
+          const total = Number(selectedPackage.price);
+          const percent = Number.isSafeInteger(selectedPackage.dpPercent) ? selectedPackage.dpPercent : 30;
+          const dp = Math.round(total * percent / 100);
+          paymentSummary.textContent = `Bayar sekarang ${jasaFormatRupiah(dp)} (${percent}%), sisa ${jasaFormatRupiah(total - dp)} saat pelunasan.`;
+        } else {
+          paymentSummary.textContent = `Bayar sekarang ${jasaFormatRupiah(selectedPackage.price)} melalui DOKU.`;
+        }
+      };
+      form.querySelectorAll('[name="packageId"], [name="paymentPlan"]').forEach((input) => input.addEventListener('change', updatePaymentSummary));
+      updatePaymentSummary();
+      form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const user = await jasaWaitForUser();
+        if (!user || !user.emailVerified) {
+          setStatus('Masuk dengan akun Gamon Space yang emailnya sudah terverifikasi untuk memesan.', true);
+          return;
+        }
+        const button = form.querySelector('button[type="submit"]');
+        const selectedPackage = packages.find((item) => item.id === form.querySelector('[name="packageId"]:checked')?.value);
+        const overlay = createCheckoutOverlay();
+        await jasaRun(button, {
+          loadingText: 'Memproses pesanan…',
+          successMessage: selectedPackage?.priceType === 'quote' ? 'Permintaan penawaran berhasil dikirim.' : '',
+          errorTitle: 'Pemesanan belum berhasil'
+        }, async () => {
+          setStatus('Memeriksa data pemesanan…');
+          const chosenPlan = form.querySelector('[name="paymentPlan"]:checked')?.value || 'full';
+          overlay.show(chosenPlan === 'cash' ? 'Tunai' : 'DOKU');
+          const quote = selectedPackage?.priceType === 'quote';
+          overlay.setLabels(
+            ['Memeriksa data pemesanan', 'Membuat pesanan', quote ? 'Menyimpan permintaan penawaran' : 'Menyiapkan pembayaran', quote ? 'Mengirim permintaan penawaran' : 'Mengalihkan ke DOKU'],
+            quote ? 'Mengirim permintaan penawaran' : 'Menyiapkan pembayaran',
+            'Mohon tunggu. Proses biasanya hanya memerlukan beberapa saat.'
+          );
+          const timer = setTimeout(() => overlay.updateStep(1), 900);
+          const secondTimer = setTimeout(() => overlay.updateStep(2), 2600);
+          let timeoutId;
+          const timeout = new Promise((resolve, reject) => { timeoutId = setTimeout(() => reject(Object.assign(new Error('Proses memerlukan lebih dari 60 detik. Periksa halaman Pesanan saya sebelum mencoba lagi.'), { code: 'jasa-timeout' })), 60000); });
+          try {
+          const formData = Object.fromEntries([...form.querySelectorAll('[name]')]
+            .filter((element) => !['packageId', 'paymentPlan', 'selectedOptions', 'scheduleDate', 'scheduleTime', 'scheduleRecurring', 'scheduleDays', 'buyerName', 'buyerPhone', 'parentId', 'parentConsent'].includes(element.name))
+            .map((element) => [element.name, element.value]));
+          const result = await Promise.race([jasaRequest('jasa-checkout', {
+            serviceId: service.id,
+            categoryId: service.categoryId,
+            packageId: form.querySelector('[name="packageId"]:checked')?.value,
+            selectedOptions: [...form.querySelectorAll('[name="selectedOptions"]:checked')].map((element) => element.value),
+            parentId: form.elements.parentId?.value,
+            parentConsent: form.elements.parentConsent.checked,
+            paymentPlan: chosenPlan,
+            formData,
+            schedule: scheduleMode === 'none' ? {} : {
+              date: form.elements.scheduleDate?.value || '',
+              time: form.elements.scheduleTime?.value || '',
+              recurring: recurring?.checked || false,
+              days: [...form.querySelectorAll('[name="scheduleDays"]:checked')].map((element) => element.value)
+            },
+            buyerName: form.elements.buyerName.value,
+            buyerPhone: form.elements.buyerPhone.value
+          }, user), timeout]);
+          clearTimeout(timer);
+          clearTimeout(secondTimer);
+          clearTimeout(timeoutId);
+          overlay.updateStep(3);
+          overlay.finish();
+          overlay.hide();
+          setStatus(quote ? 'Permintaan penawaran berhasil dikirim. Admin akan menyiapkan harga.' : 'Pesanan berhasil dibuat. Mengalihkan ke pembayaran…');
+          if (result.paymentUrl) {
+            window.location.href = result.paymentUrl;
+          } else {
+            if (quote) {
+              showPopup('Permintaan penawaran sudah diterima. Anda dapat memantau pembaruannya di Pesanan saya.', 'Permintaan terkirim', 'success');
+              await new Promise((resolve) => setTimeout(resolve, 900));
+            } else if (chosenPlan === 'cash') {
+              showPopup('Pesanan tunai sudah diterima. Admin akan mengonfirmasi pesanan ini dalam 24 jam.', 'Menunggu konfirmasi admin', 'success');
+              await new Promise((resolve) => setTimeout(resolve, 900));
+            }
+            window.location.href = `pesanan.html?orderId=${encodeURIComponent(result.orderId)}`;
+          }
+          return result;
+          } catch (error) {
+            clearTimeout(timer);
+            clearTimeout(secondTimer);
+            clearTimeout(timeoutId);
+            overlay.hide();
+            throw error;
+          }
+        });
+      });
+    } catch (error) {
+      setStatus(error.message || 'Detail layanan gagal dimuat.', true);
+      jasaShowActionError('Detail layanan belum dapat dimuat', error, () => window.location.reload());
+    }
+    return;
+  }
+
+  if (page === 'jasa-profile') {
+    const recipientLabel = String(new URLSearchParams(window.location.search).get('recipientLabel') || 'Penerima layanan').slice(0, 60);
+    const profileTitle = document.querySelector('main .panel h1');
+    if (profileTitle) profileTitle.textContent = `Profil ${recipientLabel}`;
+    document.title = `Profil ${recipientLabel} | Gamon Jasa (Beta)`;
+    const user = await jasaWaitForUser();
+    if (!user?.emailVerified) {
+      setStatus(user ? 'Email akun Anda belum terverifikasi. Masuk untuk mengirim ulang email verifikasi.' : 'Masuk dengan akun Gamon Space yang emailnya terverifikasi untuk mengelola profil.', true);
+      if (content) content.innerHTML = '<section class="panel"><a class="btn btn-primary" data-jasa-return href="masuk.html">Masuk ke akun Gamon Space</a><a class="btn btn-secondary" data-jasa-return href="daftar.html">Daftar</a></section>';
+      content?.querySelector('[data-jasa-return]')?.addEventListener('click', () => jasaSetReturnTo());
+      return;
+    }
+    let parents = [];
+    const renderProfile = () => {
+      if (!content) return;
+      const parentForm = (parent = {}, index = '') => {
+        const prefix = `jasa-parent-${index === '' ? 'new' : index}`;
+        return `<form data-parent-form="${index}" class="panel jasa-profile-form">
+        <h2>${index === '' ? `Tambah data ${escapeHtml(recipientLabel.toLowerCase())}` : `Ubah data: ${escapeHtml(parent.name || '')}`}</h2>
+        <input type="hidden" name="id" value="${escapeHtml(parent.id || '')}">
+        <div class="form-row"><div class="field"><label for="${prefix}-name">Nama penerima atau lokasi *</label><input id="${prefix}-name" name="name" maxlength="120" value="${escapeHtml(parent.name || '')}" required></div><div class="field"><label for="${prefix}-city">Kota (opsional)</label><input id="${prefix}-city" name="city" maxlength="120" value="${escapeHtml(parent.city || '')}"></div></div>
+        <div class="field"><label for="${prefix}-address">Alamat lengkap *</label><textarea id="${prefix}-address" name="address" maxlength="500" required>${escapeHtml(parent.address || '')}</textarea></div>
+        <div class="form-row"><div class="field"><label for="${prefix}-emergency-name">Nama kontak di lokasi (opsional)</label><input id="${prefix}-emergency-name" name="emergencyContactName" maxlength="120" value="${escapeHtml(parent.emergencyContactName || '')}"></div><div class="field"><label for="${prefix}-emergency-phone">Telepon kontak di lokasi (opsional)</label><input id="${prefix}-emergency-phone" name="emergencyContactPhone" type="tel" maxlength="30" value="${escapeHtml(parent.emergencyContactPhone || '')}"></div></div>
+        <div class="field"><label for="${prefix}-notes">Catatan tambahan (opsional)</label><textarea id="${prefix}-notes" name="notes" maxlength="700">${escapeHtml(parent.notes || '')}</textarea></div>
+        <button class="btn btn-primary" type="submit">${index === '' ? 'Tambah data' : 'Simpan perubahan'}</button>
+        ${index !== '' ? '<button class="btn btn-secondary" type="button" data-parent-delete>Hapus data</button>' : ''}
+      </form>`;
+      };
+      content.innerHTML = `${parents.map((parent, index) => parentForm(parent, String(index))).join('')}${parents.length < 5 ? parentForm() : '<p class="jasa-note">Maksimal 5 data tersimpan.</p>'}`;
+      content.querySelectorAll('[data-parent-form]').forEach((form) => form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const data = Object.fromEntries(new FormData(form));
+        const index = form.dataset.parentForm;
+        const parent = { ...data, id: data.id || `parent-${Date.now()}-${Math.random().toString(36).slice(2, 8)}` };
+        const updated = [...parents];
+        if (index === '') updated.push(parent);
+        else updated[Number(index)] = parent;
+        const button = form.querySelector('button[type="submit"]');
+        await jasaRun(button, { loadingText: 'Menyimpan…', successMessage: 'Data berhasil disimpan', errorTitle: 'Data belum tersimpan' }, async () => {
+          const result = await jasaRequest('jasa-save-profile', { parents: updated }, user);
+          parents = result.profile.parents;
+          setStatus(result.message || 'Profil berhasil disimpan.', false, true);
+          renderProfile();
+          return result;
+        });
+      }));
+      content.querySelectorAll('[data-parent-delete]').forEach((button) => button.addEventListener('click', async () => {
+        const index = Number(button.closest('[data-parent-form]').dataset.parentForm);
+        showConfirm({
+          title: 'Hapus data penerima layanan',
+          message: `Hapus data ${parents[index]?.name || 'penerima layanan'}?`,
+          confirmText: 'Hapus data',
+          tone: 'error',
+          onConfirm: () => jasaRun(button, { loadingText: 'Menghapus…', successMessage: 'Data penerima layanan dihapus', errorTitle: 'Data belum terhapus' }, async () => {
+            const updated = parents.filter((_, itemIndex) => itemIndex !== index);
+            const result = await jasaRequest('jasa-save-profile', { parents: updated }, user);
+            parents = result.profile.parents;
+            setStatus('Data penerima layanan berhasil dihapus.', false, true);
+            renderProfile();
+            return result;
+          })
+        });
+      }));
+    };
+    try {
+      setStatus('Memuat profil…');
+      if (content) content.innerHTML = '<section class="panel" aria-busy="true"><p>Memuat data penerima layanan…</p></section>';
+      const result = await jasaRequest('jasa-get-profile', {}, user);
+      parents = result.profile?.parents || [];
+      setStatus('');
+      renderProfile();
+    } catch (error) {
+      setStatus(error.message || 'Profil gagal dimuat.', true);
+      jasaShowActionError('Profil belum dapat dimuat', error, () => window.location.reload());
+    }
+    return;
+  }
+
+  if (page === 'jasa-orders') {
+    const user = await jasaWaitForUser();
+    if (!user || !user.emailVerified) {
+      setStatus('Masuk dengan akun Gamon Space yang emailnya sudah terverifikasi untuk melihat pesanan.', true);
+      if (content) content.innerHTML = '<div class="panel"><a class="btn btn-primary" data-jasa-return href="masuk.html">Masuk atau daftar akun Gamon Space untuk memesan</a><a class="btn btn-secondary" data-jasa-return href="daftar.html">Daftar</a></div>';
+      content?.querySelectorAll('[data-jasa-return]').forEach((link) => link.addEventListener('click', () => jasaSetReturnTo()));
+      return;
+    }
+    const renderOrders = (orders) => {
+      if (!content) return;
+      const selectedId = new URLSearchParams(window.location.search).get('orderId') || '';
+      const selected = orders.find((order) => order.id === selectedId);
+      if (!orders.length) {
+        content.innerHTML = '<div class="panel"><h2>Belum ada pesanan jasa</h2><p class="muted">Detail dan pembaruan layanan akan terlihat di sini setelah kamu memesan.</p><a class="btn btn-primary" href="index.html">Jelajahi jasa</a></div>';
+        return;
+      }
+      const selectedScheduleMode = selected && ['none', 'date', 'datetime', 'recurring'].includes(selected.scheduleMode)
+        ? selected.scheduleMode
+        : 'recurring';
+      content.innerHTML = `<div class="jasa-orders-layout">
+        <section class="panel"><h2>Pesanan Saya</h2><div class="jasa-order-list">${orders.map((order) => `
+          <a class="jasa-order-link ${order.id === selectedId ? 'active' : ''}" href="pesanan.html?orderId=${encodeURIComponent(order.id)}">
+            <strong>${escapeHtml(order.serviceName || 'Layanan jasa')}</strong>
+            <span>${escapeHtml(order.id)} · ${order.subscription ? `Langganan • siklus ${Number(order.subscription.cycle || 1)}` : ''} · ${escapeHtml(jasaStatusLabel(order.status))}</span>
+            <b>${order.totalAmount ? jasaFormatRupiah(order.totalAmount) : (order.status === 'awaiting_quote' ? 'Menunggu penawaran' : 'Belum ada tagihan')}</b>
+          </a>`).join('')}</div></section>
+        ${selected ? `<article class="panel">
+          <p class="eyebrow">Detail pesanan</p><h2>${escapeHtml(selected.serviceName || 'Layanan jasa')}</h2>
+          <p><strong>${escapeHtml(selected.id)}</strong> · ${escapeHtml(jasaStatusLabel(selected.status))}</p>
+          ${selected.subscription ? `<p class="jasa-note">Langganan • siklus ${Number(selected.subscription.cycle || 1)}${selected.subscription.status === 'ended' ? ' · telah diakhiri' : ''}</p>` : ''}
+          ${selected.needsAttention ? `<p class="jasa-disclaimer" role="alert"><strong>Perlu tindak lanjut admin</strong><br>${escapeHtml(selected.attentionReason || 'Hubungi admin untuk bantuan.')}</p>` : ''}
+          ${selected.assignedStaff?.name ? `<p class="jasa-note"><strong>Petugas:</strong> ${escapeHtml(selected.assignedStaff.name)}</p>` : ''}
+          ${(() => {
+            const payments = Array.isArray(selected.payments) ? selected.payments : [];
+            const paidAmount = Number.isSafeInteger(selected.paidAmount) ? selected.paidAmount : (selected.paymentStatus === 'PAID' ? Number(selected.totalAmount || 0) : 0);
+            const remainingAmount = Number.isSafeInteger(selected.remainingAmount) ? selected.remainingAmount : Math.max(0, Number(selected.totalAmount || 0) - paidAmount);
+            const planLabel = ({ full: 'Full', dp: 'DP', cash: 'Tunai' })[selected.paymentPlan || 'full'];
+            return `<dl class="jasa-order-meta"><div><dt>Cara bayar</dt><dd>${escapeHtml(planLabel)}</dd></div><div><dt>Total</dt><dd>${Number(selected.totalAmount || 0) ? jasaFormatRupiah(selected.totalAmount) : (selected.status === 'awaiting_quote' ? 'Menunggu penawaran' : '-')}</dd></div><div><dt>Dibayar</dt><dd>${jasaFormatRupiah(paidAmount)}</dd></div><div><dt>Sisa</dt><dd>${jasaFormatRupiah(remainingAmount)}</dd></div><div><dt>Status pembayaran</dt><dd>${escapeHtml(jasaPaymentStatusLabel(selected.paymentStatus || 'UNPAID'))}</dd></div></dl>
+            <section class="jasa-payment-history"><h3>Riwayat pembayaran</h3>${payments.length ? `<ul>${payments.map((payment) => `<li><strong>${escapeHtml(({ full: 'Pembayaran penuh', dp: 'DP', balance: 'Pelunasan', cash: 'Tunai' })[payment.kind] || 'Pembayaran')}:</strong> ${jasaFormatRupiah(payment.amount)} · ${escapeHtml(payment.method === 'CASH' ? 'Tunai' : 'DOKU')} · ${escapeHtml(jasaPaymentStatusLabel(payment.status || 'UNPAID'))}${payment.paidAt ? ` · ${escapeHtml(jasaFormatDate(payment.paidAt))}` : ''}</li>`).join('')}</ul>` : '<p class="muted">Belum ada pembayaran.</p>'}</section>`;
+          })()}
+          <dl class="jasa-order-meta">
+            <div><dt>Paket</dt><dd>${escapeHtml(selected.package?.name || '-')}</dd></div>
+            ${selectedScheduleMode === 'none' ? '' : `<div><dt>${escapeHtml(selected.scheduleLabel || 'Jadwal pilihan')}</dt><dd>${escapeHtml(selected.schedule?.date || '-')} ${selected.schedule?.time ? `· ${escapeHtml(selected.schedule.time)}` : ''} ${selected.schedule?.recurring ? '· Rutin mingguan: ' + escapeHtml((selected.schedule.days || []).join(', ')) : ''}</dd></div>`}
+          </dl>
+          ${selected.parent ? `<section class="jasa-order-meta"><h3>${escapeHtml(selected.recipientLabel || 'Penerima layanan')}</h3><p>${escapeHtml(selected.parent.name || '-')}</p><p>${escapeHtml(selected.parent.address || '')}${selected.parent.city ? `, ${escapeHtml(selected.parent.city)}` : ''}</p></section>` : ''}
+          ${selected.formData && Object.keys(selected.formData).length ? `<section class="jasa-order-meta"><h3>Detail kebutuhan</h3><dl>${Object.entries(selected.formData).map(([key, value]) => `<div><dt>${escapeHtml(selected.formFieldLabels?.[key] || key)}</dt><dd>${escapeHtml(value)}</dd></div>`).join('')}</dl></section>` : ''}
+          ${selected.pricingNote ? `<p class="jasa-note">${escapeHtml(selected.pricingNote)}</p>` : ''}
+          ${selected.status === 'awaiting_quote' ? '<p class="jasa-note">Admin sedang menyiapkan penawaran harga. Kembali ke halaman ini untuk melihat pembaruannya.</p>' : ''}
+          ${selected.status === 'awaiting_payment' ? '<div class="jasa-actions"><button class="btn btn-primary" type="button" data-jasa-pay>Bayar / buka pembayaran</button><button class="btn btn-secondary" type="button" data-jasa-check>Periksa status pembayaran</button><button class="btn btn-secondary" type="button" data-jasa-cancel>Batalkan pesanan</button></div>' : ''}
+          ${selected.status === 'awaiting_confirmation' ? '<div class="jasa-actions"><button class="btn btn-secondary" type="button" data-jasa-cancel>Batalkan pesanan</button><p class="jasa-note">Pesanan tunai menunggu konfirmasi admin selama 24 jam.</p></div>' : ''}
+          ${selected.paymentPlan === 'dp' && selected.payments?.some((payment) => payment.kind === 'balance' && payment.status === 'UNPAID' && Number(payment.expiresAt || 0) > Date.now() && /^https:\/\//i.test(payment.paymentUrl || '')) ? `<div class="jasa-actions"><button class="btn btn-primary" type="button" data-jasa-pay-balance>Bayar sisa</button>${selected.status !== 'paid' ? '<button class="btn btn-secondary" type="button" data-jasa-check>Periksa status pembayaran</button>' : ''}</div>` : ''}
+          ${selected.status === 'paid' ? '<button class="btn btn-secondary" type="button" data-jasa-check>Perbarui status</button>' : ''}
+          ${selected.disclaimer ? `<div class="jasa-disclaimer" role="note"><strong>Informasi penting</strong><p>${escapeHtml(selected.disclaimer)}</p></div>` : ''}
+          <section><h3>Laporan/catatan pengerjaan</h3>${Array.isArray(selected.visits) && selected.visits.length ? [...selected.visits].sort((a, b) => Number(b.at || 0) - Number(a.at || 0)).map((visit) => `<article class="jasa-visit"><strong>${escapeHtml(visit.note || 'Catatan pengerjaan')}</strong><small>${escapeHtml(jasaFormatDate(visit.at))} · ${escapeHtml(visit.staffName || visit.by || 'Tim layanan')}</small><p style="white-space:pre-wrap">${escapeHtml(visit.reportText || '')}</p></article>`).join('') : '<p class="muted">Catatan pengerjaan akan muncul di sini setelah dicatat.</p>'}<a class="btn btn-secondary" href="../marketplace/chat.html?orderId=${encodeURIComponent(selected.id)}">Tanya admin</a></section>
+        </article>` : '<article class="panel"><p class="muted">Pilih pesanan untuk melihat detail dan pembaruan layanan.</p></article>'}
+      </div>`;
+      content.querySelector('[data-jasa-pay]')?.addEventListener('click', async (event) => {
+        const button = event.currentTarget;
+        await jasaRun(button, { loadingText: 'Menyiapkan pembayaran…', errorTitle: 'Pembayaran belum dapat dibuka' }, async () => {
+          const result = await jasaRequest('jasa-pay-again', { orderId: selected.id }, user);
+          window.location.href = result.paymentUrl;
+          return result;
+        });
+        content.querySelector('[data-jasa-pay-balance]')?.addEventListener('click', async (event) => {
+          const button = event.currentTarget;
+          await jasaRun(button, { loadingText: 'Menyiapkan pelunasan…', errorTitle: 'Pelunasan belum dapat dibuka' }, async () => {
+            const result = await jasaRequest('jasa-pay-again', { orderId: selected.id, paymentKind: 'balance' }, user);
+            window.location.href = result.paymentUrl;
+            return result;
+          });
+        });
+      });
+      content.querySelector('[data-jasa-check]')?.addEventListener('click', async (event) => {
+        const button = event.currentTarget;
+        await jasaRun(button, { loadingText: 'Memeriksa status…', successMessage: 'Status pembayaran diperbarui', errorTitle: 'Status pembayaran belum diperiksa' }, async () => {
+          setStatus('Memeriksa status pembayaran…');
+          const currentEntry = (selected.payments || []).find((payment) => payment.status === 'UNPAID' && payment.method === 'DOKU');
+          await jasaRequest('jasa-check-payment', { orderId: selected.id, invoiceNumber: currentEntry?.invoiceNumber }, user);
+          window.location.reload();
+        });
+      });
+      content.querySelector('[data-jasa-cancel]')?.addEventListener('click', async (event) => {
+        const button = event.currentTarget;
+        showConfirm({
+          title: 'Batalkan pesanan',
+          message: 'Apakah Anda yakin ingin membatalkan pesanan jasa ini?',
+          confirmText: 'Ya, batalkan',
+          tone: 'warning',
+          onConfirm: () => jasaRun(button, { loadingText: 'Membatalkan…', successMessage: 'Pesanan berhasil dibatalkan', errorTitle: 'Pesanan belum dibatalkan' }, async () => {
+            await jasaRequest('jasa-cancel-order', { orderId: selected.id }, user);
+            window.location.reload();
+          })
+        });
+      });
+    };
+    try {
+      setStatus('Memuat pesanan jasa…');
+      if (content) content.innerHTML = '<section class="panel" aria-busy="true"><p>Memuat pesanan jasa…</p></section>';
+      const result = await jasaRequest('jasa-my-orders', {}, user);
+      setStatus('');
+      let orders = result.orders || [];
+      renderOrders(orders);
+      const selectedId = new URLSearchParams(window.location.search).get('orderId');
+      const selected = (result.orders || []).find((order) => order.id === selectedId);
+      if (selected && (selected.status === 'awaiting_payment' || selected.payments?.some((payment) => payment.kind === 'balance' && payment.status === 'UNPAID'))) {
+        jasaRequest('jasa-check-payment', { orderId: selected.id }, user)
+          .then((result) => {
+            const index = orders.findIndex((order) => order.id === selected.id);
+            if (index >= 0 && result.order) orders[index] = result.order;
+            renderOrders(orders);
+          })
+          .catch((error) => setStatus(error.message || 'Status pembayaran belum dapat diperiksa. Coba lagi.', true));
+      }
+    } catch (error) {
+      setStatus(error.message || 'Pesanan jasa gagal dimuat.', true);
+      jasaShowActionError('Pesanan belum dapat dimuat', error, () => window.location.reload());
+      if (content) content.innerHTML = '<div class="panel" role="status">Pesanan belum dapat ditampilkan. Muat ulang halaman untuk mencoba lagi.</div>';
+    }
+  }
+}
+// === JASA END ===
  
 document.addEventListener('DOMContentLoaded', init);
  

@@ -1,7 +1,7 @@
 import crypto from 'crypto';
 import { initializeApp, cert, getApps } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
-import { applyMarketplacePayment, releaseOrderStock } from './lib/marketplace-orders.js';
+import { applyMarketplacePayment, releaseOrderStock, sendEmail } from './lib/marketplace-orders.js';
 
 const DOKU_CLIENT_ID = String(process.env.DOKU_CLIENT_ID || '').trim();
 const DOKU_SECRET_KEY = String(process.env.DOKU_SECRET_KEY || '').trim();
@@ -116,6 +116,13 @@ function getReturnOrderId(req) {
         return photoboxOrderId.trim();
     }
 
+    const jasaOrderId = values.find((value) => (
+        typeof value === 'string' && /^JS-\d{6}-[A-Z0-9]{6}(?:-B)?$/i.test(value.trim())
+    ));
+    if (jasaOrderId) {
+        return jasaOrderId.trim().replace(/-B$/i, '');
+    }
+
     const marketplaceOrderId = values.find((value) => (
         typeof value === 'string' && /^MM-\d{6}-[A-Z0-9]{6}$/i.test(value.trim())
     ));
@@ -131,6 +138,9 @@ export default async function handler(req, res) {
     if (req.method === 'GET') {
         console.log('[DOKU return] RAW REQUEST:', { url: req.url, query: req.query });
         const orderId = getReturnOrderId(req);
+        if (orderId.startsWith('JS-')) {
+            return res.redirect(302, `/user/jasa/pesanan.html?orderId=${encodeURIComponent(orderId)}`);
+        }
         if (orderId.startsWith('MM-')) {
     return res.redirect(302, `/user/marketplace/pesanan.html?orderId=${encodeURIComponent(orderId)}`);
 }
@@ -209,8 +219,145 @@ const targetUrl = '/';
         console.log("PAYLOAD:", JSON.stringify(data, null, 2));
         
         // Pengaman ekstra: fallback check jika penamaan properti di sandbox sedikit berbeda
-        const orderId = data.order?.invoice_number;
+        const orderInvoice = data.order?.invoice_number;
+        const orderId = orderInvoice;
         const status = String(data.transaction?.status || data.target?.status || '').toUpperCase();
+        const jasaInvoice = typeof orderInvoice === 'string'
+            ? orderInvoice.match(/^(JS-\d{6}-[A-Z0-9]{6})(-B)?$/i)
+            : null;
+
+        if (jasaInvoice) {
+            const orderId = jasaInvoice[1];
+            const db = getFirestore();
+            const orderRef = db.collection('jasa_orders').doc(orderId);
+            try {
+                const result = await db.runTransaction(async (transaction) => {
+                    const snapshot = await transaction.get(orderRef);
+                    if (!snapshot.exists) return { found: false };
+                    const order = snapshot.data() || {};
+                    const now = Date.now();
+                    const payments = Array.isArray(order.payments) ? order.payments : [{
+                        id: orderId,
+                        kind: 'full',
+                        amount: Number(order.totalAmount || 0),
+                        method: 'DOKU',
+                        status: order.paymentStatus === 'PAID' || ['paid', 'scheduled', 'in_progress', 'completed'].includes(order.status) ? 'PAID' : 'UNPAID',
+                        invoiceNumber: orderId,
+                        paymentUrl: String(order.paymentUrl || ''),
+                        expiresAt: Number(order.paymentExpiresAt || 0),
+                        paidAt: Number(order.paidAt || 0)
+                    }];
+                    const invoiceNumber = String(orderInvoice);
+                    const paymentIndex = payments.findIndex((payment) => payment.invoiceNumber === invoiceNumber);
+                    if (paymentIndex < 0) return { found: true, ignored: true, missingPayment: true };
+                    const payment = payments[paymentIndex];
+                    if (['SUCCESS', 'PAID'].includes(status)) {
+                        const amount = Number(data.order?.amount);
+                        if (!Number.isSafeInteger(amount) || amount !== Number(payment.amount)) {
+                            transaction.set(orderRef, {
+                                needsAttention: true,
+                                attentionReason: 'Nominal pembayaran DOKU tidak cocok dengan tagihan pembayaran.',
+                                amountMismatch: { expected: Number(payment.amount), received: amount, invoiceNumber, at: now, source: 'doku-webhook' },
+                                updatedAt: now
+                            }, { merge: true });
+                            return { found: true, amountMismatch: true };
+                        }
+                        if (payment.status === 'PAID') {
+                            return { found: true, alreadyPaid: true };
+                        }
+                        const inactivePayment = ['CANCELLED', 'EXPIRED'].includes(payment.status);
+                        if (payment.status !== 'UNPAID' && !inactivePayment) {
+                            return { found: true, ignored: true };
+                        }
+                        payments[paymentIndex] = { ...payment, status: 'PAID', paidAt: now, requestId: signatureCheck.requestId };
+                        const paidAmount = payments.filter((item) => item.status === 'PAID').reduce((sum, item) => sum + Number(item.amount || 0), 0);
+                        const remainingAmount = Math.max(0, Number(order.totalAmount || 0) - paidAmount);
+                        const paymentStatus = remainingAmount === 0 ? 'PAID' : 'PARTIAL';
+                        if (['cancelled', 'expired'].includes(order.status)) {
+                            transaction.update(orderRef, {
+                                payments,
+                                paidAmount,
+                                remainingAmount,
+                                paymentStatus: order.status === 'cancelled' ? 'CANCELLED' : 'EXPIRED',
+                                webhookRequestId: signatureCheck.requestId,
+                                needsAttention: true,
+                                attentionReason: 'Pembayaran diterima setelah pesanan dibatalkan/kedaluwarsa; tinjau refund manual.',
+                                updatedAt: now
+                            });
+                            return { found: true, paid: true, needsAttention: true, order, payment };
+                        }
+                        if (inactivePayment) {
+                            transaction.update(orderRef, {
+                                payments,
+                                paidAmount,
+                                remainingAmount,
+                                paymentStatus,
+                                webhookRequestId: signatureCheck.requestId,
+                                needsAttention: true,
+                                attentionReason: 'Pembayaran diterima untuk tagihan yang dibatalkan atau kedaluwarsa; periksa kemungkinan pembayaran ganda.',
+                                statusHistory: [...(Array.isArray(order.statusHistory) ? order.statusHistory : []), { status: 'late_payment_received', at: now, by: 'doku-webhook' }],
+                                updatedAt: now
+                            });
+                            return { found: true, paid: true, needsAttention: true, order, payment, paymentStatus };
+                        }
+                        if (payment.kind !== 'balance' && order.status !== 'awaiting_payment') return { found: true, ignored: true };
+                        if (payment.kind === 'balance' && !['paid', 'scheduled', 'in_progress', 'completed'].includes(order.status)) return { found: true, ignored: true };
+                        transaction.update(orderRef, {
+                            ...(payment.kind === 'balance' ? {} : { status: 'paid' }),
+                            payments,
+                            paidAmount,
+                            remainingAmount,
+                            paymentStatus,
+                            paidAt: now,
+                            webhookRequestId: signatureCheck.requestId,
+                            statusHistory: [...(Array.isArray(order.statusHistory) ? order.statusHistory : []), { status: payment.kind === 'balance' ? 'balance_paid' : 'paid', at: now, by: 'doku-webhook' }],
+                            updatedAt: now
+                        });
+                        return { found: true, paid: true, order, payment, paymentStatus };
+                    }
+                    if (['EXPIRED', 'FAILED', 'CANCELLED', 'DENIED'].includes(status) && payment.status === 'UNPAID') {
+                        const nextStatus = status === 'EXPIRED' ? 'expired' : 'cancelled';
+                        payments[paymentIndex] = { ...payment, status };
+                        const primaryPayment = payment.kind !== 'balance';
+                        transaction.update(orderRef, {
+                            ...(primaryPayment && order.status === 'awaiting_payment' ? { status: nextStatus } : {}),
+                            payments,
+                            paymentStatus: primaryPayment ? status : 'PARTIAL',
+                            statusHistory: [...(Array.isArray(order.statusHistory) ? order.statusHistory : []), ...(primaryPayment ? [{ status: nextStatus, at: now, by: 'doku-webhook' }] : [])],
+                            updatedAt: now
+                        });
+                        return { found: true, updated: true };
+                    }
+                    return { found: true, ignored: true };
+                });
+                if (!result.found) return res.status(404).send('Jasa Order Not Found');
+                if (result.amountMismatch) {
+                    console.error('[DOKU jasa] nominal pembayaran tidak cocok:', orderId);
+                    return res.status(400).send('Amount Mismatch');
+                }
+                if (result.paid) {
+                    try {
+                        const order = result.order || {};
+                        const staffName = String(order.assignedStaff?.name || '').slice(0, 120);
+                        const staffText = staffName ? ` Petugas yang akan datang: ${staffName}.` : '';
+                        const amountText = Number(result.payment?.amount || 0).toLocaleString('id-ID');
+                        const staffHtml = staffName ? `<p>Petugas yang akan datang: ${staffName.replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]))}.</p>` : '';
+                        await sendEmail({
+                            to: order.buyerEmail,
+                            subject: `Pembayaran diterima — Gamon Jasa ${orderId}`,
+                            text: `Pembayaran Rp ${amountText} untuk ${String(order.serviceName || 'layanan jasa').slice(0, 120)} (${orderId}) berhasil diterima.${result.paymentStatus === 'PARTIAL' ? ` Sisa pembayaran masih Rp ${Math.max(0, Number(order.totalAmount || 0) - Number(result.payment?.amount || 0)).toLocaleString('id-ID')}.` : ''}${staffText}`,
+                            html: `<p>Pembayaran sebesar <b>Rp ${amountText}</b> untuk <b>${String(order.serviceName || 'layanan jasa').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]))}</b> (${orderId}) berhasil diterima.</p>${result.paymentStatus === 'PARTIAL' ? '<p>Masih ada sisa pembayaran yang perlu dilunasi.</p>' : ''}${staffHtml}<p>Kami akan mengabari Anda saat jadwal dikonfirmasi.</p>`
+                        });
+                    } catch (error) {
+                        console.error('[DOKU jasa] email konfirmasi gagal:', { orderId, code: error.code || 'unknown', message: error.message });
+                    }
+                }
+                return res.status(200).send('OK');
+            } catch (error) {
+                console.error('[DOKU jasa] gagal memproses webhook:', { orderId, code: error.code || 'unknown', message: error.message });
+                return res.status(500).send('Jasa webhook processing failed');
+            }
+        }
 
         if (typeof orderId === 'string' && /^MM-\d{6}-[A-Z0-9]{6}$/i.test(orderId)) {
             try {

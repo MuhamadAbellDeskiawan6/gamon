@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kelola Layanan Jasa | Gamon Jasa (Beta) - Admin Gamon</title>
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+  <style>.material-symbols-outlined{font-family:'Material Symbols Outlined';font-variation-settings:'FILL' 0,'wght' 300,'GRAD' 0,'opsz' 24}</style>
+</head>
+<body class="min-h-screen bg-slate-100 text-slate-800">
+  <div class="min-h-screen lg:grid lg:grid-cols-[260px_minmax(0,1fr)]">
+    <div data-admin-sidebar></div>
+    <script src="/admin/partials/sidebar.js"></script>
+    <main class="px-4 py-8 lg:px-8">
+      <div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div><h1 class="text-2xl font-bold text-slate-900">Gamon Jasa (Beta)</h1><p class="mt-1 text-sm text-slate-500">Kelola kategori, layanan, paket, dan harga tanpa mengubah kode halaman.</p></div>
+        <div class="flex flex-col gap-1">
+          <button id="seedButton" type="button" class="rounded-xl bg-pink-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-pink-500">Isi contoh data</button>
+          <p class="text-xs text-slate-500">Membuat contoh kategori dan layanan untuk dicoba.</p>
+        </div>
+      </div>
+      <p id="pageStatus" class="mb-4 text-sm text-rose-700" role="status" aria-live="polite"></p>
+      <div class="grid gap-6 xl:grid-cols-2">
+        <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <h2 class="text-lg font-bold">Kategori</h2>
+          <form id="categoryForm" class="mt-4 grid gap-3 sm:grid-cols-2">
+            <label class="grid gap-1 text-sm font-medium text-slate-700">Nama kategori
+              <input name="name" required maxlength="100" placeholder="Contoh: Kebersihan" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+            </label>
+            <label class="grid gap-1 text-sm font-medium text-slate-700">Slug kategori
+              <input name="slug" required maxlength="100" placeholder="contoh: kebersihan (huruf kecil, tanpa spasi)" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+            </label>
+            <label class="grid gap-1 text-sm font-medium text-slate-700">Ikon
+              <input name="icon" maxlength="60" placeholder="Contoh: cleaning_services (nama ikon Material Symbols)" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+            </label>
+            <label class="grid gap-1 text-sm font-medium text-slate-700">Tagline
+              <input name="tagline" maxlength="200" placeholder="Contoh: Rumah bersih, hari lebih nyaman." class="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+            </label>
+            <label class="grid gap-1 text-sm font-medium text-slate-700 sm:col-span-2">Deskripsi kategori
+              <textarea name="description" maxlength="1200" placeholder="Contoh: Layanan untuk kebersihan rumah dan tempat usaha." class="rounded-xl border border-slate-200 px-3 py-2 text-sm"></textarea>
+              <span class="text-xs font-normal text-slate-500">Misalnya Perbaikan Rumah, Wedding, atau Kebersihan.</span>
+            </label>
+            <label class="grid gap-1 text-sm font-medium text-slate-700">Urutan
+              <input name="order" type="number" min="0" max="10000" value="0" aria-label="Urutan" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+            </label>
+            <label class="flex items-center gap-2 text-sm"><input name="active" type="checkbox" checked /> Aktif</label>
+            <div class="flex gap-2 sm:col-span-2"><button class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white" type="submit">Simpan kategori</button><button class="rounded-xl border px-4 py-2 text-sm" type="reset">Bersihkan</button></div>
+          </form>
+          <div id="categoriesList" class="mt-5 space-y-2" aria-live="polite">Memuat kategori…</div>
+        </section>
+        <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <h2 class="text-lg font-bold">Layanan jasa</h2>
+          <p class="mt-2 rounded-xl border border-pink-200 bg-pink-50 p-3 text-xs text-slate-700">Layanan = jasa yang kamu jual, misal 'Cuci AC' atau 'Paket Foto Wedding'. Paket = pilihan harga di dalam layanan itu, misal 'Cuci 1 unit Rp 75.000'. Pembeli memilih layanan dulu, lalu memilih paket.</p>
+          <form id="serviceForm" class="mt-4 grid gap-3">
+            <h3 class="border-t border-slate-200 pt-3 font-semibold text-slate-800">Langkah 1: Info layanan</h3>
+            <label class="grid gap-1 text-sm font-medium text-slate-700">Kategori
+              <select name="categoryId" required class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:border-pink-500 focus:outline-none focus:ring-2 focus:ring-pink-200"><option value="">Pilih kategori</option></select>
+            </label>
+            <label class="grid gap-1 text-sm font-medium text-slate-700">Nama layanan
+              <input name="name" required maxlength="120" placeholder="Contoh: Cuci AC" class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:border-pink-500 focus:outline-none focus:ring-2 focus:ring-pink-200" />
+              <span class="text-xs font-normal text-slate-500">Misalnya Paket Foto Wedding atau Perbaikan Atap Bocor.</span>
+              <span class="text-xs font-normal text-slate-500">Nama jasa yang tampil di kartu layanan.</span>
+            </label>
+            <label class="grid gap-1 text-sm font-medium text-slate-700">Ringkasan
+              <input name="summary" required maxlength="300" placeholder="Contoh: Pembersihan AC agar udara di rumah terasa segar." class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:border-pink-500 focus:outline-none focus:ring-2 focus:ring-pink-200" />
+              <span class="text-xs font-normal text-slate-500">Satu kalimat singkat di kartu layanan.</span>
+            </label>
+            <label class="grid gap-1 text-sm font-medium text-slate-700">Deskripsi layanan
+              <textarea name="description" maxlength="3000" placeholder="Contoh: Petugas membersihkan unit AC sesuai paket yang dipilih." class="min-h-24 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:border-pink-500 focus:outline-none focus:ring-2 focus:ring-pink-200"></textarea>
+              <span class="text-xs font-normal text-slate-500">Penjelasan lengkap di halaman detail.</span>
+            </label>
+            <label class="grid gap-1 text-sm font-medium text-slate-700">Gambar layanan
+              <input name="image" type="text" maxlength="800" placeholder="URL HTTPS atau alamat gambar di situs" class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:border-pink-500 focus:outline-none focus:ring-2 focus:ring-pink-200" />
+              <span class="text-xs font-normal text-slate-500">Boleh dikosongkan jika belum ada gambar.</span>
+            </label>
+            <label class="grid gap-1 text-sm font-medium text-slate-700">Batasan layanan
+              <textarea name="disclaimer" maxlength="1500" placeholder="Contoh: Biaya suku cadang tidak termasuk harga paket." class="min-h-20 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:border-pink-500 focus:outline-none focus:ring-2 focus:ring-pink-200"></textarea>
+              <span class="text-xs font-normal text-slate-500">Hal yang tidak ditanggung layanan; tampil sebagai peringatan ke pembeli.</span>
+            </label>
+            <label class="grid gap-1 text-sm font-medium text-slate-700">Catatan harga
+              <input name="pricingNote" maxlength="300" placeholder="Contoh: Harga belum termasuk suku cadang." class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:border-pink-500 focus:outline-none focus:ring-2 focus:ring-pink-200" />
+            </label>
+            <label class="flex items-center gap-2 text-sm"><input name="active" type="checkbox" checked /> Layanan aktif</label>
+            <label class="grid gap-1 text-sm font-medium text-slate-700">Pengaturan jadwal
+              <select name="scheduleMode" class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:border-pink-500 focus:outline-none focus:ring-2 focus:ring-pink-200">
+                <option value="none">Tanpa jadwal</option>
+                <option value="date">Hanya tanggal</option>
+                <option value="datetime">Tanggal dan jam</option>
+                <option value="recurring" selected>Tanggal, jam, dan jadwal rutin</option>
+              </select>
+            </label>
+            <label class="grid gap-1 text-sm font-medium text-slate-700">Judul bagian jadwal
+              <input name="scheduleLabel" maxlength="80" value="Preferensi jadwal" placeholder="Contoh: Tanggal acara" class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:border-pink-500 focus:outline-none focus:ring-2 focus:ring-pink-200" />
+            </label>
+            <label class="flex items-center gap-2 text-sm"><input name="needsParentProfile" type="checkbox" /> Layanan ini perlu data penerima/lokasi tersimpan</label>
+            <label class="grid gap-1 text-sm font-medium text-slate-700">Sebutan penerima
+              <input name="recipientLabel" maxlength="60" value="Penerima layanan" placeholder="Contoh: Lokasi pengerjaan" class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:border-pink-500 focus:outline-none focus:ring-2 focus:ring-pink-200" />
+            </label>
+            <label class="grid gap-1 text-sm font-medium text-slate-700">Teks persetujuan pembeli
+              <textarea name="consentText" maxlength="300" placeholder="Kosongkan untuk teks standar." class="min-h-20 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:border-pink-500 focus:outline-none focus:ring-2 focus:ring-pink-200"></textarea>
+              <span class="text-xs font-normal text-slate-500">Kosongkan untuk teks standar.</span>
+            </label>
+            <h3 class="border-t border-slate-200 pt-3 font-semibold text-slate-800">Langkah 2: Paket, opsi, dan pertanyaan</h3>
+            <fieldset class="grid gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
+              <legend class="px-1 text-sm font-semibold text-slate-700">Cara bayar yang ditawarkan</legend>
+              <p class="text-xs text-slate-500">Full = bayar penuh di awal. DP = bayar sebagian di awal, sisanya menyusul. Tunai = bayar langsung ke petugas.</p>
+              <label class="flex items-center gap-2 text-sm"><input name="paymentOptions" type="checkbox" value="full" checked /> Full</label>
+              <label class="flex items-center gap-2 text-sm"><input name="paymentOptions" type="checkbox" value="dp" /> DP</label>
+              <label class="flex items-center gap-2 text-sm"><input name="paymentOptions" type="checkbox" value="cash" /> Tunai</label>
+              <p data-monthly-payment-note hidden class="text-xs text-slate-500">Paket bulanan hanya menawarkan pembayaran Full.</p>
+            </fieldset>
+            <section class="grid gap-3">
+              <div><h3 class="font-semibold">Paket</h3><p class="text-xs text-slate-500">Tambahkan pilihan paket yang dapat dipesan pembeli.</p></div>
+              <div id="packagesList" class="grid gap-3"></div>
+              <button id="addPackageButton" type="button" class="w-fit rounded-xl border border-pink-200 bg-pink-50 px-4 py-2 text-sm font-semibold text-pink-700 hover:bg-pink-100">+ Tambah paket</button>
+            </section>
+            <section class="grid gap-3">
+              <div><h3 class="font-semibold">Opsi kebutuhan</h3><p class="text-xs text-slate-500">Centang tambahan yang boleh dipilih pembeli, misal antar-jemput barang. Boleh kosong.</p></div>
+              <div id="optionsList" class="grid gap-2"></div>
+              <button id="addOptionButton" type="button" class="w-fit rounded-xl border border-pink-200 bg-pink-50 px-4 py-2 text-sm font-semibold text-pink-700 hover:bg-pink-100">+ Tambah opsi</button>
+            </section>
+            <section class="grid gap-3">
+              <div><h3 class="font-semibold">Pertanyaan tambahan untuk pembeli</h3><p class="text-xs text-slate-500">Data yang perlu diisi pembeli saat memesan, misal 'Apakah ada pantangan makanan?'. Boleh kosong.</p></div>
+              <p class="text-xs text-slate-500">Contoh pertanyaan: Lokasi pengerjaan, Tanggal acara, Jumlah tamu, atau Jenis kerusakan.</p>
+              <div id="questionsList" class="grid gap-3"></div>
+              <button id="addQuestionButton" type="button" class="w-fit rounded-xl border border-pink-200 bg-pink-50 px-4 py-2 text-sm font-semibold text-pink-700 hover:bg-pink-100">+ Tambah pertanyaan</button>
+            </section>
+            <div class="flex flex-wrap gap-2"><button class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white" type="submit">Simpan layanan</button><button class="rounded-xl border px-4 py-2 text-sm" type="reset">Layanan baru</button></div>
+          </form>
+          <div id="servicesList" class="mt-5 space-y-3" aria-live="polite">Memuat layanan…</div>
+        </section>
+      </div>
+    </main>
+  </div>
+  <script type="module">
+    import { escapeHtml, formatRupiah, requireAdmin } from '/admin/admin-firebase.js';
+
+    const status = document.getElementById('pageStatus');
+    const categoriesList = document.getElementById('categoriesList');
+    const servicesList = document.getElementById('servicesList');
+    const categoryForm = document.getElementById('categoryForm');
+    const serviceForm = document.getElementById('serviceForm');
+    const packagesList = document.getElementById('packagesList');
+    const optionsList = document.getElementById('optionsList');
+    const questionsList = document.getElementById('questionsList');
+    let categories = [];
+    let services = [];
+    const dpOption = serviceForm.querySelector('[name="paymentOptions"][value="dp"]');
+    const cashOption = serviceForm.querySelector('[name="paymentOptions"][value="cash"]');
+    const monthlyPaymentNote = serviceForm.querySelector('[data-monthly-payment-note]');
+    const inputClass = 'w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:border-pink-500 focus:outline-none focus:ring-2 focus:ring-pink-200';
+    const selectClass = `${inputClass} pr-8`;
+    const helpClass = 'text-xs font-normal text-slate-500';
+
+    function formatPrice(value) {
+      const digits = String(value ?? '').replace(/\D/g, '');
+      return digits ? Number(digits).toLocaleString('id-ID') : '';
+    }
+
+    function parsePrice(value) {
+      const digits = String(value ?? '').replace(/\D/g, '');
+      return digits ? Number(digits) : 0;
+    }
+
+    function makePackageCard(item = {}) {
+      const card = document.createElement('article');
+      card.className = 'grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4';
+      if (item.id) card.dataset.savedId = item.id;
+      const priceType = ['fixed', 'monthly', 'quote'].includes(item.priceType) ? item.priceType : 'fixed';
+      card.innerHTML = `
+        <div class="flex items-center justify-between gap-2">
+          <h4 class="font-semibold text-slate-800">Paket (pilihan harga)</h4>
+          <button type="button" data-remove-package aria-label="Hapus paket" class="rounded-lg border border-rose-200 bg-white px-3 py-1.5 text-sm font-semibold text-rose-700 hover:bg-rose-50">Hapus paket</button>
+        </div>
+        <label class="grid gap-1 text-sm font-medium text-slate-700">Nama paket
+          <input data-package-name maxlength="120" value="${escapeHtml(item.name || '')}" placeholder="Contoh: Cuci 1 unit" class="${inputClass}">
+        </label>
+        <label class="grid gap-1 text-sm font-medium text-slate-700">Deskripsi singkat
+          <input data-package-description maxlength="500" value="${escapeHtml(item.description || '')}" placeholder="Contoh: Pembersihan satu unit AC" class="${inputClass}">
+          <span class="${helpClass}">Boleh dikosongkan.</span>
+        </label>
+        <label class="grid gap-1 text-sm font-medium text-slate-700">Durasi
+          <input data-package-duration maxlength="80" value="${escapeHtml(item.duration || '')}" placeholder="Contoh: 1 jam" class="${inputClass}">
+        </label>
+        <label class="grid gap-1 text-sm font-medium text-slate-700">Jenis harga
+          <select data-package-type class="${selectClass}">
+            <option value="fixed" ${priceType === 'fixed' ? 'selected' : ''}>Harga tetap</option>
+            <option value="monthly" ${priceType === 'monthly' ? 'selected' : ''}>Langganan bulanan</option>
+            <option value="quote" ${priceType === 'quote' ? 'selected' : ''}>Penawaran (harga ditentukan admin)</option>
+          </select>
+          <span class="${helpClass}"></span>
+        </label>
+        <label data-price-wrap class="grid gap-1 text-sm font-medium text-slate-700">Harga
+          <span class="relative"><span class="absolute left-3 top-2 text-sm text-slate-500">Rp</span><input data-package-price inputmode="numeric" autocomplete="off" value="${priceType === 'quote' ? '' : formatPrice(item.price || 0)}" placeholder="75.000" class="${inputClass} pl-10"></span>
+          <span class="${helpClass}">Masukkan nominal dalam rupiah.</span>
+        </label>
+        <div data-dp-wrap class="grid gap-1">
+          <label class="grid max-w-xs gap-1 text-sm font-medium text-slate-700">Persen DP
+            <input data-package-dp type="number" min="10" max="90" step="1" value="${Number.isSafeInteger(item.dpPercent) ? item.dpPercent : 30}" class="${inputClass}">
+          </label>
+          <p data-dp-summary class="${helpClass}" aria-live="polite"></p>
+        </div>
+        <label class="flex items-center gap-2 text-sm"><input data-package-active type="checkbox" ${item.active === false ? '' : 'checked'}> Paket tampil/aktif</label>`;
+      const typeSelect = card.querySelector('[data-package-type]');
+      const priceInput = card.querySelector('[data-package-price]');
+      const priceWrap = card.querySelector('[data-price-wrap]');
+      const dpWrap = card.querySelector('[data-dp-wrap]');
+      const dpInput = card.querySelector('[data-package-dp]');
+      const dpSummary = card.querySelector('[data-dp-summary]');
+      const priceTypeHelp = typeSelect.nextElementSibling;
+      const updateCard = () => {
+        const monthly = typeSelect.value === 'monthly';
+        priceTypeHelp.textContent = typeSelect.value === 'monthly'
+          ? 'Ditagih tiap bulan untuk langganan.'
+          : typeSelect.value === 'quote'
+            ? 'Harga diisi admin setelah pembeli mengirim permintaan.'
+            : 'Harga sama untuk semua pembeli.';
+        priceWrap.hidden = typeSelect.value === 'quote';
+        dpWrap.hidden = !dpOption.checked || monthly;
+        if (typeSelect.value === 'quote') priceInput.value = '';
+        const total = parsePrice(priceInput.value);
+        const percent = Number(dpInput.value);
+        if (Number.isSafeInteger(total) && total > 0 && Number.isInteger(percent) && percent >= 10 && percent <= 90) {
+          const deposit = Math.round(total * percent / 100);
+          dpSummary.textContent = typeSelect.value === 'quote'
+            ? 'Persentase ini digunakan setelah harga penawaran ditentukan.'
+            : `Bayar di awal ${formatRupiah(deposit)}, sisa ${formatRupiah(total - deposit)}.`;
+        } else {
+          dpSummary.textContent = typeSelect.value === 'quote' ? 'Persentase ini digunakan setelah harga penawaran ditentukan.' : 'Masukkan harga dan persen DP antara 10 sampai 90.';
+        }
+        syncPaymentOptions();
+      };
+      typeSelect.addEventListener('change', updateCard);
+      priceInput.addEventListener('input', () => {
+        const start = priceInput.selectionStart;
+        const previous = priceInput.value;
+        priceInput.value = formatPrice(previous);
+        const delta = priceInput.value.length - previous.length;
+        const position = Math.max(0, Number(start || 0) + delta);
+        priceInput.setSelectionRange(position, position);
+        updateCard();
+      });
+      dpInput.addEventListener('input', updateCard);
+      card.querySelector('[data-remove-package]').addEventListener('click', () => {
+        if (packagesList.children.length <= 1) return;
+        card.remove();
+        updatePackageControls();
+        syncPaymentOptions();
+      });
+      packagesList.append(card);
+      updateCard();
+      updatePackageControls();
+      return card;
+    }
+
+    function updatePackageControls() {
+      packagesList.querySelectorAll('[data-remove-package]').forEach((button) => {
+        button.disabled = packagesList.children.length <= 1;
+        button.classList.toggle('opacity-50', button.disabled);
+        button.title = button.disabled ? 'Layanan harus memiliki minimal satu paket.' : '';
+      });
+    }
+
+    function syncPaymentOptions() {
+      const hasMonthlyPackage = [...packagesList.querySelectorAll('[data-package-type]')].some((select) => select.value === 'monthly');
+      monthlyPaymentNote.hidden = !hasMonthlyPackage;
+      for (const input of [dpOption, cashOption]) {
+        input.disabled = hasMonthlyPackage;
+        if (hasMonthlyPackage) input.checked = false;
+      }
+      const fullOption = serviceForm.querySelector('[name="paymentOptions"][value="full"]');
+      if (hasMonthlyPackage) fullOption.checked = true;
+      packagesList.querySelectorAll('[data-package-type]').forEach((select) => {
+        const card = select.closest('article');
+        card.querySelector('[data-dp-wrap]').hidden = !dpOption.checked || select.value === 'monthly';
+      });
+    }
+
+    function makeOptionRow(item = {}) {
+      const row = document.createElement('div');
+      row.className = 'flex items-center gap-2';
+      if (item.id) row.dataset.savedId = item.id;
+      row.innerHTML = `<label class="min-w-0 flex-1"><span class="sr-only">Opsi kebutuhan</span><input data-option-label maxlength="150" value="${escapeHtml(item.label || '')}" placeholder="Contoh: Mengantar ke tempat tujuan" class="${inputClass}"></label><button type="button" data-remove-row aria-label="Hapus opsi" class="shrink-0 rounded-lg border border-slate-200 bg-white px-3 py-2 text-lg text-slate-600 hover:bg-rose-50 hover:text-rose-700">×</button>`;
+      row.querySelector('[data-remove-row]').addEventListener('click', () => row.remove());
+      optionsList.append(row);
+      return row;
+    }
+
+    function makeQuestionRow(item = {}) {
+      const row = document.createElement('article');
+      row.className = 'grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4';
+      if (item.key) row.dataset.savedKey = item.key;
+      const type = ['text', 'textarea', 'number', 'address', 'date', 'time', 'select'].includes(item.type) ? item.type : 'text';
+      const typeLabels = { text: 'Jawaban singkat', textarea: 'Jawaban panjang', number: 'Angka', address: 'Alamat/lokasi', date: 'Tanggal', time: 'Jam', select: 'Pilihan' };
+      row.innerHTML = `
+        <div class="flex items-center justify-between gap-2"><h4 class="font-semibold text-slate-800">Pertanyaan</h4><button type="button" data-remove-row aria-label="Hapus pertanyaan" class="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-lg text-slate-600 hover:bg-rose-50 hover:text-rose-700">×</button></div>
+        <label class="grid gap-1 text-sm font-medium text-slate-700">Pertanyaan
+          <input data-question-label maxlength="120" value="${escapeHtml(item.label || '')}" placeholder="Contoh: Lokasi pengerjaan" class="${inputClass}">
+        </label>
+        <label class="grid gap-1 text-sm font-medium text-slate-700">Jenis jawaban
+          <select data-question-type class="${selectClass}">${Object.entries(typeLabels).map(([value, label]) => `<option value="${value}" ${type === value ? 'selected' : ''}>${label}</option>`).join('')}</select>
+        </label>
+        <label data-question-options-wrap class="grid gap-1 text-sm font-medium text-slate-700">Pilihan jawaban
+          <input data-question-options maxlength="1000" value="${escapeHtml(Array.isArray(item.options) ? item.options.join(', ') : '')}" placeholder="Contoh: Lantai 1, Lantai 2, Lebih dari 2" class="${inputClass}">
+          <span class="${helpClass}">Pisahkan setiap pilihan dengan koma.</span>
+        </label>
+        <label class="flex items-center gap-2 text-sm"><input data-question-required type="checkbox" ${item.required === true ? 'checked' : ''}> Wajib diisi</label>`;
+      const typeSelect = row.querySelector('[data-question-type]');
+      const optionsWrap = row.querySelector('[data-question-options-wrap]');
+      const updateType = () => { optionsWrap.hidden = typeSelect.value !== 'select'; };
+      typeSelect.addEventListener('change', updateType);
+      updateType();
+      row.querySelector('[data-remove-row]').addEventListener('click', () => row.remove());
+      questionsList.append(row);
+      return row;
+    }
+
+    function resetServiceEditor() {
+      packagesList.innerHTML = '';
+      optionsList.innerHTML = '';
+      questionsList.innerHTML = '';
+      makePackageCard({ name: 'Paket dasar', priceType: 'fixed', price: 75000, dpPercent: 30, active: true });
+      serviceForm.querySelectorAll('[name="paymentOptions"]').forEach((input) => {
+        input.checked = input.value === 'full';
+        input.disabled = false;
+      });
+      monthlyPaymentNote.hidden = true;
+      syncPaymentOptions();
+    }
+
+    function makeSlug(value, fallback) {
+      const slug = String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+      return slug || fallback;
+    }
+
+    function uniqueSlug(value, fallback, used) {
+      const base = makeSlug(value, fallback);
+      let candidate = base;
+      let suffix = 2;
+      while (used.has(candidate)) candidate = `${base}-${suffix++}`;
+      used.add(candidate);
+      return candidate;
+    }
+
+    function makeQuestionKey(value, used) {
+      const words = String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^A-Za-z0-9]+/g, ' ').trim().split(/\s+/).filter(Boolean);
+      let base = words.map((word, index) => index === 0
+        ? word.toLowerCase()
+        : `${word.charAt(0).toUpperCase()}${word.slice(1).toLowerCase()}`).join('');
+      if (!base) base = 'pertanyaan';
+      if (!/^[A-Za-z]/.test(base)) base = `pertanyaan${base}`;
+      const original = base;
+      let suffix = 2;
+      while (used.has(base)) base = `${original}${suffix++}`;
+      used.add(base);
+      return base;
+    }
+
+    function packagesPayload() {
+      const rows = [...packagesList.children];
+      const used = new Set(rows.map((row) => row.dataset.savedId).filter(Boolean));
+      return rows.map((row) => {
+        const name = row.querySelector('[data-package-name]').value.trim();
+        const type = row.querySelector('[data-package-type]').value;
+        const price = type === 'quote' ? 0 : parsePrice(row.querySelector('[data-package-price]').value);
+        return {
+          id: row.dataset.savedId || uniqueSlug(name, 'paket', used),
+          name,
+          description: row.querySelector('[data-package-description]').value.trim(),
+          duration: row.querySelector('[data-package-duration]').value.trim(),
+          priceType: type,
+          price,
+          dpPercent: Number(row.querySelector('[data-package-dp]').value || 30),
+          active: row.querySelector('[data-package-active]').checked
+        };
+      });
+    }
+
+    function optionsPayload() {
+      const rows = [...optionsList.children];
+      const used = new Set(rows.map((row) => row.dataset.savedId).filter(Boolean));
+      return rows.map((row) => ({
+        id: row.dataset.savedId || uniqueSlug(row.querySelector('[data-option-label]').value.trim(), 'opsi', used),
+        label: row.querySelector('[data-option-label]').value.trim()
+      }));
+    }
+
+    const reservedQuestionKeys = new Set([
+      'packageId', 'paymentPlan', 'selectedOptions', 'scheduleDate', 'scheduleTime',
+      'scheduleRecurring', 'scheduleDays', 'buyerName', 'buyerPhone', 'parentId', 'parentConsent'
+    ]);
+
+    function questionsPayload() {
+      const rows = [...questionsList.children];
+      const used = new Set([...reservedQuestionKeys, ...rows.map((row) => row.dataset.savedKey).filter(Boolean)]);
+      return rows.map((row) => {
+        const type = row.querySelector('[data-question-type]').value;
+        return {
+          key: row.dataset.savedKey || makeQuestionKey(row.querySelector('[data-question-label]').value.trim(), used),
+          label: row.querySelector('[data-question-label]').value.trim(),
+          type,
+          required: row.querySelector('[data-question-required]').checked,
+          ...(type === 'select' ? {
+            options: row.querySelector('[data-question-options]').value.split(',').map((choice) => choice.trim()).filter(Boolean)
+          } : {})
+        };
+      });
+    }
+
+    function validateService(name, packages, options, questions, paymentOptions) {
+      if (!name.trim()) return 'Nama layanan wajib diisi.';
+      if (!packages.some((item) => item.active)) return 'Aktifkan minimal satu paket.';
+      if (packages.some((item) => !item.name)) return 'Nama setiap paket wajib diisi.';
+      if (packages.some((item) => item.priceType !== 'quote' && (!Number.isSafeInteger(item.price) || item.price <= 0))) {
+        return 'Harga paket tetap dan bulanan harus lebih dari Rp 0.';
+      }
+      if (packages.some((item) => item.priceType !== 'quote' && item.price > 1000000000)) {
+        return 'Harga paket tidak boleh lebih dari Rp 1.000.000.000.';
+      }
+      if (packages.some((item) => item.dpPercent < 10 || item.dpPercent > 90 || !Number.isInteger(item.dpPercent))) {
+        return 'Persen DP harus berupa bilangan bulat dari 10 sampai 90.';
+      }
+      if (options.some((item) => !item.label)) return 'Label opsi kebutuhan tidak boleh kosong.';
+      if (questions.some((item) => !item.label)) return 'Teks pertanyaan tidak boleh kosong.';
+      if (questions.some((item) => item.type === 'select' && !item.options.length)) return 'Tambahkan minimal satu pilihan jawaban untuk setiap pertanyaan jenis Pilihan.';
+      if (!paymentOptions.length) return 'Pilih minimal satu cara bayar.';
+      return '';
+    }
+
+    serviceForm.querySelectorAll('[name="paymentOptions"]').forEach((input) => input.addEventListener('change', () => {
+      const selected = [...serviceForm.querySelectorAll('[name="paymentOptions"]:checked')];
+      if (!selected.length) input.checked = true;
+      packagesList.querySelectorAll('[data-package-type]').forEach((select) => {
+        const card = select.closest('article');
+        card.querySelector('[data-dp-wrap]').hidden = !dpOption.checked || select.value === 'monthly';
+      });
+    }));
+
+    document.getElementById('addPackageButton').addEventListener('click', () => makePackageCard({ priceType: 'fixed', dpPercent: 30, active: true }));
+    document.getElementById('addOptionButton').addEventListener('click', () => makeOptionRow());
+    document.getElementById('addQuestionButton').addEventListener('click', () => makeQuestionRow());
+    resetServiceEditor();
+
+    async function request(action, method = 'POST', payload = {}) {
+      const response = await fetch(`/api/admin/${action}`, {
+        method,
+        credentials: 'same-origin',
+        headers: method === 'POST' ? { 'Content-Type': 'application/json' } : {},
+        ...(method === 'POST' ? { body: JSON.stringify(payload) } : {})
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) throw new Error(result.message || 'Permintaan admin gagal.');
+      return result;
+    }
+
+    function showError(error) {
+      console.error('[jasa admin]', error);
+      status.textContent = error.message || 'Terjadi kesalahan. Coba lagi.';
+    }
+
+    function render() {
+      const categorySelect = serviceForm.elements.categoryId;
+      const selectedCategory = categorySelect.value;
+      categorySelect.innerHTML = '<option value="">Pilih kategori</option>' + categories.map((item) =>
+        `<option value="${escapeHtml(item.id)}">${escapeHtml(item.name)}${item.active === false ? ' (nonaktif)' : ''}</option>`
+      ).join('');
+      if (categories.some((item) => item.id === selectedCategory)) categorySelect.value = selectedCategory;
+
+      categoriesList.innerHTML = categories.length ? categories.map((item) => `
+        <article class="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 p-3">
+          <div><strong>${escapeHtml(item.name)}</strong><p class="text-xs text-slate-500">${escapeHtml(item.slug)} · ${item.active === false ? 'Nonaktif' : 'Aktif'}</p></div>
+          <div class="flex gap-2"><button type="button" data-edit-category="${escapeHtml(item.id)}" class="rounded-lg border px-3 py-1.5 text-xs">Edit</button><button type="button" data-toggle-category="${escapeHtml(item.id)}" data-next="${item.active === false}" class="rounded-lg border px-3 py-1.5 text-xs">${item.active === false ? 'Aktifkan' : 'Nonaktifkan'}</button></div>
+        </article>`).join('') : '<p class="text-sm text-slate-500">Belum ada kategori. Gunakan Isi contoh data untuk memulai.</p>';
+
+      servicesList.innerHTML = services.length ? services.map((item) => `
+        <article class="rounded-xl border border-slate-200 p-3">
+          <div class="flex flex-wrap items-start justify-between gap-2"><div><strong>${escapeHtml(item.name)}</strong><p class="text-xs text-slate-500">${escapeHtml(categories.find((category) => category.id === item.categoryId)?.name || 'Kategori tidak tersedia')} · ${item.active === false ? 'Nonaktif' : 'Aktif'}</p></div>
+            <div class="flex gap-2"><button type="button" data-edit-service="${escapeHtml(item.id)}" class="rounded-lg border px-3 py-1.5 text-xs">Edit</button><button type="button" data-duplicate-service="${escapeHtml(item.id)}" class="rounded-lg border px-3 py-1.5 text-xs">Duplikat</button><button type="button" data-toggle-service="${escapeHtml(item.id)}" data-next="${item.active === false}" class="rounded-lg border px-3 py-1.5 text-xs">${item.active === false ? 'Aktifkan' : 'Nonaktifkan'}</button><button type="button" data-delete-service="${escapeHtml(item.id)}" class="rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs text-rose-700">Hapus</button></div></div>
+          <p class="mt-2 text-sm">${escapeHtml(item.summary || '')}</p>
+          <p class="mt-2 text-xs text-slate-500">${(item.packages || []).map((pkg) => `${escapeHtml(pkg.name)}: ${pkg.priceType === 'quote' ? 'Penawaran' : formatRupiah(pkg.price)}`).join(' · ')}</p>
+        </article>`).join('') : '<p class="text-sm text-slate-500">Belum ada layanan. Tambahkan melalui form di atas.</p>';
+
+      categoriesList.querySelectorAll('[data-edit-category]').forEach((button) => button.addEventListener('click', () => {
+        const item = categories.find((category) => category.id === button.dataset.editCategory);
+        if (!item) return;
+        categoryForm.dataset.id = item.id;
+        ['name', 'slug', 'icon', 'tagline', 'description', 'order'].forEach((key) => { categoryForm.elements[key].value = item[key] ?? ''; });
+        categoryForm.elements.active.checked = item.active !== false;
+        categoryForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }));
+      categoriesList.querySelectorAll('[data-toggle-category]').forEach((button) => button.addEventListener('click', () => toggleActive('category', button.dataset.toggleCategory, button.dataset.next === 'true')));
+      servicesList.querySelectorAll('[data-edit-service]').forEach((button) => button.addEventListener('click', () => {
+        const item = services.find((service) => service.id === button.dataset.editService);
+        if (!item) return;
+        serviceForm.dataset.id = item.id;
+        ['categoryId', 'name', 'summary', 'description', 'image', 'disclaimer', 'pricingNote'].forEach((key) => { serviceForm.elements[key].value = item[key] ?? ''; });
+        serviceForm.elements.scheduleMode.value = ['none', 'date', 'datetime', 'recurring'].includes(item.scheduleMode) ? item.scheduleMode : 'recurring';
+        serviceForm.elements.scheduleLabel.value = item.scheduleLabel || 'Preferensi jadwal';
+        serviceForm.elements.recipientLabel.value = item.recipientLabel || 'Penerima layanan';
+        serviceForm.elements.consentText.value = item.consentText || '';
+        serviceForm.elements.active.checked = item.active !== false;
+        serviceForm.elements.needsParentProfile.checked = item.needsParentProfile === true;
+        const paymentOptions = Array.isArray(item.paymentOptions) ? item.paymentOptions : ['full'];
+        serviceForm.querySelectorAll('[name="paymentOptions"]').forEach((input) => { input.checked = paymentOptions.includes(input.value); });
+        packagesList.innerHTML = '';
+        optionsList.innerHTML = '';
+        questionsList.innerHTML = '';
+        (Array.isArray(item.packages) && item.packages.length ? item.packages : [{ name: '', priceType: 'fixed', price: 75000, dpPercent: 30, active: true }])
+          .forEach((pkg) => makePackageCard({ dpPercent: 30, ...pkg }));
+        (Array.isArray(item.options) ? item.options : []).forEach(makeOptionRow);
+        (Array.isArray(item.formFields) ? item.formFields : []).forEach(makeQuestionRow);
+        syncPaymentOptions();
+        serviceForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }));
+      servicesList.querySelectorAll('[data-duplicate-service]').forEach((button) => button.addEventListener('click', () => {
+        const item = services.find((service) => service.id === button.dataset.duplicateService);
+        if (!item) return;
+        delete serviceForm.dataset.id;
+        ['categoryId', 'name', 'summary', 'description', 'image', 'disclaimer', 'pricingNote'].forEach((key) => { serviceForm.elements[key].value = item[key] ?? ''; });
+        serviceForm.elements.name.value = `${item.name || 'Layanan'} (salinan)`.slice(0, 120);
+        serviceForm.elements.scheduleMode.value = ['none', 'date', 'datetime', 'recurring'].includes(item.scheduleMode) ? item.scheduleMode : 'recurring';
+        serviceForm.elements.scheduleLabel.value = item.scheduleLabel || 'Preferensi jadwal';
+        serviceForm.elements.recipientLabel.value = item.recipientLabel || 'Penerima layanan';
+        serviceForm.elements.consentText.value = item.consentText || '';
+        serviceForm.elements.active.checked = item.active !== false;
+        serviceForm.elements.needsParentProfile.checked = item.needsParentProfile === true;
+        const paymentOptions = Array.isArray(item.paymentOptions) ? item.paymentOptions : ['full'];
+        serviceForm.querySelectorAll('[name="paymentOptions"]').forEach((input) => { input.checked = paymentOptions.includes(input.value); });
+        packagesList.innerHTML = '';
+        optionsList.innerHTML = '';
+        questionsList.innerHTML = '';
+        const duplicateToken = Date.now().toString(36);
+        (Array.isArray(item.packages) && item.packages.length ? item.packages : [{ name: '', priceType: 'fixed', price: 75000, dpPercent: 30, active: true }])
+          .forEach((pkg, index) => makePackageCard({ dpPercent: 30, ...pkg, id: `salinan-${duplicateToken}-${index + 1}` }));
+        (Array.isArray(item.options) ? item.options : []).forEach((option, index) => makeOptionRow({ ...option, id: `salinan-${duplicateToken}-${index + 1}` }));
+        (Array.isArray(item.formFields) ? item.formFields : []).forEach((field, index) => makeQuestionRow({ ...field, key: `salinan${duplicateToken}${index + 1}` }));
+        syncPaymentOptions();
+        serviceForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }));
+      servicesList.querySelectorAll('[data-toggle-service]').forEach((button) => button.addEventListener('click', () => toggleActive('service', button.dataset.toggleService, button.dataset.next === 'true')));
+      servicesList.querySelectorAll('[data-delete-service]').forEach((button) => button.addEventListener('click', async () => {
+        if (!confirm('Hapus layanan ini? Pesanan sebelumnya tetap menyimpan snapshot layanan.')) return;
+        button.disabled = true;
+        try { await request('jasa-delete-service', 'POST', { id: button.dataset.deleteService }); await load(); status.textContent = 'Layanan dihapus.'; }
+        catch (error) { showError(error); button.disabled = false; }
+      }));
+    }
+
+    async function load() {
+      const result = await request('jasa-get-catalog', 'GET');
+      categories = result.categories || [];
+      services = result.services || [];
+      render();
+    }
+
+    async function toggleActive(type, id, active) {
+      try { await request('jasa-toggle-active', 'POST', { type, id, active }); await load(); status.textContent = 'Status berhasil diperbarui.'; }
+      catch (error) { showError(error); }
+    }
+
+    categoryForm.addEventListener('reset', () => { delete categoryForm.dataset.id; });
+    categoryForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const form = event.currentTarget;
+      const payload = Object.fromEntries(new FormData(form));
+      payload.id = form.dataset.id || '';
+      payload.active = form.elements.active.checked;
+      payload.order = Number(form.elements.order.value || 0);
+      try {
+        await request('jasa-save-category', 'POST', payload);
+        form.reset();
+        await load();
+        status.textContent = 'Kategori berhasil disimpan.';
+      } catch (error) { showError(error); }
+    });
+
+    serviceForm.addEventListener('reset', () => {
+      delete serviceForm.dataset.id;
+      setTimeout(resetServiceEditor);
+    });
+    serviceForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const form = event.currentTarget;
+      status.textContent = '';
+      try {
+        const payload = Object.fromEntries(new FormData(form));
+        payload.id = form.dataset.id || '';
+        payload.active = form.elements.active.checked;
+        payload.needsParentProfile = form.elements.needsParentProfile.checked;
+        payload.paymentOptions = [...form.querySelectorAll('[name="paymentOptions"]:checked')].map((input) => input.value);
+        payload.packages = packagesPayload();
+        payload.options = optionsPayload();
+        payload.formFields = questionsPayload();
+        const validationMessage = validateService(payload.name, payload.packages, payload.options, payload.formFields, payload.paymentOptions);
+        if (validationMessage) {
+          status.textContent = validationMessage;
+          return;
+        }
+        await request('jasa-save-service', 'POST', payload);
+        form.reset();
+        await load();
+        status.textContent = 'Layanan berhasil disimpan.';
+      } catch (error) { showError(error); }
+    });
+
+    document.getElementById('seedButton').addEventListener('click', async (event) => {
+      const button = event.currentTarget;
+      button.disabled = true;
+      try {
+        const result = await request('jasa-seed');
+        await load();
+        status.textContent = result.message;
+      } catch (error) { showError(error); }
+      finally { button.disabled = false; }
+    });
+
+    try { await requireAdmin(); await load(); }
+    catch (error) { showError(new Error('Data jasa gagal dimuat. Silakan coba lagi.')); }
+  </script>
+</body>
+</html>
