@@ -4,12 +4,30 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
 <title>Gamon Space | Solusi untuk Setiap Babak Kehidupan</title>
-<meta name="description" content="Gamon Space: ekosistem layanan, teknologi, dan produk yang membantu manusia menjalani, menjaga, dan melanjutkan kehidupan bersama orang-orang yang berarti."/>
+<meta name="description" content="Gamon Space adalah ekosistem layanan, teknologi, dan produk untuk setiap babak kehidupan, dikembangkan dan berbasis di Banjarmasin, Kalimantan Selatan."/>
 <meta property="og:title" content="Gamon Space | Beyond Relationships. Into Life."/>
-<meta property="og:description" content="Solusi nyata untuk setiap babak kehidupan, dari hubungan sampai melanjutkan hidup."/>
+<meta property="og:description" content="Solusi nyata untuk setiap babak kehidupan, dikembangkan dan berbasis di Banjarmasin, Kalimantan Selatan."/>
 <meta property="og:type" content="website"/>
 <meta property="og:locale" content="id_ID"/>
 <meta property="og:image" content="https://gamon-space.vercel.app/image/logo/gamonspace.png"/>
+<meta name="geo.region" content="ID-KS"/>
+<meta name="geo.placename" content="Banjarmasin, Kalimantan Selatan"/>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  "name": "Gamon Space",
+  "url": "https://gamon-space.vercel.app",
+  "logo": "https://gamon-space.vercel.app/image/logo/gamonspace.png",
+  "areaServed": { "@type": "City", "name": "Banjarmasin" },
+  "address": {
+    "@type": "PostalAddress",
+    "addressLocality": "Banjarmasin",
+    "addressRegion": "Kalimantan Selatan",
+    "addressCountry": "ID"
+  }
+}
+</script>
 <link rel="icon" type="image/svg+xml" href="image/logo/gamonspace.svg"/>
 <link rel="icon" type="image/png" href="image/logo/gamonspace.png"/>
 <link rel="apple-touch-icon" href="image/logo/gamonspace.png"/>
@@ -58,6 +76,8 @@ a{color:inherit}
 .hero h1 .hl{display:inline-block;background:var(--coral);padding:0 .18em;border:2px solid var(--ink);border-radius:14px;box-shadow:5px 5px 0 var(--ink);transform:rotate(-1.5deg);margin-top:8px}
 .tagline{margin-top:20px;font:800 clamp(1.1rem,2.6vw,1.45rem) var(--f-d);letter-spacing:-.01em}
 .lead{margin-top:14px;max-width:56ch;font-size:1.08rem;color:var(--mute)}
+.hero-pills{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px}
+.pill{display:inline-flex;align-items:center;padding:5px 10px;border:2px solid var(--ink);border-radius:999px;background:var(--white);box-shadow:2px 2px 0 var(--ink);font-size:.78rem;font-weight:600;line-height:1.35}
 .cta{display:flex;flex-wrap:wrap;gap:14px;margin-top:30px}
 .sticker{justify-self:center;width:min(300px,70%);padding:30px;border:2px solid var(--ink);border-radius:28px;background:var(--white);box-shadow:8px 8px 0 var(--ink);transform:rotate(2.5deg)}
 .sticker img{display:block;width:100%;height:auto;animation:beat 2.4s ease-in-out infinite}
@@ -75,6 +95,7 @@ a{color:inherit}
 .head.center .eyebrow{margin-bottom:14px}
 
 .values{display:grid;grid-template-columns:repeat(3,1fr);gap:22px}
+.values.location-values{grid-template-columns:repeat(2,minmax(0,1fr))}
 .card{padding:28px;border:2px solid var(--ink);border-radius:20px;background:var(--white);box-shadow:6px 6px 0 var(--ink)}
 .card h3{font-size:1.4rem;margin-bottom:8px}
 .card p{color:var(--mute)}
@@ -164,6 +185,7 @@ footer{padding:28px 0 calc(40px + env(safe-area-inset-bottom,0px));border-top:2p
 @media(max-width:900px){
  .nav-actions{display:none}
  .hero,.feature,.tools,.values,.vm,.about-grid{grid-template-columns:1fr}
+ .values.location-values{grid-template-columns:1fr}
  
  .hero{padding:36px 0 56px;gap:34px}
  .sticker{order:-1;width:150px;padding:18px;border-radius:20px;box-shadow:5px 5px 0 var(--ink);justify-self:start}
@@ -191,6 +213,7 @@ footer{padding:28px 0 calc(40px + env(safe-area-inset-bottom,0px));border-top:2p
       <a href="#produk">Produk</a>
       <a href="#foto-ldr">Foto LDR</a>
       <a href="#marketplace">Marketplace Mantan</a>
+      <a href="#lokasi">Lokasi</a>
     </nav>
 
     <div class="header-actions-wrap">
@@ -204,6 +227,7 @@ footer{padding:28px 0 calc(40px + env(safe-area-inset-bottom,0px));border-top:2p
           <a href="#produk">Produk</a>
           <a href="#foto-ldr">Foto LDR</a>
           <a href="#marketplace">Marketplace Mantan</a>
+          <a href="#lokasi">Lokasi</a>
         </nav>
         <div class="mobile-menu-actions">
           <a class="btn sun" href="foto-ldr.html">Coba Foto LDR</a>
@@ -222,10 +246,15 @@ footer{padding:28px 0 calc(40px + env(safe-area-inset-bottom,0px));border-top:2p
 <main>
   <section class="wrap hero">
     <div>
-      <span class="eyebrow">Solusi untuk setiap babak kehidupan</span>
+      <span class="eyebrow">Banjarmasin, Kalimantan Selatan</span>
       <h1>Gamon<br/><span class="hl">Space</span></h1>
       <p class="tagline">Beyond Relationships. Into Life.</p>
-      <p class="lead">Gamon Space adalah ekosistem layanan, teknologi, dan produk yang membantu manusia menjalani, menjaga, dan melanjutkan kehidupan bersama orang-orang yang berarti. Dari hubungan yang dekat, yang berjauhan, sampai memulai lagi setelah perpisahan.</p>
+      <p class="lead">Gamon Space adalah ekosistem layanan, teknologi, dan produk yang membantu manusia menjalani, menjaga, dan melanjutkan kehidupan bersama orang-orang yang berarti. Dari hubungan yang dekat, yang berjauhan, sampai memulai lagi setelah perpisahan. Gamon Space dikembangkan di Banjarmasin.</p>
+      <div class="hero-pills" aria-label="Informasi layanan">
+        <span class="pill">Banjarmasin, Kalsel</span>
+        <span class="pill">Marketplace gratis ongkir area Banjarmasin</span>
+        <span class="pill">Pembayaran QRIS/DOKU</span>
+      </div>
       <div class="cta">
         <a class="btn" href="foto-ldr.html">Foto LDR</a>
         <a class="btn sun" href="user/marketplace/index.html">Marketplace Mantan</a>
@@ -324,6 +353,29 @@ footer{padding:28px 0 calc(40px + env(safe-area-inset-bottom,0px));border-top:2p
     </div>
   </section>
 
+  <section id="lokasi" class="band white">
+    <div class="wrap">
+      <div class="head">
+        <div>
+          <span class="eyebrow">Lokasi Gamon Space</span>
+          <h2>Berbasis di Banjarmasin</h2>
+        </div>
+      </div>
+      <div class="values location-values">
+        <div class="card">
+          <span class="material-symbols-outlined icon" aria-hidden="true">location_on</span>
+          <h3>Dari Banjarmasin</h3>
+          <p>Gamon Space dikembangkan dan dijalankan dari Banjarmasin, Kalimantan Selatan. Saat ini masih dijalankan dari rumah dan belum memiliki toko fisik.</p>
+        </div>
+        <div class="card">
+          <span class="material-symbols-outlined icon" aria-hidden="true">public</span>
+          <h3>Layanan lokal</h3>
+          <p>Gamon Jasa melayani Banjarmasin dan sekitarnya, termasuk Banjarbaru dan Martapura. Marketplace Mantan melayani pembeli dan penjual di area Banjarmasin dengan gratis ongkir. Foto LDR dan AI Curhat bisa diakses dari mana saja.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <section id="foto-ldr" class="band white">
     <div class="wrap feature">
       <div>
@@ -380,7 +432,7 @@ footer{padding:28px 0 calc(40px + env(safe-area-inset-bottom,0px));border-top:2p
           <span class="eyebrow">Di balik Gamon Space</span>
           <h2>Dibuat sendiri, dari yang serba gratis</h2>
         </div>
-        <p>Gamon Space dikembangkan tanpa modal besar. Begini cara kerjanya.</p>
+        <p>Gamon Space dikembangkan tanpa modal besar, dari Banjarmasin, Kalimantan Selatan. Begini cara kerjanya.</p>
       </div>
       <div class="about-grid">
         <div class="maker">
@@ -424,7 +476,7 @@ footer{padding:28px 0 calc(40px + env(safe-area-inset-bottom,0px));border-top:2p
 
 <footer>
   <div class="wrap foot">
-    <div class="footer-brand"><img src="image/logo/gamonspace-transparan.png" alt="Gamon Space" width="34" height="34"/><span>© 2026 Gamon Space</span></div>
+    <div class="footer-brand"><img src="image/logo/gamonspace-transparan.png" alt="Gamon Space" width="34" height="34"/><span>© 2026 Gamon Space · Banjarmasin, Kalimantan Selatan</span></div>
     <div>Beyond Relationships. Into Life.</div>
   </div>
 </footer>

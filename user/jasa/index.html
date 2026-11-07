@@ -3,8 +3,27 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <meta name="description" content="Gamon Jasa (Beta): pesan berbagai jasa dengan harga dan proses yang jelas." />
-  <title>Jelajahi jasa | Gamon Jasa (Beta)</title>
+  <meta name="description" content="Gamon Jasa (Beta): pesan berbagai jasa dengan harga dan proses yang jelas di Banjarmasin dan sekitarnya (Banjarbaru, Martapura, Kabupaten Banjar)." />
+  <meta property="og:description" content="Gamon Jasa melayani Banjarmasin dan sekitarnya: Banjarbaru, Martapura, dan Kabupaten Banjar." />
+  <title>Gamon Jasa (Beta) | Banjarmasin dan Sekitarnya</title>
+  <meta name="geo.region" content="ID-KS" />
+  <meta name="geo.placename" content="Banjarmasin, Kalimantan Selatan" />
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Service",
+    "name": "Gamon Jasa",
+    "areaServed": [
+      { "@type": "City", "name": "Banjarmasin" },
+      { "@type": "City", "name": "Banjarbaru" },
+      { "@type": "AdministrativeArea", "name": "Kabupaten Banjar" }
+    ],
+    "provider": {
+      "@type": "Organization",
+      "name": "Gamon Space"
+    }
+  }
+  </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
@@ -29,13 +48,14 @@
     </div>
   </header>
   <main class="container user-layout" style="padding:28px 0 56px">
+    <p class="panel muted">Gamon Jasa melayani Banjarmasin dan sekitarnya: Banjarbaru, Martapura, dan Kabupaten Banjar. Untuk area lain, tanyakan dulu ke admin.</p>
     <p class="jasa-status" data-jasa-status role="status" aria-live="polite" hidden></p>
     <div data-jasa-content aria-live="polite">
       <section class="panel"><p>Memuat layanan yang tersedia…</p></section>
     </div>
   </main>
   <footer class="container" style="padding:0 0 28px">
-    <p class="muted">Gamon Jasa (Beta): pesan berbagai jasa dengan harga dan proses yang jelas.</p>
+    <p class="muted">Gamon Jasa (Beta) · Berbasis di Banjarmasin, Kalimantan Selatan</p>
   </footer>
   <script type="module" src="../marketplace/assets/app.js"></script>
 </body>
