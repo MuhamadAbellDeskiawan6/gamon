@@ -1356,6 +1356,16 @@ function jasaAdminImage(value) {
     throw jasaAdminError(400, 'invalid-image', 'Gambar harus memakai URL HTTPS atau path relatif situs.');
 }
 
+function jasaAdminImageData(value) {
+    if (value === undefined) return '';
+    if (typeof value !== 'string' || value.length > 250000) {
+        throw jasaAdminError(400, 'invalid-image-data', 'Data gambar tidak valid atau terlalu besar.');
+    }
+    const match = value.match(/^data:image\/(jpeg|png|webp);base64,([A-Za-z0-9+/]+={0,2})$/);
+    if (!match) throw jasaAdminError(400, 'invalid-image-data', 'Format data gambar tidak valid.');
+    return value;
+}
+
 function jasaAdminCategoryData(body) {
     if (body.active !== undefined && typeof body.active !== 'boolean') throw jasaAdminError(400, 'invalid-active', 'Status kategori harus berupa boolean.');
     const name = jasaAdminText(body.name, 100, 'Nama kategori', true);
@@ -1554,16 +1564,27 @@ async function jasaAdminAction(req, res, action) {
         }
         if (action === 'jasa-save-service') {
             const data = jasaAdminServiceData(body);
+            const imageData = jasaAdminImageData(body.imageData);
             const category = await db.collection('jasa_categories').doc(data.categoryId).get();
             if (!category.exists) throw jasaAdminError(400, 'category-not-found', 'Kategori jasa tidak ditemukan.');
             const id = body.id ? jasaAdminId(body.id, 'ID layanan') : undefined;
             const ref = id ? db.collection('jasa_services').doc(id) : db.collection('jasa_services').doc();
+            const imageRef = db.collection('jasa_service_images').doc(ref.id);
+            const previousService = id ? await ref.get() : null;
+            const keepsExistingImage = Boolean(data.image && data.image === previousService?.data()?.image);
+            if (imageData) {
+                const updatedAt = Date.now();
+                await imageRef.set({ data: imageData, updatedAt });
+                data.image = `/api/marketplace?action=jasa-image&id=${ref.id}&v=${updatedAt}`;
+            }
             await ref.set({ ...data, ...(!id ? { createdAt: Date.now() } : {}) }, { merge: true });
+            if (!imageData && !keepsExistingImage) await imageRef.delete();
             return res.status(200).json({ success: true, id: ref.id, message: 'Layanan jasa berhasil disimpan.' });
         }
         if (action === 'jasa-delete-service') {
             const id = jasaAdminId(body.id, 'ID layanan');
             await db.collection('jasa_services').doc(id).delete();
+            await db.collection('jasa_service_images').doc(id).delete();
             return res.status(200).json({ success: true, message: 'Layanan berhasil dihapus.' });
         }
         if (action === 'jasa-toggle-active') {

@@ -1850,6 +1850,12 @@ function jasaValidPhone(value) {
 
 function jasaCleanParents(input, existingParents = []) {
   if (!Array.isArray(input) || input.length > 5) throw jasaFailure(400, 'invalid-parent-profiles', 'Simpan maksimal 5 data penerima layanan.');
+  if (input.some((item) => item?.isSelf !== undefined && typeof item.isSelf !== 'boolean')) {
+    throw jasaFailure(400, 'invalid-parent-profile', 'Penanda diri sendiri harus berupa boolean.');
+  }
+  if (input.filter((item) => item?.isSelf === true).length > 1) {
+    throw jasaFailure(400, 'duplicate-self-profile', 'Simpan maksimal satu data diri sendiri.');
+  }
   const ids = new Set();
   const existingById = new Map((Array.isArray(existingParents) ? existingParents : [])
     .filter((item) => item && typeof item === 'object' && item.id)
@@ -1857,6 +1863,7 @@ function jasaCleanParents(input, existingParents = []) {
   return input.map((item, index) => {
     if (!item || typeof item !== 'object' || Array.isArray(item)) throw jasaFailure(400, 'invalid-parent-profile', `Data penerima layanan nomor ${index + 1} tidak valid.`);
     const id = jasaValidateId(item.id, 'ID data penerima');
+    const isSelf = item.isSelf === true;
     if (ids.has(id)) throw jasaFailure(400, 'duplicate-parent-id', 'ID data penerima harus unik.');
     ids.add(id);
     const name = cleanText(item.name, 120);
@@ -1907,6 +1914,7 @@ function jasaCleanParents(input, existingParents = []) {
     if (isLegacyUnchanged) {
       return {
         id, name, address,
+        isSelf,
         province: cleanText(item.province, 100),
         city, district, village, postalCode,
         latitude: latitudeText ? (Number.isFinite(latitude) ? latitude : cleanText(item.latitude, 30)) : null,
@@ -1925,7 +1933,7 @@ function jasaCleanParents(input, existingParents = []) {
       throw jasaFailure(400, 'invalid-parent-profile', `Titik peta ${parentLabel} harus berada di wilayah Kalimantan Selatan.`);
     }
     const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
-    return { id, name, address, province: 'Kalimantan Selatan', city, district, village, postalCode, latitude, longitude, mapsUrl, emergencyContactName, emergencyContactPhone, notes };
+    return { id, name, address, isSelf, province: 'Kalimantan Selatan', city, district, village, postalCode, latitude, longitude, mapsUrl, emergencyContactName, emergencyContactPhone, notes };
   });
 }
 
@@ -2037,6 +2045,7 @@ async function jasaCheckout(req, res, claims) {
     parent = {
       id: jasaValidateId(parentEntry.id, 'ID data penerima'),
       name: cleanText(parentEntry.name, 120),
+      isSelf: parentEntry.isSelf === true,
       address: cleanText(parentEntry.address, 500),
       province: cleanText(parentEntry.province, 100),
       city: cleanText(parentEntry.city, 120),
@@ -2065,6 +2074,7 @@ async function jasaCheckout(req, res, claims) {
     buyerPhone,
     serviceId,
     serviceName: cleanText(service.name, 120),
+    serviceImage: jasaImageUrl(service.image),
     categoryId: cleanText(service.categoryId, 120),
     scheduleMode,
     scheduleLabel: cleanText(service.scheduleLabel, 80) || 'Preferensi jadwal',
@@ -2463,6 +2473,29 @@ export default async function handler(req, res) {
   }
   if (req.method === 'GET' && action === 'reset-password') {
     return showResetPage(req, res);
+  }
+
+  if (action === 'jasa-image') {
+    if (req.method !== 'GET') return responseError(res, 405, 'method-not-allowed', 'Method not allowed.');
+    try {
+      const id = jasaValidateId(req.query?.id, 'Layanan');
+      const snapshot = await withFirestoreTimeout(
+        () => getAdminDb().collection('jasa_service_images').doc(id).get(),
+        'memuat gambar jasa'
+      );
+      if (!snapshot.exists) return responseError(res, 404, 'image-not-found', 'Gambar layanan tidak ditemukan.');
+      const dataUrl = snapshot.data()?.data;
+      const match = typeof dataUrl === 'string'
+        ? dataUrl.match(/^data:image\/(jpeg|png|webp);base64,([A-Za-z0-9+/]+={0,2})$/)
+        : null;
+      if (!match) return responseError(res, 404, 'image-not-found', 'Gambar layanan tidak ditemukan.');
+      res.setHeader('Content-Type', `image/${match[1]}`);
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+      return res.status(200).end(Buffer.from(match[2], 'base64'));
+    } catch (error) {
+      console.error('[jasa] gambar layanan gagal dimuat:', { code: error.code || 'unknown', message: error.message });
+      return responseError(res, error.statusCode || 500, error.code || 'jasa-image-failed', error.message || 'Gambar layanan gagal dimuat.');
+    }
   }
 
   if (action === 'jasa-public-catalog' && (req.method === 'GET' || req.method === 'POST')) {

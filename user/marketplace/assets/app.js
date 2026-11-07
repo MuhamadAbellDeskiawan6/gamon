@@ -5418,6 +5418,7 @@ async function init() {
           clearCurrentUser();
         }
         hydrateUserProfileUI();
+        window.dispatchEvent(new Event('jasa-user-synced'));
       } catch (error) {
         console.error('[jasa] gagal menyinkronkan sesi:', error);
       }
@@ -5662,10 +5663,13 @@ async function initJasaPage(page) {
     status.hidden = !message;
   };
   const nav = document.querySelector('[data-jasa-nav], .nav-actions');
-  const renderNav = (user) => {
+  const renderNav = (user, profileOverride = null) => {
     if (!nav) return;
     if (user?.emailVerified) {
-      nav.innerHTML = `<span class="muted">${escapeHtml(user.displayName || user.email || 'Akun')}</span><a class="btn btn-secondary" href="dashboard.html">Beranda akun</a><a class="btn btn-secondary" href="pesanan.html">Pesanan saya</a><a class="btn btn-secondary" href="profil.html">Profil penerima</a><button class="btn btn-primary" type="button" data-jasa-logout>Keluar</button>`;
+      const profile = profileOverride || currentUser() || {};
+      const name = profile.name || user.displayName || user.email || 'Akun';
+      const avatar = profile.photoThumbUrl || getUserPhotoUrl(profile);
+      nav.innerHTML = `<a class="btn btn-secondary" href="akun.html" style="display:inline-flex;align-items:center;gap:8px"><span aria-hidden="true" style="position:relative;display:inline-flex;width:28px;height:28px;align-items:center;justify-content:center;border-radius:50%;background:#fce7f3;overflow:hidden">${escapeHtml(name.charAt(0).toUpperCase())}${avatar ? `<img src="${escapeHtml(avatar)}" alt="" onerror="this.hidden=true" style="position:absolute;inset:0;width:28px;height:28px;border-radius:50%;object-fit:cover">` : ''}</span><span>${escapeHtml(name)}</span></a><a class="btn btn-secondary" href="dashboard.html">Beranda akun</a><a class="btn btn-secondary" href="pesanan.html">Pesanan saya</a><a class="btn btn-secondary" href="profil.html">Penerima layanan</a><button class="btn btn-primary" type="button" data-jasa-logout>Keluar</button>`;
     } else {
       nav.innerHTML = `<a class="btn btn-secondary" href="index.html">Semua jasa</a><a class="btn btn-primary" data-jasa-return href="masuk.html">Masuk</a><a class="btn btn-secondary" data-jasa-return href="daftar.html">Daftar</a>`;
     }
@@ -5677,6 +5681,7 @@ async function initJasaPage(page) {
   };
   renderNav(auth.currentUser);
   onAuthStateChanged(auth, renderNav, () => renderNav(null));
+  window.addEventListener('jasa-user-synced', () => renderNav(auth.currentUser));
   document.querySelectorAll('[data-jasa-logout]').forEach((button) => {
     button.addEventListener('click', async (event) => {
       event.preventDefault();
@@ -5732,7 +5737,7 @@ async function initJasaPage(page) {
             const prices = (service.packages || []).filter((item) => item.priceType !== 'quote' && Number(item.price) > 0).map((item) => Number(item.price));
             const priceLine = prices.length ? `Mulai ${jasaFormatRupiah(Math.min(...prices))}` : 'Harga melalui penawaran';
             return `<article class="commerce-panel" data-jasa-category-card="${escapeHtml(service.categoryId || '')}">
-              ${service.image ? `<img src="${escapeHtml(service.image)}" alt="" loading="lazy" style="width:100%;max-height:200px;object-fit:cover;border-radius:12px">` : ''}
+              ${service.image ? `<img src="${escapeHtml(service.image)}" alt="" loading="lazy" onerror="this.hidden=true" style="width:100%;max-height:200px;aspect-ratio:16/9;object-fit:cover;border-radius:12px">` : ''}
               <p class="eyebrow">${escapeHtml(category?.name || 'Kategori lainnya')}</p>
               <h3>${escapeHtml(service.name || 'Layanan')}</h3>
               <p>${escapeHtml(service.summary || '')}</p>
@@ -5787,10 +5792,16 @@ async function initJasaPage(page) {
       const paymentOptions = Array.isArray(service.paymentOptions) && service.paymentOptions.length
         ? service.paymentOptions : ['full'];
       const currentUser = await jasaWaitForUser();
+      const accountProfile = {
+        ...readStorage(STORAGE_KEYS.USER, {}),
+        ...(currentUser ? await fetchUserDoc(currentUser.uid) || {} : {})
+      };
+      renderNav(currentUser, accountProfile);
       const canOrder = Boolean(currentUser?.emailVerified);
       const profiles = service.needsParentProfile && canOrder
         ? (await jasaRequest('jasa-get-profile', {}, currentUser)).profile?.parents || []
         : [];
+      profiles.sort((a, b) => Number(b.isSelf === true) - Number(a.isSelf === true));
       const configuredFields = Array.isArray(service.formFields) ? service.formFields : [];
       const fields = service.needsParentProfile
         ? configuredFields.filter((field) => !['namaOrangTua', 'alamatOrangTua', 'catatanKhusus', 'kontakDarurat'].includes(field.key))
@@ -5822,7 +5833,7 @@ async function initJasaPage(page) {
           <p class="eyebrow" style="margin-top:20px">${escapeHtml(category?.name || 'Gamon Jasa (Beta)')}</p>
           <h1>${escapeHtml(service.name || 'Layanan')}</h1>
           <p class="muted">${escapeHtml(service.summary || '')}</p>
-          ${service.image ? `<img src="${escapeHtml(service.image)}" alt="" loading="lazy" style="width:100%;max-height:320px;object-fit:cover;border-radius:16px;margin-top:16px">` : ''}
+          ${service.image ? `<img src="${escapeHtml(service.image)}" alt="" loading="lazy" onerror="this.hidden=true" style="width:100%;max-height:320px;aspect-ratio:16/9;object-fit:cover;border-radius:16px;margin-top:16px">` : ''}
           <p style="white-space:pre-line;margin-top:16px">${escapeHtml(service.description || '')}</p>
           ${service.pricingNote ? `<p class="jasa-note" role="note">${escapeHtml(service.pricingNote)}</p>` : ''}
           ${service.disclaimer ? `<div class="jasa-disclaimer" role="note"><strong>Batas layanan penting</strong><p>${escapeHtml(service.disclaimer)}</p></div>` : ''}
@@ -5841,17 +5852,18 @@ async function initJasaPage(page) {
           </fieldset>
           ${options.length ? `<fieldset class="jasa-fieldset"><legend>Hal yang ingin dibantu</legend>${options.map((option) => `<label class="jasa-check"><input type="checkbox" name="selectedOptions" value="${escapeHtml(option.id)}"><span>${escapeHtml(option.label)}</span></label>`).join('')}</fieldset>` : ''}
           ${fields.length ? `<h3>Informasi kebutuhan</h3>${formFieldMarkup}` : ''}
-          ${service.needsParentProfile ? `<div class="field"><label for="jasaParentId">${escapeHtml(recipientLabel)} *</label><select id="jasaParentId" name="parentId" required><option value="">Pilih ${escapeHtml(recipientLabel.toLowerCase())}</option>${profiles.map((parent) => `<option value="${escapeHtml(parent.id)}">${escapeHtml(parent.name)}</option>`).join('')}</select><a href="profil.html?recipientLabel=${encodeURIComponent(recipientLabel)}" class="jasa-inline-link">Tambah data ${escapeHtml(recipientLabel.toLowerCase())}</a>${profiles.length ? '' : `<p class="muted">Belum ada data tersimpan. Tambahkan profil ${escapeHtml(recipientLabel.toLowerCase())} terlebih dahulu.</p>`}</div>` : ''}
+          ${service.needsParentProfile ? `<div class="field"><label for="jasaParentId">${escapeHtml(recipientLabel)} *</label><p class="muted">Pilih untuk siapa/di mana layanan dilakukan. Boleh diri sendiri.</p><select id="jasaParentId" name="parentId" required><option value="">Pilih ${escapeHtml(recipientLabel.toLowerCase())}</option>${profiles.map((parent, index) => `<option value="${escapeHtml(parent.id)}" ${parent.isSelf === true && index === 0 ? 'selected' : ''}>${parent.isSelf === true ? 'Diri sendiri — ' : ''}${escapeHtml(parent.name)}</option>`).join('')}</select><a href="profil.html?recipientLabel=${encodeURIComponent(recipientLabel)}" class="jasa-inline-link">Tambah data ${escapeHtml(recipientLabel.toLowerCase())}</a>${profiles.some((parent) => parent.isSelf === true) ? '' : `<p class="muted">Belum ada data diri sendiri? <a href="profil.html?self=1" data-jasa-self-recipient class="jasa-inline-link">Pesan untuk diri sendiri → isi alamat saya</a></p>`}${profiles.length ? '' : `<p class="muted">Belum ada data tersimpan.</p>`}</div>` : ''}
           ${scheduleMarkup}
           <h3>Kontak pemesan</h3>
-          <div class="field"><label for="jasaBuyerName">Nama pemesan *</label><input id="jasaBuyerName" name="buyerName" type="text" maxlength="120" value="${escapeHtml(auth.currentUser?.displayName || '')}" required></div>
-          <div class="field"><label for="jasaBuyerPhone">Nomor telepon pemesan *</label><input id="jasaBuyerPhone" name="buyerPhone" type="tel" autocomplete="tel" maxlength="40" required></div>
+          <div class="field"><label for="jasaBuyerName">Nama pemesan *</label><input id="jasaBuyerName" name="buyerName" type="text" maxlength="120" value="${escapeHtml(accountProfile.name || currentUser?.displayName || '')}" required></div>
+          <div class="field"><label for="jasaBuyerPhone">Nomor telepon pemesan *</label><input id="jasaBuyerPhone" name="buyerPhone" type="tel" autocomplete="tel" maxlength="40" value="${escapeHtml(accountProfile.phone || '')}" required></div>
           <p class="muted">Email akun terverifikasi digunakan untuk konfirmasi dan pembaruan pesanan.</p>
           ${service.disclaimer ? `<div class="jasa-disclaimer" role="note"><strong>Harap pastikan layanan sesuai kebutuhan</strong><p>${escapeHtml(service.disclaimer)}</p></div>` : ''}
           <label class="jasa-check"><input name="parentConsent" type="checkbox" required><span>${escapeHtml(consentText)}</span></label>
           <button class="btn btn-primary" type="submit">Lanjutkan pemesanan</button>
         </form>` : `<section class="panel"><h2>Masuk atau daftar akun Gamon Space untuk memesan</h2><p class="muted">${currentUser ? 'Email akun Anda belum terverifikasi. Masuk dan pilih “Kirim ulang email verifikasi”, lalu kembali untuk memesan.' : 'Gunakan akun Gamon Space yang emailnya sudah terverifikasi untuk melanjutkan pemesanan.'}</p><a class="btn btn-primary" data-jasa-return href="masuk.html">${currentUser ? 'Masuk untuk verifikasi' : 'Masuk untuk memesan'}</a>${currentUser ? '<a class="btn btn-secondary" href="masuk.html">Kirim ulang email verifikasi</a>' : '<a class="btn btn-secondary" data-jasa-return href="daftar.html">Daftar</a>'}</section>`}`;
       content.querySelectorAll('[data-jasa-return]').forEach((link) => link.addEventListener('click', () => jasaSetReturnTo()));
+      content.querySelectorAll('[data-jasa-self-recipient]').forEach((link) => link.addEventListener('click', () => jasaSetReturnTo()));
       const form = content.querySelector('[data-jasa-checkout-form]');
       if (!form) return;
       const recurring = form.querySelector('[name="scheduleRecurring"]');
@@ -5973,11 +5985,112 @@ async function initJasaPage(page) {
     return;
   }
 
+  if (page === 'jasa-account') {
+    const user = await jasaWaitForUser();
+    if (!user?.emailVerified) {
+      setStatus(user ? 'Email akun Anda belum terverifikasi. Masuk untuk mengirim ulang email verifikasi.' : 'Masuk dengan akun Gamon Space yang emailnya terverifikasi untuk mengelola profil akun.', true);
+      if (content) content.innerHTML = '<section class="panel"><a class="btn btn-primary" data-jasa-return href="masuk.html">Masuk ke akun Gamon Space</a><a class="btn btn-secondary" data-jasa-return href="daftar.html">Daftar</a></section>';
+      content?.querySelectorAll('[data-jasa-return]').forEach((link) => link.addEventListener('click', () => jasaSetReturnTo()));
+      return;
+    }
+
+    try {
+      setStatus('Memuat profil akun…');
+      const snapshot = await getDoc(doc(db, 'marketplace_users', user.uid));
+      const savedProfile = snapshot.exists() ? snapshot.data() : {};
+      const cachedProfile = currentUser() || {};
+      const profile = { ...cachedProfile, ...savedProfile };
+      renderNav(user, profile);
+      if (!content) return;
+      content.innerHTML = `<form class="panel form-panel" data-jasa-account-form>
+        <h2>Informasi akun</h2>
+        <div class="field"><label for="jasaAccountPhoto">Foto profil</label><img data-jasa-account-photo-preview alt="Foto profil" hidden style="width:96px;height:96px;border-radius:50%;object-fit:cover"><input id="jasaAccountPhoto" name="profilePhoto" type="file" accept="image/jpeg,image/png,image/webp" autocomplete="off"><small class="muted">JPG, PNG, atau WebP, maksimal 2 MB.</small></div>
+        <div class="field"><label for="jasaAccountName">Nama lengkap *</label><input id="jasaAccountName" name="name" type="text" maxlength="120" value="${escapeHtml(profile.name || user.displayName || '')}" required></div>
+        <div class="field"><label for="jasaAccountPhone">Nomor HP *</label><input id="jasaAccountPhone" name="phone" type="tel" autocomplete="tel" maxlength="40" value="${escapeHtml(profile.phone || '')}" required></div>
+        <div class="field"><label for="jasaAccountEmail">Email</label><input id="jasaAccountEmail" name="email" type="email" value="${escapeHtml(user.email || profile.email || '')}" readonly></div>
+        <button class="btn btn-primary" type="submit">Simpan profil akun</button>
+      </form>`;
+      setStatus('');
+      const form = content.querySelector('[data-jasa-account-form]');
+      const photoInput = form.querySelector('[name="profilePhoto"]');
+      const photoPreview = form.querySelector('[data-jasa-account-photo-preview]');
+      let photoUrl = getUserPhotoUrl(profile);
+      let photoThumbUrl = profile.photoThumbUrl || '';
+      const updatePhotoPreview = (source) => {
+        photoPreview.onerror = () => { photoPreview.hidden = true; };
+        if (!source) {
+          photoPreview.removeAttribute('src');
+          photoPreview.hidden = true;
+          return;
+        }
+        photoPreview.src = source;
+        photoPreview.hidden = false;
+      };
+      updatePhotoPreview(photoUrl);
+      photoInput.addEventListener('change', () => {
+        const file = photoInput.files?.[0];
+        if (!file) return;
+        if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 2 * 1024 * 1024) {
+          photoInput.value = '';
+          setStatus('Pilih foto JPG, PNG, atau WebP maksimal 2 MB.', true);
+          return;
+        }
+        setStatus('');
+        const reader = new FileReader();
+        reader.onload = (event) => updatePhotoPreview(String(event.target?.result || ''));
+        reader.onerror = () => setStatus('Pratinjau foto gagal dimuat.', true);
+        reader.readAsDataURL(file);
+      });
+      form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const submitButton = form.querySelector('[type="submit"]');
+        submitButton.disabled = true;
+        setStatus('Menyimpan profil akun…');
+        try {
+          const file = photoInput.files?.[0];
+          if (file) {
+            photoUrl = await uploadProfilePhoto(file);
+            photoThumbUrl = await createAvatarThumbDataUrl(photoUrl);
+          } else if (photoUrl && !photoThumbUrl) {
+            photoThumbUrl = await createAvatarThumbDataUrl(photoUrl);
+          }
+          const name = form.elements.name.value.trim();
+          const phone = form.elements.phone.value.trim();
+          const updatedProfile = {
+            name,
+            phone,
+            email: user.email || profile.email || '',
+            photoUrl,
+            photoThumbUrl,
+            updatedAt: Date.now()
+          };
+          await setDoc(doc(db, 'marketplace_users', user.uid), updatedProfile, { merge: true });
+          const updatedUser = { ...profile, ...updatedProfile, id: user.uid, uid: user.uid };
+          setCurrentUser(updatedUser, localStorage.getItem('gamon_marketplace_remember_me') === '1');
+          writeStorage(STORAGE_KEYS.USERS, mergeUserIntoStorage(readStorage(STORAGE_KEYS.USERS, []), updatedUser));
+          renderNav(auth.currentUser);
+          setStatus('Profil akun berhasil disimpan.', false, true);
+          photoInput.value = '';
+          updatePhotoPreview(photoUrl);
+        } catch (error) {
+          setStatus(error.message || 'Profil akun gagal disimpan.', true);
+          jasaShowActionError('Profil akun belum tersimpan', error, () => window.location.reload());
+        } finally {
+          submitButton.disabled = false;
+        }
+      });
+    } catch (error) {
+      setStatus(error.message || 'Profil akun gagal dimuat.', true);
+      jasaShowActionError('Profil akun belum dapat dimuat', error, () => window.location.reload());
+    }
+    return;
+  }
+
   if (page === 'jasa-profile') {
     const recipientLabel = String(new URLSearchParams(window.location.search).get('recipientLabel') || 'Penerima layanan').slice(0, 60);
     const profileTitle = document.querySelector('main .panel h1');
-    if (profileTitle) profileTitle.textContent = `Profil ${recipientLabel}`;
-    document.title = `Profil ${recipientLabel} | Gamon Jasa (Beta)`;
+    if (profileTitle) profileTitle.textContent = recipientLabel === 'Penerima layanan' ? recipientLabel : `Profil ${recipientLabel}`;
+    document.title = `${recipientLabel === 'Penerima layanan' ? recipientLabel : `Profil ${recipientLabel}`} | Gamon Jasa (Beta)`;
     const user = await jasaWaitForUser();
     if (!user?.emailVerified) {
       setStatus(user ? 'Email akun Anda belum terverifikasi. Masuk untuk mengirim ulang email verifikasi.' : 'Masuk dengan akun Gamon Space yang emailnya terverifikasi untuk mengelola profil.', true);
@@ -5985,11 +6098,18 @@ async function initJasaPage(page) {
       content?.querySelector('[data-jasa-return]')?.addEventListener('click', () => jasaSetReturnTo());
       return;
     }
+    let accountProfile = currentUser() || {};
+    try {
+      accountProfile = { ...accountProfile, ...(await fetchUserDoc(user.uid) || {}) };
+    } catch (error) {
+      console.error('[jasa] gagal memuat nama akun untuk penerima:', error);
+    }
     let parents = [];
+    let selfFormOpen = new URLSearchParams(window.location.search).get('self') === '1';
     const renderProfile = () => {
       if (!content) return;
       const parentForm = (parent = {}, index = '') => {
-        const prefix = `jasa-parent-${index === '' ? 'new' : index}`;
+        const prefix = `jasa-parent-${index === '' ? 'new' : index === 'self-new' ? 'self-new' : index}`;
         const latitudeText = String(parent.latitude ?? '').trim();
         const longitudeText = String(parent.longitude ?? '').trim();
         const latitude = latitudeText ? Number(latitudeText) : NaN;
@@ -6003,9 +6123,11 @@ async function initJasaPage(page) {
           Number.isFinite(longitude) && longitude >= -180 && longitude <= 180
         );
         return `<form data-parent-form="${index}" class="panel jasa-profile-form">
-        <h2>${index === '' ? `Tambah data ${escapeHtml(recipientLabel.toLowerCase())}` : `Ubah data: ${escapeHtml(parent.name || '')}`}</h2>
+        <h2>${index === '' ? `Tambah data ${escapeHtml(recipientLabel.toLowerCase())}` : index === 'self-new' ? 'Tambah data diri sendiri' : `Ubah data: ${escapeHtml(parent.name || '')}`}</h2>
+        ${parent.isSelf === true ? '<span class="jasa-note">Diri sendiri</span><p class="muted">Alamat &amp; titik peta tetap perlu diisi.</p>' : ''}
         ${index !== '' && !hasCompleteAddress ? '<p class="jasa-note">Alamat belum lengkap. Lengkapi wilayah dan titik peta agar bisa dipakai saat memesan.</p>' : ''}
         <input type="hidden" name="id" value="${escapeHtml(parent.id || '')}">
+        <input type="hidden" name="isSelf" value="${parent.isSelf === true ? 'true' : 'false'}">
         <div class="form-row"><div class="field"><label for="${prefix}-name">Nama penerima atau lokasi *</label><input id="${prefix}-name" name="name" maxlength="120" value="${escapeHtml(parent.name || '')}" required></div></div>
         <div class="field"><label for="${prefix}-address">Alamat lengkap *</label><textarea id="${prefix}-address" name="address" maxlength="500" required>${escapeHtml(parent.address || '')}</textarea></div>
         <div class="form-row">
@@ -6030,11 +6152,20 @@ async function initJasaPage(page) {
         <div class="field"><label>Preview titik alamat</label><div class="map-preview" data-parent-map-preview><div class="map-placeholder"><span class="material-symbols-outlined map-placeholder-icon">location_on</span></div></div><a data-parent-map-link target="_blank" rel="noopener noreferrer" hidden>Buka di Google Maps</a></div>
         <div class="form-row"><div class="field"><label for="${prefix}-emergency-name">Nama kontak di lokasi (opsional)</label><input id="${prefix}-emergency-name" name="emergencyContactName" maxlength="120" value="${escapeHtml(parent.emergencyContactName || '')}"></div><div class="field"><label for="${prefix}-emergency-phone">Telepon kontak di lokasi (opsional)</label><input id="${prefix}-emergency-phone" name="emergencyContactPhone" type="tel" maxlength="30" value="${escapeHtml(parent.emergencyContactPhone || '')}"></div></div>
         <div class="field"><label for="${prefix}-notes">Catatan tambahan (opsional)</label><textarea id="${prefix}-notes" name="notes" maxlength="700">${escapeHtml(parent.notes || '')}</textarea></div>
-        <button class="btn btn-primary" type="submit">${index === '' ? 'Tambah data' : 'Simpan perubahan'}</button>
-        ${index !== '' ? '<button class="btn btn-secondary" type="button" data-parent-delete>Hapus data</button>' : ''}
+        <button class="btn btn-primary" type="submit">${index === '' || index === 'self-new' ? 'Tambah data' : 'Simpan perubahan'}</button>
+        ${index !== '' && index !== 'self-new' ? '<button class="btn btn-secondary" type="button" data-parent-delete>Hapus data</button>' : ''}
       </form>`;
       };
-      content.innerHTML = `${parents.map((parent, index) => parentForm(parent, String(index))).join('')}${parents.length < 5 ? parentForm() : '<p class="jasa-note">Maksimal 5 data tersimpan.</p>'}`;
+      const hasSelf = parents.some((parent) => parent.isSelf === true);
+      const selfButton = !hasSelf && !selfFormOpen
+        ? `<button class="btn btn-secondary" type="button" data-open-self-form ${parents.length >= 5 ? 'disabled' : ''}>Gunakan diri saya sendiri</button>${parents.length >= 5 ? '<p class="jasa-note">Hapus satu data penerima terlebih dahulu untuk menambahkan diri sendiri.</p>' : ''}`
+        : '';
+      content.innerHTML = `${selfButton}${selfFormOpen && !hasSelf && parents.length < 5 ? parentForm({ isSelf: true, name: accountProfile.name || user.displayName || '' }, 'self-new') : ''}${selfFormOpen && !hasSelf && parents.length >= 5 ? '<p class="jasa-note">Hapus satu data penerima terlebih dahulu untuk menambahkan diri sendiri.</p>' : ''}${parents.map((parent, index) => parentForm(parent, String(index))).join('')}${parents.length < 5 ? parentForm() : '<p class="jasa-note">Maksimal 5 data tersimpan.</p>'}`;
+      content.querySelector('[data-open-self-form]')?.addEventListener('click', () => {
+        selfFormOpen = true;
+        renderProfile();
+        content.querySelector('[data-parent-form="self-new"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      });
       const addressPickers = new Map();
       content.querySelectorAll('[data-parent-form]').forEach((form) => {
         const latitudeField = form.querySelector('[name="latitude"]');
@@ -6142,6 +6273,7 @@ async function initJasaPage(page) {
           const parent = {
             ...data,
             id: data.id || `parent-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+            isSelf: data.isSelf === 'true',
             province: KALSEL_PROVINCE,
             city: region.city,
             district: region.district,
@@ -6152,13 +6284,20 @@ async function initJasaPage(page) {
             mapsUrl: `https://www.google.com/maps/search/?api=1&query=${coordinates.latitude},${coordinates.longitude}`
           };
           const updated = [...parents];
-          if (index === '') updated.push(parent);
+          if (index === '' || index === 'self-new') updated.push(parent);
           else updated[Number(index)] = parent;
           const button = form.querySelector('button[type="submit"]');
           await jasaRun(button, { loadingText: 'Menyimpan…', successMessage: 'Data berhasil disimpan', errorTitle: 'Data belum tersimpan' }, async () => {
             const result = await jasaRequest('jasa-save-profile', { parents: updated }, user);
             parents = result.profile.parents;
             setStatus(result.message || 'Profil berhasil disimpan.', false, true);
+            if (parent.isSelf) {
+              const returnTo = getSafeJasaReturnTo();
+              if (returnTo) {
+                localStorage.removeItem('gamon_return_to');
+                setTimeout(() => { window.location.href = returnTo; }, 700);
+              }
+            }
             renderProfile();
             return result;
           });
@@ -6224,6 +6363,7 @@ async function initJasaPage(page) {
           </a>`).join('')}</div></section>
         ${selected ? `<article class="panel">
           <p class="eyebrow">Detail pesanan</p><h2>${escapeHtml(selected.serviceName || 'Layanan jasa')}</h2>
+          ${selected.serviceImage ? `<img src="${escapeHtml(selected.serviceImage)}" alt="" loading="lazy" onerror="this.hidden=true" style="width:100%;max-height:320px;aspect-ratio:16/9;object-fit:cover;border-radius:16px;margin-top:16px">` : ''}
           <p><strong>${escapeHtml(selected.id)}</strong> · ${escapeHtml(jasaStatusLabel(selected.status))}</p>
           ${selected.subscription ? `<p class="jasa-note">Langganan • siklus ${Number(selected.subscription.cycle || 1)}${selected.subscription.status === 'ended' ? ' · telah diakhiri' : ''}</p>` : ''}
           ${selected.needsAttention ? `<p class="jasa-disclaimer" role="alert"><strong>Perlu tindak lanjut admin</strong><br>${escapeHtml(selected.attentionReason || 'Hubungi admin untuk bantuan.')}</p>` : ''}
@@ -6240,7 +6380,7 @@ async function initJasaPage(page) {
             <div><dt>Paket</dt><dd>${escapeHtml(selected.package?.name || '-')}</dd></div>
             ${selectedScheduleMode === 'none' ? '' : `<div><dt>${escapeHtml(selected.scheduleLabel || 'Jadwal pilihan')}</dt><dd>${escapeHtml(selected.schedule?.date || '-')} ${selected.schedule?.time ? `· ${escapeHtml(selected.schedule.time)}` : ''} ${selected.schedule?.recurring ? '· Rutin mingguan: ' + escapeHtml((selected.schedule.days || []).join(', ')) : ''}</dd></div>`}
           </dl>
-          ${selected.parent ? `<section class="jasa-order-meta"><h3>${escapeHtml(selected.recipientLabel || 'Penerima layanan')}</h3><p>${escapeHtml(selected.parent.name || '-')}</p><p>${escapeHtml(selected.parent.address || '')}${selected.parent.city ? `, ${escapeHtml(selected.parent.city)}` : ''}</p>${(() => {
+          ${selected.parent ? `<section class="jasa-order-meta"><h3>${escapeHtml(selected.recipientLabel || 'Penerima layanan')}</h3><p>${escapeHtml(selected.parent.name || '-')}${selected.parent.isSelf === true ? ' <span class="jasa-note">Diri sendiri</span>' : ''}</p><p>${escapeHtml(selected.parent.address || '')}${selected.parent.city ? `, ${escapeHtml(selected.parent.city)}` : ''}</p>${(() => {
             const parent = selected.parent;
             const addressParts = [
               parent.village ? `Kel./Desa ${parent.village}` : '',
