@@ -5381,10 +5381,34 @@ async function renderHomeReviews() {
   }
 }
 
+function bindJasaMobileMenu() {
+  const nav = document.querySelector('.topbar .nav');
+  const actions = nav?.querySelector('.nav-actions');
+  if (!nav || !actions || nav.querySelector('.mobile-menu-toggle')) return;
+  const toggle = document.createElement('button');
+  toggle.type = 'button';
+  toggle.className = 'mobile-menu-toggle';
+  toggle.setAttribute('aria-label', 'Buka menu');
+  toggle.setAttribute('aria-expanded', 'false');
+  toggle.innerHTML = '<span></span><span></span><span></span>';
+  nav.appendChild(toggle);
+  const setOpen = (open) => {
+    actions.classList.toggle('is-open', open);
+    toggle.classList.toggle('is-active', open);
+    toggle.setAttribute('aria-expanded', String(open));
+    toggle.setAttribute('aria-label', open ? 'Tutup menu' : 'Buka menu');
+  };
+  toggle.addEventListener('click', (e) => { e.stopPropagation(); setOpen(!actions.classList.contains('is-open')); });
+  actions.addEventListener('click', (e) => { if (e.target.closest('a,button')) setOpen(false); });
+  document.addEventListener('click', (e) => { if (!nav.contains(e.target)) setOpen(false); });
+  window.addEventListener('resize', () => { if (window.innerWidth > 980) setOpen(false); });
+}
+
 async function init() {
   const initialPage = String(document.body.dataset.page || '');
   if (initialPage.startsWith('jasa-')) {
     bindPasswordToggles();
+    bindJasaMobileMenu();
     onAuthStateChanged(auth, async (firebaseUser) => {
       if (window.__marketplaceAuthBusy) return;
       try {
