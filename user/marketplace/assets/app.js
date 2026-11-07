@@ -2107,6 +2107,279 @@ async function renderChat() {
 
 /* ======================= end chat system ======================= */
 
+async function renderJasaChat(user) {
+  const params = new URLSearchParams(window.location.search);
+  const orderId = (params.get('orderId') || '').trim();
+  const serviceId = (params.get('serviceId') || '').trim();
+  const serviceName = (params.get('serviceName') || '').trim();
+  const currentUserId = user.uid;
+  const profile = currentUser() || {};
+  const currentUserName = getSafeUserName(profile.name || user.displayName || 'Pembeli');
+  const currentUserEmail = String(user.email || profile.email || '');
+  const layout = document.querySelector('[data-chat-layout]');
+  const listEl = document.querySelector('[data-chat-list]');
+  const newGeneralButton = document.querySelector('[data-chat-new-general]');
+  const backButton = document.querySelector('[data-chat-back]');
+  const titleEl = document.querySelector('[data-chat-title]');
+  const contextEl = document.querySelector('[data-chat-product-context]');
+  const threadEl = document.querySelector('[data-chat-thread]');
+  const composer = document.querySelector('[data-chat-form]');
+  const input = composer?.querySelector('textarea');
+  const submitButton = composer?.querySelector('button[type="submit"]');
+  const statusEl = document.querySelector('[data-chat-status]');
+  if (!layout || !listEl || !threadEl || !composer || !input || !submitButton) return;
+
+  let threads = [];
+  let draft = null;
+  let activeId = '';
+  let messagesUnsubscribe = () => {};
+  let threadsUnsubscribe = () => {};
+  let listeningThreadId = '';
+  let isMarkingRead = false;
+  let didInitialSelect = false;
+
+  const setStatus = (message) => { if (statusEl) statusEl.textContent = message || ''; };
+  const cleanId = (value) => String(value || '').replace(/[^A-Za-z0-9_-]/g, '_');
+  const buildThreadId = (context) => {
+    if (context.orderId) return `${currentUserId}__o_${cleanId(context.orderId)}`;
+    if (context.serviceId) return `${currentUserId}__s_${cleanId(context.serviceId)}`;
+    return `${currentUserId}__general`;
+  };
+  const initialContext = orderId
+    ? { type: 'order', orderId }
+    : serviceId
+      ? { type: 'service', serviceId, serviceName }
+      : { type: 'general' };
+  const findThread = (id) => {
+    const saved = threads.find((thread) => thread.id === id);
+    if (saved) return saved;
+    return draft?.id === id ? { ...draft, isDraft: true } : null;
+  };
+  const threadLabel = (thread) => {
+    if (thread.type === 'order' || thread.orderId) return `Pesanan ${thread.orderId || ''}`.trim();
+    if (thread.type === 'service' || thread.serviceId) return thread.serviceName || 'Layanan jasa';
+    return 'Pertanyaan umum';
+  };
+  const relativeTime = (value) => {
+    const time = getCreatedAtMs(value);
+    if (!time) return '';
+    const elapsed = Math.max(0, Date.now() - time);
+    if (elapsed < 60000) return 'Baru saja';
+    if (elapsed < 3600000) return `${Math.floor(elapsed / 60000)} mnt`;
+    if (elapsed < 86400000) return `${Math.floor(elapsed / 3600000)} jam`;
+    return new Date(time).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
+  };
+
+  function renderList() {
+    const items = [...threads];
+    if (draft && !items.some((thread) => thread.id === draft.id)) items.unshift({ ...draft, isDraft: true });
+    if (!items.length) {
+      listEl.innerHTML = '<p class="chat-list-empty">Belum ada percakapan. Gunakan “+ Pertanyaan umum” untuk menghubungi admin.</p>';
+      return;
+    }
+    listEl.innerHTML = items.map((thread) => {
+      const unread = Math.max(0, Number(thread.unreadForUser || 0));
+      const isActive = thread.id === activeId;
+      const last = thread.isDraft
+        ? 'Percakapan baru, belum ada pesan'
+        : `${thread.lastSenderRole === 'admin' ? '' : 'Anda: '}${thread.lastMessage || 'Belum ada pesan'}`;
+      return `<button type="button" class="chat-list-item ${isActive ? 'is-active' : ''}" data-thread-id="${escapeHtml(thread.id)}">
+        <span class="chat-list-thumb"><span class="material-symbols-outlined" aria-hidden="true">${thread.type === 'order' ? 'receipt_long' : thread.type === 'service' ? 'handyman' : 'help'}</span></span>
+        <span class="chat-list-body">
+          <span class="chat-list-row"><span class="chat-list-title">${escapeHtml(threadLabel(thread))}</span><span class="chat-list-time">${thread.isDraft ? '' : escapeHtml(relativeTime(thread.lastMessageAt || thread.updatedAt))}</span></span>
+          <span class="chat-list-row"><span class="chat-list-last">${escapeHtml(last)}</span>${thread.isDraft ? '<span class="chat-list-new">Baru</span>' : unread ? `<span class="chat-list-badge">${unread > 99 ? '99+' : unread}</span>` : ''}</span>
+        </span>
+      </button>`;
+    }).join('');
+    listEl.querySelectorAll('[data-thread-id]').forEach((button) => {
+      button.addEventListener('click', () => selectThread(button.dataset.threadId));
+    });
+  }
+
+  function renderHeader() {
+    const thread = activeId ? findThread(activeId) : null;
+    if (!thread) {
+      if (titleEl) titleEl.textContent = 'Pilih percakapan';
+      if (contextEl) { contextEl.hidden = true; contextEl.innerHTML = ''; }
+      return;
+    }
+    if (titleEl) titleEl.textContent = threadLabel(thread);
+    if (!contextEl) return;
+    if (thread.orderId) {
+      contextEl.hidden = false;
+      contextEl.innerHTML = `<span class="chat-product-context-label">Pesanan</span><span>${escapeHtml(thread.orderId)}</span>`;
+    } else if (thread.serviceId) {
+      contextEl.hidden = false;
+      contextEl.innerHTML = `<span class="chat-product-context-label">Layanan</span><span>${escapeHtml(thread.serviceName || 'Layanan jasa')}</span>`;
+    } else {
+      contextEl.hidden = true;
+      contextEl.innerHTML = '';
+    }
+  }
+
+  function markActiveRead() {
+    const thread = threads.find((item) => item.id === activeId);
+    if (!thread || isMarkingRead || (Number(thread.unreadForUser) || 0) <= 0) return;
+    isMarkingRead = true;
+    updateDoc(doc(db, 'jasa_chats', thread.id), { unreadForUser: 0 })
+      .catch((error) => console.error('[jasa chat] gagal menandai pesan dibaca:', error))
+      .finally(() => { isMarkingRead = false; });
+  }
+
+  function attachMessages(id) {
+    messagesUnsubscribe();
+    listeningThreadId = id;
+    messagesUnsubscribe = onSnapshot(
+      collection(db, 'jasa_chats', id, 'messages'),
+      (snapshot) => {
+        if (activeId !== id) return;
+        const messages = snapshot.docs
+          .map((messageDoc) => ({ id: messageDoc.id, ...messageDoc.data() }))
+          .sort((a, b) => getCreatedAtMs(a.createdAt) - getCreatedAtMs(b.createdAt));
+        setStatus('');
+        renderChatMessages(threadEl, messages, currentUserId);
+        if (messages.length) threadEl.scrollTop = threadEl.scrollHeight;
+      },
+      (error) => {
+        console.error('[jasa chat] gagal memuat pesan:', error);
+        setStatus(`Pesan gagal dimuat (${error?.code || 'unknown'}). Muat ulang halaman.`);
+      }
+    );
+  }
+
+  function selectThread(id) {
+    const thread = findThread(id);
+    if (!thread) return;
+    messagesUnsubscribe();
+    messagesUnsubscribe = () => {};
+    listeningThreadId = '';
+    activeId = id;
+    layout.dataset.view = 'conversation';
+    setStatus('');
+    input.disabled = false;
+    submitButton.disabled = false;
+    input.placeholder = 'Ketik pesan...';
+    if (thread.isDraft) {
+      threadEl.innerHTML = '<div class="empty-state">Belum ada pesan. Tulis pesan Anda di bawah.</div>';
+    } else {
+      threadEl.innerHTML = '<div class="empty-state">Memuat pesan...</div>';
+      attachMessages(id);
+    }
+    renderHeader();
+    renderList();
+    markActiveRead();
+  }
+
+  function startContextThread(context) {
+    const id = buildThreadId(context);
+    if (threads.some((thread) => thread.id === id)) {
+      draft = null;
+      selectThread(id);
+      return;
+    }
+    draft = {
+      id,
+      buyerId: currentUserId,
+      buyerName: currentUserName,
+      buyerEmail: currentUserEmail,
+      participantIds: [currentUserId, 'admin'],
+      type: context.type,
+      ...(context.orderId ? { orderId: String(context.orderId) } : {}),
+      ...(context.serviceId ? { serviceId: String(context.serviceId), serviceName: context.serviceName || '' } : {})
+    };
+    selectThread(id);
+  }
+
+  threadsUnsubscribe = onSnapshot(
+    query(collection(db, 'jasa_chats'), where('buyerId', '==', currentUserId)),
+    (snapshot) => {
+      threads = snapshot.docs
+        .map((threadDoc) => ({ id: threadDoc.id, ...threadDoc.data() }))
+        .sort((a, b) => getCreatedAtMs(b.lastMessageAt || b.updatedAt) - getCreatedAtMs(a.lastMessageAt || a.updatedAt));
+      if (draft && threads.some((thread) => thread.id === draft.id)) draft = null;
+      if (activeId && !draft && listeningThreadId !== activeId && threads.some((thread) => thread.id === activeId)) attachMessages(activeId);
+      renderList();
+      renderHeader();
+      markActiveRead();
+      if (!didInitialSelect) {
+        didInitialSelect = true;
+        startContextThread(initialContext);
+      }
+    },
+    (error) => {
+      console.error('[jasa chat] gagal memuat daftar percakapan:', error);
+      listEl.innerHTML = `<p class="chat-list-empty">Daftar chat gagal dimuat (${escapeHtml(error?.code || 'unknown')}).</p>`;
+      setStatus('Daftar percakapan belum dapat dimuat. Coba muat ulang halaman.');
+    }
+  );
+
+  newGeneralButton?.addEventListener('click', () => startContextThread({ type: 'general' }));
+  backButton?.addEventListener('click', () => { layout.dataset.view = 'list'; });
+  input.maxLength = 2000;
+  input.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault();
+      composer.requestSubmit();
+    }
+  });
+  composer.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const text = input.value.trim();
+    const thread = activeId ? findThread(activeId) : null;
+    if (!thread || !text || submitButton.disabled) return;
+    if (text.length > 2000) {
+      setStatus('Pesan maksimal 2000 karakter.');
+      return;
+    }
+
+    const createdAt = Date.now();
+    const threadRef = doc(db, 'jasa_chats', thread.id);
+    const messageRef = doc(collection(threadRef, 'messages'));
+    const context = {
+      type: thread.type || 'general',
+      ...(thread.orderId ? { orderId: String(thread.orderId) } : {}),
+      ...(thread.serviceId ? { serviceId: String(thread.serviceId), serviceName: thread.serviceName || '' } : {})
+    };
+    submitButton.disabled = true;
+    setStatus('Mengirim pesan...');
+    try {
+      const batch = writeBatch(db);
+      batch.set(messageRef, { senderId: currentUserId, senderRole: 'user', text, createdAt, ...context });
+      batch.set(threadRef, {
+        buyerId: currentUserId,
+        buyerName: currentUserName,
+        buyerEmail: currentUserEmail,
+        participantIds: [currentUserId, 'admin'],
+        ...context,
+        lastMessage: text,
+        lastMessageAt: createdAt,
+        lastSenderRole: 'user',
+        updatedAt: createdAt,
+        unreadForAdmin: increment(1),
+        ...(thread.isDraft ? { unreadForUser: 0, createdAt } : {})
+      }, { merge: true });
+      await batch.commit();
+      input.value = '';
+      setStatus('');
+      jasaRequest('jasa-notify-chat', { threadId: thread.id, messageId: messageRef.id }, user)
+        .catch((error) => console.warn('[jasa chat] notifikasi email dilewati:', error?.message || error));
+    } catch (error) {
+      console.error('[jasa chat] pesan gagal dikirim:', error);
+      setStatus(`Pesan gagal terkirim (${error?.code || 'unknown'}). Coba lagi.`);
+    } finally {
+      submitButton.disabled = false;
+      input.focus();
+    }
+  });
+
+  window.__jasaChatCleanup?.();
+  window.__jasaChatCleanup = () => {
+    threadsUnsubscribe();
+    messagesUnsubscribe();
+  };
+  window.addEventListener('beforeunload', window.__jasaChatCleanup, { once: true });
+}
+
 async function getUserAvatarMarkupByName(userName, userId, fallbackText = 'P', preferredPhotoUrl = '') {
   const matchedUser = await resolveUserForMarketplaceLookup(userName, userId);
   const photoUrl = preferredPhotoUrl || getUserPhotoUrl(matchedUser || null);
@@ -5663,14 +5936,44 @@ async function initJasaPage(page) {
     status.hidden = !message;
   };
   const nav = document.querySelector('[data-jasa-nav], .nav-actions');
+  let jasaUnreadUnsubscribe = () => {};
+  let jasaUnreadUid = '';
+  let jasaUnreadCount = 0;
+  const updateJasaUnreadBadge = () => {
+    const badge = nav?.querySelector('[data-jasa-chat-unread]');
+    if (!badge) return;
+    badge.textContent = jasaUnreadCount > 99 ? '99+' : String(jasaUnreadCount);
+    badge.hidden = jasaUnreadCount === 0;
+    badge.setAttribute('aria-label', `${jasaUnreadCount} pesan belum dibaca`);
+  };
   const renderNav = (user, profileOverride = null) => {
     if (!nav) return;
     if (user?.emailVerified) {
       const profile = profileOverride || currentUser() || {};
       const name = profile.name || user.displayName || user.email || 'Akun';
       const avatar = profile.photoThumbUrl || getUserPhotoUrl(profile);
-      nav.innerHTML = `<a class="btn btn-secondary" href="akun.html" style="display:inline-flex;align-items:center;gap:8px"><span aria-hidden="true" style="position:relative;display:inline-flex;width:28px;height:28px;align-items:center;justify-content:center;border-radius:50%;background:#fce7f3;overflow:hidden">${escapeHtml(name.charAt(0).toUpperCase())}${avatar ? `<img src="${escapeHtml(avatar)}" alt="" onerror="this.hidden=true" style="position:absolute;inset:0;width:28px;height:28px;border-radius:50%;object-fit:cover">` : ''}</span><span>${escapeHtml(name)}</span></a><a class="btn btn-secondary" href="dashboard.html">Beranda akun</a><a class="btn btn-secondary" href="pesanan.html">Pesanan saya</a><a class="btn btn-secondary" href="profil.html">Penerima layanan</a><button class="btn btn-primary" type="button" data-jasa-logout>Keluar</button>`;
+      nav.innerHTML = `<a class="btn btn-secondary" href="akun.html" style="display:inline-flex;align-items:center;gap:8px"><span aria-hidden="true" style="position:relative;display:inline-flex;width:28px;height:28px;align-items:center;justify-content:center;border-radius:50%;background:#fce7f3;overflow:hidden">${escapeHtml(name.charAt(0).toUpperCase())}${avatar ? `<img src="${escapeHtml(avatar)}" alt="" onerror="this.hidden=true" style="position:absolute;inset:0;width:28px;height:28px;border-radius:50%;object-fit:cover">` : ''}</span><span>${escapeHtml(name)}</span></a><a class="btn btn-secondary" href="dashboard.html">Beranda akun</a><a class="btn btn-secondary" href="pesanan.html">Pesanan saya</a><a class="btn btn-secondary" href="profil.html">Penerima layanan</a><a class="btn btn-secondary" href="chat.html">Chat Admin <span class="chat-list-badge" data-jasa-chat-unread hidden></span></a><button class="btn btn-primary" type="button" data-jasa-logout>Keluar</button>`;
+      updateJasaUnreadBadge();
+      if (jasaUnreadUid !== user.uid) {
+        jasaUnreadUnsubscribe();
+        jasaUnreadUid = user.uid;
+        jasaUnreadCount = 0;
+        updateJasaUnreadBadge();
+        jasaUnreadUnsubscribe = onSnapshot(
+          query(collection(db, 'jasa_chats'), where('buyerId', '==', user.uid)),
+          (snapshot) => {
+            if (jasaUnreadUid !== user.uid) return;
+            jasaUnreadCount = snapshot.docs.reduce((total, threadDoc) => total + Math.max(0, Number(threadDoc.data().unreadForUser) || 0), 0);
+            updateJasaUnreadBadge();
+          },
+          (error) => console.error('[jasa chat] gagal memantau pesan belum dibaca:', error)
+        );
+      }
     } else {
+      jasaUnreadUnsubscribe();
+      jasaUnreadUnsubscribe = () => {};
+      jasaUnreadUid = '';
+      jasaUnreadCount = 0;
       nav.innerHTML = `<a class="btn btn-secondary" href="index.html">Semua jasa</a><a class="btn btn-primary" data-jasa-return href="masuk.html">Masuk</a><a class="btn btn-secondary" data-jasa-return href="daftar.html">Daftar</a>`;
     }
     nav.querySelectorAll('[data-jasa-return]').forEach((link) => link.addEventListener('click', () => jasaSetReturnTo()));
@@ -5689,6 +5992,17 @@ async function initJasaPage(page) {
       window.location.href = 'index.html';
     });
   });
+
+  if (page === 'jasa-chat') {
+    const user = await jasaWaitForUser();
+    if (!user?.emailVerified) {
+      jasaSetReturnTo();
+      window.location.href = 'masuk.html';
+      return;
+    }
+    await renderJasaChat(user);
+    return;
+  }
 
   const catalog = async () => {
     let response;
@@ -5819,6 +6133,7 @@ async function initJasaPage(page) {
               : `<input id="jasa-field-${key}" name="${key}" type="${['text', 'date', 'time'].includes(field.type) ? field.type : 'text'}" maxlength="1000" ${required}>`;
         return `<div class="field"><label for="jasa-field-${key}">${label}${field.required ? ' *' : ''}</label>${control}</div>`;
       }).join('');
+      const chatHref = `chat.html?serviceId=${encodeURIComponent(String(service.id))}&serviceName=${encodeURIComponent(String(service.name || ''))}`;
       const scheduleMarkup = scheduleMode === 'none' ? '' : `
           <h3>${escapeHtml(scheduleLabel)}</h3>
           <div class="form-row">
@@ -5837,6 +6152,7 @@ async function initJasaPage(page) {
           <p style="white-space:pre-line;margin-top:16px">${escapeHtml(service.description || '')}</p>
           ${service.pricingNote ? `<p class="jasa-note" role="note">${escapeHtml(service.pricingNote)}</p>` : ''}
           ${service.disclaimer ? `<div class="jasa-disclaimer" role="note"><strong>Batas layanan penting</strong><p>${escapeHtml(service.disclaimer)}</p></div>` : ''}
+          <a class="btn btn-secondary" ${canOrder ? `href="${escapeHtml(chatHref)}"` : 'data-jasa-return href="masuk.html"'}>Tanya admin tentang layanan ini</a>
         </section>
         ${canOrder ? `<form class="panel form-panel" data-jasa-checkout-form>
           <h2>Pilih paket dan kebutuhan</h2>
@@ -6405,7 +6721,7 @@ async function initJasaPage(page) {
           ${selected.paymentPlan === 'dp' && selected.payments?.some((payment) => payment.kind === 'balance' && payment.status === 'UNPAID' && Number(payment.expiresAt || 0) > Date.now() && /^https:\/\//i.test(payment.paymentUrl || '')) ? `<div class="jasa-actions"><button class="btn btn-primary" type="button" data-jasa-pay-balance>Bayar sisa</button>${selected.status !== 'paid' ? '<button class="btn btn-secondary" type="button" data-jasa-check>Periksa status pembayaran</button>' : ''}</div>` : ''}
           ${selected.status === 'paid' ? '<button class="btn btn-secondary" type="button" data-jasa-check>Perbarui status</button>' : ''}
           ${selected.disclaimer ? `<div class="jasa-disclaimer" role="note"><strong>Informasi penting</strong><p>${escapeHtml(selected.disclaimer)}</p></div>` : ''}
-          <section><h3>Laporan/catatan pengerjaan</h3>${Array.isArray(selected.visits) && selected.visits.length ? [...selected.visits].sort((a, b) => Number(b.at || 0) - Number(a.at || 0)).map((visit) => `<article class="jasa-visit"><strong>${escapeHtml(visit.note || 'Catatan pengerjaan')}</strong><small>${escapeHtml(jasaFormatDate(visit.at))} · ${escapeHtml(visit.staffName || visit.by || 'Tim layanan')}</small><p style="white-space:pre-wrap">${escapeHtml(visit.reportText || '')}</p></article>`).join('') : '<p class="muted">Catatan pengerjaan akan muncul di sini setelah dicatat.</p>'}<a class="btn btn-secondary" href="../marketplace/chat.html?orderId=${encodeURIComponent(selected.id)}">Tanya admin</a></section>
+          <section><h3>Laporan/catatan pengerjaan</h3>${Array.isArray(selected.visits) && selected.visits.length ? [...selected.visits].sort((a, b) => Number(b.at || 0) - Number(a.at || 0)).map((visit) => `<article class="jasa-visit"><strong>${escapeHtml(visit.note || 'Catatan pengerjaan')}</strong><small>${escapeHtml(jasaFormatDate(visit.at))} · ${escapeHtml(visit.staffName || visit.by || 'Tim layanan')}</small><p style="white-space:pre-wrap">${escapeHtml(visit.reportText || '')}</p></article>`).join('') : '<p class="muted">Catatan pengerjaan akan muncul di sini setelah dicatat.</p>'}<a class="btn btn-secondary" href="chat.html?orderId=${encodeURIComponent(selected.id)}">Tanya admin</a></section>
         </article>` : '<article class="panel"><p class="muted">Pilih pesanan untuk melihat detail dan pembaruan layanan.</p></article>'}
       </div>`;
       content.querySelector('[data-jasa-pay]')?.addEventListener('click', async (event) => {

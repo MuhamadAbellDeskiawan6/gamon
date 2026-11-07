@@ -24,7 +24,8 @@
     menuItems.push(
         { section: 'Gamon Jasa (Beta)' },
         { href: '/admin/jasa.html', label: 'Layanan Jasa', icon: 'handyman' },
-        { href: '/admin/jasa-orders.html', label: 'Pesanan Jasa', icon: 'receipt_long' }
+        { href: '/admin/jasa-orders.html', label: 'Pesanan Jasa', icon: 'receipt_long' },
+        { href: '/admin/jasa-chat.html', label: 'Chat Jasa', icon: 'chat', jasaChat: true }
     );
 
     const menuMarkup = menuItems.map((item) => {
@@ -39,6 +40,8 @@
             : 'flex items-center justify-between gap-2 rounded-xl px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100';
         const badge = item.chat
             ? '<span data-admin-chat-unread class="hidden rounded-full bg-rose-600 px-2 py-0.5 text-[10px] font-bold text-white"></span>'
+            : item.jasaChat
+                ? '<span data-admin-jasa-chat-unread class="hidden rounded-full bg-rose-600 px-2 py-0.5 text-[10px] font-bold text-white"></span>'
             : item.orders
                 ? '<span data-admin-orders-unread class="hidden rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-bold text-white"></span>'
                 : item.sell
@@ -65,9 +68,10 @@
     });
 
     const chatBadge = document.querySelector('[data-admin-chat-unread]');
+    const jasaChatBadge = document.querySelector('[data-admin-jasa-chat-unread]');
     const ordersBadge = document.querySelector('[data-admin-orders-unread]');
     const sellBadge = document.querySelector('[data-admin-sell-pending]');
-    if (chatBadge || ordersBadge || sellBadge) {
+    if (chatBadge || jasaChatBadge || ordersBadge || sellBadge) {
         import('/admin/admin-firebase.js').then(async ({ db, requireAdmin }) => {
             const access = await requireAdmin();
             if (!access) return;
@@ -82,6 +86,15 @@
                     chatBadge.textContent = unread > 99 ? '99+' : String(unread);
                     chatBadge.classList.toggle('hidden', unread === 0);
                 }, (error) => console.error('[marketplace chat admin] gagal memperbarui badge sidebar:', error)));
+            }
+            if (jasaChatBadge) {
+                unsubs.push(onSnapshot(collection(db, 'jasa_chats'), (snapshot) => {
+                    const unread = snapshot.docs.reduce((total, thread) => {
+                        return total + Math.max(0, Number(thread.data().unreadForAdmin || 0));
+                    }, 0);
+                    jasaChatBadge.textContent = unread > 99 ? '99+' : String(unread);
+                    jasaChatBadge.classList.toggle('hidden', unread === 0);
+                }, (error) => console.error('[jasa chat admin] gagal memperbarui badge sidebar:', error)));
             }
             if (ordersBadge) {
                 unsubs.push(onSnapshot(collection(db, 'marketplace_orders'), (snapshot) => {

@@ -1311,6 +1311,99 @@ async function handleNotifyMarketplaceChatReply(req, res) {
     }
 }
 
+async function handleNotifyJasaChatReply(req, res) {
+    if (req.method !== 'POST') {
+        return res.status(405).json({ success: false, message: 'Method Not Allowed' });
+    }
+
+    const authResult = await requireAdmin(req, res);
+    if (!authResult) return;
+
+    loadLocalEnvIfNeeded();
+
+    const threadId = String(req.body?.threadId || '').trim();
+    const messageId = String(req.body?.messageId || '').trim();
+    if (!threadId || !messageId || threadId.includes('/') || messageId.includes('/')) {
+        return res.status(400).json({ success: false, message: 'threadId dan messageId wajib diisi.' });
+    }
+
+    try {
+        const db = getAdminDb();
+        const threadRef = db.collection('jasa_chats').doc(threadId);
+        const messageRef = threadRef.collection('messages').doc(messageId);
+        const [threadSnap, messageSnap] = await Promise.all([threadRef.get(), messageRef.get()]);
+        if (!threadSnap.exists || !messageSnap.exists) {
+            return res.status(404).json({ success: false, message: 'Percakapan atau pesan tidak ditemukan.' });
+        }
+
+        const thread = threadSnap.data() || {};
+        const message = messageSnap.data() || {};
+        if (message.senderRole !== 'admin') {
+            return res.status(400).json({ success: false, message: 'Hanya pesan admin yang dapat dinotifikasikan.' });
+        }
+        if (message.emailNotifiedAt) {
+            return res.status(200).json({ success: true, sent: false, reason: 'already-notified' });
+        }
+
+        let buyerEmail = String(thread.buyerEmail || '').trim();
+        if (!isValidEmail(buyerEmail) && thread.buyerId) {
+            try {
+                buyerEmail = String((await getAdminAuth().getUser(String(thread.buyerId))).email || '').trim();
+            } catch (error) {
+                buyerEmail = '';
+            }
+        }
+        if (!isValidEmail(buyerEmail)) {
+            return res.status(200).json({ success: true, sent: false, reason: 'buyer-email-missing' });
+        }
+
+        const siteUrl = (/^https:\/\//i.test(String(process.env.SITE_URL || '').trim())
+            ? String(process.env.SITE_URL).trim()
+            : 'https://gamon-space.vercel.app').replace(/\/$/, '');
+        const params = new URLSearchParams();
+        if (thread.orderId) params.set('orderId', String(thread.orderId));
+        else if (thread.serviceId) {
+            params.set('serviceId', String(thread.serviceId));
+            if (thread.serviceName) params.set('serviceName', String(thread.serviceName));
+        }
+        const link = `${siteUrl}/user/jasa/chat.html${params.toString() ? `?${params}` : ''}`;
+        const label = thread.serviceName
+            ? `Layanan: ${thread.serviceName}`
+            : thread.orderId ? `Pesanan: ${thread.orderId}` : 'Pertanyaan umum';
+        const body = String(message.text || '').slice(0, 1000);
+
+        try {
+            const result = await sendChatReplyEmail({
+                to: buyerEmail,
+                subject: '💬 Admin Gamon Jasa membalas chat Anda',
+                html: `
+                <div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;padding:24px;border:1px solid #eee;border-radius:16px">
+                    <h2 style="margin-top:0;color:#111827">Ada balasan baru dari admin Gamon Jasa 💬</h2>
+                    <p style="color:#374151;margin:0 0 12px"><b>Topik:</b> ${escapeMailHtml(label)}</p>
+                    <div style="background:#f8fafc;padding:12px;border-radius:12px;font-size:14px;color:#334155;line-height:1.5;white-space:pre-wrap;">${escapeMailHtml(body)}</div>
+                    <p style="margin-top:18px"><a href="${escapeMailHtml(link)}" style="background:#db2777;color:#fff;padding:10px 16px;border-radius:10px;text-decoration:none;font-weight:600">Buka chat</a></p>
+                    <p style="font-size:12px;color:#64748b;margin-top:14px">Anda menerima email ini karena memiliki percakapan di Gamon Jasa.</p>
+                </div>`,
+                text: `Balasan dari admin Gamon Jasa (${label}):\n\n${body}\n\nBuka chat: ${link}`
+            });
+            console.log('[jasa chat] email balasan terkirim via', result.via, 'ke', buyerEmail);
+        } catch (mailError) {
+            console.warn('[jasa chat] email balasan gagal:', mailError.code || '', mailError.message);
+            return res.status(200).json({
+                success: true,
+                sent: false,
+                reason: mailError.code || 'send-failed',
+                detail: String(mailError.message || '').slice(0, 300)
+            });
+        }
+
+        await messageRef.set({ emailNotifiedAt: Date.now() }, { merge: true });
+        return res.status(200).json({ success: true, sent: true });
+    } catch (error) {
+        return res.status(500).json({ success: false, message: error.message });
+    }
+}
+
 function jasaAdminError(statusCode, code, message) {
     return Object.assign(new Error(message), { statusCode, code });
 }
@@ -2229,9 +2322,11 @@ export default async function handler(req, res) {
             return handleToggleRedeemCode(req, res);
         case 'delete-redeem-code':
             return handleDeleteRedeemCode(req, res);
-                    case 'notify-marketplace-chat-reply':
+        case 'notify-marketplace-chat-reply':
             return handleNotifyMarketplaceChatReply(req, res);
-                    case 'jasa-get-catalog':
+        case 'notify-jasa-chat-reply':
+            return handleNotifyJasaChatReply(req, res);
+        case 'jasa-get-catalog':
                     case 'jasa-save-category':
                     case 'jasa-save-service':
                     case 'jasa-delete-service':

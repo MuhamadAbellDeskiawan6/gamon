@@ -1124,6 +1124,60 @@ async function notifyChat(req, res, claims) {
   return res.status(200).json({ success: true, sent: true });
 }
 
+async function jasaNotifyChat(req, res, claims) {
+  const threadId = String(req.body?.threadId || '').trim();
+  const messageId = String(req.body?.messageId || '').trim();
+  if (!threadId || !messageId || threadId.includes('/') || messageId.includes('/')) {
+    return responseError(res, 400, 'invalid-request', 'threadId dan messageId wajib diisi.');
+  }
+
+  const db = getAdminDb();
+  const threadRef = db.collection('jasa_chats').doc(threadId);
+  const messageRef = threadRef.collection('messages').doc(messageId);
+  const [threadSnap, messageSnap] = await Promise.all([threadRef.get(), messageRef.get()]);
+  if (!threadSnap.exists || !messageSnap.exists) return responseError(res, 404, 'not-found', 'Percakapan atau pesan tidak ditemukan.');
+
+  const thread = threadSnap.data() || {};
+  const message = messageSnap.data() || {};
+  if (String(thread.buyerId) !== String(claims.uid) || message.senderRole !== 'user' || String(message.senderId) !== String(claims.uid)) {
+    return responseError(res, 403, 'forbidden', 'Tidak diizinkan.');
+  }
+  if (message.emailNotifiedAt) return res.status(200).json({ success: true, sent: false, reason: 'already-notified' });
+  if (Date.now() - Number(message.createdAt || 0) > 10 * 60 * 1000) {
+    return res.status(200).json({ success: true, sent: false, reason: 'message-too-old' });
+  }
+
+  const adminEmail = String(process.env.ADMIN_NOTIFY_EMAIL || MAIL_OWNER_EMAIL).trim();
+  const buyerName = cleanText(thread.buyerName || claims.name || 'Pembeli', 120);
+  const label = thread.serviceName
+    ? `Layanan: ${cleanText(thread.serviceName, 120)}`
+    : thread.orderId ? `Pesanan: ${cleanText(thread.orderId, 60)}` : 'Pertanyaan umum';
+  const link = `${getSiteUrl()}/admin/jasa-chat.html?thread=${encodeURIComponent(threadId)}`;
+  const body = cleanText(message.text, 1000);
+
+  try {
+    await sendEmail({
+      to: adminEmail,
+      subject: `Pesan baru Gamon Jasa dari ${buyerName} - ${label}`,
+      html: `
+      <div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;padding:24px;border:1px solid #eee;border-radius:16px">
+        <h2 style="margin-top:0;color:#111827">Ada pesan baru dari pembeli Gamon Jasa</h2>
+        <p style="color:#374151;margin:0 0 4px"><b>Pembeli:</b> ${escapeMailHtml(buyerName)}</p>
+        <p style="color:#374151;margin:0 0 12px"><b>Topik:</b> ${escapeMailHtml(label)}</p>
+        <div style="background:#f8fafc;padding:12px;border-radius:12px;font-size:14px;color:#334155;line-height:1.5;white-space:pre-wrap;">${escapeMailHtml(body)}</div>
+        <p style="margin-top:18px"><a href="${escapeMailHtml(link)}" style="background:#db2777;color:#fff;padding:10px 16px;border-radius:10px;text-decoration:none;font-weight:600">Buka & balas chat</a></p>
+      </div>`,
+      text: `Pesan baru Gamon Jasa dari ${buyerName} (${label}):\n\n${body}\n\nBalas: ${link}`
+    });
+  } catch (error) {
+    console.warn('[jasa] email notifikasi chat gagal:', error.code || '', error.message);
+    return res.status(200).json({ success: true, sent: false, reason: error.code || 'send-failed' });
+  }
+
+  await messageRef.set({ emailNotifiedAt: Date.now() }, { merge: true });
+  return res.status(200).json({ success: true, sent: true });
+}
+
 /* =========================================================================
  * EMAIL VERIFIKASI AKUN (token HMAC buatan sendiri, tidak memakai oobCode Firebase)
  * ========================================================================= */
@@ -2451,6 +2505,7 @@ async function jasaCheckPayment(req, res, claims) {
 }
 
 async function handleJasaBuyerAction(action, req, res, claims) {
+  if (action === 'jasa-notify-chat') return jasaNotifyChat(req, res, claims);
   if (action === 'jasa-checkout') return jasaCheckout(req, res, claims);
   if (action === 'jasa-get-profile') return jasaGetProfile(req, res, claims);
   if (action === 'jasa-save-profile') return jasaSaveProfile(req, res, claims);

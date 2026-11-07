@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Chat Admin | Gamon Jasa (Beta)</title>
+  <link rel="stylesheet" href="../marketplace/assets/style.css" />
+  <link rel="stylesheet" href="../marketplace/assets/commerce.css" />
+  <link rel="stylesheet" href="../marketplace/assets/neo.css" />
+</head>
+<body data-page="jasa-chat">
+  <header class="topbar"><div class="container nav">
+    <a href="index.html" class="brand">Gamon Jasa (Beta)</a>
+    <nav class="nav-actions" aria-label="Navigasi akun" data-jasa-nav></nav>
+  </div></header>
+  <main class="container user-layout" style="padding:28px 0 56px">
+    <section class="chat-multi" data-chat-layout data-view="list">
+      <aside class="chat-list-panel" aria-label="Daftar percakapan">
+        <div class="chat-list-head">
+          <strong>Percakapan</strong>
+          <button class="btn btn-soft" type="button" data-chat-new-general>+ Pertanyaan umum</button>
+        </div>
+        <div class="chat-list" data-chat-list aria-live="polite">
+          <p class="chat-list-empty">Memuat percakapan...</p>
+        </div>
+      </aside>
+
+      <div class="chat-conversation">
+        <div class="chat-conv-head">
+          <button class="btn btn-secondary chat-back-btn" type="button" data-chat-back>‹ Daftar</button>
+          <div>
+            <h3 data-chat-title>Pilih percakapan</h3>
+            <small data-chat-contact>Gamon Jasa · Admin</small>
+          </div>
+        </div>
+
+        <div class="chat-product-context" data-chat-product-context hidden></div>
+
+        <div class="chat-thread" data-chat-thread>
+          <div class="empty-state">Pilih percakapan di daftar atau mulai percakapan dengan admin.</div>
+        </div>
+        <p class="muted" data-chat-status role="status" aria-live="polite"></p>
+
+        <form class="chat-composer" data-chat-form>
+          <textarea rows="2" maxlength="2000" placeholder="Pilih percakapan untuk mulai menulis..." aria-label="Pesan ke admin Gamon Jasa" disabled></textarea>
+          <button class="btn btn-primary" type="submit" disabled>Kirim</button>
+        </form>
+      </div>
+    </section>
+    <p class="jasa-status" data-jasa-status role="status" aria-live="polite" hidden></p>
+  </main>
+  <script type="module" src="../marketplace/assets/app.js"></script>
+</body>
+</html>
