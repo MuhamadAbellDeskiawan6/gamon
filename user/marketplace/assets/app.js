@@ -5990,11 +5990,44 @@ async function initJasaPage(page) {
       if (!content) return;
       const parentForm = (parent = {}, index = '') => {
         const prefix = `jasa-parent-${index === '' ? 'new' : index}`;
+        const latitudeText = String(parent.latitude ?? '').trim();
+        const longitudeText = String(parent.longitude ?? '').trim();
+        const latitude = latitudeText ? Number(latitudeText) : NaN;
+        const longitude = longitudeText ? Number(longitudeText) : NaN;
+        const cityRegions = KALSEL_REGIONS[parent.city] || {};
+        const hasCompleteAddress = Boolean(
+          Object.prototype.hasOwnProperty.call(KALSEL_REGIONS, parent.city) &&
+          Object.prototype.hasOwnProperty.call(cityRegions, parent.district) &&
+          parent.village &&
+          Number.isFinite(latitude) && latitude >= -90 && latitude <= 90 &&
+          Number.isFinite(longitude) && longitude >= -180 && longitude <= 180
+        );
         return `<form data-parent-form="${index}" class="panel jasa-profile-form">
         <h2>${index === '' ? `Tambah data ${escapeHtml(recipientLabel.toLowerCase())}` : `Ubah data: ${escapeHtml(parent.name || '')}`}</h2>
+        ${index !== '' && !hasCompleteAddress ? '<p class="jasa-note">Alamat belum lengkap. Lengkapi wilayah dan titik peta agar bisa dipakai saat memesan.</p>' : ''}
         <input type="hidden" name="id" value="${escapeHtml(parent.id || '')}">
-        <div class="form-row"><div class="field"><label for="${prefix}-name">Nama penerima atau lokasi *</label><input id="${prefix}-name" name="name" maxlength="120" value="${escapeHtml(parent.name || '')}" required></div><div class="field"><label for="${prefix}-city">Kota (opsional)</label><input id="${prefix}-city" name="city" maxlength="120" value="${escapeHtml(parent.city || '')}"></div></div>
+        <div class="form-row"><div class="field"><label for="${prefix}-name">Nama penerima atau lokasi *</label><input id="${prefix}-name" name="name" maxlength="120" value="${escapeHtml(parent.name || '')}" required></div></div>
         <div class="field"><label for="${prefix}-address">Alamat lengkap *</label><textarea id="${prefix}-address" name="address" maxlength="500" required>${escapeHtml(parent.address || '')}</textarea></div>
+        <div class="form-row">
+          <div class="field"><label for="${prefix}-city">Kota/Kabupaten *</label><select id="${prefix}-city" name="shippingCity"></select></div>
+          <div class="field"><label for="${prefix}-district">Kecamatan *</label><select id="${prefix}-district" name="shippingDistrict" disabled></select></div>
+          <div class="field"><label for="${prefix}-village">Kelurahan/Desa *</label><select id="${prefix}-village" name="shippingVillage" disabled></select><input id="${prefix}-village-manual" name="shippingVillageManual" maxlength="100" aria-label="Nama kelurahan/desa" placeholder="Ketik kelurahan/desa" hidden></div>
+        </div>
+        <div class="form-row">
+          <div class="field"><label for="${prefix}-province">Provinsi</label><input id="${prefix}-province" name="province" value="${escapeHtml(KALSEL_PROVINCE)}" readonly></div>
+          <div class="field"><label for="${prefix}-postal-code">Kode pos (opsional)</label><input id="${prefix}-postal-code" name="postalCode" maxlength="5" inputmode="numeric" value="${escapeHtml(parent.postalCode || '')}"></div>
+        </div>
+        <div class="field"><label for="${prefix}-maps-url">Link Google Maps</label><input id="${prefix}-maps-url" name="mapsUrl" type="url" value="${escapeHtml(parent.mapsUrl || '')}"></div>
+        <div class="form-row">
+          <button class="btn btn-secondary" type="button" data-parse-parent-map>Ambil koordinat dari link</button>
+          <button class="btn btn-secondary" type="button" data-use-parent-location>Gunakan lokasi saya</button>
+        </div>
+        <p data-parent-location-status role="status"></p>
+        <div class="form-row">
+          <div class="field"><label for="${prefix}-latitude">Latitude</label><input id="${prefix}-latitude" name="latitude" type="number" step="any" value="${escapeHtml(parent.latitude ?? '')}"></div>
+          <div class="field"><label for="${prefix}-longitude">Longitude</label><input id="${prefix}-longitude" name="longitude" type="number" step="any" value="${escapeHtml(parent.longitude ?? '')}"></div>
+        </div>
+        <div class="field"><label>Preview titik alamat</label><div class="map-preview" data-parent-map-preview><div class="map-placeholder"><span class="material-symbols-outlined map-placeholder-icon">location_on</span></div></div><a data-parent-map-link target="_blank" rel="noopener noreferrer" hidden>Buka di Google Maps</a></div>
         <div class="form-row"><div class="field"><label for="${prefix}-emergency-name">Nama kontak di lokasi (opsional)</label><input id="${prefix}-emergency-name" name="emergencyContactName" maxlength="120" value="${escapeHtml(parent.emergencyContactName || '')}"></div><div class="field"><label for="${prefix}-emergency-phone">Telepon kontak di lokasi (opsional)</label><input id="${prefix}-emergency-phone" name="emergencyContactPhone" type="tel" maxlength="30" value="${escapeHtml(parent.emergencyContactPhone || '')}"></div></div>
         <div class="field"><label for="${prefix}-notes">Catatan tambahan (opsional)</label><textarea id="${prefix}-notes" name="notes" maxlength="700">${escapeHtml(parent.notes || '')}</textarea></div>
         <button class="btn btn-primary" type="submit">${index === '' ? 'Tambah data' : 'Simpan perubahan'}</button>
@@ -6002,23 +6035,135 @@ async function initJasaPage(page) {
       </form>`;
       };
       content.innerHTML = `${parents.map((parent, index) => parentForm(parent, String(index))).join('')}${parents.length < 5 ? parentForm() : '<p class="jasa-note">Maksimal 5 data tersimpan.</p>'}`;
-      content.querySelectorAll('[data-parent-form]').forEach((form) => form.addEventListener('submit', async (event) => {
-        event.preventDefault();
-        const data = Object.fromEntries(new FormData(form));
-        const index = form.dataset.parentForm;
-        const parent = { ...data, id: data.id || `parent-${Date.now()}-${Math.random().toString(36).slice(2, 8)}` };
-        const updated = [...parents];
-        if (index === '') updated.push(parent);
-        else updated[Number(index)] = parent;
-        const button = form.querySelector('button[type="submit"]');
-        await jasaRun(button, { loadingText: 'Menyimpan…', successMessage: 'Data berhasil disimpan', errorTitle: 'Data belum tersimpan' }, async () => {
-          const result = await jasaRequest('jasa-save-profile', { parents: updated }, user);
-          parents = result.profile.parents;
-          setStatus(result.message || 'Profil berhasil disimpan.', false, true);
-          renderProfile();
-          return result;
+      const addressPickers = new Map();
+      content.querySelectorAll('[data-parent-form]').forEach((form) => {
+        const latitudeField = form.querySelector('[name="latitude"]');
+        const longitudeField = form.querySelector('[name="longitude"]');
+        const mapsUrlField = form.querySelector('[name="mapsUrl"]');
+        const mapPreview = form.querySelector('[data-parent-map-preview]');
+        const mapLink = form.querySelector('[data-parent-map-link]');
+        const locationStatus = form.querySelector('[data-parent-location-status]');
+        const parseMapButton = form.querySelector('[data-parse-parent-map]');
+        const useLocationButton = form.querySelector('[data-use-parent-location]');
+        const parentIndex = form.dataset.parentForm;
+        const savedParent = parentIndex === '' ? {} : parents[Number(parentIndex)] || {};
+        const getCoordinates = () => {
+          const latitudeText = String(latitudeField?.value || '').trim();
+          const longitudeText = String(longitudeField?.value || '').trim();
+          if (!latitudeText || !longitudeText) return null;
+          const latitude = Number(latitudeText);
+          const longitude = Number(longitudeText);
+          return Number.isFinite(latitude) && latitude >= -90 && latitude <= 90 &&
+            Number.isFinite(longitude) && longitude >= -180 && longitude <= 180
+            ? { latitude, longitude }
+            : null;
+        };
+        const updatePreview = () => {
+          const coordinates = getCoordinates();
+          if (!coordinates) {
+            if (mapPreview) mapPreview.innerHTML = '<div class="map-placeholder"><span class="material-symbols-outlined map-placeholder-icon">location_on</span></div>';
+            if (mapLink) mapLink.hidden = true;
+            return;
+          }
+          const { latitude, longitude } = coordinates;
+          if (mapPreview) mapPreview.innerHTML = `<iframe title="Titik alamat penerima layanan" loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="https://maps.google.com/maps?q=${latitude},${longitude}&z=16&output=embed"></iframe>`;
+          if (mapLink) {
+            mapLink.href = `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
+            mapLink.textContent = 'Buka di Google Maps';
+            mapLink.hidden = false;
+          }
+        };
+        const addressPicker = bindKalselAddressSelects(form, savedParent, updatePreview);
+        addressPickers.set(form, addressPicker);
+        [latitudeField, longitudeField].forEach((field) => field?.addEventListener('input', updatePreview));
+        parseMapButton?.addEventListener('click', () => {
+          let url;
+          try {
+            url = new URL(String(mapsUrlField?.value || '').trim());
+          } catch (error) {
+            url = null;
+          }
+          if (!url || url.protocol !== 'https:') {
+            showPopup('Link Google Maps HTTPS tidak berisi koordinat yang valid.', 'Link tidak valid', 'error');
+            return;
+          }
+          const candidate = url.searchParams.get('q') || url.searchParams.get('query') || url.searchParams.get('ll') || '';
+          const queryMatch = candidate.match(/(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)/);
+          const pathMatch = url.href.match(/@(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/);
+          const placeMatch = url.href.match(/!3d(-?\d+(?:\.\d+)?)!4d(-?\d+(?:\.\d+)?)/);
+          const match = queryMatch || pathMatch || placeMatch;
+          const latitude = match ? Number(match[1]) : NaN;
+          const longitude = match ? Number(match[2]) : NaN;
+          if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90 || !Number.isFinite(longitude) || longitude < -180 || longitude > 180) {
+            showPopup('Link Google Maps HTTPS tidak berisi koordinat yang valid.', 'Link tidak valid', 'error');
+            return;
+          }
+          if (latitudeField) latitudeField.value = String(Number(latitude.toFixed(6)));
+          if (longitudeField) longitudeField.value = String(Number(longitude.toFixed(6)));
+          if (mapsUrlField) mapsUrlField.value = `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
+          if (locationStatus) locationStatus.textContent = 'Koordinat diambil dari link Google Maps.';
+          updatePreview();
         });
-      }));
+        useLocationButton?.addEventListener('click', () => {
+          if (!navigator.geolocation) {
+            showPopup('Browser Anda tidak mendukung pembacaan lokasi otomatis.', 'Lokasi tidak tersedia', 'error');
+            return;
+          }
+          useLocationButton.disabled = true;
+          if (locationStatus) locationStatus.textContent = 'Mencari lokasi...';
+          navigator.geolocation.getCurrentPosition((position) => {
+            const latitude = position.coords.latitude;
+            const longitude = position.coords.longitude;
+            if (latitudeField) latitudeField.value = String(Number(latitude.toFixed(6)));
+            if (longitudeField) longitudeField.value = String(Number(longitude.toFixed(6)));
+            if (mapsUrlField) mapsUrlField.value = `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
+            if (locationStatus) locationStatus.textContent = 'Lokasi berhasil dipakai.';
+            updatePreview();
+            useLocationButton.disabled = false;
+          }, (error) => {
+            console.error('[jasa] gagal membaca lokasi penerima layanan:', error);
+            if (locationStatus) locationStatus.textContent = 'Gagal mengambil lokasi';
+            showPopup('Tidak dapat mengambil lokasi. Izinkan akses lokasi atau isi koordinat manual.', 'Lokasi gagal', 'error');
+            useLocationButton.disabled = false;
+          }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
+        });
+        updatePreview();
+        form.addEventListener('submit', async (event) => {
+          event.preventDefault();
+          const data = Object.fromEntries(new FormData(form));
+          const region = addressPickers.get(form)?.getValues();
+          const coordinates = getCoordinates();
+          if (!region?.city || !region.district || !region.village || !coordinates) {
+            const recipientName = String(form.querySelector('[name="name"]')?.value || '').trim();
+            showPopup(`Lengkapi kota/kabupaten, kecamatan, kelurahan/desa, dan titik koordinat peta${recipientName ? ` untuk data penerima "${recipientName}"` : ''}.`, 'Alamat belum lengkap', 'error');
+            return;
+          }
+          const index = form.dataset.parentForm;
+          const parent = {
+            ...data,
+            id: data.id || `parent-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+            province: KALSEL_PROVINCE,
+            city: region.city,
+            district: region.district,
+            village: region.village,
+            postalCode: data.postalCode || '',
+            latitude: coordinates.latitude,
+            longitude: coordinates.longitude,
+            mapsUrl: `https://www.google.com/maps/search/?api=1&query=${coordinates.latitude},${coordinates.longitude}`
+          };
+          const updated = [...parents];
+          if (index === '') updated.push(parent);
+          else updated[Number(index)] = parent;
+          const button = form.querySelector('button[type="submit"]');
+          await jasaRun(button, { loadingText: 'Menyimpan…', successMessage: 'Data berhasil disimpan', errorTitle: 'Data belum tersimpan' }, async () => {
+            const result = await jasaRequest('jasa-save-profile', { parents: updated }, user);
+            parents = result.profile.parents;
+            setStatus(result.message || 'Profil berhasil disimpan.', false, true);
+            renderProfile();
+            return result;
+          });
+        });
+      });
       content.querySelectorAll('[data-parent-delete]').forEach((button) => button.addEventListener('click', async () => {
         const index = Number(button.closest('[data-parent-form]').dataset.parentForm);
         showConfirm({
@@ -6095,7 +6240,23 @@ async function initJasaPage(page) {
             <div><dt>Paket</dt><dd>${escapeHtml(selected.package?.name || '-')}</dd></div>
             ${selectedScheduleMode === 'none' ? '' : `<div><dt>${escapeHtml(selected.scheduleLabel || 'Jadwal pilihan')}</dt><dd>${escapeHtml(selected.schedule?.date || '-')} ${selected.schedule?.time ? `· ${escapeHtml(selected.schedule.time)}` : ''} ${selected.schedule?.recurring ? '· Rutin mingguan: ' + escapeHtml((selected.schedule.days || []).join(', ')) : ''}</dd></div>`}
           </dl>
-          ${selected.parent ? `<section class="jasa-order-meta"><h3>${escapeHtml(selected.recipientLabel || 'Penerima layanan')}</h3><p>${escapeHtml(selected.parent.name || '-')}</p><p>${escapeHtml(selected.parent.address || '')}${selected.parent.city ? `, ${escapeHtml(selected.parent.city)}` : ''}</p></section>` : ''}
+          ${selected.parent ? `<section class="jasa-order-meta"><h3>${escapeHtml(selected.recipientLabel || 'Penerima layanan')}</h3><p>${escapeHtml(selected.parent.name || '-')}</p><p>${escapeHtml(selected.parent.address || '')}${selected.parent.city ? `, ${escapeHtml(selected.parent.city)}` : ''}</p>${(() => {
+            const parent = selected.parent;
+            const addressParts = [
+              parent.village ? `Kel./Desa ${parent.village}` : '',
+              parent.district ? `Kec. ${parent.district}` : '',
+              parent.city || '',
+              parent.province || ''
+            ].filter(Boolean);
+            const latitude = Number(parent.latitude);
+            const longitude = Number(parent.longitude);
+            const hasCoordinates = parent.latitude !== '' && parent.latitude !== null && parent.latitude !== undefined &&
+              parent.longitude !== '' && parent.longitude !== null && parent.longitude !== undefined &&
+              Number.isFinite(latitude) && latitude >= -90 && latitude <= 90 &&
+              Number.isFinite(longitude) && longitude >= -180 && longitude <= 180;
+            const mapsUrl = hasCoordinates ? `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}` : '';
+            return `${addressParts.length ? `<p>${escapeHtml(addressParts.join(', '))}</p>` : ''}${hasCoordinates ? `<a href="${escapeHtml(mapsUrl)}" target="_blank" rel="noopener noreferrer">Lihat di Google Maps</a>` : ''}`;
+          })()}</section>` : ''}
           ${selected.formData && Object.keys(selected.formData).length ? `<section class="jasa-order-meta"><h3>Detail kebutuhan</h3><dl>${Object.entries(selected.formData).map(([key, value]) => `<div><dt>${escapeHtml(selected.formFieldLabels?.[key] || key)}</dt><dd>${escapeHtml(value)}</dd></div>`).join('')}</dl></section>` : ''}
           ${selected.pricingNote ? `<p class="jasa-note">${escapeHtml(selected.pricingNote)}</p>` : ''}
           ${selected.status === 'awaiting_quote' ? '<p class="jasa-note">Admin sedang menyiapkan penawaran harga. Kembali ke halaman ini untuk melihat pembaruannya.</p>' : ''}

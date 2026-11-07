@@ -1848,9 +1848,12 @@ function jasaValidPhone(value) {
   return /^\+?[0-9][0-9\s().-]{6,23}$/.test(phone) && phone.replace(/\D/g, '').length >= 8;
 }
 
-function jasaCleanParents(input) {
+function jasaCleanParents(input, existingParents = []) {
   if (!Array.isArray(input) || input.length > 5) throw jasaFailure(400, 'invalid-parent-profiles', 'Simpan maksimal 5 data penerima layanan.');
   const ids = new Set();
+  const existingById = new Map((Array.isArray(existingParents) ? existingParents : [])
+    .filter((item) => item && typeof item === 'object' && item.id)
+    .map((item) => [String(item.id), item]));
   return input.map((item, index) => {
     if (!item || typeof item !== 'object' || Array.isArray(item)) throw jasaFailure(400, 'invalid-parent-profile', `Data penerima layanan nomor ${index + 1} tidak valid.`);
     const id = jasaValidateId(item.id, 'ID data penerima');
@@ -1859,13 +1862,70 @@ function jasaCleanParents(input) {
     const name = cleanText(item.name, 120);
     const address = cleanText(item.address, 500);
     const city = cleanText(item.city, 120);
+    const district = cleanText(item.district, 100);
+    const village = cleanText(item.village, 100);
+    const postalCode = cleanText(item.postalCode, 20);
+    const latitudeText = String(item.latitude ?? '').trim();
+    const longitudeText = String(item.longitude ?? '').trim();
+    const latitude = latitudeText ? Number(latitudeText) : NaN;
+    const longitude = longitudeText ? Number(longitudeText) : NaN;
     const emergencyContactName = cleanText(item.emergencyContactName, 120);
     const emergencyContactPhone = cleanText(item.emergencyContactPhone, 30);
     const notes = cleanText(item.notes, 700);
     if (!name || !address || (emergencyContactPhone && !jasaValidPhone(emergencyContactPhone))) {
       throw jasaFailure(400, 'invalid-parent-profile', `Nama dan alamat wajib diisi untuk data penerima layanan nomor ${index + 1}; nomor telepon harus valid jika diisi.`);
     }
-    return { id, name, address, city, emergencyContactName, emergencyContactPhone, notes };
+    const existing = existingById.get(id);
+    const sameText = (submitted, stored, maxLength) => cleanText(submitted, maxLength) === cleanText(stored, maxLength);
+    const sameCoordinate = (submitted, stored) => {
+      const submittedText = String(submitted ?? '').trim();
+      const storedText = String(stored ?? '').trim();
+      if (!submittedText || !storedText) return !submittedText && !storedText;
+      const submittedNumber = Number(submittedText);
+      const storedNumber = Number(storedText);
+      return Number.isFinite(submittedNumber) && Number.isFinite(storedNumber)
+        ? submittedNumber === storedNumber
+        : submittedText === storedText;
+    };
+    const existingLatitudeText = String(existing?.latitude ?? '').trim();
+    const existingLongitudeText = String(existing?.longitude ?? '').trim();
+    const existingLatitude = existingLatitudeText ? Number(existingLatitudeText) : NaN;
+    const existingLongitude = existingLongitudeText ? Number(existingLongitudeText) : NaN;
+    const existingHasCompleteRegion = Boolean(
+      KALSEL_CITIES.has(cleanText(existing?.city, 120)) &&
+      cleanText(existing?.district, 100) &&
+      cleanText(existing?.village, 100) &&
+      Number.isFinite(existingLatitude) && existingLatitude >= -90 && existingLatitude <= 90 &&
+      Number.isFinite(existingLongitude) && existingLongitude >= -180 && existingLongitude <= 180
+    );
+    const isLegacyUnchanged = Boolean(existing && !existingHasCompleteRegion &&
+      sameText(item.city, existing.city, 120) &&
+      sameText(item.district, existing.district, 100) &&
+      sameText(item.village, existing.village, 100) &&
+      sameCoordinate(item.latitude, existing.latitude) &&
+      sameCoordinate(item.longitude, existing.longitude));
+    if (isLegacyUnchanged) {
+      return {
+        id, name, address,
+        province: cleanText(item.province, 100),
+        city, district, village, postalCode,
+        latitude: latitudeText ? (Number.isFinite(latitude) ? latitude : cleanText(item.latitude, 30)) : null,
+        longitude: longitudeText ? (Number.isFinite(longitude) ? longitude : cleanText(item.longitude, 30)) : null,
+        mapsUrl: cleanText(item.mapsUrl, 500),
+        emergencyContactName, emergencyContactPhone, notes
+      };
+    }
+    const parentLabel = `data penerima "${name}"`;
+    if (!KALSEL_CITIES.has(city) || !district || !village ||
+      !Number.isFinite(latitude) || latitude < -90 || latitude > 90 ||
+      !Number.isFinite(longitude) || longitude < -180 || longitude > 180) {
+      throw jasaFailure(400, 'invalid-parent-profile', `Lengkapi kota/kabupaten, kecamatan, kelurahan, dan titik peta untuk ${parentLabel}.`);
+    }
+    if (latitude < -4.3 || latitude > -1.2 || longitude < 114.3 || longitude > 116.8) {
+      throw jasaFailure(400, 'invalid-parent-profile', `Titik peta ${parentLabel} harus berada di wilayah Kalimantan Selatan.`);
+    }
+    const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
+    return { id, name, address, province: 'Kalimantan Selatan', city, district, village, postalCode, latitude, longitude, mapsUrl, emergencyContactName, emergencyContactPhone, notes };
   });
 }
 
@@ -1877,8 +1937,12 @@ async function jasaGetProfile(req, res, claims) {
 }
 
 async function jasaSaveProfile(req, res, claims) {
-  const parents = jasaCleanParents(req.body?.parents);
-  await retryNetwork(() => getAdminDb().collection('jasa_profiles').doc(claims.uid).set({ parents, updatedAt: Date.now() }));
+  const ref = getAdminDb().collection('jasa_profiles').doc(claims.uid);
+  const snapshot = await retryNetwork(() => ref.get());
+  const data = snapshot.exists ? snapshot.data() || {} : {};
+  const existingParents = Array.isArray(data.parents) ? data.parents : [];
+  const parents = jasaCleanParents(req.body?.parents, existingParents);
+  await retryNetwork(() => ref.set({ parents, updatedAt: Date.now() }));
   return res.status(200).json({ success: true, profile: { parents }, message: 'Data penerima layanan berhasil disimpan.' });
 }
 
@@ -1968,11 +2032,20 @@ async function jasaCheckout(req, res, claims) {
     const parentId = jasaValidateId(body.parentId, 'Profil penerima layanan');
     const parentEntry = (profileSnapshot.data()?.parents || []).find((item) => item.id === parentId);
     if (!parentEntry) throw jasaFailure(400, 'parent-profile-required', 'Pilih profil penerima layanan yang tersimpan sebelum memesan.');
+    const parentLatitude = parentEntry.latitude === null || parentEntry.latitude === undefined || parentEntry.latitude === '' ? null : Number(parentEntry.latitude);
+    const parentLongitude = parentEntry.longitude === null || parentEntry.longitude === undefined || parentEntry.longitude === '' ? null : Number(parentEntry.longitude);
     parent = {
       id: jasaValidateId(parentEntry.id, 'ID data penerima'),
       name: cleanText(parentEntry.name, 120),
       address: cleanText(parentEntry.address, 500),
+      province: cleanText(parentEntry.province, 100),
       city: cleanText(parentEntry.city, 120),
+      district: cleanText(parentEntry.district, 100),
+      village: cleanText(parentEntry.village, 100),
+      postalCode: cleanText(parentEntry.postalCode, 20),
+      latitude: Number.isFinite(parentLatitude) ? parentLatitude : null,
+      longitude: Number.isFinite(parentLongitude) ? parentLongitude : null,
+      mapsUrl: cleanText(parentEntry.mapsUrl, 500),
       emergencyContactName: cleanText(parentEntry.emergencyContactName, 120),
       emergencyContactPhone: cleanText(parentEntry.emergencyContactPhone, 30),
       notes: cleanText(parentEntry.notes, 700)
