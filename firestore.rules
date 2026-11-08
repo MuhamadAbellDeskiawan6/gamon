@@ -59,6 +59,15 @@ service cloud.firestore {
       allow create, update, delete: if isAdmin();
     }
 
+    match /marketplace_points/{userId} {
+      allow read: if isSignedIn() && request.auth.uid == userId;
+      allow write: if false;
+      match /history/{id} {
+        allow read: if isSignedIn() && request.auth.uid == userId;
+        allow write: if false;
+      }
+    }
+
     match /marketplace_orders/{orderId} {
       allow read: if isSignedIn() && (resource == null || resource.data.userId == request.auth.uid || isAdmin());
       allow create, update, delete: if false;

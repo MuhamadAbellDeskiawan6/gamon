@@ -8,6 +8,7 @@ import { applyMarketplacePayment, notifyAdminNewCodOrder, reconcilePaidOrdersSto
 
 const PAYMENT_WINDOW_MS = 60 * 60 * 1000;
 const COD_CONFIRM_WINDOW_MS = 24 * 60 * 60 * 1000;
+const POINT_RULES = { earnRate: 0.01, checkin: 50, streakBonus: 200, streakDays: 7, minRedeem: 1000, maxRedeemPercent: 50 };
 const DEFAULT_SITE_URL = 'https://gamon-space.vercel.app';
 const DEFAULT_DOKU_BASE_URL = 'https://api.doku.com';
 const KALSEL_CITIES = new Set([
@@ -16,6 +17,10 @@ const KALSEL_CITIES = new Set([
   'Kabupaten Hulu Sungai Tengah', 'Kabupaten Hulu Sungai Utara', 'Kabupaten Tabalong',
   'Kabupaten Tanah Bumbu', 'Kabupaten Balangan', 'Kabupaten Kotabaru'
 ]);
+
+function todayKey() {
+  return new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10);
+}
 
 function responseError(res, status, code, message, details) {
   return res.status(status).json({ success: false, code, message, ...(details ? { details } : {}) });
@@ -280,12 +285,14 @@ async function createDokuPayment(order, config) {
   const requestId = crypto.randomUUID();
   const timestamp = new Date().toISOString().split('.')[0] + 'Z';
 
-  const lineItems = order.items.map((item) => ({
-    name: dokuSafeText(item.name, 100, 'Produk'),
-    price: item.unitPrice,
-    quantity: item.qty
-  }));
-  if (order.shippingFee > 0) lineItems.push({ name: 'Ongkos kirim', price: order.shippingFee, quantity: 1 });
+  const lineItems = order.pointsDiscount > 0
+    ? [{ name: `Pesanan ${order.orderId}`, price: order.totalAmount, quantity: 1 }]
+    : order.items.map((item) => ({
+      name: dokuSafeText(item.name, 100, 'Produk'),
+      price: item.unitPrice,
+      quantity: item.qty
+    }));
+  if (!order.pointsDiscount && order.shippingFee > 0) lineItems.push({ name: 'Ongkos kirim', price: order.shippingFee, quantity: 1 });
 
   // Default QRIS. DOKU_PAYMENT_METHODS=ALL membuka semua metode,
   // atau isi daftar dipisah koma, mis. "QRIS,VIRTUAL_ACCOUNT_BCA".
@@ -369,7 +376,7 @@ async function cancelStaleAwaitingOrders(userId) {
 
 // Membuat reservasi DOKU tanpa memotong stok; COD memotong stok dan
 // mengosongkan keranjang dalam transaksi yang sama dengan pembuatan order.
-async function createPendingOrder(claims, paymentMethod = 'DOKU') {
+async function createPendingOrder(claims, paymentMethod = 'DOKU', pointsToUse = 0) {
   const db = getAdminDb();
   const userId = String(claims.uid);
   const now = Date.now();
@@ -377,12 +384,14 @@ async function createPendingOrder(claims, paymentMethod = 'DOKU') {
   const orderRef = db.collection('marketplace_orders').doc(orderId);
   const cartRef = db.collection('marketplace_carts').doc(userId);
   const profileRef = db.collection('marketplace_users').doc(userId);
+  const pointsRef = db.collection('marketplace_points').doc(userId);
 
   return db.runTransaction(async (transaction) => {
-    const [cartSnapshot, profileSnapshot, orderSnapshot] = await Promise.all([
+    const [cartSnapshot, profileSnapshot, orderSnapshot, pointsSnapshot] = await Promise.all([
       transaction.get(cartRef),
       transaction.get(profileRef),
-      transaction.get(orderRef)
+      transaction.get(orderRef),
+      transaction.get(pointsRef)
     ]);
     if (orderSnapshot.exists) throw Object.assign(new Error('Kode pesanan bentrok. Coba checkout sekali lagi.'), { code: 'order-code-collision' });
     if (!cartSnapshot.exists) throw Object.assign(new Error('Keranjang masih kosong.'), { code: 'cart-empty' });
@@ -463,9 +472,21 @@ async function createPendingOrder(claims, paymentMethod = 'DOKU') {
     const shippingFee = getShippingFee();
     const codLimits = getCodLimits();
     const codFee = paymentMethod === 'COD' ? codLimits.fee : 0;
-    const totalAmount = subtotal + shippingFee + codFee;
+    const pointBalance = Number.isSafeInteger(pointsSnapshot.data()?.balance) && pointsSnapshot.data().balance >= 0
+      ? pointsSnapshot.data().balance
+      : 0;
+    const maxRedeem = Math.floor(subtotal * POINT_RULES.maxRedeemPercent / 100);
+    if (!Number.isInteger(pointsToUse) || pointsToUse < 0 ||
+      (pointsToUse > 0 && pointsToUse < POINT_RULES.minRedeem) ||
+      pointsToUse > pointBalance || pointsToUse > maxRedeem) {
+      throw Object.assign(new Error('Jumlah poin tidak valid atau melebihi saldo/batas penukaran.'), { code: 'invalid-points' });
+    }
+    const pointsDiscount = pointsToUse;
+    const totalAmount = subtotal + shippingFee + codFee - pointsDiscount;
     if (!Number.isSafeInteger(totalAmount) || totalAmount < 1) {
-      throw Object.assign(new Error('Total pembayaran tidak valid.'), { code: 'invalid-total' });
+      throw Object.assign(new Error(pointsToUse ? 'Jumlah poin terlalu besar untuk total pesanan.' : 'Total pembayaran tidak valid.'), {
+        code: pointsToUse ? 'invalid-points' : 'invalid-total'
+      });
     }
     if (paymentMethod === 'COD') {
       if (!validateCodArea(shippingAddress)) {
@@ -506,6 +527,10 @@ async function createPendingOrder(claims, paymentMethod = 'DOKU') {
       shippingFee,
       ...(isCod && codFee ? { codFee } : {}),
       totalAmount,
+      pointsUsed: pointsToUse,
+      pointsDiscount,
+      pointsAwarded: false,
+      pointsRefunded: false,
       shippingAddress,
       paymentMethod,
       status: isCod ? 'awaiting_confirmation' : 'awaiting_payment',
@@ -541,9 +566,78 @@ async function createPendingOrder(claims, paymentMethod = 'DOKU') {
       });
       transaction.set(cartRef, { items: [], updatedAt: now });
     }
+    if (pointsToUse > 0) {
+      const historyRef = pointsRef.collection('history').doc();
+      transaction.set(pointsRef, { balance: pointBalance - pointsToUse, updatedAt: now }, { merge: true });
+      transaction.create(historyRef, {
+        type: 'redeem',
+        amount: -pointsToUse,
+        orderId,
+        note: `Penukaran poin untuk pesanan ${orderId}.`,
+        createdAt: now
+      });
+    }
     transaction.create(orderRef, order);
     return { order };
   });
+}
+
+async function pointsInfo(req, res, claims) {
+  const db = getAdminDb();
+  const pointsRef = db.collection('marketplace_points').doc(String(claims.uid));
+  const [pointsSnapshot, historySnapshot] = await Promise.all([
+    pointsRef.get(),
+    pointsRef.collection('history').orderBy('createdAt', 'desc').limit(10).get()
+  ]);
+  const points = pointsSnapshot.exists ? pointsSnapshot.data() || {} : {};
+  const lastCheckinDate = String(points.lastCheckinDate || '');
+  return res.status(200).json({
+    success: true,
+    balance: Number.isSafeInteger(points.balance) && points.balance >= 0 ? points.balance : 0,
+    streak: Number.isSafeInteger(points.streak) && points.streak >= 0 ? points.streak : 0,
+    lastCheckinDate,
+    checkedInToday: lastCheckinDate === todayKey(),
+    rules: POINT_RULES,
+    history: historySnapshot.docs.map((document) => ({ id: document.id, ...document.data() }))
+  });
+}
+
+async function pointsCheckin(req, res, claims) {
+  const db = getAdminDb();
+  const userId = String(claims.uid);
+  const pointsRef = db.collection('marketplace_points').doc(userId);
+  const historyRef = pointsRef.collection('history').doc();
+  const today = todayKey();
+  const yesterday = new Date(Date.parse(`${today}T00:00:00Z`) - 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const result = await db.runTransaction(async (transaction) => {
+    const pointsSnapshot = await transaction.get(pointsRef);
+    const points = pointsSnapshot.exists ? pointsSnapshot.data() || {} : {};
+    if (points.lastCheckinDate === today) {
+      throw Object.assign(new Error('Anda sudah check-in hari ini.'), { code: 'already-checked-in' });
+    }
+    const previousStreak = Number.isSafeInteger(points.streak) && points.streak >= 0 ? points.streak : 0;
+    const countedStreak = points.lastCheckinDate === yesterday ? previousStreak + 1 : 1;
+    const bonus = countedStreak % POINT_RULES.streakDays === 0;
+    const amount = POINT_RULES.checkin + (bonus ? POINT_RULES.streakBonus : 0);
+    const balance = Number.isSafeInteger(points.balance) && points.balance >= 0 ? points.balance : 0;
+    const totalEarned = Number.isSafeInteger(points.totalEarned) && points.totalEarned >= 0 ? points.totalEarned : 0;
+    const now = Date.now();
+    transaction.set(pointsRef, {
+      balance: balance + amount,
+      streak: bonus ? 0 : countedStreak,
+      lastCheckinDate: today,
+      totalEarned: totalEarned + amount,
+      updatedAt: now
+    }, { merge: true });
+    transaction.create(historyRef, {
+      type: 'checkin',
+      amount,
+      note: bonus ? 'Check-in harian dan bonus streak 7 hari.' : 'Check-in harian.',
+      createdAt: now
+    });
+    return { balance: balance + amount, amount, streak: bonus ? 0 : countedStreak, bonus };
+  });
+  return res.status(200).json({ success: true, ...result });
 }
 
 async function codEligibility(req, res, claims) {
@@ -594,7 +688,7 @@ async function checkout(req, res, claims) {
   try {
     await releaseExpiredReservations();
     await cancelStaleAwaitingOrders(String(claims.uid));
-    const reservation = await createPendingOrder(claims, paymentMethod);
+    const reservation = await createPendingOrder(claims, paymentMethod, req.body?.pointsToUse ?? 0);
     if (reservation.stockConflict) {
       return responseError(res, 409, 'insufficient-stock', 'Sebagian barang tidak lagi memiliki stok yang cukup.', reservation.conflicts);
     }
@@ -808,6 +902,8 @@ async function confirmReceived(req, res, claims) {
   if (!orderId) return responseError(res, 400, 'order-id-required', 'Kode pesanan wajib diisi.');
   const db = getAdminDb();
   const orderRef = db.collection('marketplace_orders').doc(orderId);
+  const pointsRef = db.collection('marketplace_points').doc(String(claims.uid));
+  const pointsHistoryRef = pointsRef.collection('history').doc();
 
   const outcome = await db.runTransaction(async (transaction) => {
     const snapshot = await transaction.get(orderRef);
@@ -822,16 +918,37 @@ async function confirmReceived(req, res, claims) {
     if (order.status !== 'shipped') {
       return { status: 409, code: 'invalid-order-state', message: 'Pesanan baru bisa dikonfirmasi setelah berstatus Dikirim.' };
     }
+    const shouldAward = !order.pointsAwarded;
+    const pointsSnapshot = shouldAward ? await transaction.get(pointsRef) : null;
     const now = Date.now();
-    const history = Array.isArray(order.statusHistory) ? order.statusHistory : [];
-    transaction.update(orderRef, {
+    const update = {
       status: 'completed',
       receivedAt: now,
       completedAt: now,
       updatedAt: now,
       updatedBy: claims.uid,
-      statusHistory: [...history, { status: 'completed', at: now, by: claims.uid, note: 'Dikonfirmasi diterima oleh pembeli.' }]
-    });
+      statusHistory: [...(Array.isArray(order.statusHistory) ? order.statusHistory : []), { status: 'completed', at: now, by: claims.uid, note: 'Dikonfirmasi diterima oleh pembeli.' }]
+    };
+    if (shouldAward) {
+      const points = pointsSnapshot?.exists ? pointsSnapshot.data() || {} : {};
+      const earn = Math.floor(Math.max(0, Number(order.subtotal) || 0) * POINT_RULES.earnRate);
+      const balance = Number.isSafeInteger(points.balance) && points.balance >= 0 ? points.balance : 0;
+      const totalEarned = Number.isSafeInteger(points.totalEarned) && points.totalEarned >= 0 ? points.totalEarned : 0;
+      update.pointsAwarded = true;
+      transaction.set(pointsRef, {
+        balance: balance + earn,
+        totalEarned: totalEarned + earn,
+        updatedAt: now
+      }, { merge: true });
+      transaction.create(pointsHistoryRef, {
+        type: 'purchase',
+        amount: earn,
+        orderId,
+        note: `Poin dari pesanan ${orderId}.`,
+        createdAt: now
+      });
+    }
+    transaction.update(orderRef, update);
     return { ok: true };
   });
 
@@ -2691,6 +2808,8 @@ export default async function handler(req, res) {
 
   try {
     if (action === 'cod-eligibility') return await codEligibility(req, res, claims);
+    if (action === 'points-info') return await pointsInfo(req, res, claims);
+    if (action === 'points-checkin') return await pointsCheckin(req, res, claims);
     if (action === 'checkout') return await checkout(req, res, claims);
     if (action === 'pay-again') return await payAgain(req, res, claims);
     if (action === 'cancel-order') return await cancelOrder(req, res, claims);
@@ -2706,6 +2825,7 @@ export default async function handler(req, res) {
     return responseError(res, 404, 'unknown-action', 'Aksi marketplace tidak dikenal.');
   } catch (error) {
     console.error('[marketplace] API gagal:', { action, uid: claims.uid, code: error.code || 'unknown', message: error.message });
-    return responseError(res, 500, error.code || 'marketplace-api-failed', error.message || 'Permintaan marketplace gagal.');
+    const status = error.code === 'already-checked-in' ? 409 : error.code === 'invalid-points' ? 400 : 500;
+    return responseError(res, status, error.code || 'marketplace-api-failed', error.message || 'Permintaan marketplace gagal.');
   }
 }

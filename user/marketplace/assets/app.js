@@ -2578,6 +2578,10 @@ async function callMarketplaceApi(action, body = {}) {
   return result;
 }
 
+async function loadPointsInfo() {
+  return callMarketplaceApi('points-info');
+}
+
 // Minta server membersihkan keranjang untuk pesanan yang sudah dibayar. Gagal pun tidak masalah.
 async function syncPaidCart() {
   try {
@@ -2754,11 +2758,17 @@ async function renderCartPage() {
   }
 
   const shipping = getShippingAddressFromUser(profile);
+  let pointsInfo = null;
   let codEligibility = null;
   try {
     codEligibility = await callMarketplaceApi('cod-eligibility');
   } catch (error) {
     console.warn('[marketplace] ketersediaan COD tidak dapat dimuat:', error.code || error.message);
+  }
+  try {
+    pointsInfo = await loadPointsInfo();
+  } catch (error) {
+    console.error('[marketplace] poin tidak dapat dimuat:', error.code || error.message);
   }
   const cartSummary = document.querySelector('[data-cart-shipping]');
   if (cartSummary) {
@@ -2788,13 +2798,41 @@ async function renderCartPage() {
   const codRadio = paymentRadios.find((radio) => radio.value === 'COD');
   const codReason = document.querySelector('[data-cod-reason]');
   const checkoutHint = document.querySelector('[data-checkout-hint]');
+  const pointsInput = document.querySelector('[data-points-input]');
+  const pointsHint = document.querySelector('[data-points-hint]');
+  const pointsMaxButton = document.querySelector('[data-points-max]');
+  const pointsDiscountRow = document.querySelector('[data-points-discount-row]');
+  const pointsDiscountEl = document.querySelector('[data-points-discount]');
   const selectedPaymentMethod = () => paymentRadios.find((radio) => radio.checked)?.value || 'DOKU';
+  const pointsBalance = Number(pointsInfo?.balance || 0);
+  const pointsToUse = () => {
+    const value = Number(pointsInput?.value || 0);
+    return Number.isInteger(value) && value >= 0 ? value : 0;
+  };
+
+  function updatePointsUi() {
+    const maxUsable = Math.min(pointsBalance, Math.floor(lastCartSubtotal * 0.5));
+    if (pointsHint) {
+      pointsHint.textContent = !pointsInfo
+        ? 'Poin tidak dapat dimuat.'
+        : maxUsable < 1000
+          ? `Saldo ${pointsBalance} poin. Minimal 1.000 poin.`
+          : `Saldo ${pointsBalance} poin. Maksimal ${maxUsable} poin.`;
+    }
+    if (pointsInput) {
+      pointsInput.max = String(maxUsable);
+      pointsInput.disabled = !pointsInfo || maxUsable < 1000 || checkoutInFlight;
+      if (maxUsable < 1000 && pointsInput.value !== '0') pointsInput.value = '0';
+    }
+    if (pointsMaxButton) pointsMaxButton.disabled = !pointsInfo || maxUsable < 1000 || checkoutInFlight;
+    return maxUsable;
+  }
 
   function updateCodOption() {
     const codAreaValid = shipping.complete && Boolean(KALSEL_REGIONS[shipping.city]) &&
       Boolean(shipping.district.trim()) && !shipping.outsideKalsel;
     const activeLimitReached = Boolean(codEligibility && codEligibility.activeCount >= codEligibility.maxActive);
-    const estimate = lastCartSubtotal + Number(codEligibility?.shippingFee || 0) + Number(codEligibility?.fee || 0);
+    const estimate = lastCartSubtotal + Number(codEligibility?.shippingFee || 0) + Number(codEligibility?.fee || 0) - pointsToUse();
     let reason = '';
     if (!codEligibility) reason = 'COD tidak tersedia saat ini.';
     else if (codEligibility.blocked) reason = codEligibility.reason || 'COD sementara dibatasi.';
@@ -2813,10 +2851,11 @@ async function renderCartPage() {
     const totalEl = document.querySelector('[data-cart-total]');
     if (!totalEl) return;
     const isCod = selectedPaymentMethod() === 'COD';
-    const amount = lastCartSubtotal + (isCod
-      ? Number(codEligibility?.shippingFee || 0) + Number(codEligibility?.fee || 0)
-      : 0);
+    const amount = lastCartSubtotal + Number(codEligibility?.shippingFee || 0) +
+      (isCod ? Number(codEligibility?.fee || 0) : 0) - pointsToUse();
     totalEl.textContent = formatCurrency(amount);
+    if (pointsDiscountRow) pointsDiscountRow.hidden = pointsToUse() <= 0;
+    if (pointsDiscountEl) pointsDiscountEl.textContent = formatCurrency(pointsToUse());
   }
 
   const showCartError = (message) => {
@@ -2830,6 +2869,7 @@ async function renderCartPage() {
     const button = document.querySelector('[data-checkout]');
     if (!button || checkoutInFlight) return;
     const isCod = selectedPaymentMethod() === 'COD';
+    updatePointsUi();
     const codAvailable = updateCodOption();
     button.disabled = !addressComplete || hasInvalidItems || (isCod && !codAvailable);
     button.removeAttribute('aria-busy');
@@ -2856,6 +2896,7 @@ async function renderCartPage() {
       const totalEl = document.querySelector('[data-cart-total]');
       if (totalEl) totalEl.textContent = formatCurrency(0);
       lastCartSubtotal = 0;
+      updatePointsUi();
       updateCodOption();
       showCartError('');
       syncCheckoutButton(shipping.complete, true);
@@ -2922,9 +2963,22 @@ async function renderCartPage() {
     const totalEl = document.querySelector('[data-cart-total]');
     if (totalEl) totalEl.textContent = formatCurrency(total);
     lastCartSubtotal = total;
+    updatePointsUi();
     syncCheckoutButton(shipping.complete, !resolved.length || hasUnavailable);
   };
 
+  pointsInput?.addEventListener('input', () => {
+    showCartError('');
+    updatePointsUi();
+    updateCodOption();
+    updateCartTotal();
+  });
+  pointsMaxButton?.addEventListener('click', () => {
+    const maxUsable = updatePointsUi();
+    if (pointsInput && maxUsable >= 1000) pointsInput.value = String(maxUsable);
+    updateCodOption();
+    updateCartTotal();
+  });
   paymentRadios.forEach((radio) => radio.addEventListener('change', () => {
     updateCodOption();
     syncCheckoutButton(lastSync.addressComplete, lastSync.hasInvalidItems);
@@ -2966,6 +3020,7 @@ async function renderCartPage() {
 
     const paymentMethod = selectedPaymentMethod();
     checkoutInFlight = true;
+    updatePointsUi();
     showCartError('');
     checkoutButton.disabled = true;
     checkoutButton.setAttribute('aria-busy', 'true');
@@ -2974,7 +3029,7 @@ async function renderCartPage() {
 
     try {
       const result = await withTimeout(
-        callMarketplaceApi('checkout', { shippingAddress: shipping, paymentMethod }),
+        callMarketplaceApi('checkout', { shippingAddress: shipping, paymentMethod, pointsToUse: pointsToUse() }),
         60000,
         'Checkout'
       );
@@ -3003,6 +3058,7 @@ async function renderCartPage() {
         'cod-too-many-active': 'Selesaikan atau batalkan pesanan COD aktif terlebih dahulu.',
         'cod-blocked': 'COD sementara tidak tersedia untuk akun Anda. Silakan pilih DOKU.'
       };
+      if (error.code === 'invalid-points') codMessages['invalid-points'] = 'Jumlah poin tidak valid, saldo berubah, atau melebihi 50% subtotal barang.';
       const friendlyMessage = codMessages[error.code] || error.message;
       showCartError(`Checkout gagal (${error.code || 'unknown'}): ${friendlyMessage}${stockIssues ? ` ${stockIssues}` : ''}`);
       resetCheckoutUi();
@@ -3616,10 +3672,11 @@ async function renderDashboard() {
   if (greeting) greeting.textContent = `Halo, ${getSafeUserName(user.name)}`;
 
   const userId = auth.currentUser?.uid || user.uid || user.id || '';
-  const [productsResult, ordersResult, chatResult] = await Promise.allSettled([
+  const [productsResult, ordersResult, chatResult, pointsResult] = await Promise.allSettled([
     getDocs(collection(db, 'marketplace_products')),
     userId ? getDocs(query(collection(db, 'marketplace_orders'), where('userId', '==', userId))) : Promise.resolve({ docs: [] }),
-    userId ? getDocs(query(collection(db, 'marketplace_chats'), where('buyerId', '==', userId))) : Promise.resolve({ docs: [] })
+    userId ? getDocs(query(collection(db, 'marketplace_chats'), where('buyerId', '==', userId))) : Promise.resolve({ docs: [] }),
+    loadPointsInfo()
   ]);
 
   const products = productsResult.status === 'fulfilled'
@@ -3630,9 +3687,35 @@ async function renderDashboard() {
     : [];
   const chatDocs = chatResult.status === 'fulfilled' ? (chatResult.value?.docs || []) : [];
 
-  [productsResult, ordersResult, chatResult].forEach((result) => {
+  [productsResult, ordersResult, chatResult, pointsResult].forEach((result) => {
     if (result.status === 'rejected') console.error('[marketplace] dashboard gagal memuat data pembeli:', result.reason);
   });
+
+  const points = pointsResult.status === 'fulfilled' ? pointsResult.value : null;
+  const pointsBalanceEl = document.querySelector('[data-points-balance]');
+  if (pointsBalanceEl) pointsBalanceEl.textContent = String(points?.balance || 0);
+  const pointsStreakEl = document.querySelector('[data-points-streak]');
+  if (pointsStreakEl) pointsStreakEl.textContent = String(points?.streak || 0);
+  const pointsCheckinButton = document.querySelector('[data-points-checkin]');
+  if (pointsCheckinButton) {
+    pointsCheckinButton.disabled = !points || Boolean(points.checkedInToday);
+    pointsCheckinButton.textContent = points?.checkedInToday ? 'Sudah check-in hari ini' : 'Check-in harian';
+    pointsCheckinButton.onclick = async () => {
+      if (pointsCheckinButton.disabled) return;
+      pointsCheckinButton.disabled = true;
+      try {
+        const result = await callMarketplaceApi('points-checkin');
+        if (pointsBalanceEl) pointsBalanceEl.textContent = String(result.balance);
+        if (pointsStreakEl) pointsStreakEl.textContent = String(result.streak);
+        pointsCheckinButton.textContent = 'Sudah check-in hari ini';
+        showToast(`+${result.amount} poin`, 'success');
+      } catch (error) {
+        console.error('[marketplace] check-in poin gagal:', error.code || error.message);
+        showToast(error.code === 'already-checked-in' ? 'Anda sudah check-in hari ini.' : 'Check-in gagal. Coba lagi.', 'error');
+        pointsCheckinButton.disabled = error.code === 'already-checked-in' || !points;
+      }
+    };
+  }
 
   if (productsResult.status === 'fulfilled') cacheMarketplaceProducts(products);
   const normalizedProducts = normalizeMarketplaceProducts(products)

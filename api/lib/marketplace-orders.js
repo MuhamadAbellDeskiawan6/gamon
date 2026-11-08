@@ -422,7 +422,17 @@ export async function releaseOrderStock(orderId, {
     const productRefs = restoreStock
       ? items.map((item) => db.collection('marketplace_products').doc(String(item.productId)))
       : [];
-    const productSnapshots = await Promise.all(productRefs.map((productRef) => transaction.get(productRef)));
+    const shouldRefundPoints = ['cancelled', 'expired', 'payment_failed'].includes(status) &&
+      Number.isSafeInteger(order.pointsUsed) && order.pointsUsed > 0 && !order.pointsRefunded;
+    if (shouldRefundPoints && !order.userId) throw makeError('Pemilik pesanan tidak valid untuk pengembalian poin.', 'invalid-order-state');
+    const pointsRef = shouldRefundPoints
+      ? db.collection('marketplace_points').doc(String(order.userId))
+      : null;
+    const pointsHistoryRef = shouldRefundPoints ? pointsRef.collection('history').doc() : null;
+    const [productSnapshots, pointsSnapshot] = await Promise.all([
+      Promise.all(productRefs.map((productRef) => transaction.get(productRef))),
+      pointsRef ? transaction.get(pointsRef) : Promise.resolve(null)
+    ]);
     const now = Date.now();
     const history = Array.isArray(order.statusHistory) ? order.statusHistory : [];
 
@@ -445,18 +455,36 @@ export async function releaseOrderStock(orderId, {
       });
     });
 
+    if (shouldRefundPoints && pointsRef) {
+      const points = pointsSnapshot?.exists ? pointsSnapshot.data() || {} : {};
+      const balance = Number.isSafeInteger(points.balance) && points.balance >= 0 ? points.balance : 0;
+      transaction.set(pointsRef, { balance: balance + order.pointsUsed, updatedAt: now }, { merge: true });
+      transaction.create(pointsHistoryRef, {
+        type: 'refund',
+        amount: order.pointsUsed,
+        orderId: String(order.orderId || orderId),
+        note: `Pengembalian poin untuk pesanan ${order.orderId || orderId}.`,
+        createdAt: now
+      });
+    }
+
     const nextHistory = [...history, { status, at: now, by, ...(reason ? { note: reason } : {}) }];
     transaction.update(orderRef, {
       status,
       paymentStatus,
       stockReleased: true,
       stockDeducted: false,
+      ...(shouldRefundPoints ? { pointsRefunded: true } : {}),
       updatedAt: now,
       statusHistory: nextHistory,
       ...(missingProduct ? { needsAttention: true, attentionReason: 'Produk tidak ditemukan saat pengembalian stok.' } : {}),
       ...(reason ? { cancellationNote: reason } : {})
     });
-    return { released: true, stockRestored: restoreStock, order: { ...order, status, paymentStatus, stockReleased: true } };
+    return {
+      released: true,
+      stockRestored: restoreStock,
+      order: { ...order, status, paymentStatus, stockReleased: true, ...(shouldRefundPoints ? { pointsRefunded: true } : {}) }
+    };
   });
 }
 
@@ -776,9 +804,19 @@ export async function updateMarketplaceOrderStatus({
         ? items.map((item) => db.collection('marketplace_products').doc(String(item.productId)))
         : [];
       const statsRef = codFailed ? db.collection('marketplace_cod_stats').doc(String(currentOrder.userId || '')) : null;
-      const [productSnapshots, statsSnapshot] = await Promise.all([
+      const shouldRefundPoints = next === 'cancelled' &&
+        Number.isSafeInteger(currentOrder.pointsUsed) && currentOrder.pointsUsed > 0 && !currentOrder.pointsRefunded;
+      const shouldAwardPoints = next === 'completed' && !currentOrder.pointsAwarded;
+      const shouldUpdatePoints = shouldRefundPoints || shouldAwardPoints;
+      if (shouldUpdatePoints && !currentOrder.userId) throw makeError('Pemilik pesanan tidak valid untuk pembukuan poin.', 'invalid-order-state');
+      const pointsRef = shouldUpdatePoints
+        ? db.collection('marketplace_points').doc(String(currentOrder.userId))
+        : null;
+      const pointsHistoryRef = shouldUpdatePoints ? pointsRef.collection('history').doc() : null;
+      const [productSnapshots, statsSnapshot, pointsSnapshot] = await Promise.all([
         Promise.all(productRefs.map((productRef) => transaction.get(productRef))),
-        statsRef ? transaction.get(statsRef) : Promise.resolve(null)
+        statsRef ? transaction.get(statsRef) : Promise.resolve(null),
+        pointsRef ? transaction.get(pointsRef) : Promise.resolve(null)
       ]);
       const history = Array.isArray(currentOrder.statusHistory) ? currentOrder.statusHistory : [];
       const update = {
@@ -797,6 +835,38 @@ export async function updateMarketplaceOrderStatus({
         update.stockReleased = true;
         update.stockDeducted = false;
         if (note) update.cancellationNote = note;
+      }
+      if (shouldRefundPoints && pointsRef) {
+        const points = pointsSnapshot?.exists ? pointsSnapshot.data() || {} : {};
+        const balance = Number.isSafeInteger(points.balance) && points.balance >= 0 ? points.balance : 0;
+        transaction.set(pointsRef, { balance: balance + currentOrder.pointsUsed, updatedAt: now }, { merge: true });
+        transaction.create(pointsHistoryRef, {
+          type: 'refund',
+          amount: currentOrder.pointsUsed,
+          orderId: String(currentOrder.orderId || orderId),
+          note: `Pengembalian poin untuk pesanan ${currentOrder.orderId || orderId}.`,
+          createdAt: now
+        });
+        update.pointsRefunded = true;
+      }
+      if (shouldAwardPoints && pointsRef) {
+        const points = pointsSnapshot?.exists ? pointsSnapshot.data() || {} : {};
+        const earn = Math.floor(Math.max(0, Number(currentOrder.subtotal) || 0) * 0.01);
+        const balance = Number.isSafeInteger(points.balance) && points.balance >= 0 ? points.balance : 0;
+        const totalEarned = Number.isSafeInteger(points.totalEarned) && points.totalEarned >= 0 ? points.totalEarned : 0;
+        transaction.set(pointsRef, {
+          balance: balance + earn,
+          totalEarned: totalEarned + earn,
+          updatedAt: now
+        }, { merge: true });
+        transaction.create(pointsHistoryRef, {
+          type: 'purchase',
+          amount: earn,
+          orderId: String(currentOrder.orderId || orderId),
+          note: `Poin dari pesanan ${currentOrder.orderId || orderId}.`,
+          createdAt: now
+        });
+        update.pointsAwarded = true;
       }
       if (next === 'shipped') {
         update.courier = String(courier || '').trim();

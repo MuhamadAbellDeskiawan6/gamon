@@ -73,6 +73,13 @@
                   <span><strong>COD</strong><small>Bayar tunai saat barang sampai</small><small class="commerce-payment-hint" data-cod-reason>Memeriksa ketersediaan COD...</small></span>
                 </label>
               </fieldset>
+              <div class="commerce-panel-points">
+                <strong>Tukar poin</strong>
+                <small data-points-hint>Memuat poin...</small>
+                <input type="number" min="0" step="100" value="0" data-points-input />
+                <button type="button" class="btn btn-secondary" data-points-max>Pakai maksimal</button>
+              </div>
+              <div class="commerce-summary-total" data-points-discount-row hidden><span>Diskon poin</span><strong data-points-discount>Rp 0</strong></div>
               <div class="commerce-summary-total"><span>Total pembayaran</span><strong data-cart-total>Rp 0</strong></div>
               <p class="commerce-error" data-cart-error role="alert" aria-live="polite"></p>
               <button class="btn btn-primary" type="button" data-checkout disabled style="width:100%;">Bayar dengan DOKU</button>
