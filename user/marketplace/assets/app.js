@@ -6025,43 +6025,36 @@ async function initJasaPage(page) {
       const categories = Array.isArray(data.categories) ? data.categories : [];
       const services = Array.isArray(data.services) ? data.services : [];
       if (!content) return;
-      if (!categories.length || !services.length) {
+      if (!services.length) {
         content.innerHTML = '<div class="panel"><h2>Jasa sedang disiapkan</h2><p class="muted">Belum ada layanan yang aktif. Silakan kembali lagi nanti.</p></div>';
         return;
       }
       content.innerHTML = `
         <section class="panel">
           <span class="eyebrow">Gamon Jasa (Beta)</span>
-          <h1 style="margin:12px 0">Cari jasa yang kamu butuhkan, kami bantu urus.</h1>
-          <p class="muted">Gamon Jasa adalah tempat memesan berbagai jasa dengan harga jelas dan proses yang tercatat: pilih jasa, pilih paket, bayar penuh, DP, atau tunai, lalu pantau statusnya sampai selesai. Layanan masih tahap Beta dan akan terus bertambah.</p>
-        </section>
-        <section class="jasa-grid" aria-label="Keunggulan Gamon Jasa">
-          <article class="commerce-panel"><h2>Harga jelas</h2><p>Paket dan harga tampil di awal.</p></article>
-          <article class="commerce-panel"><h2>Bayar fleksibel</h2><p>Penuh, DP, atau tunai sesuai layanan.</p></article>
-          <article class="commerce-panel"><h2>Pantau pesanan</h2><p>Status dan kabar tersimpan di akun.</p></article>
+          <h1 style="margin:12px 0">Pesan jasa panggilan dengan mudah.</h1>
+          <p class="muted">Pilih layanan, tentukan jadwal dan alamat, lalu pesan.</p>
         </section>
         <section class="panel">
           <h2>Layanan yang tersedia</h2>
-          <div class="jasa-actions" role="group" aria-label="Filter kategori jasa">
+          ${categories.length > 1 ? `<div class="jasa-actions" role="group" aria-label="Filter kategori jasa">
             <button type="button" class="btn btn-primary" data-jasa-category-filter="all" aria-pressed="true">Semua</button>
             ${categories.map((category) => `<button type="button" class="btn btn-secondary" data-jasa-category-filter="${escapeHtml(category.id)}" aria-pressed="false">${escapeHtml(category.name || 'Kategori')}</button>`).join('')}
-          </div>
+          </div>` : ''}
           <div class="jasa-grid" data-jasa-service-list>${services.map((service) => {
-            const category = categories.find((item) => item.id === service.categoryId);
-            const prices = (service.packages || []).filter((item) => item.priceType !== 'quote' && Number(item.price) > 0).map((item) => Number(item.price));
-            const priceLine = prices.length ? `Mulai ${jasaFormatRupiah(Math.min(...prices))}` : 'Harga melalui penawaran';
+            const packageItem = (service.packages || []).find((item) => item.priceType !== 'quote') || (service.packages || [])[0];
+            const priceLine = packageItem?.priceType === 'quote'
+              ? 'Harga disepakati'
+              : `${jasaFormatRupiah(packageItem?.price)}${service.unit ? ` / ${service.unit}` : ''}`;
             return `<article class="commerce-panel" data-jasa-category-card="${escapeHtml(service.categoryId || '')}">
               ${service.image ? `<img src="${escapeHtml(service.image)}" alt="" loading="lazy" onerror="this.hidden=true" style="width:100%;max-height:200px;aspect-ratio:16/9;object-fit:cover;border-radius:12px">` : ''}
-              <p class="eyebrow">${escapeHtml(category?.name || 'Kategori lainnya')}</p>
               <h3>${escapeHtml(service.name || 'Layanan')}</h3>
-              <p>${escapeHtml(service.summary || '')}</p>
+              <p>${escapeHtml(service.description || service.summary || '')}</p>
               <p><strong>${escapeHtml(priceLine)}</strong></p>
-              <a class="btn btn-primary" href="layanan.html?id=${encodeURIComponent(service.id)}">Lihat layanan</a>
+              <a class="btn btn-primary" href="layanan.html?id=${encodeURIComponent(service.id)}">Pesan</a>
             </article>`;
           }).join('')}</div>
-        </section>
-        <section class="panel"><h2>Cara kerja</h2><ol class="jasa-steps"><li>Pilih jasa.</li><li>Pilih paket dan isi detail.</li><li>Bayar atau tunggu konfirmasi.</li><li>Pantau pesanan.</li></ol></section>
-        <section class="panel"><h2>Pertanyaan yang sering muncul</h2><details><summary>Bagaimana cara membayar?</summary><p>Kamu bisa membayar penuh, DP, atau tunai sesuai pilihan yang tersedia pada layanan.</p></details><details><summary>Apa itu Beta?</summary><p>Layanan masih dalam tahap awal. Layanan dan fitur dapat berubah atau bertambah.</p></details><details><summary>Bagaimana jika harganya 'penawaran'?</summary><p>Admin menyiapkan harga setelah kamu mengirim permintaan.</p></details></section>`;
+        </section>`;
       const filterButtons = content.querySelectorAll('[data-jasa-category-filter]');
       const serviceCards = content.querySelectorAll('[data-jasa-category-card]');
       filterButtons.forEach((button) => button.addEventListener('click', () => {
@@ -6098,13 +6091,10 @@ async function initJasaPage(page) {
         return;
       }
       const packages = Array.isArray(service.packages) ? service.packages : [];
-      const options = Array.isArray(service.options) ? service.options : [];
-      const scheduleMode = ['none', 'date', 'datetime', 'recurring'].includes(service.scheduleMode) ? service.scheduleMode : 'recurring';
-      const scheduleLabel = service.scheduleLabel || 'Preferensi jadwal';
-      const recipientLabel = service.recipientLabel || 'Penerima layanan';
-      const consentText = service.consentText || 'Saya memahami batas layanan dan menyetujui ketentuan pemesanan.';
-      const paymentOptions = Array.isArray(service.paymentOptions) && service.paymentOptions.length
-        ? service.paymentOptions : ['full'];
+      const orderPackage = packages.find((item) => item.id === 'default') || packages[0];
+      const paymentOptions = (Array.isArray(service.paymentOptions) ? service.paymentOptions : ['full'])
+        .filter((plan) => ['full', 'cash'].includes(plan));
+      if (!paymentOptions.length) paymentOptions.push('full');
       const currentUser = await jasaWaitForUser();
       const accountProfile = {
         ...readStorage(STORAGE_KEYS.USER, {}),
@@ -6112,109 +6102,46 @@ async function initJasaPage(page) {
       };
       renderNav(currentUser, accountProfile);
       const canOrder = Boolean(currentUser?.emailVerified);
-      const profiles = service.needsParentProfile && canOrder
-        ? (await jasaRequest('jasa-get-profile', {}, currentUser)).profile?.parents || []
-        : [];
-      profiles.sort((a, b) => Number(b.isSelf === true) - Number(a.isSelf === true));
-      const configuredFields = Array.isArray(service.formFields) ? service.formFields : [];
-      const fields = service.needsParentProfile
-        ? configuredFields.filter((field) => !['namaOrangTua', 'alamatOrangTua', 'catatanKhusus', 'kontakDarurat'].includes(field.key))
-        : configuredFields;
-      const formFieldMarkup = fields.map((field) => {
-        const key = escapeHtml(field.key);
-        const label = escapeHtml(field.label);
-        const required = field.required ? 'required' : '';
-        const control = field.type === 'textarea' || field.type === 'address'
-          ? `<textarea id="jasa-field-${key}" name="${key}" ${required} maxlength="1000" ${field.type === 'address' ? 'rows="2"' : ''}></textarea>`
-          : field.type === 'select'
-            ? `<select id="jasa-field-${key}" name="${key}" ${required}><option value="">Pilih ${label.toLowerCase()}</option>${(field.options || []).map((option) => `<option value="${escapeHtml(option)}">${escapeHtml(option)}</option>`).join('')}</select>`
-            : field.type === 'number'
-              ? `<input id="jasa-field-${key}" name="${key}" type="text" inputmode="decimal" pattern="[0-9.,]{0,20}" maxlength="20" ${required}>`
-              : `<input id="jasa-field-${key}" name="${key}" type="${['text', 'date', 'time'].includes(field.type) ? field.type : 'text'}" maxlength="1000" ${required}>`;
-        return `<div class="field"><label for="jasa-field-${key}">${label}${field.required ? ' *' : ''}</label>${control}</div>`;
-      }).join('');
-      const chatHref = `chat.html?serviceId=${encodeURIComponent(String(service.id))}&serviceName=${encodeURIComponent(String(service.name || ''))}`;
-      const scheduleMarkup = scheduleMode === 'none' ? '' : `
-          <h3>${escapeHtml(scheduleLabel)}</h3>
-          <div class="form-row">
-            <div class="field"><label for="jasaScheduleDate">Tanggal yang diharapkan *</label><input id="jasaScheduleDate" name="scheduleDate" type="date" required></div>
-            ${scheduleMode === 'date' ? '' : '<div class="field"><label for="jasaScheduleTime">Jam yang diharapkan *</label><input id="jasaScheduleTime" name="scheduleTime" type="time" required></div>'}
-          </div>
-          ${scheduleMode === 'recurring' ? `<label class="jasa-check"><input name="scheduleRecurring" type="checkbox"><span>Ini preferensi jadwal rutin mingguan</span></label>
-          <div class="jasa-days" data-jasa-days hidden>${['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'].map((day) => `<label><input type="checkbox" name="scheduleDays" value="${day}">${day}</label>`).join('')}</div>` : ''}`;
+      const priceLabel = orderPackage?.priceType === 'quote'
+        ? 'Harga disepakati'
+        : `${jasaFormatRupiah(orderPackage?.price)}${service.unit ? ` / ${service.unit}` : ''}`;
+      const paymentLabel = (plan) => plan === 'cash' ? 'Bayar tunai di tempat' : 'Bayar online (DOKU)';
       content.innerHTML = `
         <section class="panel">
           <a class="btn btn-secondary" href="index.html">← Semua layanan</a>
           <p class="eyebrow" style="margin-top:20px">${escapeHtml(category?.name || 'Gamon Jasa (Beta)')}</p>
           <h1>${escapeHtml(service.name || 'Layanan')}</h1>
-          <p class="muted">${escapeHtml(service.summary || '')}</p>
           ${service.image ? `<img src="${escapeHtml(service.image)}" alt="" loading="lazy" onerror="this.hidden=true" style="width:100%;max-height:320px;aspect-ratio:16/9;object-fit:cover;border-radius:16px;margin-top:16px">` : ''}
-          <p style="white-space:pre-line;margin-top:16px">${escapeHtml(service.description || '')}</p>
-          ${service.pricingNote ? `<p class="jasa-note" role="note">${escapeHtml(service.pricingNote)}</p>` : ''}
-          ${service.disclaimer ? `<div class="jasa-disclaimer" role="note"><strong>Batas layanan penting</strong><p>${escapeHtml(service.disclaimer)}</p></div>` : ''}
-          <a class="btn btn-secondary" ${canOrder ? `href="${escapeHtml(chatHref)}"` : 'data-jasa-return href="masuk.html"'}>Tanya admin tentang layanan ini</a>
+          <p style="white-space:pre-line;margin-top:16px">${escapeHtml(service.description || service.summary || '')}</p>
+          <p><strong>${escapeHtml(priceLabel)}</strong></p>
+          ${service.disclaimer ? `<p class="jasa-note" role="note">${escapeHtml(service.disclaimer)}</p>` : ''}
         </section>
         ${canOrder ? `<form class="panel form-panel" data-jasa-checkout-form>
-          <h2>Pilih paket dan kebutuhan</h2>
-          <fieldset class="jasa-fieldset"><legend>Paket layanan *</legend>
-            ${packages.map((item, index) => {
-              const label = item.priceType === 'quote' ? 'Harga melalui penawaran' : jasaFormatRupiah(item.price) + (item.priceType === 'monthly' ? ' / bulan' : '');
-              return `<label class="jasa-choice"><input type="radio" name="packageId" value="${escapeHtml(item.id)}" ${index === 0 ? 'checked' : ''} required><span><strong>${escapeHtml(item.name)}</strong><small>${escapeHtml(item.description || '')} ${escapeHtml(item.duration || '')}</small><b>${escapeHtml(label)}</b></span></label>`;
-            }).join('')}
+          <h2>Detail pemesanan</h2>
+          <input type="hidden" name="packageId" value="${escapeHtml(orderPackage?.id || 'default')}">
+          <fieldset class="jasa-fieldset"><legend>Kontak pemesan</legend>
+            <div class="field"><label for="jasaBuyerName">Nama *</label><input id="jasaBuyerName" name="buyerName" type="text" maxlength="120" value="${escapeHtml(accountProfile.name || currentUser?.displayName || '')}" required></div>
+            <div class="field"><label for="jasaBuyerPhone">No. HP/WhatsApp *</label><input id="jasaBuyerPhone" name="buyerPhone" type="tel" autocomplete="tel" maxlength="40" value="${escapeHtml(accountProfile.phone || '')}" required></div>
           </fieldset>
-          <fieldset class="jasa-fieldset" data-jasa-payment-options><legend>Cara bayar *</legend>
-            ${paymentOptions.map((plan, index) => `<label class="jasa-choice" data-payment-plan-option="${escapeHtml(plan)}"><input type="radio" name="paymentPlan" value="${escapeHtml(plan)}" ${index === 0 ? 'checked' : ''} required><span><strong>${plan === 'full' ? 'Bayar penuh' : plan === 'dp' ? 'Bayar DP' : 'Bayar tunai'}</strong><small>${plan === 'full' ? 'Bayar seluruh biaya melalui DOKU.' : plan === 'dp' ? 'Bayar sebagian melalui DOKU, lalu lunasi sisanya.' : 'Bayar kepada petugas setelah pesanan dikonfirmasi.'}</small></span></label>`).join('')}
-            <p class="jasa-note" data-jasa-payment-summary aria-live="polite"></p>
+          <div class="field"><label for="jasaAddress">Alamat lengkap *</label><textarea id="jasaAddress" name="alamat" maxlength="500" required></textarea></div>
+          <div class="field"><label for="jasaMapsUrl">Link Google Maps (opsional)</label><input id="jasaMapsUrl" name="mapsUrl" type="text" maxlength="300"></div>
+          <div class="form-row">
+            <div class="field"><label for="jasaScheduleDate">Tanggal *</label><input id="jasaScheduleDate" name="scheduleDate" type="date" required></div>
+            <div class="field"><label for="jasaScheduleTime">Jam *</label><input id="jasaScheduleTime" name="scheduleTime" type="time" required></div>
+          </div>
+          <div class="field"><label for="jasaNote">Catatan tambahan (opsional)</label><textarea id="jasaNote" name="catatan" maxlength="500"></textarea></div>
+          <fieldset class="jasa-fieldset"><legend>Metode bayar</legend>
+            ${paymentOptions.length === 1
+              ? `<input type="hidden" name="paymentPlan" value="${escapeHtml(paymentOptions[0])}"><p>${escapeHtml(paymentLabel(paymentOptions[0]))}</p>`
+              : paymentOptions.map((plan, index) => `<label class="jasa-choice"><input type="radio" name="paymentPlan" value="${escapeHtml(plan)}" ${index === 0 ? 'checked' : ''} required><span><strong>${escapeHtml(paymentLabel(plan))}</strong></span></label>`).join('')}
           </fieldset>
-          ${options.length ? `<fieldset class="jasa-fieldset"><legend>Hal yang ingin dibantu</legend>${options.map((option) => `<label class="jasa-check"><input type="checkbox" name="selectedOptions" value="${escapeHtml(option.id)}"><span>${escapeHtml(option.label)}</span></label>`).join('')}</fieldset>` : ''}
-          ${fields.length ? `<h3>Informasi kebutuhan</h3>${formFieldMarkup}` : ''}
-          ${service.needsParentProfile ? `<div class="field"><label for="jasaParentId">${escapeHtml(recipientLabel)} *</label><p class="muted">Pilih untuk siapa/di mana layanan dilakukan. Boleh diri sendiri.</p><select id="jasaParentId" name="parentId" required><option value="">Pilih ${escapeHtml(recipientLabel.toLowerCase())}</option>${profiles.map((parent, index) => `<option value="${escapeHtml(parent.id)}" ${parent.isSelf === true && index === 0 ? 'selected' : ''}>${parent.isSelf === true ? 'Diri sendiri — ' : ''}${escapeHtml(parent.name)}</option>`).join('')}</select><a href="profil.html?recipientLabel=${encodeURIComponent(recipientLabel)}" class="jasa-inline-link">Tambah data ${escapeHtml(recipientLabel.toLowerCase())}</a>${profiles.some((parent) => parent.isSelf === true) ? '' : `<p class="muted">Belum ada data diri sendiri? <a href="profil.html?self=1" data-jasa-self-recipient class="jasa-inline-link">Pesan untuk diri sendiri → isi alamat saya</a></p>`}${profiles.length ? '' : `<p class="muted">Belum ada data tersimpan.</p>`}</div>` : ''}
-          ${scheduleMarkup}
-          <h3>Kontak pemesan</h3>
-          <div class="field"><label for="jasaBuyerName">Nama pemesan *</label><input id="jasaBuyerName" name="buyerName" type="text" maxlength="120" value="${escapeHtml(accountProfile.name || currentUser?.displayName || '')}" required></div>
-          <div class="field"><label for="jasaBuyerPhone">Nomor telepon pemesan *</label><input id="jasaBuyerPhone" name="buyerPhone" type="tel" autocomplete="tel" maxlength="40" value="${escapeHtml(accountProfile.phone || '')}" required></div>
-          <p class="muted">Email akun terverifikasi digunakan untuk konfirmasi dan pembaruan pesanan.</p>
-          ${service.disclaimer ? `<div class="jasa-disclaimer" role="note"><strong>Harap pastikan layanan sesuai kebutuhan</strong><p>${escapeHtml(service.disclaimer)}</p></div>` : ''}
-          <label class="jasa-check"><input name="parentConsent" type="checkbox" required><span>${escapeHtml(consentText)}</span></label>
-          <button class="btn btn-primary" type="submit">Lanjutkan pemesanan</button>
+          <label class="jasa-check"><input name="parentConsent" type="checkbox" required><span>Saya setuju dengan detail pesanan ini.</span></label>
+          <button class="btn btn-primary" type="submit">Pesan sekarang</button>
         </form>` : `<section class="panel"><h2>Masuk atau daftar akun Gamon Space untuk memesan</h2><p class="muted">${currentUser ? 'Email akun Anda belum terverifikasi. Masuk dan pilih “Kirim ulang email verifikasi”, lalu kembali untuk memesan.' : 'Gunakan akun Gamon Space yang emailnya sudah terverifikasi untuk melanjutkan pemesanan.'}</p><a class="btn btn-primary" data-jasa-return href="masuk.html">${currentUser ? 'Masuk untuk verifikasi' : 'Masuk untuk memesan'}</a>${currentUser ? '<a class="btn btn-secondary" href="masuk.html">Kirim ulang email verifikasi</a>' : '<a class="btn btn-secondary" data-jasa-return href="daftar.html">Daftar</a>'}</section>`}`;
       content.querySelectorAll('[data-jasa-return]').forEach((link) => link.addEventListener('click', () => jasaSetReturnTo()));
-      content.querySelectorAll('[data-jasa-self-recipient]').forEach((link) => link.addEventListener('click', () => jasaSetReturnTo()));
       const form = content.querySelector('[data-jasa-checkout-form]');
       if (!form) return;
-      const recurring = form.querySelector('[name="scheduleRecurring"]');
-      recurring?.addEventListener('change', () => { form.querySelector('[data-jasa-days]').hidden = !recurring.checked; });
-      const paymentSummary = form.querySelector('[data-jasa-payment-summary]');
-      const updatePaymentSummary = () => {
-        const selectedPackage = packages.find((item) => item.id === form.querySelector('[name="packageId"]:checked')?.value);
-        const selectedPlan = form.querySelector('[name="paymentPlan"]:checked')?.value || 'full';
-        const monthly = selectedPackage?.priceType === 'monthly';
-        form.querySelectorAll('[data-payment-plan-option]').forEach((option) => {
-          const input = option.querySelector('input');
-          const unavailable = monthly && input.value !== 'full';
-          option.hidden = unavailable;
-          input.disabled = unavailable;
-        });
-        if (monthly && selectedPlan !== 'full') {
-          const full = form.querySelector('[name="paymentPlan"][value="full"]');
-          if (full) full.checked = true;
-        }
-        const plan = form.querySelector('[name="paymentPlan"]:checked')?.value || 'full';
-        if (!selectedPackage || selectedPackage.priceType === 'quote') {
-          paymentSummary.textContent = plan === 'cash' ? 'Admin akan menentukan nominal penawaran dan menghubungi untuk konfirmasi pembayaran tunai.' : 'Nominal pembayaran mengikuti penawaran admin.';
-        } else if (plan === 'cash') {
-          paymentSummary.textContent = 'Bayar tunai ke petugas setelah pesanan dikonfirmasi.';
-        } else if (plan === 'dp') {
-          const total = Number(selectedPackage.price);
-          const percent = Number.isSafeInteger(selectedPackage.dpPercent) ? selectedPackage.dpPercent : 30;
-          const dp = Math.round(total * percent / 100);
-          paymentSummary.textContent = `Bayar sekarang ${jasaFormatRupiah(dp)} (${percent}%), sisa ${jasaFormatRupiah(total - dp)} saat pelunasan.`;
-        } else {
-          paymentSummary.textContent = `Bayar sekarang ${jasaFormatRupiah(selectedPackage.price)} melalui DOKU.`;
-        }
-      };
-      form.querySelectorAll('[name="packageId"], [name="paymentPlan"]').forEach((input) => input.addEventListener('change', updatePaymentSummary));
-      updatePaymentSummary();
+      form.elements.scheduleDate.min = new Date().toISOString().slice(0, 10);
       form.addEventListener('submit', async (event) => {
         event.preventDefault();
         const user = await jasaWaitForUser();
@@ -6223,7 +6150,7 @@ async function initJasaPage(page) {
           return;
         }
         const button = form.querySelector('button[type="submit"]');
-        const selectedPackage = packages.find((item) => item.id === form.querySelector('[name="packageId"]:checked')?.value);
+        const selectedPackage = orderPackage;
         const overlay = createCheckoutOverlay();
         await jasaRun(button, {
           loadingText: 'Memproses pesanan…',
@@ -6231,7 +6158,7 @@ async function initJasaPage(page) {
           errorTitle: 'Pemesanan belum berhasil'
         }, async () => {
           setStatus('Memeriksa data pemesanan…');
-          const chosenPlan = form.querySelector('[name="paymentPlan"]:checked')?.value || 'full';
+          const chosenPlan = form.elements.paymentPlan.value || 'full';
           overlay.show(chosenPlan === 'cash' ? 'Tunai' : 'DOKU');
           const quote = selectedPackage?.priceType === 'quote';
           overlay.setLabels(
@@ -6244,23 +6171,24 @@ async function initJasaPage(page) {
           let timeoutId;
           const timeout = new Promise((resolve, reject) => { timeoutId = setTimeout(() => reject(Object.assign(new Error('Proses memerlukan lebih dari 60 detik. Periksa halaman Pesanan saya sebelum mencoba lagi.'), { code: 'jasa-timeout' })), 60000); });
           try {
-          const formData = Object.fromEntries([...form.querySelectorAll('[name]')]
-            .filter((element) => !['packageId', 'paymentPlan', 'selectedOptions', 'scheduleDate', 'scheduleTime', 'scheduleRecurring', 'scheduleDays', 'buyerName', 'buyerPhone', 'parentId', 'parentConsent'].includes(element.name))
-            .map((element) => [element.name, element.value]));
+          const formData = {
+            alamat: form.elements.alamat.value,
+            catatan: form.elements.catatan.value,
+            mapsUrl: form.elements.mapsUrl.value
+          };
           const result = await Promise.race([jasaRequest('jasa-checkout', {
             serviceId: service.id,
             categoryId: service.categoryId,
-            packageId: form.querySelector('[name="packageId"]:checked')?.value,
-            selectedOptions: [...form.querySelectorAll('[name="selectedOptions"]:checked')].map((element) => element.value),
-            parentId: form.elements.parentId?.value,
+            packageId: form.elements.packageId.value || 'default',
+            selectedOptions: [],
             parentConsent: form.elements.parentConsent.checked,
             paymentPlan: chosenPlan,
             formData,
-            schedule: scheduleMode === 'none' ? {} : {
-              date: form.elements.scheduleDate?.value || '',
-              time: form.elements.scheduleTime?.value || '',
-              recurring: recurring?.checked || false,
-              days: [...form.querySelectorAll('[name="scheduleDays"]:checked')].map((element) => element.value)
+            schedule: {
+              date: form.elements.scheduleDate.value,
+              time: form.elements.scheduleTime.value,
+              recurring: false,
+              days: []
             },
             buyerName: form.elements.buyerName.value,
             buyerPhone: form.elements.buyerPhone.value
@@ -6674,54 +6602,35 @@ async function initJasaPage(page) {
         <section class="panel"><h2>Pesanan Saya</h2><div class="jasa-order-list">${orders.map((order) => `
           <a class="jasa-order-link ${order.id === selectedId ? 'active' : ''}" href="pesanan.html?orderId=${encodeURIComponent(order.id)}">
             <strong>${escapeHtml(order.serviceName || 'Layanan jasa')}</strong>
-            <span>${escapeHtml(order.id)} · ${order.subscription ? `Langganan • siklus ${Number(order.subscription.cycle || 1)}` : ''} · ${escapeHtml(jasaStatusLabel(order.status))}</span>
+            <span>${escapeHtml(order.id)} · ${escapeHtml(jasaStatusLabel(order.status))}</span>
             <b>${order.totalAmount ? jasaFormatRupiah(order.totalAmount) : (order.status === 'awaiting_quote' ? 'Menunggu penawaran' : 'Belum ada tagihan')}</b>
           </a>`).join('')}</div></section>
         ${selected ? `<article class="panel">
           <p class="eyebrow">Detail pesanan</p><h2>${escapeHtml(selected.serviceName || 'Layanan jasa')}</h2>
           ${selected.serviceImage ? `<img src="${escapeHtml(selected.serviceImage)}" alt="" loading="lazy" onerror="this.hidden=true" style="width:100%;max-height:320px;aspect-ratio:16/9;object-fit:cover;border-radius:16px;margin-top:16px">` : ''}
           <p><strong>${escapeHtml(selected.id)}</strong> · ${escapeHtml(jasaStatusLabel(selected.status))}</p>
-          ${selected.subscription ? `<p class="jasa-note">Langganan • siklus ${Number(selected.subscription.cycle || 1)}${selected.subscription.status === 'ended' ? ' · telah diakhiri' : ''}</p>` : ''}
-          ${selected.needsAttention ? `<p class="jasa-disclaimer" role="alert"><strong>Perlu tindak lanjut admin</strong><br>${escapeHtml(selected.attentionReason || 'Hubungi admin untuk bantuan.')}</p>` : ''}
-          ${selected.assignedStaff?.name ? `<p class="jasa-note"><strong>Petugas:</strong> ${escapeHtml(selected.assignedStaff.name)}</p>` : ''}
           ${(() => {
             const payments = Array.isArray(selected.payments) ? selected.payments : [];
             const paidAmount = Number.isSafeInteger(selected.paidAmount) ? selected.paidAmount : (selected.paymentStatus === 'PAID' ? Number(selected.totalAmount || 0) : 0);
             const remainingAmount = Number.isSafeInteger(selected.remainingAmount) ? selected.remainingAmount : Math.max(0, Number(selected.totalAmount || 0) - paidAmount);
-            const planLabel = ({ full: 'Full', dp: 'DP', cash: 'Tunai' })[selected.paymentPlan || 'full'];
-            return `<dl class="jasa-order-meta"><div><dt>Cara bayar</dt><dd>${escapeHtml(planLabel)}</dd></div><div><dt>Total</dt><dd>${Number(selected.totalAmount || 0) ? jasaFormatRupiah(selected.totalAmount) : (selected.status === 'awaiting_quote' ? 'Menunggu penawaran' : '-')}</dd></div><div><dt>Dibayar</dt><dd>${jasaFormatRupiah(paidAmount)}</dd></div><div><dt>Sisa</dt><dd>${jasaFormatRupiah(remainingAmount)}</dd></div><div><dt>Status pembayaran</dt><dd>${escapeHtml(jasaPaymentStatusLabel(selected.paymentStatus || 'UNPAID'))}</dd></div></dl>
-            <section class="jasa-payment-history"><h3>Riwayat pembayaran</h3>${payments.length ? `<ul>${payments.map((payment) => `<li><strong>${escapeHtml(({ full: 'Pembayaran penuh', dp: 'DP', balance: 'Pelunasan', cash: 'Tunai' })[payment.kind] || 'Pembayaran')}:</strong> ${jasaFormatRupiah(payment.amount)} · ${escapeHtml(payment.method === 'CASH' ? 'Tunai' : 'DOKU')} · ${escapeHtml(jasaPaymentStatusLabel(payment.status || 'UNPAID'))}${payment.paidAt ? ` · ${escapeHtml(jasaFormatDate(payment.paidAt))}` : ''}</li>`).join('')}</ul>` : '<p class="muted">Belum ada pembayaran.</p>'}</section>`;
+            const paymentPlan = selected.paymentPlan || 'full';
+            const planLabel = ({ full: 'Bayar online (DOKU)', dp: 'DP (DOKU)', cash: 'Tunai di tempat' })[paymentPlan] || 'Metode bayar tidak tersedia';
+            const amount = Number(selected.totalAmount || 0) ? jasaFormatRupiah(selected.totalAmount) : (selected.status === 'awaiting_quote' ? 'Menunggu penawaran' : '-');
+            const dpDetails = paymentPlan !== 'dp' ? '' : `<div><dt>Dibayar</dt><dd>${jasaFormatRupiah(paidAmount)}</dd></div><div><dt>Sisa</dt><dd>${jasaFormatRupiah(remainingAmount)}</dd></div><div><dt>Status pembayaran</dt><dd>${escapeHtml(jasaPaymentStatusLabel(selected.paymentStatus || 'UNPAID'))}</dd></div>`;
+            const paymentHistory = paymentPlan !== 'dp' ? '' : `<section class="jasa-payment-history"><h3>Riwayat pembayaran</h3>${payments.length ? `<ul>${payments.map((payment) => `<li><strong>${escapeHtml(({ full: 'Pembayaran penuh', dp: 'DP', balance: 'Pelunasan', cash: 'Tunai' })[payment.kind] || 'Pembayaran')}:</strong> ${jasaFormatRupiah(payment.amount)} · ${escapeHtml(payment.method === 'CASH' ? 'Tunai' : 'DOKU')} · ${escapeHtml(jasaPaymentStatusLabel(payment.status || 'UNPAID'))}${payment.paidAt ? ` · ${escapeHtml(jasaFormatDate(payment.paidAt))}` : ''}</li>`).join('')}</ul>` : '<p class="muted">Belum ada pembayaran.</p>'}</section>`;
+            return `<dl class="jasa-order-meta"><div><dt>Total</dt><dd>${escapeHtml(amount)}</dd></div><div><dt>Metode bayar</dt><dd>${escapeHtml(planLabel)}</dd></div>${dpDetails}</dl>${paymentHistory}`;
           })()}
           <dl class="jasa-order-meta">
-            <div><dt>Paket</dt><dd>${escapeHtml(selected.package?.name || '-')}</dd></div>
             ${selectedScheduleMode === 'none' ? '' : `<div><dt>${escapeHtml(selected.scheduleLabel || 'Jadwal pilihan')}</dt><dd>${escapeHtml(selected.schedule?.date || '-')} ${selected.schedule?.time ? `· ${escapeHtml(selected.schedule.time)}` : ''} ${selected.schedule?.recurring ? '· Rutin mingguan: ' + escapeHtml((selected.schedule.days || []).join(', ')) : ''}</dd></div>`}
           </dl>
-          ${selected.parent ? `<section class="jasa-order-meta"><h3>${escapeHtml(selected.recipientLabel || 'Penerima layanan')}</h3><p>${escapeHtml(selected.parent.name || '-')}${selected.parent.isSelf === true ? ' <span class="jasa-note">Diri sendiri</span>' : ''}</p><p>${escapeHtml(selected.parent.address || '')}${selected.parent.city ? `, ${escapeHtml(selected.parent.city)}` : ''}</p>${(() => {
-            const parent = selected.parent;
-            const addressParts = [
-              parent.village ? `Kel./Desa ${parent.village}` : '',
-              parent.district ? `Kec. ${parent.district}` : '',
-              parent.city || '',
-              parent.province || ''
-            ].filter(Boolean);
-            const latitude = Number(parent.latitude);
-            const longitude = Number(parent.longitude);
-            const hasCoordinates = parent.latitude !== '' && parent.latitude !== null && parent.latitude !== undefined &&
-              parent.longitude !== '' && parent.longitude !== null && parent.longitude !== undefined &&
-              Number.isFinite(latitude) && latitude >= -90 && latitude <= 90 &&
-              Number.isFinite(longitude) && longitude >= -180 && longitude <= 180;
-            const mapsUrl = hasCoordinates ? `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}` : '';
-            return `${addressParts.length ? `<p>${escapeHtml(addressParts.join(', '))}</p>` : ''}${hasCoordinates ? `<a href="${escapeHtml(mapsUrl)}" target="_blank" rel="noopener noreferrer">Lihat di Google Maps</a>` : ''}`;
-          })()}</section>` : ''}
-          ${selected.formData && Object.keys(selected.formData).length ? `<section class="jasa-order-meta"><h3>Detail kebutuhan</h3><dl>${Object.entries(selected.formData).map(([key, value]) => `<div><dt>${escapeHtml(selected.formFieldLabels?.[key] || key)}</dt><dd>${escapeHtml(value)}</dd></div>`).join('')}</dl></section>` : ''}
-          ${selected.pricingNote ? `<p class="jasa-note">${escapeHtml(selected.pricingNote)}</p>` : ''}
-          ${selected.status === 'awaiting_quote' ? '<p class="jasa-note">Admin sedang menyiapkan penawaran harga. Kembali ke halaman ini untuk melihat pembaruannya.</p>' : ''}
+          ${selected.parent ? `<section class="jasa-order-meta"><h3>Alamat</h3><p>${escapeHtml(selected.parent.address || '-')}</p>${selected.parent.mapsUrl ? `<a href="${escapeHtml(selected.parent.mapsUrl)}" target="_blank" rel="noopener noreferrer">Link peta</a>` : ''}</section>` : ''}
+          ${selected.formData && Object.entries(selected.formData).some(([, value]) => String(value || '').trim()) ? `<section class="jasa-order-meta"><h3>Alamat dan catatan</h3><dl>${Object.entries(selected.formData).filter(([, value]) => String(value || '').trim()).map(([key, value]) => `<div><dt>${escapeHtml(selected.formFieldLabels?.[key] || key)}</dt><dd>${key === 'mapsUrl' && /^https?:\/\//i.test(String(value)) ? `<a href="${escapeHtml(value)}" target="_blank" rel="noopener noreferrer">${escapeHtml(value)}</a>` : escapeHtml(value)}</dd></div>`).join('')}</dl></section>` : ''}
+          ${selected.status === 'awaiting_quote' ? '<p class="jasa-note">Admin sedang menyiapkan penawaran harga.</p><div class="jasa-actions"><button class="btn btn-secondary" type="button" data-jasa-cancel>Batalkan pesanan</button></div>' : ''}
           ${selected.status === 'awaiting_payment' ? '<div class="jasa-actions"><button class="btn btn-primary" type="button" data-jasa-pay>Bayar / buka pembayaran</button><button class="btn btn-secondary" type="button" data-jasa-check>Periksa status pembayaran</button><button class="btn btn-secondary" type="button" data-jasa-cancel>Batalkan pesanan</button></div>' : ''}
           ${selected.status === 'awaiting_confirmation' ? '<div class="jasa-actions"><button class="btn btn-secondary" type="button" data-jasa-cancel>Batalkan pesanan</button><p class="jasa-note">Pesanan tunai menunggu konfirmasi admin selama 24 jam.</p></div>' : ''}
           ${selected.paymentPlan === 'dp' && selected.payments?.some((payment) => payment.kind === 'balance' && payment.status === 'UNPAID' && Number(payment.expiresAt || 0) > Date.now() && /^https:\/\//i.test(payment.paymentUrl || '')) ? `<div class="jasa-actions"><button class="btn btn-primary" type="button" data-jasa-pay-balance>Bayar sisa</button>${selected.status !== 'paid' ? '<button class="btn btn-secondary" type="button" data-jasa-check>Periksa status pembayaran</button>' : ''}</div>` : ''}
           ${selected.status === 'paid' ? '<button class="btn btn-secondary" type="button" data-jasa-check>Perbarui status</button>' : ''}
-          ${selected.disclaimer ? `<div class="jasa-disclaimer" role="note"><strong>Informasi penting</strong><p>${escapeHtml(selected.disclaimer)}</p></div>` : ''}
-          <section><h3>Laporan/catatan pengerjaan</h3>${Array.isArray(selected.visits) && selected.visits.length ? [...selected.visits].sort((a, b) => Number(b.at || 0) - Number(a.at || 0)).map((visit) => `<article class="jasa-visit"><strong>${escapeHtml(visit.note || 'Catatan pengerjaan')}</strong><small>${escapeHtml(jasaFormatDate(visit.at))} · ${escapeHtml(visit.staffName || visit.by || 'Tim layanan')}</small><p style="white-space:pre-wrap">${escapeHtml(visit.reportText || '')}</p></article>`).join('') : '<p class="muted">Catatan pengerjaan akan muncul di sini setelah dicatat.</p>'}<a class="btn btn-secondary" href="chat.html?orderId=${encodeURIComponent(selected.id)}">Tanya admin</a></section>
+          <a class="btn btn-secondary" href="chat.html?orderId=${encodeURIComponent(selected.id)}">Tanya admin</a>
         </article>` : '<article class="panel"><p class="muted">Pilih pesanan untuk melihat detail dan pembaruan layanan.</p></article>'}
       </div>`;
       content.querySelector('[data-jasa-pay]')?.addEventListener('click', async (event) => {
@@ -6731,13 +6640,13 @@ async function initJasaPage(page) {
           window.location.href = result.paymentUrl;
           return result;
         });
-        content.querySelector('[data-jasa-pay-balance]')?.addEventListener('click', async (event) => {
-          const button = event.currentTarget;
-          await jasaRun(button, { loadingText: 'Menyiapkan pelunasan…', errorTitle: 'Pelunasan belum dapat dibuka' }, async () => {
-            const result = await jasaRequest('jasa-pay-again', { orderId: selected.id, paymentKind: 'balance' }, user);
-            window.location.href = result.paymentUrl;
-            return result;
-          });
+      });
+      content.querySelector('[data-jasa-pay-balance]')?.addEventListener('click', async (event) => {
+        const button = event.currentTarget;
+        await jasaRun(button, { loadingText: 'Menyiapkan pelunasan…', errorTitle: 'Pelunasan belum dapat dibuka' }, async () => {
+          const result = await jasaRequest('jasa-pay-again', { orderId: selected.id, paymentKind: 'balance' }, user);
+          window.location.href = result.paymentUrl;
+          return result;
         });
       });
       content.querySelector('[data-jasa-check]')?.addEventListener('click', async (event) => {

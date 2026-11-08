@@ -14,7 +14,7 @@
     <script src="/admin/partials/sidebar.js"></script>
     <main class="px-4 py-8 lg:px-8">
       <div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div><h1 class="text-2xl font-bold text-slate-900">Gamon Jasa (Beta)</h1><p class="mt-1 text-sm text-slate-500">Kelola kategori, layanan, paket, dan harga tanpa mengubah kode halaman.</p></div>
+        <div><h1 class="text-2xl font-bold text-slate-900">Gamon Jasa (Beta)</h1><p class="mt-1 text-sm text-slate-500">Kelola kategori dan layanan panggilan.</p></div>
         <div class="flex flex-col gap-1">
           <button id="seedButton" type="button" class="rounded-xl bg-pink-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-pink-500">Isi contoh data</button>
           <p class="text-xs text-slate-500">Membuat contoh kategori dan layanan untuk dicoba.</p>
@@ -28,22 +28,11 @@
             <label class="grid gap-1 text-sm font-medium text-slate-700">Nama kategori
               <input name="name" required maxlength="100" placeholder="Contoh: Kebersihan" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
             </label>
-            <label class="grid gap-1 text-sm font-medium text-slate-700">Slug kategori
-              <input name="slug" required maxlength="100" placeholder="contoh: kebersihan (huruf kecil, tanpa spasi)" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
-            </label>
-            <label class="grid gap-1 text-sm font-medium text-slate-700">Ikon
-              <input name="icon" maxlength="60" placeholder="Contoh: cleaning_services (nama ikon Material Symbols)" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
-            </label>
-            <label class="grid gap-1 text-sm font-medium text-slate-700">Tagline
-              <input name="tagline" maxlength="200" placeholder="Contoh: Rumah bersih, hari lebih nyaman." class="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
-            </label>
-            <label class="grid gap-1 text-sm font-medium text-slate-700 sm:col-span-2">Deskripsi kategori
-              <textarea name="description" maxlength="1200" placeholder="Contoh: Layanan untuk kebersihan rumah dan tempat usaha." class="rounded-xl border border-slate-200 px-3 py-2 text-sm"></textarea>
-              <span class="text-xs font-normal text-slate-500">Misalnya Perbaikan Rumah, Wedding, atau Kebersihan.</span>
-            </label>
-            <label class="grid gap-1 text-sm font-medium text-slate-700">Urutan
-              <input name="order" type="number" min="0" max="10000" value="0" aria-label="Urutan" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
-            </label>
+            <input name="slug" type="hidden" />
+            <input name="icon" type="hidden" value="handyman" />
+            <input name="tagline" type="hidden" />
+            <input name="description" type="hidden" />
+            <input name="order" type="hidden" value="0" />
             <label class="flex items-center gap-2 text-sm"><input name="active" type="checkbox" checked /> Aktif</label>
             <div class="flex gap-2 sm:col-span-2"><button class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white" type="submit">Simpan kategori</button><button class="rounded-xl border px-4 py-2 text-sm" type="reset">Bersihkan</button></div>
           </form>
@@ -51,8 +40,53 @@
         </section>
         <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <h2 class="text-lg font-bold">Layanan jasa</h2>
-          <p class="mt-2 rounded-xl border border-pink-200 bg-pink-50 p-3 text-xs text-slate-700">Layanan = jasa yang kamu jual, misal 'Cuci AC' atau 'Paket Foto Wedding'. Paket = pilihan harga di dalam layanan itu, misal 'Cuci 1 unit Rp 75.000'. Pembeli memilih layanan dulu, lalu memilih paket.</p>
           <form id="serviceForm" class="mt-4 grid gap-3">
+            <div class="grid gap-3">
+              <label class="grid gap-1 text-sm font-medium text-slate-700">Kategori
+                <select name="simpleCategoryId" required class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm"><option value="">Pilih kategori</option></select>
+                <span class="text-xs font-normal text-slate-500">Pilih kategori layanan.</span>
+              </label>
+              <label class="grid gap-1 text-sm font-medium text-slate-700">Nama layanan *
+                <input name="simpleName" required maxlength="120" placeholder="Contoh: Cuci AC" class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm" />
+              </label>
+              <label class="grid gap-1 text-sm font-medium text-slate-700">Deskripsi singkat *
+                <textarea name="simpleDescription" required maxlength="500" placeholder="Jelaskan layanan dalam satu atau dua kalimat." class="min-h-24 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm"></textarea>
+              </label>
+              <label class="grid gap-1 text-sm font-medium text-slate-700">Foto (opsional)
+                <input name="simpleImage" type="text" maxlength="800" placeholder="URL HTTPS atau unggah foto" class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm" />
+                <div class="flex flex-wrap gap-2">
+                  <input data-service-image-file type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" class="hidden" />
+                  <button data-service-image-upload type="button" class="rounded-lg border px-3 py-1.5 text-xs">Unggah foto</button>
+                  <button data-service-image-remove type="button" class="rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs text-rose-700">Hapus foto</button>
+                </div>
+                <img data-service-image-preview alt="Pratinjau foto layanan" hidden class="mt-2 max-h-48 w-full rounded-xl object-cover" />
+              </label>
+              <fieldset class="grid gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                <legend class="px-1 text-sm font-semibold text-slate-700">Harga</legend>
+                <label class="flex items-center gap-2 text-sm"><input name="simplePriceType" type="radio" value="fixed" checked /> Harga tetap</label>
+                <label class="flex items-center gap-2 text-sm"><input name="simplePriceType" type="radio" value="quote" /> Harga disepakati (admin kirim penawaran)</label>
+                <div data-simple-fixed-price class="grid gap-2">
+                  <label class="grid gap-1 text-sm font-medium text-slate-700">Harga
+                    <span class="relative"><span class="absolute left-3 top-2 text-sm text-slate-500">Rp</span><input name="simplePrice" inputmode="numeric" autocomplete="off" placeholder="75.000" class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 pl-10 text-sm" /></span>
+                  </label>
+                  <label class="grid gap-1 text-sm font-medium text-slate-700">Satuan
+                    <input name="simpleUnit" maxlength="40" placeholder="per unit / per jam / per kunjungan" class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" />
+                  </label>
+                </div>
+              </fieldset>
+              <fieldset class="grid gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                <legend class="px-1 text-sm font-semibold text-slate-700">Metode bayar</legend>
+                <label class="flex items-center gap-2 text-sm"><input name="simplePaymentOptions" type="checkbox" value="full" checked /> Bayar online (DOKU)</label>
+                <label class="flex items-center gap-2 text-sm"><input name="simplePaymentOptions" type="checkbox" value="cash" /> Bayar tunai di tempat</label>
+              </fieldset>
+              <label class="grid gap-1 text-sm font-medium text-slate-700">Catatan penting (opsional)
+                <input name="simpleDisclaimer" maxlength="1500" placeholder="Satu catatan singkat untuk pelanggan." class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm" />
+              </label>
+              <label class="flex items-center gap-2 text-sm"><input name="simpleActive" type="checkbox" checked /> Aktif</label>
+              <p data-legacy-service-warning hidden class="text-xs text-amber-700">Layanan ini punya pengaturan lanjutan lama; menyimpan akan menyederhanakannya.</p>
+              <div class="flex flex-wrap gap-2"><button class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white" type="submit">Simpan layanan</button><button class="rounded-xl border px-4 py-2 text-sm" type="reset">Layanan baru</button></div>
+            </div>
+            <div id="legacyServiceFields" hidden>
             <h3 class="border-t border-slate-200 pt-3 font-semibold text-slate-800">Langkah 1: Info layanan</h3>
             <label class="grid gap-1 text-sm font-medium text-slate-700">Kategori
               <select name="categoryId" required class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:border-pink-500 focus:outline-none focus:ring-2 focus:ring-pink-200"><option value="">Pilih kategori</option></select>
@@ -133,6 +167,7 @@
               <button id="addQuestionButton" type="button" class="w-fit rounded-xl border border-pink-200 bg-pink-50 px-4 py-2 text-sm font-semibold text-pink-700 hover:bg-pink-100">+ Tambah pertanyaan</button>
             </section>
             <div class="flex flex-wrap gap-2"><button class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white" type="submit">Simpan layanan</button><button class="rounded-xl border px-4 py-2 text-sm" type="reset">Layanan baru</button></div>
+            </div>
           </form>
           <div id="servicesList" class="mt-5 space-y-3" aria-live="polite">Memuat layanan…</div>
         </section>
@@ -150,9 +185,13 @@
     const packagesList = document.getElementById('packagesList');
     const optionsList = document.getElementById('optionsList');
     const questionsList = document.getElementById('questionsList');
-    const serviceImageInput = serviceForm.elements.image;
+    const serviceImageInput = serviceForm.querySelector('[name="simpleImage"]');
     const serviceImageFile = serviceForm.querySelector('[data-service-image-file]');
     const serviceImagePreview = serviceForm.querySelector('[data-service-image-preview]');
+    const legacyServiceFields = document.getElementById('legacyServiceFields');
+    const simplePriceInput = serviceForm.elements.simplePrice;
+    const simpleFixedPrice = serviceForm.querySelector('[data-simple-fixed-price]');
+    const legacyWarning = serviceForm.querySelector('[data-legacy-service-warning]');
     let serviceImageData = '';
     let categories = [];
     let services = [];
@@ -162,6 +201,8 @@
     const inputClass = 'w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:border-pink-500 focus:outline-none focus:ring-2 focus:ring-pink-200';
     const selectClass = `${inputClass} pr-8`;
     const helpClass = 'text-xs font-normal text-slate-500';
+
+    legacyServiceFields.querySelectorAll('input, select, textarea, button').forEach((input) => { input.disabled = true; });
 
     function formatPrice(value) {
       const digits = String(value ?? '').replace(/\D/g, '');
@@ -548,10 +589,17 @@
     function render() {
       const categorySelect = serviceForm.elements.categoryId;
       const selectedCategory = categorySelect.value;
+      const simpleCategorySelect = serviceForm.elements.simpleCategoryId;
+      const selectedSimpleCategory = simpleCategorySelect.value;
       categorySelect.innerHTML = '<option value="">Pilih kategori</option>' + categories.map((item) =>
         `<option value="${escapeHtml(item.id)}">${escapeHtml(item.name)}${item.active === false ? ' (nonaktif)' : ''}</option>`
       ).join('');
+      simpleCategorySelect.innerHTML = categorySelect.innerHTML;
       if (categories.some((item) => item.id === selectedCategory)) categorySelect.value = selectedCategory;
+      if (categories.some((item) => item.id === selectedSimpleCategory)) simpleCategorySelect.value = selectedSimpleCategory;
+      if (!simpleCategorySelect.value) {
+        simpleCategorySelect.value = (categories.find((item) => item.active !== false) || categories[0] || {}).id || '';
+      }
 
       categoriesList.innerHTML = categories.length ? categories.map((item) => `
         <article class="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 p-3">
@@ -564,8 +612,8 @@
           ${item.image ? `<img src="${escapeHtml(item.image)}" alt="" onerror="this.hidden=true" class="mb-3 max-h-40 w-full rounded-lg object-cover" />` : ''}
           <div class="flex flex-wrap items-start justify-between gap-2"><div><strong>${escapeHtml(item.name)}</strong><p class="text-xs text-slate-500">${escapeHtml(categories.find((category) => category.id === item.categoryId)?.name || 'Kategori tidak tersedia')} · ${item.active === false ? 'Nonaktif' : 'Aktif'}</p></div>
             <div class="flex gap-2"><button type="button" data-edit-service="${escapeHtml(item.id)}" class="rounded-lg border px-3 py-1.5 text-xs">Edit</button><button type="button" data-duplicate-service="${escapeHtml(item.id)}" class="rounded-lg border px-3 py-1.5 text-xs">Duplikat</button><button type="button" data-toggle-service="${escapeHtml(item.id)}" data-next="${item.active === false}" class="rounded-lg border px-3 py-1.5 text-xs">${item.active === false ? 'Aktifkan' : 'Nonaktifkan'}</button><button type="button" data-delete-service="${escapeHtml(item.id)}" class="rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs text-rose-700">Hapus</button></div></div>
-          <p class="mt-2 text-sm">${escapeHtml(item.summary || '')}</p>
-          <p class="mt-2 text-xs text-slate-500">${(item.packages || []).map((pkg) => `${escapeHtml(pkg.name)}: ${pkg.priceType === 'quote' ? 'Penawaran' : formatRupiah(pkg.price)}`).join(' · ')}</p>
+          <p class="mt-2 text-sm">${escapeHtml(item.description || item.summary || '')}</p>
+          <p class="mt-2 text-xs text-slate-500">${(() => { const pkg = (item.packages || []).find((entry) => entry.active !== false) || (item.packages || [])[0]; return pkg ? (pkg.priceType === 'quote' ? 'Harga disepakati' : `${formatRupiah(pkg.price)}${item.unit ? ` / ${escapeHtml(item.unit)}` : ''}`) : 'Harga belum diatur'; })()}</p>
         </article>`).join('') : '<p class="text-sm text-slate-500">Belum ada layanan. Tambahkan melalui form di atas.</p>';
 
       categoriesList.querySelectorAll('[data-edit-category]').forEach((button) => button.addEventListener('click', () => {
@@ -581,7 +629,23 @@
         const item = services.find((service) => service.id === button.dataset.editService);
         if (!item) return;
         serviceForm.dataset.id = item.id;
-        ['categoryId', 'name', 'summary', 'description', 'image', 'disclaimer', 'pricingNote'].forEach((key) => { serviceForm.elements[key].value = item[key] ?? ''; });
+        serviceForm.elements.simpleCategoryId.value = item.categoryId || '';
+        serviceForm.elements.simpleName.value = item.name || '';
+        serviceForm.elements.simpleDescription.value = (item.description || item.summary || '').slice(0, 500);
+        serviceImageInput.value = item.image || '';
+        serviceForm.elements.simpleDisclaimer.value = item.disclaimer || '';
+        serviceForm.elements.simpleActive.checked = item.active !== false;
+        const pkg = (Array.isArray(item.packages) ? item.packages : []).find((entry) => entry.active !== false) || (item.packages || [])[0] || {};
+        const priceType = pkg.priceType === 'quote' ? 'quote' : 'fixed';
+        serviceForm.querySelector(`[name="simplePriceType"][value="${priceType}"]`).checked = true;
+        simplePriceInput.value = priceType === 'quote' ? '' : formatPrice(pkg.price || 0);
+        serviceForm.elements.simpleUnit.value = (item.unit || '').slice(0, 40);
+        simpleFixedPrice.hidden = priceType === 'quote';
+        const simplePaymentOptions = Array.isArray(item.paymentOptions) ? item.paymentOptions.filter((option) => ['full', 'cash'].includes(option)) : ['full'];
+        serviceForm.querySelectorAll('[name="simplePaymentOptions"]').forEach((input) => { input.checked = simplePaymentOptions.includes(input.value); });
+        if (!simplePaymentOptions.length) serviceForm.querySelector('[name="simplePaymentOptions"][value="full"]').checked = true;
+        legacyWarning.hidden = !((item.packages || []).length > 1 || (item.options || []).length > 0 || (item.formFields || []).length > 0);
+        ['categoryId', 'name', 'summary', 'description', 'image', 'disclaimer', 'pricingNote'].forEach((key) => { if (serviceForm.elements[key]) serviceForm.elements[key].value = item[key] ?? ''; });
         serviceImageData = '';
         serviceImageFile.value = '';
         updateServiceImagePreview();
@@ -607,6 +671,22 @@
         const item = services.find((service) => service.id === button.dataset.duplicateService);
         if (!item) return;
         delete serviceForm.dataset.id;
+        serviceForm.elements.simpleCategoryId.value = item.categoryId || '';
+        serviceForm.elements.simpleName.value = `${item.name || 'Layanan'} (salinan)`.slice(0, 120);
+        serviceForm.elements.simpleDescription.value = (item.description || item.summary || '').slice(0, 500);
+        serviceImageInput.value = item.image || '';
+        serviceForm.elements.simpleDisclaimer.value = item.disclaimer || '';
+        serviceForm.elements.simpleActive.checked = item.active !== false;
+        const pkg = (Array.isArray(item.packages) ? item.packages : []).find((entry) => entry.active !== false) || (item.packages || [])[0] || {};
+        const priceType = pkg.priceType === 'quote' ? 'quote' : 'fixed';
+        serviceForm.querySelector(`[name="simplePriceType"][value="${priceType}"]`).checked = true;
+        simplePriceInput.value = priceType === 'quote' ? '' : formatPrice(pkg.price || 0);
+        serviceForm.elements.simpleUnit.value = (item.unit || '').slice(0, 40);
+        simpleFixedPrice.hidden = priceType === 'quote';
+        const simplePaymentOptions = Array.isArray(item.paymentOptions) ? item.paymentOptions.filter((option) => ['full', 'cash'].includes(option)) : ['full'];
+        serviceForm.querySelectorAll('[name="simplePaymentOptions"]').forEach((input) => { input.checked = simplePaymentOptions.includes(input.value); });
+        if (!simplePaymentOptions.length) serviceForm.querySelector('[name="simplePaymentOptions"][value="full"]').checked = true;
+        legacyWarning.hidden = true;
         ['categoryId', 'name', 'summary', 'description', 'image', 'disclaimer', 'pricingNote'].forEach((key) => { serviceForm.elements[key].value = item[key] ?? ''; });
         serviceImageData = '';
         serviceImageFile.value = '';
@@ -641,9 +721,17 @@
     }
 
     async function load() {
-      const result = await request('jasa-get-catalog', 'GET');
+      let result = await request('jasa-get-catalog', 'GET');
       categories = result.categories || [];
       services = result.services || [];
+      if (!categories.length) {
+        await request('jasa-save-category', 'POST', {
+          name: 'Umum', slug: 'umum', icon: 'handyman', tagline: '', description: '', order: 0, active: true
+        });
+        result = await request('jasa-get-catalog', 'GET');
+        categories = result.categories || [];
+        services = result.services || [];
+      }
       render();
     }
 
@@ -658,8 +746,12 @@
       const form = event.currentTarget;
       const payload = Object.fromEntries(new FormData(form));
       payload.id = form.dataset.id || '';
+      payload.slug = makeSlug(form.elements.name.value, 'umum');
+      payload.icon = 'handyman';
+      payload.tagline = '';
+      payload.description = '';
       payload.active = form.elements.active.checked;
-      payload.order = Number(form.elements.order.value || 0);
+      payload.order = 0;
       try {
         await request('jasa-save-category', 'POST', payload);
         form.reset();
@@ -670,27 +762,69 @@
 
     serviceForm.addEventListener('reset', () => {
       delete serviceForm.dataset.id;
-      setTimeout(resetServiceEditor);
+      legacyWarning.hidden = true;
+      simpleFixedPrice.hidden = false;
+      setTimeout(() => {
+        resetServiceEditor();
+        serviceForm.elements.simpleCategoryId.value =
+          (categories.find((item) => item.active !== false) || categories[0] || {}).id || '';
+      });
     });
+    serviceForm.querySelectorAll('[name="simplePriceType"]').forEach((input) => input.addEventListener('change', () => {
+      simpleFixedPrice.hidden = serviceForm.querySelector('[name="simplePriceType"]:checked').value === 'quote';
+    }));
+    simplePriceInput.addEventListener('input', () => {
+      const start = simplePriceInput.selectionStart;
+      const previous = simplePriceInput.value;
+      simplePriceInput.value = formatPrice(previous);
+      const position = Math.max(0, Number(start || 0) + simplePriceInput.value.length - previous.length);
+      simplePriceInput.setSelectionRange(position, position);
+    });
+    serviceForm.querySelectorAll('[name="simplePaymentOptions"]').forEach((input) => input.addEventListener('change', () => {
+      const choices = [...serviceForm.querySelectorAll('[name="simplePaymentOptions"]:checked')];
+      if (!choices.length) input.checked = true;
+    }));
     serviceForm.addEventListener('submit', async (event) => {
       event.preventDefault();
       const form = event.currentTarget;
       status.textContent = '';
       try {
-        const payload = Object.fromEntries(new FormData(form));
-        payload.id = form.dataset.id || '';
-        payload.active = form.elements.active.checked;
-        payload.needsParentProfile = form.elements.needsParentProfile.checked;
-        payload.paymentOptions = [...form.querySelectorAll('[name="paymentOptions"]:checked')].map((input) => input.value);
-        payload.packages = packagesPayload();
-        payload.options = optionsPayload();
-        payload.formFields = questionsPayload();
-        if (serviceImageData) payload.imageData = serviceImageData;
-        const validationMessage = validateService(payload.name, payload.packages, payload.options, payload.formFields, payload.paymentOptions);
-        if (validationMessage) {
-          status.textContent = validationMessage;
-          return;
+        const name = form.elements.simpleName.value.trim();
+        const description = form.elements.simpleDescription.value.trim();
+        const priceType = form.querySelector('[name="simplePriceType"]:checked').value;
+        const price = priceType === 'quote' ? 0 : parsePrice(simplePriceInput.value);
+        const paymentOptions = [...form.querySelectorAll('[name="simplePaymentOptions"]:checked')].map((input) => input.value);
+        if (!name) throw new Error('Nama layanan wajib diisi.');
+        if (!description) throw new Error('Deskripsi singkat wajib diisi.');
+        if (priceType === 'fixed' && (!Number.isSafeInteger(price) || price < 1 || price > 1000000000)) {
+          throw new Error('Harga harus lebih dari Rp 0 dan maksimal Rp 1.000.000.000.');
         }
+        if (!paymentOptions.length) throw new Error('Pilih minimal satu metode bayar.');
+        const payload = {
+          categoryId: form.elements.simpleCategoryId.value,
+          name,
+          summary: description.slice(0, 300),
+          description,
+          image: serviceImageInput.value.trim(),
+          disclaimer: form.elements.simpleDisclaimer.value.trim(),
+          active: form.elements.simpleActive.checked,
+          unit: priceType === 'fixed' ? form.elements.simpleUnit.value.trim() : '',
+          needsParentProfile: false,
+          scheduleMode: 'datetime',
+          scheduleLabel: 'Waktu pengerjaan',
+          recipientLabel: 'Lokasi layanan',
+          consentText: '',
+          pricingNote: '',
+          paymentOptions,
+          packages: [{
+            id: 'default', name, description: '', duration: '',
+            priceType, price, dpPercent: 30, active: true
+          }],
+          options: [],
+          formFields: []
+        };
+        payload.id = form.dataset.id || '';
+        if (serviceImageData) payload.imageData = serviceImageData;
         await request('jasa-save-service', 'POST', payload);
         serviceImageData = '';
         form.reset();

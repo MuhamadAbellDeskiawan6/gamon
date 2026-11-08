@@ -1486,6 +1486,7 @@ function jasaAdminServiceData(body) {
     const description = jasaAdminText(body.description, 3000, 'Deskripsi');
     const disclaimer = jasaAdminText(body.disclaimer, 1500, 'Disclaimer');
     const pricingNote = jasaAdminText(body.pricingNote, 300, 'Catatan harga');
+    const unit = jasaAdminText(body.unit, 40, 'Satuan');
     const scheduleMode = body.scheduleMode === undefined ? 'recurring' : jasaAdminText(body.scheduleMode, 20, 'Pengaturan jadwal', true);
     if (!['none', 'date', 'datetime', 'recurring'].includes(scheduleMode)) throw jasaAdminError(400, 'invalid-schedule-mode', 'Pengaturan jadwal layanan tidak valid.');
     const scheduleLabelInput = jasaAdminText(body.scheduleLabel, 80, 'Judul bagian jadwal');
@@ -1496,9 +1497,9 @@ function jasaAdminServiceData(body) {
     if (String(body.consentText ?? '').trim().length > 300) throw jasaAdminError(400, 'invalid-consent-text', 'Teks persetujuan maksimal 300 karakter.');
     const paymentOptions = body.paymentOptions === undefined ? ['full'] : body.paymentOptions;
     if (!Array.isArray(paymentOptions) || !paymentOptions.length ||
-        paymentOptions.some((option) => !['full', 'dp', 'cash'].includes(option)) ||
+        paymentOptions.some((option) => !['full', 'cash'].includes(option)) ||
         new Set(paymentOptions).size !== paymentOptions.length) {
-        throw jasaAdminError(400, 'invalid-payment-options', 'Cara bayar yang ditawarkan harus berisi pilihan Full, DP, atau Tunai yang unik.');
+        throw jasaAdminError(400, 'invalid-payment-options', 'Cara bayar yang ditawarkan harus berisi pilihan online atau tunai yang unik.');
     }
     if (!Array.isArray(body.packages) || body.packages.length > 20) throw jasaAdminError(400, 'invalid-packages', 'Paket wajib berupa daftar maksimal 20 item.');
     const packages = body.packages.map((item, index) => {
@@ -1531,8 +1532,9 @@ function jasaAdminServiceData(body) {
         throw jasaAdminError(400, 'monthly-full-only', 'Layanan dengan paket bulanan hanya boleh menawarkan pembayaran Full.');
     }
 
-    if (!Array.isArray(body.options) || body.options.length > 30) throw jasaAdminError(400, 'invalid-options', 'Opsi harus berupa daftar maksimal 30 item.');
-    const options = body.options.map((item, index) => {
+    const optionInput = body.options === undefined ? [] : body.options;
+    if (!Array.isArray(optionInput) || optionInput.length > 30) throw jasaAdminError(400, 'invalid-options', 'Opsi harus berupa daftar maksimal 30 item.');
+    const options = optionInput.map((item, index) => {
         if (!item || typeof item !== 'object' || Array.isArray(item)) throw jasaAdminError(400, 'invalid-option', `Opsi ${index + 1} tidak valid.`);
         return {
             id: jasaAdminId(item.id, `ID opsi ${index + 1}`),
@@ -1541,10 +1543,11 @@ function jasaAdminServiceData(body) {
     });
     if (new Set(options.map((item) => item.id)).size !== options.length) throw jasaAdminError(400, 'duplicate-option-id', 'ID opsi harus unik.');
 
-    if (!Array.isArray(body.formFields) || body.formFields.length > 20) throw jasaAdminError(400, 'invalid-form-fields', 'Field formulir harus berupa daftar maksimal 20 item.');
+    const formFieldInput = body.formFields === undefined ? [] : body.formFields;
+    if (!Array.isArray(formFieldInput) || formFieldInput.length > 20) throw jasaAdminError(400, 'invalid-form-fields', 'Field formulir harus berupa daftar maksimal 20 item.');
     const allowedTypes = new Set(['text', 'textarea', 'number', 'address', 'date', 'time', 'select']);
     const reservedFieldKeys = new Set(['packageId', 'paymentPlan', 'selectedOptions', 'scheduleDate', 'scheduleTime', 'scheduleRecurring', 'scheduleDays', 'buyerName', 'buyerPhone']);
-    const formFields = body.formFields.map((item, index) => {
+    const formFields = formFieldInput.map((item, index) => {
         if (!item || typeof item !== 'object' || Array.isArray(item)) throw jasaAdminError(400, 'invalid-form-field', `Field ${index + 1} tidak valid.`);
         if (item.required !== undefined && typeof item.required !== 'boolean') throw jasaAdminError(400, 'invalid-required', `Status wajib field ${index + 1} harus berupa boolean.`);
         const key = jasaAdminText(item?.key, 60, `Key field ${index + 1}`, true);
@@ -1574,6 +1577,7 @@ function jasaAdminServiceData(body) {
         active: body.active !== false,
         disclaimer,
         pricingNote,
+        unit,
         paymentOptions,
         packages,
         options,
@@ -2149,70 +2153,37 @@ async function jasaAdminAction(req, res, action) {
         if (action === 'jasa-seed') {
             const now = Date.now();
             const categories = [
-                { id: 'kebersihan', name: 'Kebersihan', slug: 'kebersihan', icon: 'cleaning_services', tagline: 'Jaga rumah tetap bersih dan nyaman.', description: 'Layanan kebersihan untuk kebutuhan rumah dan tempat usaha.', active: true, order: 10 },
-                { id: 'perbaikan-rumah', name: 'Perbaikan Rumah', slug: 'perbaikan-rumah', icon: 'home_repair_service', tagline: 'Bantu rumah kembali berfungsi.', description: 'Bantuan perbaikan dan perawatan rumah.', active: true, order: 20 },
-                { id: 'jaga-orang-tua', name: 'Jaga Orang Tua', slug: 'jaga-orang-tua', icon: 'elderly', tagline: 'Tetap hadir, meski hari-hari sedang penuh.', description: 'Bantuan pendampingan non-medis untuk keluarga.', active: true, order: 30 }
+                { id: 'umum', name: 'Layanan Umum', slug: 'umum', icon: 'handyman', tagline: '', description: '', active: true, order: 0 }
             ].map((item) => ({ ...item, createdAt: now, updatedAt: now }));
             const services = [
                 {
-                    id: 'cuci-ac', data: {
-                        categoryId: 'kebersihan', name: 'Cuci AC',
-                        summary: 'Layanan pembersihan AC untuk membantu menjaga sirkulasi udara.',
-                        description: 'Petugas membersihkan unit AC sesuai paket yang dipilih.',
-                        image: '', active: true, disclaimer: '', pricingNote: '',
+                    id: 'contoh-cuci-ac', data: {
+                        categoryId: 'umum', name: 'Contoh: Cuci AC',
+                        summary: 'Pembersihan AC di lokasi pelanggan.',
+                        description: 'Pembersihan AC di lokasi pelanggan.',
+                        image: '', active: true, disclaimer: '', pricingNote: '', unit: 'per unit',
                         needsParentProfile: false, scheduleMode: 'datetime', scheduleLabel: 'Waktu pengerjaan',
                         recipientLabel: 'Lokasi layanan', consentText: '',
-                        paymentOptions: ['full'],
+                        paymentOptions: ['full', 'cash'],
                         packages: [
-                            { id: 'cuci-ac-1-unit', name: 'Cuci 1 unit', description: 'Pembersihan satu unit AC.', duration: '1 unit', priceType: 'fixed', price: 75000, dpPercent: 30, active: true },
-                            { id: 'cuci-ac-2-unit', name: 'Cuci 2 unit', description: 'Pembersihan dua unit AC.', duration: '2 unit', priceType: 'fixed', price: 140000, dpPercent: 30, active: true }
+                            { id: 'default', name: 'Contoh: Cuci AC', description: '', duration: '', priceType: 'fixed', price: 75000, dpPercent: 30, active: true }
                         ],
-                        options: [],
-                        formFields: [
-                            { key: 'lokasiPengerjaan', label: 'Lokasi pengerjaan', type: 'address', required: true },
-                            { key: 'jumlahUnit', label: 'Jumlah unit', type: 'number', required: true }
-                        ]
+                        options: [], formFields: []
                     }
                 },
                 {
-                    id: 'perbaikan-ringan', data: {
-                        categoryId: 'perbaikan-rumah', name: 'Perbaikan Ringan',
-                        summary: 'Bantuan untuk menangani kerusakan ringan di rumah.',
-                        description: 'Ceritakan jenis kerusakan dan lokasi agar admin dapat menyiapkan penawaran.',
-                        image: '', active: true, disclaimer: '', pricingNote: '',
+                    id: 'contoh-perbaikan-ringan', data: {
+                        categoryId: 'umum', name: 'Contoh: Perbaikan Ringan',
+                        summary: 'Perbaikan ringan di lokasi pelanggan dengan harga yang disepakati.',
+                        description: 'Perbaikan ringan di lokasi pelanggan dengan harga yang disepakati.',
+                        image: '', active: true, disclaimer: '', pricingNote: '', unit: '',
                         needsParentProfile: false, scheduleMode: 'datetime', scheduleLabel: 'Waktu pengerjaan',
                         recipientLabel: 'Lokasi layanan', consentText: '',
-                        paymentOptions: ['full'],
+                        paymentOptions: ['cash'],
                         packages: [
-                            { id: 'perbaikan-sesuai-kebutuhan', name: 'Perbaikan sesuai kebutuhan', description: 'Admin menentukan harga setelah meninjau permintaan.', duration: 'Disepakati', priceType: 'quote', price: 0, dpPercent: 30, active: true }
+                            { id: 'default', name: 'Contoh: Perbaikan Ringan', description: '', duration: '', priceType: 'quote', price: 0, dpPercent: 30, active: true }
                         ],
-                        options: [],
-                        formFields: [
-                            { key: 'jenisKerusakan', label: 'Jenis kerusakan', type: 'textarea', required: true },
-                            { key: 'alamatPengerjaan', label: 'Alamat pengerjaan', type: 'address', required: true }
-                        ]
-                    }
-                },
-                {
-                    id: 'pendampingan-orang-tua', data: {
-                        categoryId: 'jaga-orang-tua', name: 'Pendampingan Jaga Orang Tua',
-                        summary: 'Ketenangan untuk keluarga yang tetap ingin hadir.',
-                        description: 'Pendamping dapat berkunjung, menemani kegiatan, dan menyampaikan laporan kunjungan.',
-                        image: '', active: true,
-                        disclaimer: 'Layanan NON-MEDIS: tidak memberi obat, perawatan, atau tindakan medis. Petugas bukan tenaga kesehatan.',
-                        pricingNote: 'Harga contoh untuk uji konsep, belum tervalidasi.',
-                        needsParentProfile: true, scheduleMode: 'recurring', scheduleLabel: 'Preferensi jadwal',
-                        recipientLabel: 'Penerima layanan', consentText: 'Saya memahami batas layanan dan menyetujui ketentuan pemesanan.',
-                        paymentOptions: ['full'],
-                        packages: [
-                            { id: 'kunjungan-1-jam', name: 'Kunjungan 1 jam', description: 'Satu kunjungan pendampingan ringan.', duration: '1 jam', priceType: 'fixed', price: 75000, dpPercent: 30, active: true },
-                            { id: 'pendampingan-3-jam', name: 'Pendampingan 3 jam', description: 'Waktu lebih leluasa untuk menemani kegiatan.', duration: '3 jam', priceType: 'fixed', price: 175000, dpPercent: 30, active: true }
-                        ],
-                        options: [
-                            { id: 'kunjungan-rumah', label: 'Kunjungan pendamping ke rumah' },
-                            { id: 'temani-belanja', label: 'Menemani belanja' }
-                        ],
-                        formFields: []
+                        options: [], formFields: []
                     }
                 }
             ].map((item) => ({ ...item, data: { ...item.data, createdAt: now, updatedAt: now } }));

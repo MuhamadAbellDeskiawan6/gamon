@@ -1704,9 +1704,10 @@ async function jasaPublicCatalog(req, res) {
     .filter((item) => item.active === true)
     .sort((a, b) => Number(a.order || 0) - Number(b.order || 0));
   const activeCategoryIds = new Set(categories.map((item) => item.id));
+  const hasActiveCategories = categories.length > 0;
   const services = serviceSnapshot.docs
     .map((item) => ({ id: item.id, ...item.data() }))
-    .filter((item) => item.active === true && activeCategoryIds.has(item.categoryId) &&
+    .filter((item) => item.active === true && (!hasActiveCategories || activeCategoryIds.has(item.categoryId)) &&
       Array.isArray(item.packages) && item.packages.some((packageItem) => packageItem?.active !== false))
     .map((item) => ({
       id: item.id,
@@ -1717,6 +1718,7 @@ async function jasaPublicCatalog(req, res) {
       image: jasaImageUrl(item.image),
       disclaimer: cleanText(item.disclaimer, 1500),
       pricingNote: cleanText(item.pricingNote, 300),
+      unit: cleanText(item.unit, 40),
       paymentOptions: Array.isArray(item.paymentOptions)
         ? item.paymentOptions.filter((option) => ['full', 'dp', 'cash'].includes(option))
         : ['full'],
@@ -1855,6 +1857,15 @@ function jasaCleanFormData(service, input) {
     throw jasaFailure(400, 'invalid-form', 'Data formulir jasa tidak valid.');
   }
   const fields = Array.isArray(service.formFields) ? service.formFields.slice(0, 20) : [];
+  if (!fields.length) {
+    const values = {
+      alamat: cleanText(input.alamat, 500),
+      catatan: cleanText(input.catatan, 500),
+      mapsUrl: cleanText(input.mapsUrl, 300)
+    };
+    if (!values.alamat) throw jasaFailure(400, 'required-field', 'Alamat wajib diisi.');
+    return values;
+  }
   const values = {};
   for (const field of fields) {
     const key = cleanText(field.key, 60);
@@ -2073,7 +2084,10 @@ async function jasaCheckout(req, res, claims) {
   if (!Number.isSafeInteger(price) || price < 0 || (selectedPackage.priceType !== 'quote' && price < 1) || (selectedPackage.priceType === 'quote' && price !== 0)) {
     throw jasaFailure(409, 'invalid-service-price', 'Harga paket tidak valid. Hubungi admin.');
   }
-  if (!categorySnapshot.exists || categorySnapshot.data()?.active !== true) throw jasaFailure(404, 'service-unavailable', 'Kategori layanan sedang tidak tersedia.');
+  if (!categorySnapshot.exists || categorySnapshot.data()?.active !== true) {
+    const activeCategories = await retryNetwork(() => db.collection('jasa_categories').where('active', '==', true).limit(1).get());
+    if (!activeCategories.empty) throw jasaFailure(404, 'service-unavailable', 'Kategori layanan sedang tidak tersedia.');
+  }
 
   const buyerName = cleanText(body.buyerName || claims.name, 120);
   const buyerPhone = cleanText(body.buyerPhone, 40);
@@ -2136,7 +2150,9 @@ async function jasaCheckout(req, res, claims) {
     consentText: cleanText(service.consentText, 300) || 'Saya memahami batas layanan dan menyetujui ketentuan pemesanan.',
     disclaimer: cleanText(service.disclaimer, 1500),
     pricingNote: cleanText(service.pricingNote, 300),
-    formFieldLabels: Object.fromEntries((Array.isArray(service.formFields) ? service.formFields : []).map((field) => [cleanText(field.key, 60), cleanText(field.label, 120)])),
+    formFieldLabels: Array.isArray(service.formFields) && service.formFields.length
+      ? Object.fromEntries(service.formFields.map((field) => [cleanText(field.key, 60), cleanText(field.label, 120)]))
+      : { alamat: 'Alamat', catatan: 'Catatan', mapsUrl: 'Link peta' },
     ...(parent ? { parent } : {}),
     consentAt: now,
     package: {
