@@ -11,6 +11,192 @@
   <link rel="stylesheet" href="../marketplace/assets/style.css" />
   <link rel="stylesheet" href="../marketplace/assets/commerce.css" />
   <link rel="stylesheet" href="../marketplace/assets/neo.css" />
+
+  <!-- ===== Perbaikan tampilan halaman detail layanan (harus setelah neo.css) ===== -->
+  <style>
+    body[data-page="jasa-detail"] {
+      --jasa-gap: 28px;
+    }
+
+    /* ---------- Jarak antar blok halaman ---------- */
+    body[data-page="jasa-detail"] main.user-layout {
+      display: flex;
+      flex-direction: column;
+      gap: var(--jasa-gap);
+      padding: 36px 0 72px !important;
+    }
+    body[data-page="jasa-detail"] .jasa-status { margin: 0; }
+    body[data-page="jasa-detail"] [data-jasa-content] {
+      display: flex;
+      flex-direction: column;
+      gap: var(--jasa-gap);
+    }
+    body[data-page="jasa-detail"] [data-jasa-content] > .panel,
+    body[data-page="jasa-detail"] [data-jasa-content] > section.panel {
+      margin: 0;
+      padding: 28px 28px 32px !important;
+    }
+
+    /* ---------- Kartu info layanan (section pertama) ---------- */
+    body[data-page="jasa-detail"] [data-jasa-content] > section.panel:first-child {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    body[data-page="jasa-detail"] [data-jasa-content] > section.panel:first-child > * {
+      margin: 0 !important;
+    }
+    body[data-page="jasa-detail"] [data-jasa-content] > section.panel:first-child > .btn,
+    body[data-page="jasa-detail"] [data-jasa-content] > section.panel:first-child > .eyebrow {
+      align-self: flex-start;
+    }
+    body[data-page="jasa-detail"] [data-jasa-content] > section.panel:first-child > .eyebrow {
+      margin-top: 8px !important;
+    }
+    body[data-page="jasa-detail"] [data-jasa-content] > section.panel:first-child > h1 {
+      font-size: clamp(1.7rem, 4vw, 2.4rem);
+      line-height: 1.15;
+      overflow-wrap: anywhere;
+    }
+    body[data-page="jasa-detail"] [data-jasa-content] > section.panel:first-child > img {
+      display: block;
+      width: 100%;
+      height: auto;
+      max-height: 360px !important;
+      aspect-ratio: 16 / 9;
+      object-fit: cover;
+      border: 2px solid var(--ink);
+      border-radius: 14px !important;
+    }
+    body[data-page="jasa-detail"] [data-jasa-content] > section.panel:first-child > p {
+      line-height: 1.7;
+      overflow-wrap: anywhere;
+    }
+    body[data-page="jasa-detail"] [data-jasa-content] > section.panel:first-child > p > strong {
+      font-size: 1.2rem;
+    }
+    body[data-page="jasa-detail"] .jasa-note {
+      margin: 0;
+      padding: 12px 14px;
+    }
+
+    /* ---------- Baris tombol Chat Admin ---------- */
+    body[data-page="jasa-detail"] .jasa-chat-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 12px 16px;
+      margin-top: 6px !important;
+      padding-top: 20px;
+      border-top: 2px solid var(--ink);
+    }
+    body[data-page="jasa-detail"] .jasa-chat-bar .btn {
+      min-height: 46px;
+      padding: 10px 20px;
+    }
+    body[data-page="jasa-detail"] .jasa-chat-bar small {
+      color: var(--mute);
+      line-height: 1.5;
+    }
+
+    /* ---------- Kartu masuk / daftar (belum login) ---------- */
+    body[data-page="jasa-detail"] [data-jasa-content] > section.panel:not(:first-child),
+    body[data-page="jasa-detail"] [data-jasa-content] > div.panel {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 14px 16px;
+    }
+    body[data-page="jasa-detail"] [data-jasa-content] > section.panel:not(:first-child) > h2,
+    body[data-page="jasa-detail"] [data-jasa-content] > section.panel:not(:first-child) > p,
+    body[data-page="jasa-detail"] [data-jasa-content] > div.panel > p {
+      flex: 1 1 100%;
+      margin: 0;
+      line-height: 1.65;
+    }
+    body[data-page="jasa-detail"] [data-jasa-content] > section.panel:not(:first-child) > .btn,
+    body[data-page="jasa-detail"] [data-jasa-content] > div.panel > .btn {
+      margin-top: 4px;
+    }
+
+    /* ---------- Form pemesanan ---------- */
+    body[data-page="jasa-detail"] [data-jasa-checkout-form] {
+      display: grid;
+      gap: 22px;
+      padding: 28px 28px 32px !important;
+    }
+    body[data-page="jasa-detail"] [data-jasa-checkout-form] > h2 {
+      margin: 0 0 2px;
+    }
+    body[data-page="jasa-detail"] [data-jasa-checkout-form] .jasa-fieldset {
+      gap: 16px;
+      padding: 20px 22px 22px;
+    }
+    body[data-page="jasa-detail"] [data-jasa-checkout-form] .jasa-fieldset legend {
+      padding: 0 8px;
+    }
+    body[data-page="jasa-detail"] [data-jasa-checkout-form] .field {
+      gap: 8px;
+    }
+    body[data-page="jasa-detail"] [data-jasa-checkout-form] textarea {
+      min-height: 110px;
+      line-height: 1.5;
+    }
+    body[data-page="jasa-detail"] [data-jasa-checkout-form] .form-row {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+    }
+    body[data-page="jasa-detail"] [data-jasa-checkout-form] .jasa-choice {
+      gap: 12px;
+      padding: 14px 16px;
+      border: 2px solid var(--ink);
+      border-radius: 12px;
+      background: var(--white);
+    }
+    body[data-page="jasa-detail"] [data-jasa-checkout-form] .jasa-choice:has(input:checked) {
+      background: var(--sun);
+    }
+    body[data-page="jasa-detail"] [data-jasa-checkout-form] .jasa-check {
+      align-items: flex-start;
+      gap: 12px;
+      margin: 0;
+      padding: 14px 16px;
+      border: 2px solid var(--ink);
+      border-radius: 12px;
+      background: var(--sky);
+      line-height: 1.5;
+    }
+    body[data-page="jasa-detail"] [data-jasa-checkout-form] button[type="submit"] {
+      align-self: flex-start;
+      min-height: 48px;
+      padding: 11px 26px;
+      margin-top: 2px;
+    }
+
+    /* ---------- HP ---------- */
+    @media (max-width: 720px) {
+      body[data-page="jasa-detail"] { --jasa-gap: 20px; }
+      body[data-page="jasa-detail"] main.user-layout { padding: 22px 0 48px !important; }
+      body[data-page="jasa-detail"] [data-jasa-content] > .panel,
+      body[data-page="jasa-detail"] [data-jasa-content] > section.panel,
+      body[data-page="jasa-detail"] [data-jasa-checkout-form] {
+        padding: 20px 18px 24px !important;
+      }
+      body[data-page="jasa-detail"] [data-jasa-checkout-form] .form-row {
+        grid-template-columns: 1fr;
+        gap: 16px;
+      }
+      body[data-page="jasa-detail"] [data-jasa-checkout-form] .jasa-fieldset {
+        padding: 16px 14px 18px;
+      }
+      body[data-page="jasa-detail"] [data-jasa-checkout-form] button[type="submit"],
+      body[data-page="jasa-detail"] .jasa-chat-bar .btn,
+      body[data-page="jasa-detail"] [data-jasa-content] > section.panel:not(:first-child) > .btn {
+        width: 100%;
+      }
+    }
+  </style>
 </head>
 <body data-page="jasa-detail">
   <header class="topbar">
@@ -33,6 +219,107 @@
       <section class="panel"><p>Memuat detail layanan…</p></section>
     </div>
   </main>
+
   <script type="module" src="../marketplace/assets/app.js"></script>
+
+  <!-- Tombol Chat Admin: cek login dulu, kalau belum login diarahkan ke halaman masuk -->
+  <script type="module">
+    import { getApps } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+    import { getAuth } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+
+    const root = document.querySelector('[data-jasa-content]');
+    const SAFE_RETURN = /^[A-Za-z0-9_-]+\.html(\?[A-Za-z0-9_=&%.-]*)?$/;
+
+    function getServiceInfo() {
+      const id = new URLSearchParams(window.location.search).get('id') || '';
+      const name = (document.querySelector('[data-jasa-content] h1')?.textContent || '').trim().slice(0, 80);
+      return { id, name };
+    }
+
+    function buildChatUrl() {
+      const { id, name } = getServiceInfo();
+      const params = [];
+      if (id) params.push(`serviceId=${encodeURIComponent(id)}`);
+      if (name) params.push(`serviceName=${encodeURIComponent(name)}`);
+      return `chat.html${params.length ? `?${params.join('&')}` : ''}`;
+    }
+
+    async function isLoggedIn() {
+      try {
+        const app = getApps()[0];
+        if (!app) throw new Error('no-app');
+        const auth = getAuth(app);
+        if (typeof auth.authStateReady === 'function') await auth.authStateReady();
+        return Boolean(auth.currentUser && auth.currentUser.emailVerified);
+      } catch (error) {
+        // Cadangan: lihat apakah menu akun sudah tampil sebagai pengguna login
+        return Boolean(document.querySelector('[data-jasa-logout]'));
+      }
+    }
+
+    function injectChatButton() {
+      if (!root) return;
+      const section = root.querySelector(':scope > section.panel:first-child');
+      if (!section || !section.querySelector('h1') || section.querySelector('[data-jasa-chat-bar]')) return;
+
+      const bar = document.createElement('div');
+      bar.className = 'jasa-chat-bar';
+      bar.setAttribute('data-jasa-chat-bar', '');
+      bar.innerHTML = `
+        <button class="btn btn-soft" type="button" data-jasa-chat>
+          <span class="material-symbols-outlined" aria-hidden="true">chat</span>
+          <span data-jasa-chat-label>Chat Admin</span>
+        </button>
+        <small>Ada pertanyaan sebelum memesan? Tanyakan langsung ke admin.</small>`;
+      section.appendChild(bar);
+    }
+
+    document.addEventListener('click', async (event) => {
+      const button = event.target.closest('[data-jasa-chat]');
+      if (!button || button.disabled) return;
+
+      const label = button.querySelector('[data-jasa-chat-label]');
+      const originalText = label ? label.textContent : '';
+      button.disabled = true;
+      if (label) label.textContent = 'Memeriksa akun…';
+
+      try {
+        const chatUrl = buildChatUrl();
+        if (await isLoggedIn()) {
+          window.location.href = chatUrl;
+          return;
+        }
+
+        // Belum login: simpan tujuan, lalu arahkan ke halaman masuk.
+        // Setelah login, pengguna dikembalikan otomatis ke tujuan ini.
+        const fallback = `layanan.html${window.location.search}`;
+        const target = SAFE_RETURN.test(chatUrl) ? chatUrl : fallback;
+        if (SAFE_RETURN.test(target)) {
+          try { localStorage.setItem('gamon_return_to', target); } catch (error) { /* abaikan */ }
+        }
+        if (label) label.textContent = 'Mengarahkan ke halaman masuk…';
+        window.location.href = 'masuk.html';
+      } catch (error) {
+        console.error('[jasa] gagal membuka chat:', error);
+        button.disabled = false;
+        if (label) label.textContent = originalText;
+      }
+    });
+
+    if (root) {
+      new MutationObserver(injectChatButton).observe(root, { childList: true });
+      injectChatButton();
+    }
+
+    // Kembali dari tombol Back browser: pulihkan tombol
+    window.addEventListener('pageshow', (event) => {
+      if (!event.persisted) return;
+      document.querySelectorAll('[data-jasa-chat]').forEach((button) => {
+        button.disabled = false;
+        const label = button.querySelector('[data-jasa-chat-label]');
+        if (label) label.textContent = 'Chat Admin';
+      });
+    });
+  </script>
 </body>
 </html>

@@ -31,6 +31,164 @@
   <link rel="stylesheet" href="../marketplace/assets/style.css" />
   <link rel="stylesheet" href="../marketplace/assets/commerce.css" />
   <link rel="stylesheet" href="../marketplace/assets/neo.css" />
+
+  <!-- ===== Perbaikan tampilan halaman Gamon Jasa (harus setelah neo.css) ===== -->
+  <style>
+    body[data-page="jasa-home"] {
+      --jasa-gap: 28px;
+      --jasa-line: 1.6;
+    }
+
+    /* ---------- Jarak antar blok halaman ---------- */
+    body[data-page="jasa-home"] main.user-layout {
+      display: flex;
+      flex-direction: column;
+      gap: var(--jasa-gap);
+      padding: 36px 0 72px !important;
+    }
+    body[data-page="jasa-home"] main.user-layout > p.panel {
+      margin: 0;
+      padding: 18px 24px !important;
+    }
+    body[data-page="jasa-home"] .jasa-status { margin: 0; }
+    body[data-page="jasa-home"] [data-jasa-content] {
+      display: flex;
+      flex-direction: column;
+      gap: var(--jasa-gap);
+    }
+    body[data-page="jasa-home"] [data-jasa-content] > .panel,
+    body[data-page="jasa-home"] [data-jasa-content] > section.panel {
+      margin: 0;
+      padding: 28px 28px 34px !important;
+    }
+    body[data-page="jasa-home"] [data-jasa-content] .eyebrow {
+      margin-bottom: 6px;
+    }
+    body[data-page="jasa-home"] [data-jasa-content] h1 {
+      margin: 14px 0 12px !important;
+      line-height: 1.15;
+    }
+    body[data-page="jasa-home"] [data-jasa-content] > .panel > h2 {
+      margin-bottom: 18px;
+    }
+
+    /* ---------- Filter kategori ---------- */
+    body[data-page="jasa-home"] .jasa-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      margin: 0 0 28px;
+      padding: 0 6px 6px 0; /* ruang untuk bayangan tombol */
+    }
+
+    /* ---------- Grid kartu ---------- */
+    body[data-page="jasa-home"] .jasa-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
+      gap: 28px;
+      align-items: stretch;
+      margin: 0;
+      padding: 0 8px 8px 0; /* ruang untuk bayangan kartu */
+    }
+
+    /* ---------- Kartu layanan ---------- */
+    body[data-page="jasa-home"] .jasa-grid > .commerce-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      height: 100%;
+      min-width: 0;
+      padding: 22px !important;
+    }
+
+    /* Gambar: rasio tetap supaya semua kartu sama tinggi */
+    body[data-page="jasa-home"] .jasa-grid > .commerce-panel > img {
+      display: block;
+      width: 100%;
+      height: auto;
+      max-height: none !important;
+      aspect-ratio: 16 / 10 !important;
+      object-fit: cover;
+      margin: 0 0 18px;
+      border-radius: 12px;
+    }
+
+    /* Judul: maksimal 2 baris */
+    body[data-page="jasa-home"] .jasa-grid > .commerce-panel > h3 {
+      margin: 0 0 10px;
+      font-size: 1.1rem;
+      line-height: 1.3;
+      min-height: calc(1.3em * 2);
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+      line-clamp: 2;
+      overflow: hidden;
+      overflow-wrap: anywhere;
+    }
+
+    /* Deskripsi: tinggi tetap 3 baris, sisanya bisa di-scroll (tanpa "…") */
+    body[data-page="jasa-home"] .jasa-grid > .commerce-panel > p:nth-of-type(1) {
+      display: block;
+      box-sizing: content-box;
+      margin: 0 0 16px;
+      padding: 0 8px 0 0;
+      line-height: var(--jasa-line);
+      height: calc(var(--jasa-line) * 1em * 3);
+      overflow-y: auto;
+      overflow-x: hidden;
+      overflow-wrap: anywhere;
+      overscroll-behavior: contain;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: thin;
+      scrollbar-color: var(--ink) transparent;
+    }
+    body[data-page="jasa-home"] .jasa-grid > .commerce-panel > p:nth-of-type(1)::-webkit-scrollbar {
+      width: 6px;
+    }
+    body[data-page="jasa-home"] .jasa-grid > .commerce-panel > p:nth-of-type(1)::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    body[data-page="jasa-home"] .jasa-grid > .commerce-panel > p:nth-of-type(1)::-webkit-scrollbar-thumb {
+      background: var(--ink);
+      border-radius: 999px;
+    }
+
+    /* Harga */
+    body[data-page="jasa-home"] .jasa-grid > .commerce-panel > p:nth-of-type(2) {
+      margin: 0 0 20px;
+      line-height: 1.4;
+    }
+
+    /* Tombol Pesan selalu di dasar kartu */
+    body[data-page="jasa-home"] .jasa-grid > .commerce-panel > .btn {
+      margin-top: auto;
+      justify-self: auto;
+      align-self: flex-start;
+    }
+
+    /* ---------- Footer ---------- */
+    body[data-page="jasa-home"] footer.container {
+      padding: 0 0 40px !important;
+    }
+
+    /* ---------- HP ---------- */
+    @media (max-width: 720px) {
+      body[data-page="jasa-home"] { --jasa-gap: 20px; }
+      body[data-page="jasa-home"] main.user-layout { padding: 22px 0 48px !important; }
+      body[data-page="jasa-home"] main.user-layout > p.panel { padding: 14px 16px !important; }
+      body[data-page="jasa-home"] [data-jasa-content] > .panel,
+      body[data-page="jasa-home"] [data-jasa-content] > section.panel {
+        padding: 20px 18px 24px !important;
+      }
+      body[data-page="jasa-home"] .jasa-grid {
+        grid-template-columns: 1fr;
+        gap: 22px;
+        padding-right: 6px;
+      }
+      body[data-page="jasa-home"] .jasa-grid > .commerce-panel { padding: 18px !important; }
+    }
+  </style>
 </head>
 <body data-page="jasa-home">
   <header class="topbar">
