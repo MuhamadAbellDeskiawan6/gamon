@@ -29,7 +29,7 @@
 
       <p id="pageStatus" class="mb-4 text-sm text-rose-700" role="status" aria-live="polite"></p>
 
-      <div class="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+      <div class="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-6">
         <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
           <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Total Produk</p>
           <p id="totalProducts" class="mt-2 text-3xl font-bold text-slate-900">0</p>
@@ -50,6 +50,10 @@
           <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Total unit terjual</p>
           <p id="soldProducts" class="mt-2 text-3xl font-bold text-rose-600">0</p>
         </div>
+                <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Produk gratis</p>
+          <p id="freeProducts" class="mt-2 text-3xl font-bold text-emerald-600">0</p>
+        </div>
       </div>
 
       <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -61,6 +65,7 @@
             <option value="Menipis">Stok menipis (aktif, 1–2)</option>
             <option value="Habis">Stok habis (aktif)</option>
             <option value="Nonaktif">Nonaktif (disembunyikan)</option>
+                        <option value="Gratis">Produk gratis</option>
           </select>
         </div>
 
@@ -125,6 +130,10 @@
     // Produk lama tanpa field "active" dianggap aktif.
     function isActive(item) {
       return item.active !== false;
+    }
+
+        function isFreeItem(item) {
+      return item.isFree === true && Number(item.price) === 0;
     }
 
     function stateOf(item) {
@@ -195,12 +204,13 @@
       document.getElementById('inactiveProducts').textContent = inactive;
       document.getElementById('lowProducts').textContent = low;
       document.getElementById('soldProducts').textContent = sold;
+            document.getElementById('freeProducts').textContent = sorted.filter(isFreeItem).length;
 
       const search = (searchInput.value || '').trim().toLowerCase();
       const filter = statusFilter.value || 'all';
       const filtered = sorted.filter((item) => {
         const matchesSearch = !search || String(item.name || '').toLowerCase().includes(search);
-        const matchesStatus = filter === 'all' || stateOf(item) === filter;
+                const matchesStatus = filter === 'all' || (filter === 'Gratis' ? isFreeItem(item) : stateOf(item) === filter);
         return matchesSearch && matchesStatus;
       });
 
@@ -241,7 +251,7 @@
               </div>
             </td>
             <td class="px-3 py-3">${escapeHtml(item.category || '-')}</td>
-            <td class="px-3 py-3 font-semibold text-slate-900">${formatRupiah(item.price || 0)}</td>
+                        <td class="px-3 py-3 font-semibold text-slate-900">${isFreeItem(item) ? '<span class="inline-flex rounded-full bg-emerald-100 px-2.5 py-1 text-[11px] font-bold text-emerald-700">GRATIS</span>' : formatRupiah(item.price || 0)}</td>
             <td class="px-3 py-3 font-semibold">${stock}</td>
             <td class="px-3 py-3">${soldCount}</td>
             <td class="px-3 py-3">

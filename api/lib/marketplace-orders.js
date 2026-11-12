@@ -293,6 +293,7 @@ export async function notifyAdminNewCodOrder(orderId) {
     let siteUrl = readEnv('SITE_URL').replace(/\/$/, '');
     if (!/^https:\/\//i.test(siteUrl)) siteUrl = DEFAULT_SITE_URL;
     const code = order.orderCode || order.orderId || order.id;
+    const isFreeClaim = order.isFreeClaim === true;
     const shipping = order.shippingAddress || {};
     const addressLine = [
       shipping.address,
@@ -314,11 +315,11 @@ export async function notifyAdminNewCodOrder(orderId) {
         <td style="padding:8px;border-bottom:1px solid #eee;text-align:center;">${Math.max(1, asInt(item.qty, 1))}</td>
         <td style="padding:8px;border-bottom:1px solid #eee;text-align:right;">${rupiah(item.subtotal)}</td>
       </tr>`).join('');
-    const subject = `Pesanan COD baru ${code} - ${rupiah(order.totalAmount)}`;
+    const subject = isFreeClaim ? `Klaim produk gratis baru ${code}` : `Pesanan COD baru ${code} - ${rupiah(order.totalAmount)}`;
     const html = `<div style="font-family:Arial,Helvetica,sans-serif;max-width:620px;margin:0 auto;color:#222;">
-      <h2>Pesanan COD baru ${mailEscape(code)}</h2>
-      <p><strong>Bayar tunai saat barang diterima, siapkan konfirmasi via WhatsApp.</strong></p>
-      <p><strong>Total:</strong> ${rupiah(order.totalAmount)}</p>
+      <h2>${isFreeClaim ? 'Klaim produk gratis baru' : 'Pesanan COD baru'} ${mailEscape(code)}</h2>
+      <p><strong>${isFreeClaim ? 'Klaim gratis, tidak ada tagihan. Hubungi pembeli via WhatsApp untuk konfirmasi.' : 'Bayar tunai saat barang diterima, siapkan konfirmasi via WhatsApp.'}</strong></p>
+      <p><strong>Total:</strong> ${isFreeClaim ? 'GRATIS' : rupiah(order.totalAmount)}</p>
       <table style="width:100%;border-collapse:collapse;font-size:14px;"><tbody>${itemRows}</tbody></table>
       <h3>Pembeli</h3>
       <p>${mailEscape(order.buyerName || '-')}<br>${mailEscape(order.buyerPhone || '-')}<br>${mailEscape(order.buyerEmail || '-')}</p>
@@ -327,7 +328,9 @@ export async function notifyAdminNewCodOrder(orderId) {
       ${mapsUrl ? `<p><a href="${mailEscape(mapsUrl)}">Buka lokasi di Google Maps</a></p>` : ''}
       <p><a href="${mailEscape(adminUrl)}">Buka pesanan di panel admin</a></p>
     </div>`;
-    const text = `Pesanan COD baru ${code}\nTotal: ${rupiah(order.totalAmount)}\nBayar tunai saat barang diterima, siapkan konfirmasi via WhatsApp.\n\nPembeli: ${order.buyerName || '-'}\nHP: ${order.buyerPhone || '-'}\nAlamat: ${addressLine || '-'}\nPeta: ${mapsUrl || '-'}\nAdmin: ${adminUrl}`;
+    const text = isFreeClaim
+  ? `Klaim produk gratis baru ${code}\nTotal: GRATIS (tidak ada tagihan)\nHubungi pembeli via WhatsApp untuk konfirmasi.\n\nPembeli: ${order.buyerName || '-'}\nHP: ${order.buyerPhone || '-'}\nAlamat: ${addressLine || '-'}\nPeta: ${mapsUrl || '-'}\nAdmin: ${adminUrl}`
+  : `Pesanan COD baru ${code}\nTotal: ${rupiah(order.totalAmount)}\nBayar tunai saat barang diterima, siapkan konfirmasi via WhatsApp.\n\nPembeli: ${order.buyerName || '-'}\nHP: ${order.buyerPhone || '-'}\nAlamat: ${addressLine || '-'}\nPeta: ${mapsUrl || '-'}\nAdmin: ${adminUrl}`;
     try {
       const result = await sendEmail({ to: adminEmail, subject, html, text });
       await orderRef.update({ adminEmailSent: true, adminEmailSentAt: Date.now(), adminEmailError: '' });
@@ -781,7 +784,10 @@ export async function updateMarketplaceOrderStatus({
       shipped: ['completed', 'cancelled']
     };
     if (!codTransitions[current]?.includes(next)) throw makeError(`Transisi status COD ${current} ke ${next} tidak diizinkan.`, 'invalid-transition');
-    if (codFailed && (next !== 'cancelled' || !['awaiting_confirmation', 'processing'].includes(current))) {
+    if (codFailed && order.isFreeClaim === true) {
+  throw makeError('Klaim gratis tidak dapat dicatat sebagai COD gagal.', 'invalid-transition');
+}
+if (codFailed && (next !== 'cancelled' || !['awaiting_confirmation', 'processing'].includes(current))) {
       throw makeError('COD gagal hanya dapat dicatat sebelum pesanan dikirim.', 'invalid-transition');
     }
 
@@ -806,7 +812,7 @@ export async function updateMarketplaceOrderStatus({
       const statsRef = codFailed ? db.collection('marketplace_cod_stats').doc(String(currentOrder.userId || '')) : null;
       const shouldRefundPoints = next === 'cancelled' &&
         Number.isSafeInteger(currentOrder.pointsUsed) && currentOrder.pointsUsed > 0 && !currentOrder.pointsRefunded;
-      const shouldAwardPoints = next === 'completed' && !currentOrder.pointsAwarded;
+      const shouldAwardPoints = next === 'completed' && !currentOrder.pointsAwarded && currentOrder.isFreeClaim !== true;
       const shouldUpdatePoints = shouldRefundPoints || shouldAwardPoints;
       if (shouldUpdatePoints && !currentOrder.userId) throw makeError('Pemilik pesanan tidak valid untuk pembukuan poin.', 'invalid-order-state');
       const pointsRef = shouldUpdatePoints

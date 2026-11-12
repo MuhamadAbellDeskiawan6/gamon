@@ -65,6 +65,13 @@
             <small class="mt-1 block text-slate-500">Ketik angka saja, titik pemisah ribuan otomatis.</small>
           </label>
 
+          <div class="md:col-span-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+  <label class="flex items-center gap-2 text-sm font-semibold text-slate-700">
+    <input id="isFreeInput" type="checkbox" class="h-4 w-4" /> Produk gratis (tidak bayar)
+  </label>
+  <p id="freeHint" class="mt-1 hidden text-xs text-slate-500">User tetap harus login, isi alamat, dan 1 akun hanya bisa klaim 1x per produk. Maksimal 1 unit per pesanan.</p>
+</div>
+
           <label class="block">
             <span class="mb-1 block text-sm font-medium text-slate-700">Kondisi</span>
             <select name="condition" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-pink-200">
@@ -166,6 +173,8 @@
     const stockInput = form.elements.namedItem('stock');
     const stockState = document.querySelector('[data-stock-state]');
     const priceInput = document.getElementById('priceInput');
+    const isFreeInput = document.getElementById('isFreeInput');
+const freeHint = document.getElementById('freeHint');
     const cityInput = document.getElementById('cityInput');
     const addressInput = document.getElementById('addressInput');
     const latitudeInput = document.getElementById('latitudeInput');
@@ -224,6 +233,16 @@
     priceInput.addEventListener('blur', () => {
       if (priceInput.value.trim() === 'Rp') priceInput.value = '';
     });
+
+    function refreshFreeState() {
+  const free = isFreeInput.checked;
+  priceInput.disabled = free;
+  priceInput.required = !free;
+  if (free) priceInput.value = 'Rp 0';
+  else if (priceInput.value === 'Rp 0') priceInput.value = '';
+  freeHint.classList.toggle('hidden', !free);
+}
+isFreeInput.addEventListener('change', refreshFreeState);
 
     /* ---------- ALAMAT (tandai kalau diketik manual) ---------- */
     cityInput.addEventListener('input', () => { touched.city = true; });
@@ -464,6 +483,8 @@
         refreshActiveLabel();
 
         priceInput.value = formatPrice(data.price);
+        isFreeInput.checked = data.isFree === true && Number(data.price) === 0;
+refreshFreeState();
         stockInput.value = Number.isInteger(Number(data.stock)) && Number(data.stock) >= 0 ? Number(data.stock) : 1;
         refreshStockLabel();
 
@@ -494,10 +515,11 @@
       const payload = Object.fromEntries(new FormData(form).entries());
       const name = String(payload.name || '').trim();
       const stock = Number(payload.stock);
-      const price = parsePrice(priceInput.value);
+      const isFree = isFreeInput.checked;
+const price = isFree ? 0 : parsePrice(priceInput.value);
 
       if (!name) { formError.textContent = 'Nama produk wajib diisi.'; form.elements.namedItem('name').focus(); return; }
-      if (price <= 0) { formError.textContent = 'Harga harus lebih dari Rp 0.'; priceInput.focus(); return; }
+      if (!isFree && price <= 0) { formError.textContent = 'Harga harus lebih dari Rp 0, atau centang Produk gratis.'; priceInput.focus(); return; }
       if (String(payload.stock ?? '').trim() === '' || !Number.isInteger(stock) || stock < 0) { formError.textContent = 'Stok harus berupa bilangan bulat minimal 0.'; stockInput.focus(); return; }
       if (!images.length) { formError.textContent = 'Tambahkan minimal 1 foto produk.'; photoInput.focus(); return; }
       if (estimateDocChars(images) > MAX_DOC_CHARS) {
@@ -511,6 +533,7 @@
         name,
         category: payload.category,
         price,
+        isFree,
         condition: payload.condition,
         status: stock > 0 ? 'Tersedia' : 'Habis',
         stock,

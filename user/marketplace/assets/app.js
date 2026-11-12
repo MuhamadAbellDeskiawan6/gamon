@@ -950,6 +950,10 @@ function formatCurrency(value) {
   return moneyFormatter.format(Number(value || 0));
 }
 
+function formatProductPrice(product) {
+  return product?.isFree === true && Number(product.price) === 0 ? 'GRATIS' : formatCurrency(product?.price);
+}
+
 function getCurrentPageIsUserArea() {
   return window.location.pathname.includes('/user/marketplace/');
 }
@@ -1081,7 +1085,20 @@ async function updateCartItems(userId, updater) {
     return next;
   });
 }
-
+// Daftar id produk gratis yang sudah diklaim user (pesanan aktif atau selesai).
+async function getClaimedFreeProductIds(userId) {
+  const inactiveStatuses = ['cancelled', 'expired', 'payment_failed'];
+  const snapshot = await getDocs(query(collection(db, 'marketplace_orders'), where('userId', '==', userId)));
+  const claimed = new Set();
+  snapshot.docs.forEach((orderDoc) => {
+    const order = orderDoc.data() || {};
+    if (inactiveStatuses.includes(String(order.status || '').toLowerCase())) return;
+    (Array.isArray(order.items) ? order.items : []).forEach((item) => {
+      if (order.isFreeClaim === true || Number(item.unitPrice) === 0) claimed.add(String(item.productId));
+    });
+  });
+  return claimed;
+}
 async function addProductToCart(productId, quantity = 1, openCart = false) {
   try {
     const userId = await getMarketplaceCartUserId();
@@ -1090,10 +1107,17 @@ async function addProductToCart(productId, quantity = 1, openCart = false) {
     if (!productSnapshot.exists()) throw new Error('Produk sudah tidak tersedia.');
         const product = productSnapshot.data();
     if (product.active === false) throw new Error('Produk ini sedang tidak dijual.');
+        if (product.isFree === true && Number(product.price) === 0) {
+      const claimedIds = await getClaimedFreeProductIds(userId);
+      if (claimedIds.has(String(productId))) {
+        throw new Error('Anda sudah mengklaim produk gratis ini. Satu akun hanya bisa klaim satu kali.');
+      }
+    }
     const stockValue = Number(product.stock);
     const stock = Number.isInteger(stockValue) && stockValue >= 0 ? stockValue : 1;
     if (!stock) throw new Error('Stok produk habis.');
 
+        const maxQty = product.isFree === true && Number(product.price) === 0 ? 1 : stock;
     const requestedQty = Math.max(1, Math.min(99, Math.trunc(Number(quantity) || 1)));
     let previousQty = 0;
     let nextQty = 0;
@@ -1101,7 +1125,7 @@ async function addProductToCart(productId, quantity = 1, openCart = false) {
     await updateCartItems(userId, (items) => {
       const index = items.findIndex((item) => String(item.productId) === String(productId));
       previousQty = index >= 0 ? Number(items[index].qty || 0) : 0;
-      nextQty = Math.min(stock, previousQty + requestedQty);
+      nextQty = Math.min(maxQty, previousQty + requestedQty);
       const nextItems = [...items];
       if (index >= 0) {
         nextItems[index] = { productId: String(productId), qty: nextQty };
@@ -1112,7 +1136,7 @@ async function addProductToCart(productId, quantity = 1, openCart = false) {
       return nextItems;
     });
 
-    if (nextQty < previousQty + requestedQty) showToast(`Jumlah dibatasi ke stok tersedia: ${stock}.`, 'info');
+        if (nextQty < previousQty + requestedQty) showToast(`Jumlah dibatasi ke ${maxQty}.`, 'info');
     else showToast('Barang ditambahkan ke keranjang.', 'success');
     if (openCart) window.location.href = 'keranjang.html';
   } catch (error) {
@@ -1555,6 +1579,7 @@ function normalizeProduct(item) {
     status: stock > 0 ? 'Tersedia' : 'Habis',
     stock,
     sold,
+        isFree: item.isFree === true && Number(item.price) === 0,
     active: item.active !== false, // produk lama tanpa field "active" dianggap aktif
     image: primaryImage || productEmoji(item.category),
     label: item.label || productLabel(item.category),
@@ -2430,7 +2455,7 @@ function renderProductCarousel(items) {
           <span class="mm-card-chip">${escapeHtml(item.label)}</span>
         </a>
         <div class="mm-card-body">
-          <div class="mm-card-price">${formatCurrency(item.price)}</div>
+          <div class="mm-card-price${item.isFree ? ' is-free' : ''}">${formatProductPrice(item)}</div>
           <h3 class="mm-card-title">${escapeHtml(item.name)}</h3>
           <span class="mm-card-stock ${out ? 'is-out' : ''}">${out ? 'Stok habis' : `Stok: ${item.stock}`}</span>
           <div class="mm-card-actions">
@@ -2791,6 +2816,17 @@ async function renderCartPage() {
   let checkoutInFlight = false;
   let lastSync = { addressComplete: shipping.complete, hasInvalidItems: true };
   let lastCartSubtotal = 0;
+    let cartIsFree = false;
+  let cartIsMixed = false;
+  const MIXED_MSG = 'Produk gratis harus dicheckout terpisah dari produk berbayar. Hapus salah satunya dari keranjang.';
+  const paymentFieldset = document.querySelector('.commerce-payment-options');
+  const pointsBox = document.querySelector('.commerce-panel-points');
+  const applyFreeModeUi = () => {
+    if (paymentFieldset) paymentFieldset.style.display = cartIsFree ? 'none' : '';
+    if (pointsBox) pointsBox.style.display = cartIsFree ? 'none' : '';
+    const pointsField = document.querySelector('[data-points-input]');
+    if (cartIsFree && pointsField) pointsField.value = '0';
+  };
   let lastSyncAt = Date.now();
   const checkoutOverlay = createCheckoutOverlay();
 
@@ -2847,9 +2883,14 @@ async function renderCartPage() {
     return !reason;
   }
 
-  function updateCartTotal() {
+    function updateCartTotal() {
     const totalEl = document.querySelector('[data-cart-total]');
     if (!totalEl) return;
+    if (cartIsFree) {
+      totalEl.textContent = 'GRATIS';
+      if (pointsDiscountRow) pointsDiscountRow.hidden = true;
+      return;
+    }
     const isCod = selectedPaymentMethod() === 'COD';
     const amount = lastCartSubtotal + Number(codEligibility?.shippingFee || 0) +
       (isCod ? Number(codEligibility?.fee || 0) : 0) - pointsToUse();
@@ -2864,20 +2905,30 @@ async function renderCartPage() {
   };
 
   // Status tombol dihitung dari data terakhir; tidak menimpa tombol saat checkout berjalan.
-  function syncCheckoutButton(addressComplete, hasInvalidItems) {
+    function syncCheckoutButton(addressComplete, hasInvalidItems) {
     lastSync = { addressComplete, hasInvalidItems };
     const button = document.querySelector('[data-checkout]');
     if (!button || checkoutInFlight) return;
-    const isCod = selectedPaymentMethod() === 'COD';
+    const isCod = !cartIsFree && selectedPaymentMethod() === 'COD';
     updatePointsUi();
     const codAvailable = updateCodOption();
-    button.disabled = !addressComplete || hasInvalidItems || (isCod && !codAvailable);
+    const freeBlocked = cartIsFree && shipping.outsideKalsel;
+    button.disabled = !addressComplete || hasInvalidItems || cartIsMixed || freeBlocked || (isCod && !codAvailable);
     button.removeAttribute('aria-busy');
-    button.textContent = isCod ? 'Pesan (Bayar di Tempat)' : 'Bayar dengan DOKU';
-    button.title = !addressComplete ? 'Lengkapi alamat pengiriman di Profil.' : hasInvalidItems ? 'Hapus barang habis atau periksa stok.' : isCod && !codAvailable ? codReason?.textContent || 'COD tidak tersedia.' : '';
-    if (checkoutHint) checkoutHint.textContent = isCod
-      ? 'Siapkan uang pas. Admin akan menghubungi lewat WhatsApp untuk konfirmasi.'
-      : 'Pembayaran aman diproses melalui halaman resmi DOKU.';
+    button.textContent = cartIsFree ? 'Klaim Gratis' : isCod ? 'Pesan (Bayar di Tempat)' : 'Bayar dengan DOKU';
+    button.title = !addressComplete ? 'Lengkapi alamat pengiriman di Profil.'
+      : cartIsMixed ? MIXED_MSG
+      : freeBlocked ? 'Klaim gratis hanya untuk wilayah Kalimantan Selatan.'
+      : hasInvalidItems ? 'Hapus barang habis atau periksa stok.'
+      : isCod && !codAvailable ? codReason?.textContent || 'COD tidak tersedia.' : '';
+    if (checkoutHint) checkoutHint.textContent = cartIsFree
+      ? 'Gratis, tanpa pembayaran. Admin akan menghubungi lewat WhatsApp untuk konfirmasi.'
+      : isCod
+        ? 'Siapkan uang pas. Admin akan menghubungi lewat WhatsApp untuk konfirmasi.'
+        : 'Pembayaran aman diproses melalui halaman resmi DOKU.';
+    const errorEl = document.querySelector('[data-cart-error]');
+    if (cartIsMixed) showCartError(MIXED_MSG);
+    else if (errorEl && errorEl.textContent === MIXED_MSG) showCartError('');
     updateCartTotal();
   }
 
@@ -2899,17 +2950,26 @@ async function renderCartPage() {
       updatePointsUi();
       updateCodOption();
       showCartError('');
+            cartIsFree = false;
+      cartIsMixed = false;
+      applyFreeModeUi();
       syncCheckoutButton(shipping.complete, true);
       return;
     }
-
+    let claimedFree = new Set();
+    try {
+      claimedFree = await getClaimedFreeProductIds(userId);
+    } catch (error) {
+      console.error('[marketplace] gagal memeriksa klaim gratis sebelumnya:', error);
+    }
     const resolved = await Promise.all(savedItems.map(async (item) => {
       try {
         const snapshot = await getDoc(doc(db, 'marketplace_products', String(item.productId)));
         if (!snapshot.exists()) return { productId: String(item.productId), qty: Number(item.qty || 1), product: null, stock: 0 };
         const product = normalizeProduct({ id: snapshot.id, ...snapshot.data() });
                 // Produk nonaktif diperlakukan seperti stok 0 (tidak bisa dibayar)
-        return { productId: snapshot.id, qty: Number(item.qty || 1), product, stock: product.active ? product.stock : 0 };
+                const alreadyClaimed = product.isFree && claimedFree.has(snapshot.id);
+                return { productId: snapshot.id, qty: Number(item.qty || 1), product, alreadyClaimed, stock: alreadyClaimed ? 0 : (product.active ? (product.isFree ? Math.min(1, product.stock) : product.stock) : 0) };
       } catch (error) {
         console.error('[marketplace] gagal memeriksa produk keranjang:', item.productId, error);
         return { productId: String(item.productId), qty: Number(item.qty || 1), product: null, stock: 0 };
@@ -2940,6 +3000,11 @@ async function renderCartPage() {
       ? sum + Math.round(item.product.price) * Math.min(item.qty, item.stock)
       : sum, 0);
     const hasUnavailable = resolved.some((item) => !item.product || item.stock === 0);
+        const availableItems = resolved.filter((item) => item.product && item.stock > 0);
+    const freeCount = availableItems.filter((item) => item.product.isFree).length;
+    cartIsFree = availableItems.length > 0 && freeCount === availableItems.length;
+    cartIsMixed = freeCount > 0 && freeCount < availableItems.length;
+    applyFreeModeUi();
     container.innerHTML = resolved.map((item) => {
       const product = item.product;
       const unavailable = !product || item.stock === 0;
@@ -2949,11 +3014,11 @@ async function renderCartPage() {
       const image = imageUrl ? `<img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(product.name)}" />` : '<span class="commerce-image-fallback">G</span>';
       return `<article class="commerce-cart-item ${unavailable ? 'is-unavailable' : ''}" data-cart-item="${escapeHtml(item.productId)}">
         <div class="commerce-cart-image">${image}</div>
-        <div class="commerce-cart-main"><div class="commerce-cart-title"><h3>${escapeHtml(product?.name || 'Produk tidak tersedia')}</h3><strong>${formatCurrency(unitPrice)}</strong></div>
-          <p class="commerce-stock ${unavailable ? 'is-unavailable' : ''}">${unavailable ? 'Produk habis atau tidak tersedia' : `Stok tersisa: ${item.stock}`}</p>
+        <div class="commerce-cart-main"><div class="commerce-cart-title"><h3>${escapeHtml(product?.name || 'Produk tidak tersedia')}</h3><strong>${product?.isFree ? 'GRATIS' : formatCurrency(unitPrice)}</strong></div>
+          <p class="commerce-stock ${unavailable ? 'is-unavailable' : ''}">${item.alreadyClaimed ? 'Produk gratis ini sudah pernah Anda klaim. Hapus dari keranjang.' : unavailable ? 'Produk habis atau tidak tersedia' : `Stok tersisa: ${item.stock}`}</p>
           <div class="commerce-cart-controls">
             <div class="commerce-quantity"><button type="button" data-cart-step="-1" aria-label="Kurangi jumlah" ${unavailable || qty <= 1 ? 'disabled' : ''}>−</button><output>${qty}</output><button type="button" data-cart-step="1" aria-label="Tambah jumlah" ${unavailable || qty >= item.stock || qty >= 99 ? 'disabled' : ''}>+</button></div>
-            <strong>Subtotal: ${formatCurrency(unavailable ? 0 : unitPrice * qty)}</strong>
+            <strong>Subtotal: ${product?.isFree ? 'GRATIS' : formatCurrency(unavailable ? 0 : unitPrice * qty)}</strong>
             <button class="commerce-remove" type="button" data-cart-remove>Hapus</button>
           </div>
         </div>
@@ -3000,7 +3065,9 @@ async function renderCartPage() {
       const productSnapshot = await getDoc(doc(db, 'marketplace_products', productId));
             const rawStock = productSnapshot.exists() ? Number(productSnapshot.data().stock) : 0;
       const isActive = productSnapshot.exists() && productSnapshot.data().active !== false;
-      const stock = !isActive ? 0 : (Number.isInteger(rawStock) && rawStock >= 0 ? rawStock : 1);
+            const rawFree = productSnapshot.exists() && productSnapshot.data().isFree === true && Number(productSnapshot.data().price) === 0;
+      const baseStock = Number.isInteger(rawStock) && rawStock >= 0 ? rawStock : 1;
+      const stock = !isActive ? 0 : (rawFree ? Math.min(1, baseStock) : baseStock);
       if (stock <= 0) return;
       await updateCartItems(userId, (items) => {
         if (!items.some((item) => String(item.productId) === productId)) return null;
@@ -3018,7 +3085,8 @@ async function renderCartPage() {
   checkoutButton?.addEventListener('click', async () => {
     if (checkoutInFlight || checkoutButton.disabled) return;
 
-    const paymentMethod = selectedPaymentMethod();
+        const isFreeClaim = cartIsFree;
+    const paymentMethod = isFreeClaim ? 'COD' : selectedPaymentMethod(); // server yang memutuskan FREE
     checkoutInFlight = true;
     updatePointsUi();
     showCartError('');
@@ -3026,10 +3094,14 @@ async function renderCartPage() {
     checkoutButton.setAttribute('aria-busy', 'true');
     checkoutButton.innerHTML = '<span class="co-btn-spinner" aria-hidden="true"></span>Memproses...';
     checkoutOverlay.show(paymentMethod);
+    if (isFreeClaim) {
+      checkoutOverlay.setLabels(['Memeriksa stok', 'Membuat klaim gratis', 'Mengirim ke admin'], 'Memproses klaim gratis', 'Mohon tunggu sebentar.');
+      checkoutOverlay.updateStep(1);
+    }
 
     try {
       const result = await withTimeout(
-        callMarketplaceApi('checkout', { shippingAddress: shipping, paymentMethod, pointsToUse: pointsToUse() }),
+        callMarketplaceApi('checkout', { shippingAddress: shipping, paymentMethod, pointsToUse: isFreeClaim ? 0 : pointsToUse() }),
         60000,
         'Checkout'
       );
@@ -3761,7 +3833,7 @@ async function renderDashboard() {
           </div>
           <div>
             <div class="mini-product-name">${escapeHtml(item.name)}</div>
-            <small class="muted">${escapeHtml(item.category || 'Barang')} • ${formatCurrency(item.price)}</small>
+            <small class="muted">${escapeHtml(item.category || 'Barang')} • ${formatProductPrice(item)}</small>
           </div>
           <span class="mm-card-stock ${item.stock === 0 ? 'is-out' : ''}">${item.stock > 0 ? `Stok: ${item.stock}` : 'Habis'}</span>
         </div>
@@ -3947,6 +4019,17 @@ async function renderOrdersForBuyer() {
     const status = order.status;
     const paid = order.paymentStatus === 'PAID';
     const isCod = order.paymentMethod === 'COD';
+        if (order.isFreeClaim) {
+      const freeBanners = {
+        awaiting_confirmation: { tone: 'pending', icon: 'schedule', title: 'Klaim diterima', text: 'Klaim diterima, menunggu konfirmasi admin lewat WhatsApp.' },
+        processing: { tone: 'info', icon: 'inventory_2', title: 'Klaim sedang diproses', text: 'Admin sedang menyiapkan produk gratismu.' },
+        shipped: { tone: 'info', icon: 'local_shipping', title: 'Produk gratis dikirim', text: 'Setelah barang sampai, tekan "Pesanan Diterima".' },
+        completed: { tone: 'success', icon: 'task_alt', title: 'Klaim selesai', text: 'Terima kasih! Jangan lupa beri ulasan untuk produk ini.' },
+        cancelled: { tone: 'neutral', icon: 'cancel', title: 'Klaim dibatalkan', text: 'Klaim dibatalkan dan stok sudah dikembalikan.' },
+        expired: { tone: 'danger', icon: 'timer_off', title: 'Klaim kedaluwarsa', text: 'Admin tidak mengonfirmasi klaim dalam 24 jam. Stok sudah dilepas.' }
+      };
+      if (freeBanners[status]) return freeBanners[status];
+    }
     if (isCod && status === 'awaiting_confirmation') {
       return { tone: 'pending', icon: 'schedule', title: 'Menunggu konfirmasi admin', text: `Pesanan COD diterima. Admin akan mengonfirmasi lewat WhatsApp. Siapkan uang tunai sebesar ${formatCurrency(order.totalAmount || 0)}.` };
     }
@@ -4121,7 +4204,7 @@ async function renderOrdersForBuyer() {
       const name = item.productId
         ? `<a href="${getProductDetailUrl(item.productId)}">${escapeHtml(item.name || 'Produk')}</a>`
         : `<strong>${escapeHtml(item.name || 'Produk')}</strong>`;
-      return `<div class="order-line">${thumb}<div class="order-line-info">${name}<small>${formatCurrency(item.unitPrice || 0)} × ${Math.max(1, Number(item.qty || 1))}</small></div><strong>${formatCurrency(item.subtotal || 0)}</strong></div>`;
+      return `<div class="order-line">${thumb}<div class="order-line-info">${name}<small>${order.isFreeClaim ? 'GRATIS' : formatCurrency(item.unitPrice || 0)} × ${Math.max(1, Number(item.qty || 1))}</small></div><strong>${order.isFreeClaim ? 'GRATIS' : formatCurrency(item.subtotal || 0)}</strong></div>`;
     }).join('') || '<p class="muted">Rincian barang tidak tersedia.</p>';
 
     const historyMarkup = history.length
@@ -4132,10 +4215,11 @@ async function renderOrdersForBuyer() {
       : '<p class="muted">Belum ada riwayat status.</p>';
 
     const isCod = order.paymentMethod === 'COD';
-    const paymentLabel = isCod
+        const isFreeClaim = order.isFreeClaim === true;
+    const paymentLabel = isFreeClaim ? 'Gratis' : isCod
       ? order.paymentStatus === 'PAID' ? 'Lunas (tunai)' : order.paymentStatus === 'COD_PENDING' ? 'Bayar saat barang sampai' : 'Belum dibayar'
       : order.paymentStatus === 'PAID' ? 'Lunas' : order.paymentStatus === 'EXPIRED' ? 'Kedaluwarsa' : order.paymentStatus === 'FAILED' ? 'Gagal' : 'Belum dibayar';
-    const methodLabel = isCod ? 'COD (Bayar di Tempat)' : 'DOKU';
+    const methodLabel = isFreeClaim ? 'Gratis (Klaim)' : isCod ? 'COD (Bayar di Tempat)' : 'DOKU';
     const canCancelCod = isCod && ['awaiting_confirmation', 'processing'].includes(order.status);
 
     container.innerHTML = `
@@ -4165,7 +4249,7 @@ async function renderOrdersForBuyer() {
               <div class="order-sum-row"><span>Subtotal</span><span>${formatCurrency(order.subtotal || 0)}</span></div>
               <div class="order-sum-row"><span>Ongkos kirim</span><span>${formatCurrency(order.shippingFee || 0)}</span></div>
               ${Number(order.codFee) ? `<div class="order-sum-row"><span>Biaya COD</span><span>${formatCurrency(order.codFee)}</span></div>` : ''}
-                            <div class="order-sum-row is-total"><span>Total</span><span>${formatCurrency(order.totalAmount || 0)}</span></div>
+                            <div class="order-sum-row is-total"><span>Total</span><span>${isFreeClaim ? 'GRATIS' : formatCurrency(order.totalAmount || 0)}</span></div>
             </div>
           </section>
           ${renderReviewSection(order)}
@@ -4199,7 +4283,7 @@ async function renderOrdersForBuyer() {
       </div>
 
       <div class="order-detail-actions">
-              ${order.status === 'shipped' && !isCod ? `<button class="btn btn-primary" type="button" data-confirm-received="${escapeHtml(order.id)}">Pesanan Diterima</button>` : ''}
+              ${order.status === 'shipped' && (!isCod || order.isFreeClaim) ? `<button class="btn btn-primary" type="button" data-confirm-received="${escapeHtml(order.id)}">Pesanan Diterima</button>` : ''}
         ${canPay ? `<button class="btn btn-primary" type="button" data-pay-order="${escapeHtml(order.id)}">Bayar Sekarang</button><button class="btn btn-secondary" type="button" data-cancel-order="${escapeHtml(order.id)}">Batalkan Pesanan</button>` : ''}
         ${canCancelCod ? `<button class="btn btn-secondary" type="button" data-cancel-order="${escapeHtml(order.id)}" data-cancel-method="COD">Batalkan Pesanan</button>` : ''}
         <a class="btn btn-secondary" href="chat.html?orderId=${encodeURIComponent(order.id)}">Tanya Admin</a>
@@ -4296,22 +4380,22 @@ async function renderOrdersForBuyer() {
       const mapUrl = point ? `https://www.google.com/maps/search/?api=1&query=${point.latitude},${point.longitude}` : '';
       const canPay = order.status === 'awaiting_payment' && Number(order.paymentExpiresAt || 0) > Date.now();
       const isCod = order.paymentMethod === 'COD';
-      const paymentLabel = isCod
-        ? order.paymentStatus === 'PAID' ? 'Lunas (tunai)' : order.paymentStatus === 'COD_PENDING' ? 'Bayar saat barang sampai' : 'Belum dibayar'
-        : order.paymentStatus === 'PAID' ? 'Lunas' : 'Belum dibayar';
+      const paymentLabel = order.isFreeClaim ? 'Gratis' : isCod
+  ? order.paymentStatus === 'PAID' ? 'Lunas (tunai)' : order.paymentStatus === 'COD_PENDING' ? 'Bayar saat barang sampai' : 'Belum dibayar'
+  : order.paymentStatus === 'PAID' ? 'Lunas' : 'Belum dibayar';
       const canCancelCod = isCod && ['awaiting_confirmation', 'processing'].includes(order.status);
-      const itemMarkup = items.map((item) => `<li>${escapeHtml(item.name || 'Produk')} × ${Math.max(1, Number(item.qty || 1))} <span>${formatCurrency(item.subtotal || 0)}</span></li>`).join('');
+      const itemMarkup = items.map((item) => `<li>${escapeHtml(item.name || 'Produk')} × ${Math.max(1, Number(item.qty || 1))} <span>${order.isFreeClaim ? 'GRATIS' : formatCurrency(item.subtotal || 0)}</span></li>`).join('');
       return `<article class="commerce-panel commerce-order-card" data-order-id="${escapeHtml(order.id)}">
         <header class="commerce-order-header"><div><strong>${escapeHtml(order.orderCode || order.id)}</strong><p class="muted">${escapeHtml(formatOrderDate(order.createdAt))}</p></div><span class="commerce-status ${badgeClass}">${label}</span></header>
         <ul class="commerce-order-items">${itemMarkup}</ul>
-        <div class="commerce-order-total"><span>Total</span><strong>${formatCurrency(order.totalAmount || 0)}</strong></div>
-        <p class="muted">Metode: ${escapeHtml(isCod ? 'COD (Bayar di Tempat)' : 'DOKU')} · ${escapeHtml(paymentLabel)}</p>
+        <div class="commerce-order-total"><span>Total</span><strong>${order.isFreeClaim ? 'GRATIS' : formatCurrency(order.totalAmount || 0)}</strong></div>
+        <p class="muted">Metode: ${escapeHtml(order.isFreeClaim ? 'Gratis (Klaim)' : isCod ? 'COD (Bayar di Tempat)' : 'DOKU')} · ${escapeHtml(paymentLabel)}</p>
         ${canPay ? `<p class="commerce-payment-countdown" data-payment-countdown="${Number(order.paymentExpiresAt)}"></p>` : ''}
         <div class="commerce-order-shipping"><strong>Alamat pengiriman</strong><p>${escapeHtml(shipping.recipientName || '')} · ${escapeHtml(shipping.phone || '')}<br>${formatAddress(shipping)}${shipping.note ? `<br>Catatan: ${escapeHtml(shipping.note)}` : ''}</p>${mapUrl ? `<a href="${mapUrl}" target="_blank" rel="noopener noreferrer">Lihat di Google Maps</a>` : ''}</div>
         ${order.trackingNumber ? `<p class="commerce-tracking"><strong>${escapeHtml(order.courier || 'Kurir')}:</strong> ${escapeHtml(order.trackingNumber)}</p>` : ''}
                        <footer class="commerce-order-actions">
           <a class="btn btn-soft" href="pesanan.html?orderId=${encodeURIComponent(order.id)}">Lihat detail</a>
-          ${order.status === 'shipped' && !isCod ? `<button class="btn btn-primary" type="button" data-confirm-received="${escapeHtml(order.id)}">Pesanan Diterima</button>` : ''}
+          ${order.status === 'shipped' && (!isCod || order.isFreeClaim) ? `<button class="btn btn-primary" type="button" data-confirm-received="${escapeHtml(order.id)}">Pesanan Diterima</button>` : ''}
           ${order.status === 'completed' ? `<a class="btn btn-primary" href="pesanan.html?orderId=${encodeURIComponent(order.id)}">Beri / lihat ulasan</a>` : ''}
           ${canPay ? `<button class="btn btn-primary" type="button" data-pay-order="${escapeHtml(order.id)}">Bayar Sekarang</button><button class="btn btn-secondary" type="button" data-cancel-order="${escapeHtml(order.id)}">Batalkan</button>` : ''}
           ${canCancelCod ? `<button class="btn btn-secondary" type="button" data-cancel-order="${escapeHtml(order.id)}" data-cancel-method="COD">Batalkan Pesanan</button>` : ''}
@@ -4417,7 +4501,7 @@ async function renderProductsForBuyer() {
             ${imageMarkup}<span class="mm-card-chip">${escapeHtml(normalized.label)}</span>
           </a>
           <div class="mm-card-body">
-            <div class="mm-card-price">${formatCurrency(normalized.price)}</div>
+            <div class="mm-card-price${normalized.isFree ? ' is-free' : ''}">${formatProductPrice(normalized)}</div>
             <h3 class="mm-card-title">${escapeHtml(normalized.name)}</h3>
             <span class="mm-card-stock ${normalized.stock === 0 ? 'is-out' : ''}">${normalized.stock > 0 ? `Stok: ${normalized.stock}` : 'Habis'}</span>
             <span class="condition">${escapeHtml(normalized.condition)}</span>
@@ -5098,7 +5182,7 @@ async function renderProductDetail() {
   }
 
   const detailPrice = document.querySelector('[data-detail-price]');
-  if (detailPrice) detailPrice.textContent = formatCurrency(normalized.price);
+  if (detailPrice) detailPrice.textContent = formatProductPrice(normalized);
 
   const detailCondition = document.querySelector('[data-detail-condition]');
   if (detailCondition) detailCondition.textContent = normalized.condition;
@@ -5174,11 +5258,12 @@ async function renderProductDetail() {
   const decreaseQuantity = document.querySelector('[data-product-quantity-step="-1"]');
   const increaseQuantity = document.querySelector('[data-product-quantity-step="1"]');
   let quantity = 1;
+    const maxQty = normalized.isFree ? 1 : normalized.stock;
   const syncQuantity = () => {
-    quantity = Math.max(1, Math.min(normalized.stock || 1, quantity));
+    quantity = Math.max(1, Math.min(maxQty || 1, quantity));
     if (quantityOutput) quantityOutput.textContent = String(quantity);
     if (decreaseQuantity) decreaseQuantity.disabled = normalized.stock <= 0 || quantity <= 1;
-    if (increaseQuantity) increaseQuantity.disabled = normalized.stock <= 0 || quantity >= normalized.stock || quantity >= 99;
+    if (increaseQuantity) increaseQuantity.disabled = normalized.stock <= 0 || quantity >= maxQty || quantity >= 99;
   };
   decreaseQuantity?.addEventListener('click', () => { quantity -= 1; syncQuantity(); });
   increaseQuantity?.addEventListener('click', () => { quantity += 1; syncQuantity(); });
@@ -5190,6 +5275,7 @@ async function renderProductDetail() {
     if (!button) return;
     button.disabled = normalized.stock <= 0;
     if (normalized.stock <= 0) button.textContent = isInactive ? 'Tidak dijual' : 'Stok habis';
+    else if (normalized.isFree) button.textContent = 'Klaim Gratis';
     button.addEventListener('click', () => {
       if (normalized.stock <= 0) return;
       if (!currentUser()) {
@@ -5199,6 +5285,21 @@ async function renderProductDetail() {
       addProductToCart(normalized.id, quantity, button === buyButton);
     });
   });
+
+    // Produk gratis yang sudah pernah diklaim: nonaktifkan tombol.
+  if (normalized.isFree && normalized.stock > 0 && currentUser()) {
+    waitForMarketplaceFirebaseUser().then(async (firebaseUser) => {
+      if (!firebaseUser) return;
+      const claimedIds = await getClaimedFreeProductIds(firebaseUser.uid);
+      if (!claimedIds.has(String(normalized.id))) return;
+      [addButton, buyButton].forEach((button) => {
+        if (!button) return;
+        button.disabled = true;
+        button.textContent = 'Sudah diklaim';
+      });
+      if (increaseQuantity) increaseQuantity.disabled = true;
+    }).catch((error) => console.warn('[marketplace] cek klaim gratis dilewati:', error));
+  }
 
   // Jumlah dilihat: dicatat untuk pengunjung login maupun tanpa login.
   const viewsEl = document.querySelector('[data-detail-views-count]');

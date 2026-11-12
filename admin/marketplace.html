@@ -139,11 +139,12 @@
     let orders = [];
 
     const statusText = {
-      awaiting_payment: 'Menunggu pembayaran', paid: 'Dibayar', processing: 'Diproses', shipped: 'Dikirim',
+      awaiting_payment: 'Menunggu pembayaran', awaiting_confirmation: 'Menunggu konfirmasi', paid: 'Dibayar', processing: 'Diproses', shipped: 'Dikirim',
       completed: 'Selesai', cancelled: 'Dibatalkan', expired: 'Kedaluwarsa', payment_failed: 'Pembayaran gagal'
     };
     const statusClass = {
       awaiting_payment: 'bg-amber-100 text-amber-800', paid: 'bg-blue-100 text-blue-800',
+      awaiting_confirmation: 'bg-orange-100 text-orange-800',
       processing: 'bg-indigo-100 text-indigo-800', shipped: 'bg-cyan-100 text-cyan-800',
       completed: 'bg-emerald-100 text-emerald-800', cancelled: 'bg-slate-100 text-slate-700',
       expired: 'bg-rose-100 text-rose-800', payment_failed: 'bg-rose-100 text-rose-800'
@@ -196,7 +197,7 @@
               <p class="truncate font-semibold text-slate-900">${escapeHtml(item.name || '-')}</p>
               <p class="text-xs text-slate-500">${escapeHtml(item.category || '-')} · ${escapeHtml(formatDate(item.createdAt))}</p>
             </div>
-            <span class="font-semibold text-slate-900">${money(item.price)}</span>
+            <span class="font-semibold text-slate-900">${item.isFree === true && Number(item.price) === 0 ? 'GRATIS' : money(item.price)}</span>
             <span class="inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${badge}">${label}</span>
           </a>`;
         }).join('');
@@ -205,7 +206,7 @@
     }
 
     function renderOrders() {
-      const toProcess = orders.filter((order) => order.status === 'paid').length;
+      const toProcess = orders.filter((order) => ['paid', 'awaiting_confirmation'].includes(order.status)).length;
       const awaiting = orders.filter((order) => order.status === 'awaiting_payment').length;
       const shipped = orders.filter((order) => order.status === 'shipped').length;
       const revenue = orders.filter((order) => order.paymentStatus === 'PAID').reduce((sum, order) => sum + (Number(order.totalAmount) || 0), 0);
@@ -226,7 +227,7 @@
               <p class="truncate font-semibold text-slate-900">${escapeHtml(order.orderCode || order.id)}</p>
               <p class="truncate text-xs text-slate-500">${escapeHtml(order.buyerName || 'Pembeli')} · ${escapeHtml(formatDate(order.createdAt))}</p>
             </div>
-            <span class="font-semibold text-slate-900">${money(order.totalAmount)}</span>
+            <span class="font-semibold text-slate-900">${order.isFreeClaim ? 'GRATIS' : money(order.totalAmount)}</span>
             <span class="inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${badge}">${escapeHtml(statusText[order.status] || order.status || '-')}</span>
           </a>`;
         }).join('');

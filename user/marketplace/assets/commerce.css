@@ -346,3 +346,5 @@
 @media (max-width: 640px) {
   .desc-clamp { --desc-lines: 4; }
 }
+
+.mm-card-price.is-free{display:inline-block;align-self:flex-start;padding:2px 12px;border:2px solid #0b2342;border-radius:999px;background:#7ee2a8;color:#0b2342;font-size:.9rem;letter-spacing:.04em}

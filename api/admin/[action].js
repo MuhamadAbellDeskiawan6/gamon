@@ -915,14 +915,15 @@ async function handleSaveMarketplaceProduct(req, res) {
     const body = req.body || {};
     const productId = body.id ? String(body.id) : null;
     const name = String(body.name || '').trim();
-    const price = Number(body.price || 0);
+       const isFree = body.isFree === true;
+    const price = isFree ? 0 : Number(body.price);
     const stock = Number(body.stock);
 
     if (!name) {
         return res.status(400).json({ success: false, message: 'Nama produk wajib diisi.' });
     }
-    if (!Number.isSafeInteger(price) || price < 0) {
-        return res.status(400).json({ success: false, message: 'Harga harus berupa bilangan bulat rupiah.' });
+    if (!isFree && (!Number.isSafeInteger(price) || price < 1)) {
+        return res.status(400).json({ success: false, message: 'Harga harus bilangan bulat rupiah minimal 1, atau centang Produk gratis.' });
     }
     if (!Number.isInteger(stock) || stock < 0) {
         return res.status(400).json({ success: false, message: 'Stok harus berupa bilangan bulat minimal 0.' });
@@ -932,6 +933,7 @@ async function handleSaveMarketplaceProduct(req, res) {
         name,
         category: body.category || 'barang',
         price,
+                isFree,
         stock,
         sold: 0,
         condition: body.condition || 'Layak pakai',

@@ -184,7 +184,7 @@
                 const orders = Array.isArray(ordersResult.data) ? ordersResult.data : [];
                 const products = Array.isArray(productsResult.data) ? productsResult.data : [];
                 const revenue = orders.filter((order) => order.paymentStatus === 'PAID').reduce((sum, order) => sum + (Number(order.totalAmount) || 0), 0);
-                const toProcess = orders.filter((order) => order.status === 'paid').length;
+                const toProcess = orders.filter((order) => ['paid', 'awaiting_confirmation'].includes(order.status)).length;
                 const lowStock = products.filter((product) => Number(product.stock ?? 1) > 0 && Number(product.stock ?? 1) <= 2).length;
                 document.getElementById('marketplaceRevenue').textContent = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(revenue);
                 document.getElementById('marketplaceToProcess').textContent = String(toProcess);
