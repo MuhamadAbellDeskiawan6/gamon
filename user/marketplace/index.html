@@ -3,12 +3,12 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
-<title>Marketplace Mantan | Toko Barang Bekas Pilihan di Banjarmasin</title>
-<meta name="description" content="Marketplace Mantan: toko barang bekas pilihan di Banjarmasin, Kalimantan Selatan. Kondisi barang jelas, harga transparan, gratis ongkir area Banjarmasin. Bayar lewat QRIS/DOKU atau COD, dan bisa juga jual barangmu lewat pengajuan."/>
+<title>Marketplace Mantan | Toko Barang Berkualitas di Banjarmasin</title>
+<meta name="description" content="Marketplace Mantan adalah platform jual beli barang berkualitas di Banjarmasin dan sekitarnya, dengan metode pembayaran langsung lewat QRIS/DOKU atau dengan COD."/>
 <meta name="geo.region" content="ID-KS"/>
 <meta name="geo.placename" content="Banjarmasin, Kalimantan Selatan"/>
-<meta property="og:title" content="Marketplace Mantan | Toko Barang Bekas Pilihan di Banjarmasin"/>
-<meta property="og:description" content="Barang bekas pilihan dengan kondisi jelas dan harga transparan. Bayar via QRIS/DOKU atau COD. Melayani Banjarmasin, Kalimantan Selatan."/>
+<meta property="og:title" content="Marketplace Mantan | Toko Barang Berkualitas di Banjarmasin"/>
+<meta property="og:description" content="Barang berkualitas, baru maupun bekas, dengan kondisi jelas dan harga transparan. Bayar via QRIS/DOKU atau COD. Melayani Banjarmasin, Kalimantan Selatan."/>
 <meta property="og:type" content="website"/>
 <meta property="og:locale" content="id_ID"/>
 <link rel="icon" type="image/png" href="../../image/logo/gamonspace.png"/>
@@ -23,7 +23,7 @@
   "@context": "https://schema.org",
   "@type": "Store",
   "name": "Marketplace Mantan",
-  "description": "Toko barang bekas pilihan di Banjarmasin, Kalimantan Selatan.",
+  "description": "Toko jual beli barang berkualitas (baru, seperti baru, dan bekas layak pakai) di Banjarmasin, Kalimantan Selatan.",
   "paymentAccepted": "QRIS, DOKU, Cash on Delivery",
   "areaServed": { "@type": "City", "name": "Banjarmasin" },
   "address": {
@@ -114,6 +114,13 @@ a{color:inherit}
 .mm-note{display:flex;gap:12px;align-items:flex-start;margin-bottom:24px;padding:14px 18px;border:2px solid var(--ink);border-radius:14px;background:#fff0bf;font-size:.94rem;color:var(--ink)}
 .mm-note .material-symbols-outlined{flex:none;font-size:22px}
 .mm-note.below{margin:24px 0 0}
+
+/* Label kondisi barang (dipakai di bagian penjelasan) */
+.mm-cond{display:flex;flex-wrap:wrap;gap:10px;margin:0 0 24px}
+.mm-cond-tag{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border:2px solid var(--ink);border-radius:999px;background:var(--white);color:var(--ink);font:600 .86rem var(--f-b);box-shadow:2px 2px 0 var(--ink)}
+.mm-cond-tag.new{background:var(--sun)}
+.mm-cond-tag.like{background:var(--sky)}
+.mm-cond-tag .material-symbols-outlined{font-size:16px}
 
 /* =========================================================
    KATALOG PRODUK (markup dibuat oleh assets/app.js)
@@ -388,9 +395,9 @@ footer{padding:28px 0 calc(40px + env(safe-area-inset-bottom,0px));border-top:2p
           Marketplace<br />
           <span class="hl">Mantan</span>
         </h1>
-        <p class="mm-tagline">Barang lama, manfaat baru.</p>
+        <p class="mm-tagline">Pian himung, kami untung.</p>
         <p class="mm-lead">
-          Marketplace Mantan adalah toko barang bekas pilihan di Banjarmasin, Kalimantan Selatan. Setiap barang kami pilih sendiri, difoto apa adanya, dan dijelaskan kondisinya dengan jujur, termasuk kekurangannya. Saat checkout kamu bisa memilih bayar online lewat QRIS/DOKU, atau COD (bayar tunai saat barang sampai) bila tersedia, dengan gratis ongkir untuk pengantaran area Banjarmasin. Punya barang yang sudah tidak terpakai? Ajukan penjualannya, lalu bawa ke lokasi kami di Banjarmasin dan dibayar tunai di tempat.
+          Marketplace Mantan adalah platform jual beli barang berkualitas di Banjarmasin dan sekitarnya, dengan metode pembayaran langsung lewat QRIS/DOKU atau dengan COD.
         </p>
 
         <div class="mm-cta">
@@ -401,6 +408,7 @@ footer{padding:28px 0 calc(40px + env(safe-area-inset-bottom,0px));border-top:2p
 
         <div class="mm-pills">
           <span class="mm-pill"><span class="material-symbols-outlined" style="font-size:16px" aria-hidden="true">location_on</span> Banjarmasin, Kalsel</span>
+          <span class="mm-pill"><span class="material-symbols-outlined" style="font-size:16px" aria-hidden="true">workspace_premium</span> Barang dipilih &amp; berkualitas</span>
           <span class="mm-pill"><span class="material-symbols-outlined" style="font-size:16px" aria-hidden="true">verified</span> Kondisi dijelaskan jujur</span>
           <span class="mm-pill"><span class="material-symbols-outlined" style="font-size:16px" aria-hidden="true">lock</span> Bayar via QRIS/DOKU</span>
           <span class="mm-pill"><span class="material-symbols-outlined" style="font-size:16px" aria-hidden="true">payments</span> COD tersedia</span>
@@ -425,15 +433,21 @@ footer{padding:28px 0 calc(40px + env(safe-area-inset-bottom,0px));border-top:2p
     <div class="mm-wrap">
       <div class="mm-head">
         <div>
-          <span class="mm-eyebrow">Barang bekas pilihan</span>
+          <span class="mm-eyebrow">Barang berkualitas pilihan</span>
           <h2>Barang yang tersedia</h2>
         </div>
-        <p>Barang bekas yang kami pilih dan cek sendiri di Banjarmasin. Foto asli, kondisi dan kekurangan dijelaskan di setiap produk.</p>
+        <p>Barang pilihan yang kami seleksi dan cek sendiri di Banjarmasin. Foto asli, kondisi dan kekurangan (bila ada) dijelaskan di setiap produk.</p>
+      </div>
+
+      <div class="mm-cond" aria-label="Jenis kondisi barang">
+        <span class="mm-cond-tag new"><span class="material-symbols-outlined" aria-hidden="true">new_releases</span> Baru</span>
+        <span class="mm-cond-tag like"><span class="material-symbols-outlined" aria-hidden="true">auto_awesome</span> Seperti baru</span>
+        <span class="mm-cond-tag"><span class="material-symbols-outlined" aria-hidden="true">check_circle</span> Bekas layak pakai</span>
       </div>
 
       <div class="mm-note">
         <span class="material-symbols-outlined" aria-hidden="true">info</span>
-        <p>Semua barang di sini adalah barang bekas (preloved). Stok terbatas dan umumnya hanya satu unit per produk, jadi baca deskripsi kondisi sebelum membeli. Pembayaran bisa lewat QRIS/DOKU atau COD (bila tersedia untuk pesananmu). Ada pertanyaan? Hubungi admin lewat Chat Admin setelah masuk ke akunmu.</p>
+        <p>Barang di sini bisa berupa barang baru, seperti baru, atau bekas yang masih berkualitas. Kondisi setiap barang tertulis jelas di halaman produknya, jadi baca deskripsi sebelum membeli. Stok terbatas dan umumnya hanya satu unit per produk. Pembayaran bisa lewat QRIS/DOKU atau COD (bila tersedia untuk pesananmu). Ada pertanyaan? Hubungi admin lewat Chat Admin setelah masuk ke akunmu.</p>
       </div>
 
       <div class="filter-row" role="group" aria-label="Filter produk">
@@ -511,7 +525,7 @@ footer{padding:28px 0 calc(40px + env(safe-area-inset-bottom,0px));border-top:2p
         <span class="material-symbols-outlined" aria-hidden="true">info</span>
         <p>COD di bagian ini adalah untuk pembeli (bayar saat barang sampai). Untuk penjual yang menjual barang ke kami, pembayaran tunai dilakukan di lokasi COD resmi di Banjarmasin, lihat bagian Jual Barang di bawah.</p>
       </div>
-            <div class="mm-note below">
+      <div class="mm-note below">
         <span class="material-symbols-outlined" aria-hidden="true">redeem</span>
         <p>Ada produk bertanda GRATIS? Kamu tetap harus masuk akun, memverifikasi email, dan melengkapi alamat di Profil (wilayah Kalimantan Selatan). Satu akun hanya bisa mengklaim satu kali per produk, tanpa pembayaran. Setelah barang diterima kamu tetap bisa memberi ulasan.</p>
       </div>
@@ -523,13 +537,13 @@ footer{padding:28px 0 calc(40px + env(safe-area-inset-bottom,0px));border-top:2p
       <div class="mm-sell">
         <div class="mm-sell-intro">
           <span class="mm-eyebrow">Jual barang</span>
-          <h2>Punya barang bekas yang masih layak? Jual ke kami.</h2>
+          <h2>Punya barang berkualitas yang ingin dijual? Jual ke kami.</h2>
           <p class="mm-sell-lead">
-            Marketplace Mantan bukan cuma untuk membeli. Kirim pengajuan lewat form, tunggu admin menyetujui, lalu datang ke lokasi COD kami di Banjarmasin sesuai jadwal. Barang dicek bersama, harga disepakati, dan kamu dibayar tunai di tempat.
+            Marketplace Mantan bukan cuma untuk membeli. Barang baru, seperti baru, maupun bekas yang masih berkualitas bisa kamu ajukan. Kirim pengajuan lewat form, tunggu admin menyetujui, lalu datang ke lokasi COD kami di Banjarmasin sesuai jadwal. Barang dicek bersama, harga disepakati, dan kamu dibayar tunai di tempat.
           </p>
 
           <ul class="mm-sell-list">
-            <li><span class="material-symbols-outlined" aria-hidden="true">check</span> Cukup isi form: foto, kondisi, dan harga harapan</li>
+            <li><span class="material-symbols-outlined" aria-hidden="true">check</span> Cukup isi form: foto, kondisi (baru/bekas), dan harga harapan</li>
             <li><span class="material-symbols-outlined" aria-hidden="true">check</span> Tanpa kirim paket, kamu datang langsung ke lokasi di Banjarmasin</li>
             <li><span class="material-symbols-outlined" aria-hidden="true">check</span> Dibayar tunai (COD) setelah barang dicek bersama</li>
             <li><span class="material-symbols-outlined" aria-hidden="true">check</span> Pantau status pengajuan di akunmu</li>
@@ -544,7 +558,7 @@ footer{padding:28px 0 calc(40px + env(safe-area-inset-bottom,0px));border-top:2p
         <ol class="mm-sell-steps">
           <li class="mm-sell-step">
             <h3>Isi pengajuan</h3>
-            <p>Masuk ke akunmu, buka halaman Jual Barang, lalu isi nama barang, kondisi, harga harapan, dan unggah 1 sampai 3 foto.</p>
+            <p>Masuk ke akunmu, buka halaman Jual Barang, lalu isi nama barang, kondisi (baru, seperti baru, atau bekas), harga harapan, dan unggah 1 sampai 3 foto.</p>
           </li>
           <li class="mm-sell-step">
             <h3>Admin meninjau</h3>
@@ -556,7 +570,7 @@ footer{padding:28px 0 calc(40px + env(safe-area-inset-bottom,0px));border-top:2p
           </li>
           <li class="mm-sell-step">
             <h3>Cek &amp; dibayar tunai</h3>
-            <p>Kondisi barang dicek bersama, harga final disepakati, lalu pembayaran diterima tunai di tempat.</p>
+            <p>Kondisi dan kualitas barang dicek bersama, harga final disepakati, lalu pembayaran diterima tunai di tempat.</p>
           </li>
         </ol>
       </div>
@@ -572,9 +586,10 @@ footer{padding:28px 0 calc(40px + env(safe-area-inset-bottom,0px));border-top:2p
           <ul>
             <li>Senjata dan obat-obatan</li>
             <li>Barang hasil curian</li>
-            <li>Barang palsu atau bukan milikmu</li>
+            <li>Barang palsu, tiruan, atau bukan milikmu</li>
+            <li>Barang rusak berat atau tidak layak pakai</li>
           </ul>
-          <p style="margin-top:8px">Harga final bisa berbeda dari harga harapan, tergantung hasil pengecekan di lokasi.</p>
+          <p style="margin-top:8px">Harga final bisa berbeda dari harga harapan, tergantung hasil pengecekan kondisi dan kualitas di lokasi.</p>
         </div>
       </div>
     </div>
@@ -585,16 +600,16 @@ footer{padding:28px 0 calc(40px + env(safe-area-inset-bottom,0px));border-top:2p
       <div class="mm-head">
         <div>
           <span class="mm-eyebrow">Kenapa memilih</span>
-          <h2>Barang bekas yang lebih bisa dipercaya</h2>
+          <h2>Barang berkualitas yang lebih bisa dipercaya</h2>
         </div>
-        <p>Harga masuk akal, kondisi jelas, dan transaksi yang tercatat.</p>
+        <p>Barang terseleksi, kondisi jelas, harga masuk akal, dan transaksi yang tercatat.</p>
       </div>
 
       <div class="mm-values">
         <div class="mm-value">
           <div class="big">01</div>
-          <h3>Dipilih &amp; dijelaskan jujur</h3>
-          <p>Setiap barang dipilih, difoto apa adanya, dan dijelaskan kondisinya beserta kekurangannya, supaya tidak ada kejutan saat barang sampai.</p>
+          <h3>Diseleksi &amp; dijelaskan jujur</h3>
+          <p>Setiap barang, baru maupun bekas, diseleksi, difoto apa adanya, dan dijelaskan kondisinya beserta kekurangannya bila ada, supaya tidak ada kejutan saat barang sampai.</p>
         </div>
         <div class="mm-value">
           <div class="big">02</div>
@@ -604,7 +619,7 @@ footer{padding:28px 0 calc(40px + env(safe-area-inset-bottom,0px));border-top:2p
         <div class="mm-value">
           <div class="big">03</div>
           <h3>Bisa beli, bisa jual</h3>
-          <p>Barang yang kamu beli diantar gratis ongkir untuk area Banjarmasin. Barang yang ingin kamu lepas bisa diajukan dan dijual lewat COD di Banjarmasin.</p>
+          <p>Barang yang kamu beli diantar gratis ongkir untuk area Banjarmasin. Barang berkualitas yang ingin kamu lepas bisa diajukan dan dijual lewat COD di Banjarmasin.</p>
         </div>
       </div>
     </div>
@@ -627,7 +642,7 @@ footer{padding:28px 0 calc(40px + env(safe-area-inset-bottom,0px));border-top:2p
         </li>
         <li>
           <h3>Pilih barang</h3>
-          <p>Jelajahi katalog, baca kondisi dan kekurangan barang, lalu masukkan pilihanmu ke keranjang.</p>
+          <p>Jelajahi katalog, baca kondisi (baru, seperti baru, atau bekas) dan kekurangan barang, lalu masukkan pilihanmu ke keranjang.</p>
         </li>
         <li>
           <h3>Pilih pembayaran</h3>
@@ -727,7 +742,7 @@ footer{padding:28px 0 calc(40px + env(safe-area-inset-bottom,0px));border-top:2p
 <footer>
   <div class="mm-wrap footer-line">
     <div class="footer-brand"><img src="../../image/logo/gamonspace-transparan.png" alt="Gamon Space" width="34" height="34"/><span>© 2026 Marketplace Mantan · Banjarmasin, Kalimantan Selatan</span></div>
-    <div>Toko barang bekas pilihan. Bayar via QRIS/DOKU atau COD. Barang lama, manfaat baru.</div>
+    <div>Jual beli barang berkualitas: baru, seperti baru, dan bekas layak pakai. Bayar via QRIS/DOKU atau COD. Pian himung, kami untung.</div>
   </div>
 </footer>
 
