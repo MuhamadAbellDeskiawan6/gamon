@@ -18,6 +18,13 @@ const KALSEL_CITIES = new Set([
   'Kabupaten Tanah Bumbu', 'Kabupaten Balangan', 'Kabupaten Kotabaru'
 ]);
 
+const BLOCKED_WHEN_CLOSED = new Set(['checkout']);
+
+function isShopClosedWITA() {
+  const h = new Date(Date.now() + 8 * 3600 * 1000).getUTCHours();
+  return h >= 22 || h < 8;
+}
+
 function todayKey() {
   return new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10);
 }
@@ -2846,6 +2853,10 @@ export default async function handler(req, res) {
           : undefined
       );
     }
+  }
+
+   if (BLOCKED_WHEN_CLOSED.has(action) && isShopClosedWITA()) {
+    return responseError(res, 403, 'shop-closed', 'Toko sedang tutup. Buka kembali pukul 08.00 WITA.');
   }
 
     if (action === 'check-email') {
