@@ -168,14 +168,33 @@
 @keyframes mm-sc-swing{0%{transform:translateX(-50%) rotate(0)}12%{transform:translateX(-50%) rotate(5deg)}30%{transform:translateX(-50%) rotate(-3.5deg)}50%{transform:translateX(-50%) rotate(2deg)}70%{transform:translateX(-50%) rotate(-1deg)}100%{transform:translateX(-50%) rotate(0)}}
 @media (max-height:640px){#mm-shop-closed .mm-sc-sign{top:6%;padding:14px}#mm-shop-closed .mm-sc-loot-wrap{margin-top:10px;padding-top:10px}}
 
-/* Banner mode jarah */
-#mm-loot-banner{position:fixed;left:50%;bottom:max(14px,env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:2147483000;
-  display:flex;align-items:center;gap:10px;max-width:calc(100% - 24px);padding:10px 18px;background:#ffd66b;color:#0b2342;border:3px solid #0b2342;border-radius:999px;
-  box-shadow:4px 4px 0 #0b2342;font:700 .92rem "Inter",system-ui,sans-serif;animation:mm-lb-in .5s cubic-bezier(.2,1.4,.4,1) both}
-#mm-loot-banner b{font-variant-numeric:tabular-nums;letter-spacing:.04em;padding:2px 10px;background:#fff;border:2px solid #0b2342;border-radius:999px}
+/* Banner mode jarah (responsif: kartu rounded, bukan pil, supaya teks tidak jadi lingkaran) */
+#mm-loot-banner{position:fixed;left:12px;right:12px;bottom:max(12px,env(safe-area-inset-bottom,0px));margin:0 auto;
+  width:max-content;max-width:min(460px,calc(100vw - 24px));z-index:2147483000;box-sizing:border-box;
+  display:flex;align-items:center;gap:10px;padding:10px 12px 10px 14px;
+  background:#ffd66b;color:#0b2342;border:3px solid #0b2342;border-radius:18px;
+  box-shadow:4px 4px 0 #0b2342;font-family:"Inter",system-ui,sans-serif;
+  pointer-events:none;animation:mm-lb-in .5s cubic-bezier(.2,1.4,.4,1) both}
+#mm-loot-banner *{box-sizing:border-box}
+#mm-loot-banner .mm-lb-icon{flex:0 0 auto;font-size:1.4rem;line-height:1}
+#mm-loot-banner .mm-lb-text{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:1px;line-height:1.25}
+#mm-loot-banner .mm-lb-text strong{font-size:.95rem;font-weight:800}
+#mm-loot-banner .mm-lb-text span{font-size:.78rem;font-weight:600;color:#33506f}
+#mm-loot-banner .mm-lb-time{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:2px;line-height:1}
+#mm-loot-banner .mm-lb-time small{font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;opacity:.8;white-space:nowrap}
+#mm-loot-banner .mm-lb-time b{display:block;padding:4px 12px;background:#fff;border:2px solid #0b2342;border-radius:999px;
+  font-size:.95rem;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:.04em;white-space:nowrap}
 #mm-loot-banner.is-warn{background:#ff5c7a;animation:mm-lb-blink .6s steps(2,jump-none) infinite}
-@keyframes mm-lb-in{from{transform:translate(-50%,160%)}to{transform:translate(-50%,0)}}
+#mm-loot-banner.is-warn .mm-lb-text span{color:#0b2342}
+@keyframes mm-lb-in{from{transform:translateY(160%);opacity:0}to{transform:translateY(0);opacity:1}}
 @keyframes mm-lb-blink{50%{background:#ffd66b}}
+@media (max-width:360px){
+  #mm-loot-banner{gap:8px;padding:8px 10px}
+  #mm-loot-banner .mm-lb-icon{font-size:1.15rem}
+  #mm-loot-banner .mm-lb-text strong{font-size:.86rem}
+  #mm-loot-banner .mm-lb-text span{font-size:.7rem}
+  #mm-loot-banner .mm-lb-time b{padding:3px 9px;font-size:.85rem}
+}
 
 @media (prefers-reduced-motion:reduce){
   #mm-shop-closed .mm-sc-door{transition-duration:.3s}
@@ -345,6 +364,7 @@
     if (root) { root.remove(); }
     root = door = countEl = lootBtn = null;
     clearTimeout(removeTimer);
+    clearLootTimers();
     setPageLocked(false);
     lootBusy = false;
     state = false;
@@ -359,7 +379,16 @@
     banner = document.createElement('div');
     banner.id = 'mm-loot-banner';
     banner.setAttribute('role', 'timer');
-    banner.innerHTML = '<span>&#128296; Toko dijarah! Cuma lihat-lihat, checkout tetap tutup. Tutup lagi dalam</span><b data-lb-count>00:00</b>';
+    banner.innerHTML =
+      '<div class="mm-lb-icon" aria-hidden="true">&#128296;</div>' +
+      '<div class="mm-lb-text">' +
+        '<strong>Toko dijarah!</strong>' +
+        '<span>Cuma lihat-lihat, checkout tetap tutup.</span>' +
+      '</div>' +
+      '<div class="mm-lb-time">' +
+        '<small>Tutup lagi</small>' +
+        '<b data-lb-count>00:00</b>' +
+      '</div>';
     bannerEl = banner.querySelector('[data-lb-count]');
     document.documentElement.appendChild(banner);
   }
