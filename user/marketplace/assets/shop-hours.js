@@ -169,8 +169,8 @@
 @media (max-height:640px){#mm-shop-closed .mm-sc-sign{top:6%;padding:14px}#mm-shop-closed .mm-sc-loot-wrap{margin-top:10px;padding-top:10px}}
 
 /* Banner mode jarah (responsif: kartu rounded, bukan pil, supaya teks tidak jadi lingkaran) */
-#mm-loot-banner{position:fixed;left:12px;right:12px;bottom:max(12px,env(safe-area-inset-bottom,0px));margin:0 auto;
-  width:max-content;max-width:min(460px,calc(100vw - 24px));z-index:2147483000;box-sizing:border-box;
+#mm-loot-banner{position:fixed;left:12px;right:calc(76px + env(safe-area-inset-right,0px));bottom:max(12px,env(safe-area-inset-bottom,0px));margin:0 auto;
+  width:max-content;max-width:min(460px,calc(100vw - 100px));z-index:2147483000;box-sizing:border-box;
   display:flex;align-items:center;gap:10px;padding:10px 12px 10px 14px;
   background:#ffd66b;color:#0b2342;border:3px solid #0b2342;border-radius:18px;
   box-shadow:4px 4px 0 #0b2342;font-family:"Inter",system-ui,sans-serif;
@@ -254,8 +254,8 @@
 
     var lootHtml = CFG.lootEnabled
       ? '<div class="mm-sc-loot-wrap">' +
-          '<button type="button" class="mm-sc-loot" data-sc-loot>&#128296; JARAH TOKO</button>' +
-          '<p class="mm-sc-loot-note">Cuma hiburan! Toko terbuka ' + CFG.lootSeconds + ' detik, lalu tutup lagi.</p>' +
+          '<button type="button" class="mm-sc-loot" data-sc-loot>&#128296; JARAH MARKETPLACE</button>' +
+          '<p class="mm-sc-loot-note">Cuma hiburan! Marketplace terbuka ' + CFG.lootSeconds + ' detik, lalu tutup lagi.</p>' +
         '</div>'
       : '';
 
@@ -265,7 +265,7 @@
         '<div class="mm-sc-handle"></div>' +
         '<div class="mm-sc-sign">' +
           '<p class="mm-sc-brand">Marketplace Mantan</p>' +
-          '<h2>TOKO <span>TUTUP</span></h2>' +
+          '<h2>MARKETPLACE <span>TUTUP</span></h2>' +
           '<p class="mm-sc-open">Buka kembali pukul <b>' + hourLabel(CFG.openHour) + ' ' + CFG.zoneLabel + '</b></p>' +
           '<p class="mm-sc-hours">Jam buka: ' + hourLabel(CFG.openHour) + ' &ndash; ' + pad(CFG.closeHour - 1) + '.59 ' + CFG.zoneLabel + '</p>' +
           '<div class="mm-sc-count" role="timer">Buka dalam <b data-sc-count>--:--:--</b></div>' +
@@ -320,7 +320,7 @@
         lootBtn.textContent = 'Tunggu ' + formatShort(cd);
       } else {
         lootBtn.disabled = false;
-        lootBtn.innerHTML = '&#128296; JARAH TOKO';
+        lootBtn.innerHTML = '&#128296; JARAH MARKETPLACE';
       }
     }
   }
@@ -382,7 +382,7 @@
     banner.innerHTML =
       '<div class="mm-lb-icon" aria-hidden="true">&#128296;</div>' +
       '<div class="mm-lb-text">' +
-        '<strong>Toko dijarah!</strong>' +
+        '<strong>Marketplace dijarah!</strong>' +
         '<span>Cuma lihat-lihat, checkout tetap tutup.</span>' +
       '</div>' +
       '<div class="mm-lb-time">' +

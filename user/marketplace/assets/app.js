@@ -3170,6 +3170,7 @@ async function renderHomeProducts() {
   if (!container) return;
 
   let activeFilter = 'all';
+  let activeSort = 'newest';
   let latestProducts = [];
   let activeSlideIndex = 0;
   let homeProductsRefreshPromise = null;
@@ -3177,6 +3178,35 @@ async function renderHomeProducts() {
   container.innerHTML = renderHomeProductsLoadingState();
   ensureDemoData();
   bindAddToCartButtons(container);
+
+  /* ---------- Filter + urutan (satu sumber untuk render & resize) ---------- */
+  const sortProducts = (items) => {
+    const list = [...items];
+    const byNewest = (a, b) => getCreatedAtMs(b.createdAt) - getCreatedAtMs(a.createdAt);
+
+    if (activeSort === 'price-asc' || activeSort === 'price-desc') {
+      const direction = activeSort === 'price-asc' ? 1 : -1;
+      list.sort((a, b) => {
+        // Stok habis selalu di akhir; produk gratis (Rp 0) ikut terurut sebagai harga terendah.
+        const aOut = a.stock <= 0 ? 1 : 0;
+        const bOut = b.stock <= 0 ? 1 : 0;
+        if (aOut !== bOut) return aOut - bOut;
+        const diff = (Number(a.price) - Number(b.price)) * direction;
+        return diff || byNewest(a, b);
+      });
+    } else {
+      list.sort(byNewest);
+    }
+    return list;
+  };
+
+  const getProductsView = () => {
+    const all = normalizeMarketplaceProducts(latestProducts);
+    let filtered = all;
+    if (activeFilter === 'gratis') filtered = all.filter((item) => item.isFree);
+    else if (activeFilter !== 'all') filtered = all.filter((item) => item.category === activeFilter);
+    return { all, visible: sortProducts(filtered) };
+  };
 
   const bindProductCarouselControls = () => {
     const carousel = container.querySelector('[data-product-carousel]');
@@ -3208,19 +3238,21 @@ async function renderHomeProducts() {
     const activeSlide = container.querySelector('.product-carousel-slide.is-active');
     if (preserveSlideIndex && activeSlide) activeSlideIndex = Number(activeSlide.dataset.slideIndex || 0);
 
-    const normalizedItems = normalizeMarketplaceProducts(
-      [...latestProducts].sort((a, b) => getCreatedAtMs(b.createdAt) - getCreatedAtMs(a.createdAt))
-    );
-    const normalized = activeFilter === 'all'
-      ? normalizedItems
-      : normalizedItems.filter((item) => item.category === activeFilter);
-    container.innerHTML = !normalizedItems.length && window.__marketplaceProductsError
-      ? marketplaceLoadErrorMarkup()
-      : renderProductCarousel(normalized);
+    const { all, visible } = getProductsView();
+
+    if (!all.length && window.__marketplaceProductsError) {
+      container.innerHTML = marketplaceLoadErrorMarkup();
+    } else if (visible.length) {
+      container.innerHTML = renderProductCarousel(visible);
+    } else {
+      const emptyText = activeFilter === 'gratis'
+        ? 'Belum ada produk gratis saat ini.'
+        : 'Belum ada produk yang tersedia saat ini.';
+      container.innerHTML = `<div class="product-carousel product-carousel-empty"><p>${emptyText}</p></div>`;
+    }
     bindProductCarouselControls();
 
-    const filterButtons = document.querySelectorAll('[data-filter]');
-    filterButtons.forEach((button) => {
+    document.querySelectorAll('[data-filter]').forEach((button) => {
       button.classList.toggle('active', button.dataset.filter === activeFilter);
       button.onclick = () => {
         activeFilter = button.dataset.filter || 'all';
@@ -3229,6 +3261,17 @@ async function renderHomeProducts() {
       };
     });
   };
+
+  // Dropdown urutan (berada di luar container, jadi cukup dipasang sekali)
+  const sortSelect = document.querySelector('[data-sort-select]');
+  if (sortSelect) {
+    sortSelect.value = activeSort;
+    sortSelect.onchange = () => {
+      activeSort = sortSelect.value || 'newest';
+      activeSlideIndex = 0;
+      rerenderProducts({ preserveSlideIndex: false });
+    };
+  }
 
   let lastHomeProductsRefreshAt = Date.now();
   const refreshProducts = async () => {
@@ -3275,13 +3318,8 @@ async function renderHomeProducts() {
   const rerenderOnResize = () => {
     const activeSlide = container.querySelector('.product-carousel-slide.is-active');
     const firstVisibleProductId = activeSlide?.querySelector('[data-product-id]')?.dataset.productId;
-    const normalizedItems = normalizeMarketplaceProducts(
-      [...latestProducts].sort((a, b) => getCreatedAtMs(b.createdAt) - getCreatedAtMs(a.createdAt))
-    );
-    const filteredItems = activeFilter === 'all'
-      ? normalizedItems
-      : normalizedItems.filter((item) => item.category === activeFilter);
-    const productIndex = filteredItems.findIndex((item) => String(item.id) === firstVisibleProductId);
+    const { visible } = getProductsView();
+    const productIndex = visible.findIndex((item) => String(item.id) === firstVisibleProductId);
     activeSlideIndex = productIndex >= 0 ? Math.floor(productIndex / getProductsPerSlide()) : 0;
     rerenderProducts({ preserveSlideIndex: false });
   };
