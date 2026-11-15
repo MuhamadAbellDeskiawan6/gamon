@@ -5815,7 +5815,7 @@ async function renderHomeReviews() {
       summaryEl.innerHTML = `<strong>${average.toFixed(1)}</strong><span class="mm-review-stars" aria-hidden="true">${'★'.repeat(rounded)}${'☆'.repeat(5 - rounded)}</span><span>dari ${reviews.length} ulasan terbaru</span>`;
     }
  
-    const shown = reviews.slice(0, 9);
+    const shown = reviews.slice(0, 15);
  
     list.innerHTML = shown.map((review) => {
       const rating = Number(review.rating);
