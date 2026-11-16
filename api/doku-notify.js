@@ -2,6 +2,7 @@ import crypto from 'crypto';
 import { initializeApp, cert, getApps } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { applyMarketplacePayment, releaseOrderStock, sendEmail } from './lib/marketplace-orders.js';
+import { applyTopupPayment, markTopupUnpaid } from './topup.js';
 
 const DOKU_CLIENT_ID = String(process.env.DOKU_CLIENT_ID || '').trim();
 const DOKU_SECRET_KEY = String(process.env.DOKU_SECRET_KEY || '').trim();
@@ -356,6 +357,20 @@ const targetUrl = '/';
             } catch (error) {
                 console.error('[DOKU jasa] gagal memproses webhook:', { orderId, code: error.code || 'unknown', message: error.message });
                 return res.status(500).send('Jasa webhook processing failed');
+            }
+        }
+
+                        if (typeof orderId === 'string' && /^TU-\d{6}-[A-Z0-9]{6}$/i.test(orderId)) {
+            try {
+                if (['SUCCESS', 'PAID'].includes(status)) {
+                    await applyTopupPayment({ orderId, amount: data.order?.amount, requestId: signatureCheck.requestId });
+                } else if (['EXPIRED', 'FAILED', 'CANCELLED', 'DENIED'].includes(status)) {
+                    await markTopupUnpaid(orderId, status);
+                }
+                return res.status(200).send('OK');
+            } catch (error) {
+                console.error('[DOKU topup] gagal:', { orderId, message: error.message });
+                return res.status(500).send('Topup webhook failed');
             }
         }
 

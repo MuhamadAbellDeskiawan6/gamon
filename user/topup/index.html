@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Topup — Gamon Space</title>
+<style>
+  :root { --ink:#0b2342; --sky:#d4e9f5; --coral:#ff5c7a; --line:#c5d6e3; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--sky); color:var(--ink); font-family:system-ui,-apple-system,Segoe UI,sans-serif; line-height:1.5; }
+  main { max-width:640px; margin:0 auto; padding:20px 16px 60px; }
+  h1 { margin:0 0 4px; font-size:1.6rem; }
+  h2 { margin:28px 0 10px; font-size:1.1rem; }
+  .sub { margin:0 0 18px; color:#47607c; }
+  .box { background:#fff; border:2px solid var(--ink); border-radius:12px; padding:14px; box-shadow:3px 3px 0 var(--ink); }
+  label { display:block; margin:10px 0 4px; font-weight:600; font-size:.9rem; }
+  select, input { width:100%; padding:10px; font-size:1rem; border:2px solid var(--ink); border-radius:8px; background:#fff; }
+  .row { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  #items { display:grid; gap:8px; margin-top:14px; }
+  #items button { display:flex; justify-content:space-between; gap:10px; padding:12px; text-align:left; font-size:.95rem; border:2px solid var(--ink); border-radius:10px; background:#fff; cursor:pointer; }
+  #items button:hover, #items button:focus-visible { background:var(--coral); outline:none; }
+  #items span { font-weight:700; white-space:nowrap; }
+  #msg { min-height:1.4em; margin:12px 0 0; font-weight:600; }
+  .o { background:#fff; border:2px solid var(--ink); border-radius:10px; padding:10px 12px; margin-bottom:8px; font-size:.88rem; word-break:break-word; }
+  .o b { display:block; }
+  .st-success { color:#15803d; } .st-failed, .st-payment_failed, .st-expired { color:#b91c1c; } .st-processing, .st-paid, .st-awaiting_payment { color:#b45309; }
+  a { color:var(--ink); font-weight:700; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Topup</h1>
+  <p class="sub">Pulsa, paket data, game, dan e-money. Bayar lewat QRIS.</p>
+
+  <div id="login" class="box" hidden>Silakan <a href="../marketplace/login.html">masuk</a> dulu, lalu buka halaman ini lagi.</div>
+
+  <div id="app" hidden>
+    <div class="box">
+      <div class="row">
+        <div><label for="cat">Kategori</label><select id="cat"></select></div>
+        <div><label for="brand">Operator / Game</label><select id="brand"></select></div>
+      </div>
+      <label for="no">Nomor HP / ID tujuan</label>
+      <input id="no" placeholder="08xxxxxxxxxx" inputmode="numeric" autocomplete="off">
+      <div id="items"></div>
+      <p id="msg" role="status"></p>
+    </div>
+
+    <h2>Pesanan saya</h2>
+    <div id="orders"></div>
+  </div>
+</main>
+
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+
+const app = initializeApp({
+  apiKey: 'AIzaSyC247K8yyL67aWV95KNQy8CkMZsjgGCudQ',
+  authDomain: 'gamon-tawing.firebaseapp.com',
+  projectId: 'gamon-tawing',
+  appId: '1:370162915989:web:76779062da83aa0c5c999c'
+});
+const auth = getAuth(app);
+const $ = (id) => document.getElementById(id);
+const rp = (n) => 'Rp ' + Number(n).toLocaleString('id-ID');
+const msg = (t) => { $('msg').textContent = t || ''; };
+const LABEL = {
+  awaiting_payment: 'Menunggu bayar', paid: 'Dibayar', processing: 'Diproses', success: 'Sukses',
+  failed: 'Gagal (hubungi admin untuk refund)', refunded: 'Dana dikembalikan', expired: 'Kedaluwarsa', payment_failed: 'Pembayaran gagal'
+};
+const FINAL = ['success', 'failed', 'refunded', 'expired', 'payment_failed'];
+let user, items = [];
+
+async function api(action, body = {}) {
+  const token = await user.getIdToken();
+  const r = await fetch('/api/topup?action=' + action, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+    body: JSON.stringify(body)
+  });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok || j.success === false) throw new Error(j.message || 'Permintaan gagal');
+  return j;
+}
+const getJson = async (u) => (await fetch(u)).json();
+const fill = (sel, arr) => { sel.innerHTML = ''; arr.forEach((v) => sel.append(new Option(v, v))); };
+
+onAuthStateChanged(auth, (u) => {
+  if (!u) { $('login').hidden = false; $('app').hidden = true; return; }
+  user = u; $('login').hidden = true; $('app').hidden = false; init();
+});
+
+async function init() {
+  const c = await getJson('/api/topup?action=categories');
+  fill($('cat'), c.categories || []);
+  $('cat').onchange = loadItems;
+  $('brand').onchange = renderItems;
+  await loadItems();
+  loadOrders();
+  const oid = new URLSearchParams(location.search).get('orderId');
+  if (oid) poll(oid);
+}
+
+async function loadItems() {
+  if (!$('cat').value) { msg('Katalog masih kosong. Admin perlu sync harga dulu.'); return; }
+  msg('');
+  const r = await getJson('/api/topup?action=products&category=' + encodeURIComponent($('cat').value));
+  items = r.products || [];
+  fill($('brand'), [...new Set(items.map((i) => i.brand))].sort());
+  renderItems();
+}
+
+function renderItems() {
+  const box = $('items');
+  box.innerHTML = '';
+  items.filter((i) => i.brand === $('brand').value).forEach((i) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    const name = document.createElement('div'); name.textContent = i.name;
+    const price = document.createElement('span'); price.textContent = rp(i.sellPrice);
+    b.append(name, price);
+    b.onclick = () => buy(i);
+    box.append(b);
+  });
+}
+
+async function buy(i) {
+  const no = $('no').value.trim();
+  if (!no) return msg('Isi nomor tujuan dulu.');
+  if (!confirm(`${i.name}\nTujuan: ${no}\nTotal: ${rp(i.sellPrice)}\n\nLanjut bayar?`)) return;
+  msg('Membuat pesanan...');
+  try {
+    const r = await api('checkout', { productId: i.id, customerNo: no });
+    location.href = r.paymentUrl;
+  } catch (e) { msg(e.message); }
+}
+
+async function loadOrders() {
+  try {
+    const r = await api('my-orders');
+    const box = $('orders');
+    box.innerHTML = '';
+    if (!r.orders.length) { box.textContent = 'Belum ada pesanan.'; return; }
+    r.orders.forEach((o) => {
+      const d = document.createElement('div'); d.className = 'o';
+      const t = document.createElement('b'); t.textContent = `${o.productName} — ${rp(o.sellPrice)}`;
+      const s = document.createElement('div');
+      s.textContent = `${o.id} | Tujuan: ${o.customerNo}`;
+      const st = document.createElement('div'); st.className = 'st-' + o.status;
+      st.textContent = (LABEL[o.status] || o.status) + (o.sn ? ' | SN: ' + o.sn : '');
+      d.append(t, s, st);
+      if (o.paymentUrl) { const a = document.createElement('a'); a.href = o.paymentUrl; a.textContent = 'Lanjut bayar'; d.append(a); }
+      box.append(d);
+    });
+  } catch (e) { /* abaikan */ }
+}
+
+async function poll(id) {
+  for (let i = 0; i < 40; i++) {
+    try {
+      const { order } = await api('order-status', { orderId: id });
+      msg(`Pesanan ${id}: ${LABEL[order.status] || order.status}${order.sn ? ' | SN: ' + order.sn : ''}`);
+      if (FINAL.includes(order.status)) break;
+    } catch (e) { msg(e.message); break; }
+    await new Promise((r) => setTimeout(r, 5000));
+  }
+  loadOrders();
+}
+</script>
+</body>
+</html>
