@@ -1482,6 +1482,8 @@ function jasaAdminCategoryData(body) {
 
 function jasaAdminServiceData(body) {
     if (body.active !== undefined && typeof body.active !== 'boolean') throw jasaAdminError(400, 'invalid-active', 'Status layanan harus berupa boolean.');
+    if (body.isFree !== undefined && typeof body.isFree !== 'boolean') throw jasaAdminError(400, 'invalid-is-free', 'Status layanan gratis harus berupa boolean.');
+    const isFree = body.isFree === true;
     const categoryId = jasaAdminId(body.categoryId, 'Kategori');
     const name = jasaAdminText(body.name, 120, 'Nama layanan', true);
     const summary = jasaAdminText(body.summary, 300, 'Ringkasan', true);
@@ -1489,7 +1491,7 @@ function jasaAdminServiceData(body) {
     const disclaimer = jasaAdminText(body.disclaimer, 1500, 'Disclaimer');
     const pricingNote = jasaAdminText(body.pricingNote, 300, 'Catatan harga');
     const unit = jasaAdminText(body.unit, 40, 'Satuan');
-    const scheduleMode = body.scheduleMode === undefined ? 'recurring' : jasaAdminText(body.scheduleMode, 20, 'Pengaturan jadwal', true);
+    const scheduleMode = body.scheduleMode === undefined ? 'none' : jasaAdminText(body.scheduleMode, 20, 'Pengaturan jadwal', true);
     if (!['none', 'date', 'datetime', 'recurring'].includes(scheduleMode)) throw jasaAdminError(400, 'invalid-schedule-mode', 'Pengaturan jadwal layanan tidak valid.');
     const scheduleLabelInput = jasaAdminText(body.scheduleLabel, 80, 'Judul bagian jadwal');
     const recipientLabelInput = jasaAdminText(body.recipientLabel, 60, 'Sebutan penerima');
@@ -1497,7 +1499,8 @@ function jasaAdminServiceData(body) {
     if (String(body.scheduleLabel ?? '').trim().length > 80) throw jasaAdminError(400, 'invalid-schedule-label', 'Judul bagian jadwal maksimal 80 karakter.');
     if (String(body.recipientLabel ?? '').trim().length > 60) throw jasaAdminError(400, 'invalid-recipient-label', 'Sebutan penerima maksimal 60 karakter.');
     if (String(body.consentText ?? '').trim().length > 300) throw jasaAdminError(400, 'invalid-consent-text', 'Teks persetujuan maksimal 300 karakter.');
-    const paymentOptions = body.paymentOptions === undefined ? ['full'] : body.paymentOptions;
+    // Layanan gratis tidak memakai pembayaran, jadi dipaksa ['full'] agar katalog tetap valid.
+    const paymentOptions = isFree ? ['full'] : (body.paymentOptions === undefined ? ['full'] : body.paymentOptions);
     if (!Array.isArray(paymentOptions) || !paymentOptions.length ||
         paymentOptions.some((option) => !['full', 'cash'].includes(option)) ||
         new Set(paymentOptions).size !== paymentOptions.length) {
@@ -1512,8 +1515,8 @@ function jasaAdminServiceData(body) {
         const priceType = jasaAdminText(item.priceType, 20, `Jenis harga ${index + 1}`, true);
         const price = Number(item.price);
         const dpPercent = item.dpPercent === undefined ? 30 : Number(item.dpPercent);
-        if (!['fixed', 'monthly', 'quote'].includes(priceType)) throw jasaAdminError(400, 'invalid-price-type', `Jenis harga paket ${packageName} tidak valid.`);
-        if (!Number.isSafeInteger(price) || price < 0 || price > 1000000000 || (priceType === 'quote' ? price !== 0 : price < 1)) {
+        if (!['fixed', 'monthly', 'quote', 'free'].includes(priceType)) throw jasaAdminError(400, 'invalid-price-type', `Jenis harga paket ${packageName} tidak valid.`);
+        if (!Number.isSafeInteger(price) || price < 0 || price > 1000000000 || (['quote', 'free'].includes(priceType) ? price !== 0 : price < 1)) {
             throw jasaAdminError(400, 'invalid-price', `Harga paket ${packageName} tidak valid.`);
         }
         if (!Number.isSafeInteger(dpPercent) || dpPercent < 10 || dpPercent > 90) throw jasaAdminError(400, 'invalid-dp-percent', `Persen DP paket ${packageName} harus berupa bilangan bulat 10 sampai 90.`);
@@ -1530,6 +1533,13 @@ function jasaAdminServiceData(body) {
     });
     if (new Set(packages.map((item) => item.id)).size !== packages.length) throw jasaAdminError(400, 'duplicate-package-id', 'ID paket harus unik.');
     if (body.active !== false && !packages.some((item) => item.active)) throw jasaAdminError(400, 'no-active-package', 'Layanan aktif harus memiliki minimal satu paket aktif.');
+    if (isFree) {
+        if (packages.length !== 1 || packages[0].priceType !== 'free') {
+            throw jasaAdminError(400, 'invalid-free-service', 'Layanan gratis harus memiliki tepat satu paket bertipe gratis.');
+        }
+    } else if (packages.some((item) => item.priceType === 'free')) {
+        throw jasaAdminError(400, 'invalid-free-service', 'Paket bertipe gratis hanya boleh dipakai pada layanan yang ditandai gratis.');
+    }
     if (packages.some((item) => item.priceType === 'monthly') && paymentOptions.some((option) => option !== 'full')) {
         throw jasaAdminError(400, 'monthly-full-only', 'Layanan dengan paket bulanan hanya boleh menawarkan pembayaran Full.');
     }
@@ -1577,6 +1587,7 @@ function jasaAdminServiceData(body) {
         description,
         image: jasaAdminImage(body.image),
         active: body.active !== false,
+        isFree,
         disclaimer,
         pricingNote,
         unit,
@@ -1584,7 +1595,8 @@ function jasaAdminServiceData(body) {
         packages,
         options,
         formFields,
-        needsParentProfile: body.needsParentProfile === true,
+        needsParentProfile: false,
+        askNote: body.askNote === true,
         scheduleMode,
         scheduleLabel: scheduleLabelInput || 'Preferensi jadwal',
         recipientLabel: recipientLabelInput || 'Penerima layanan',
@@ -1951,6 +1963,7 @@ async function jasaAdminAction(req, res, action) {
                     categoryId: root.categoryId,
                     disclaimer: root.disclaimer || '',
                     pricingNote: root.pricingNote || '',
+                    ...(root.address ? { address: root.address } : {}),
                     ...(root.parent ? { parent: root.parent } : {}),
                     consentAt: root.consentAt || now,
                     package: root.package,
@@ -2184,6 +2197,22 @@ async function jasaAdminAction(req, res, action) {
                         paymentOptions: ['cash'],
                         packages: [
                             { id: 'default', name: 'Contoh: Perbaikan Ringan', description: '', duration: '', priceType: 'quote', price: 0, dpPercent: 30, active: true }
+                        ],
+                        options: [], formFields: []
+                    }
+                }
+                            ,
+                {
+                    id: 'contoh-website-gratis', data: {
+                        categoryId: 'umum', name: 'Contoh: Pembuatan Website Gratis',
+                        summary: 'Pembuatan website sederhana tanpa biaya.',
+                        description: 'Pembuatan website sederhana tanpa biaya. Admin akan menghubungi Anda untuk membahas kebutuhan website.',
+                        image: '', active: true, isFree: true, disclaimer: 'Kuota layanan gratis terbatas dan dikonfirmasi admin.', pricingNote: '', unit: '',
+                        needsParentProfile: false, scheduleMode: 'datetime', scheduleLabel: 'Waktu konsultasi',
+                        recipientLabel: 'Lokasi layanan', consentText: '',
+                        paymentOptions: ['full'],
+                        packages: [
+                            { id: 'default', name: 'Contoh: Pembuatan Website Gratis', description: '', duration: '', priceType: 'free', price: 0, dpPercent: 30, active: true }
                         ],
                         options: [], formFields: []
                     }

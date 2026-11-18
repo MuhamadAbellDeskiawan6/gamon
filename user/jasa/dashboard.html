@@ -7,16 +7,16 @@
   <link rel="stylesheet" href="../marketplace/assets/style.css" />
   <link rel="stylesheet" href="../marketplace/assets/commerce.css" />
   <link rel="stylesheet" href="../marketplace/assets/neo.css" />
+  <link rel="stylesheet" href="jasa.css" />
 </head>
 <body data-page="jasa-dashboard">
   <header class="topbar"><div class="container nav">
     <a href="index.html" class="brand">Gamon Jasa (Beta)</a>
     <nav class="nav-actions" aria-label="Navigasi akun" data-jasa-nav></nav>
   </div></header>
-  <main class="container user-layout" style="padding:28px 0 56px">
-    <section class="panel"><span class="eyebrow">Akun Gamon Space</span><h1>Selamat datang</h1><p class="muted">Temukan jasa, kelola pesanan, dan simpan data penerima layanan untuk digunakan saat memesan.</p>
-      <div class="jasa-actions"><a class="btn btn-primary" href="index.html">Jelajahi layanan</a><a class="btn btn-secondary" href="pesanan.html">Pesanan saya</a><a class="btn btn-secondary" href="akun.html">Profil akun</a><a class="btn btn-secondary" href="profil.html">Penerima layanan</a></div>
-    </section>
+  <main class="container user-layout" style="padding:28px 0 56px;display:flex;flex-direction:column;gap:24px">
+    <p class="jasa-status" data-jasa-status role="status" aria-live="polite" hidden></p>
+    <div data-jasa-content aria-live="polite"><section class="panel"><p>Memuat…</p></section></div>
   </main>
   <script type="module" src="../marketplace/assets/app.js"></script>
 </body>

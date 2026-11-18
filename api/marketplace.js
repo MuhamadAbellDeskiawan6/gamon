@@ -1924,11 +1924,12 @@ async function jasaPublicCatalog(req, res) {
       disclaimer: cleanText(item.disclaimer, 1500),
       pricingNote: cleanText(item.pricingNote, 300),
       unit: cleanText(item.unit, 40),
+            isFree: item.isFree === true && item.packages.some((packageItem) => packageItem?.priceType === 'free'),
       paymentOptions: Array.isArray(item.paymentOptions)
         ? item.paymentOptions.filter((option) => ['full', 'dp', 'cash'].includes(option))
         : ['full'],
-      needsParentProfile: item.needsParentProfile === true,
-      scheduleMode: ['none', 'date', 'datetime', 'recurring'].includes(item.scheduleMode) ? item.scheduleMode : 'recurring',
+      askNote: item.askNote === true,
+      scheduleMode: ['none', 'date', 'datetime', 'recurring'].includes(item.scheduleMode) ? item.scheduleMode : 'none',
       scheduleLabel: cleanText(item.scheduleLabel, 80) || 'Preferensi jadwal',
       recipientLabel: cleanText(item.recipientLabel, 60) || 'Penerima layanan',
       consentText: cleanText(item.consentText, 300) || 'Saya memahami batas layanan dan menyetujui ketentuan pemesanan.',
@@ -1986,7 +1987,7 @@ async function createJasaDokuPayment(order, config, paymentEntry = {}) {
       name: dokuSafeText(order.buyerName, 100, 'Pembeli'),
       email: dokuSafeEmail(order.buyerEmail),
       phone: dokuSafePhone(order.buyerPhone),
-      address: dokuSafeText(order.parent?.address || order.buyerName, 200, 'Pemesanan jasa')
+      address: dokuSafeText(order.address?.address || order.parent?.address || order.buyerName, 200, 'Pemesanan jasa')
     },
     additional_info: { override_notification_url: `${config.siteUrl}/api/doku-notify` }
   };
@@ -2057,34 +2058,13 @@ function jasaDpAmount(total, percent) {
   return amount;
 }
 
+// Alamat & kontak berasal dari profil akun. Form hanya membawa catatan opsional.
 function jasaCleanFormData(service, input) {
-  if (!input || typeof input !== 'object' || Array.isArray(input)) {
-    throw jasaFailure(400, 'invalid-form', 'Data formulir jasa tidak valid.');
+  if (input !== undefined && (!input || typeof input !== 'object' || Array.isArray(input))) {
+    throw jasaFailure(400, 'invalid-form', 'Data pemesanan tidak valid.');
   }
-  const fields = Array.isArray(service.formFields) ? service.formFields.slice(0, 20) : [];
-  if (!fields.length) {
-    const values = {
-      alamat: cleanText(input.alamat, 500),
-      catatan: cleanText(input.catatan, 500),
-      mapsUrl: cleanText(input.mapsUrl, 300)
-    };
-    if (!values.alamat) throw jasaFailure(400, 'required-field', 'Alamat wajib diisi.');
-    return values;
-  }
-  const values = {};
-  for (const field of fields) {
-    const key = cleanText(field.key, 60);
-    const value = cleanText(input[key], 1000);
-    if (field.required && !value) throw jasaFailure(400, 'required-field', `${cleanText(field.label, 100) || key} wajib diisi.`);
-    if (field.type === 'select' && value && !((field.options || []).map((option) => cleanText(option, 100)).includes(value))) {
-      throw jasaFailure(400, 'invalid-field-option', `Pilihan ${cleanText(field.label, 100) || key} tidak valid.`);
-    }
-    if (field.type === 'number' && value && !/^[0-9.,]{1,20}$/.test(value)) {
-      throw jasaFailure(400, 'invalid-field-value', `${cleanText(field.label, 100) || key} hanya boleh berisi angka, titik, atau koma (maksimal 20 karakter).`);
-    }
-    if (value) values[key] = value;
-  }
-  return values;
+  const catatan = cleanText(input?.catatan, 500);
+  return catatan ? { catatan } : {};
 }
 
 function jasaCleanSchedule(input, mode = 'recurring') {
@@ -2113,116 +2093,6 @@ function jasaCleanSchedule(input, mode = 'recurring') {
   return { mode, date, time: mode === 'date' ? '' : time, recurring, days: recurring ? days : [] };
 }
 
-function jasaValidPhone(value) {
-  const phone = cleanText(value, 30);
-  return /^\+?[0-9][0-9\s().-]{6,23}$/.test(phone) && phone.replace(/\D/g, '').length >= 8;
-}
-
-function jasaCleanParents(input, existingParents = []) {
-  if (!Array.isArray(input) || input.length > 5) throw jasaFailure(400, 'invalid-parent-profiles', 'Simpan maksimal 5 data penerima layanan.');
-  if (input.some((item) => item?.isSelf !== undefined && typeof item.isSelf !== 'boolean')) {
-    throw jasaFailure(400, 'invalid-parent-profile', 'Penanda diri sendiri harus berupa boolean.');
-  }
-  if (input.filter((item) => item?.isSelf === true).length > 1) {
-    throw jasaFailure(400, 'duplicate-self-profile', 'Simpan maksimal satu data diri sendiri.');
-  }
-  const ids = new Set();
-  const existingById = new Map((Array.isArray(existingParents) ? existingParents : [])
-    .filter((item) => item && typeof item === 'object' && item.id)
-    .map((item) => [String(item.id), item]));
-  return input.map((item, index) => {
-    if (!item || typeof item !== 'object' || Array.isArray(item)) throw jasaFailure(400, 'invalid-parent-profile', `Data penerima layanan nomor ${index + 1} tidak valid.`);
-    const id = jasaValidateId(item.id, 'ID data penerima');
-    const isSelf = item.isSelf === true;
-    if (ids.has(id)) throw jasaFailure(400, 'duplicate-parent-id', 'ID data penerima harus unik.');
-    ids.add(id);
-    const name = cleanText(item.name, 120);
-    const address = cleanText(item.address, 500);
-    const city = cleanText(item.city, 120);
-    const district = cleanText(item.district, 100);
-    const village = cleanText(item.village, 100);
-    const postalCode = cleanText(item.postalCode, 20);
-    const latitudeText = String(item.latitude ?? '').trim();
-    const longitudeText = String(item.longitude ?? '').trim();
-    const latitude = latitudeText ? Number(latitudeText) : NaN;
-    const longitude = longitudeText ? Number(longitudeText) : NaN;
-    const emergencyContactName = cleanText(item.emergencyContactName, 120);
-    const emergencyContactPhone = cleanText(item.emergencyContactPhone, 30);
-    const notes = cleanText(item.notes, 700);
-    if (!name || !address || (emergencyContactPhone && !jasaValidPhone(emergencyContactPhone))) {
-      throw jasaFailure(400, 'invalid-parent-profile', `Nama dan alamat wajib diisi untuk data penerima layanan nomor ${index + 1}; nomor telepon harus valid jika diisi.`);
-    }
-    const existing = existingById.get(id);
-    const sameText = (submitted, stored, maxLength) => cleanText(submitted, maxLength) === cleanText(stored, maxLength);
-    const sameCoordinate = (submitted, stored) => {
-      const submittedText = String(submitted ?? '').trim();
-      const storedText = String(stored ?? '').trim();
-      if (!submittedText || !storedText) return !submittedText && !storedText;
-      const submittedNumber = Number(submittedText);
-      const storedNumber = Number(storedText);
-      return Number.isFinite(submittedNumber) && Number.isFinite(storedNumber)
-        ? submittedNumber === storedNumber
-        : submittedText === storedText;
-    };
-    const existingLatitudeText = String(existing?.latitude ?? '').trim();
-    const existingLongitudeText = String(existing?.longitude ?? '').trim();
-    const existingLatitude = existingLatitudeText ? Number(existingLatitudeText) : NaN;
-    const existingLongitude = existingLongitudeText ? Number(existingLongitudeText) : NaN;
-    const existingHasCompleteRegion = Boolean(
-      KALSEL_CITIES.has(cleanText(existing?.city, 120)) &&
-      cleanText(existing?.district, 100) &&
-      cleanText(existing?.village, 100) &&
-      Number.isFinite(existingLatitude) && existingLatitude >= -90 && existingLatitude <= 90 &&
-      Number.isFinite(existingLongitude) && existingLongitude >= -180 && existingLongitude <= 180
-    );
-    const isLegacyUnchanged = Boolean(existing && !existingHasCompleteRegion &&
-      sameText(item.city, existing.city, 120) &&
-      sameText(item.district, existing.district, 100) &&
-      sameText(item.village, existing.village, 100) &&
-      sameCoordinate(item.latitude, existing.latitude) &&
-      sameCoordinate(item.longitude, existing.longitude));
-    if (isLegacyUnchanged) {
-      return {
-        id, name, address,
-        isSelf,
-        province: cleanText(item.province, 100),
-        city, district, village, postalCode,
-        latitude: latitudeText ? (Number.isFinite(latitude) ? latitude : cleanText(item.latitude, 30)) : null,
-        longitude: longitudeText ? (Number.isFinite(longitude) ? longitude : cleanText(item.longitude, 30)) : null,
-        mapsUrl: cleanText(item.mapsUrl, 500),
-        emergencyContactName, emergencyContactPhone, notes
-      };
-    }
-    const parentLabel = `data penerima "${name}"`;
-    if (!KALSEL_CITIES.has(city) || !district || !village ||
-      !Number.isFinite(latitude) || latitude < -90 || latitude > 90 ||
-      !Number.isFinite(longitude) || longitude < -180 || longitude > 180) {
-      throw jasaFailure(400, 'invalid-parent-profile', `Lengkapi kota/kabupaten, kecamatan, kelurahan, dan titik peta untuk ${parentLabel}.`);
-    }
-    if (latitude < -4.3 || latitude > -1.2 || longitude < 114.3 || longitude > 116.8) {
-      throw jasaFailure(400, 'invalid-parent-profile', `Titik peta ${parentLabel} harus berada di wilayah Kalimantan Selatan.`);
-    }
-    const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
-    return { id, name, address, isSelf, province: 'Kalimantan Selatan', city, district, village, postalCode, latitude, longitude, mapsUrl, emergencyContactName, emergencyContactPhone, notes };
-  });
-}
-
-async function jasaGetProfile(req, res, claims) {
-  const ref = getAdminDb().collection('jasa_profiles').doc(claims.uid);
-  const snapshot = await retryNetwork(() => ref.get());
-  const data = snapshot.exists ? snapshot.data() || {} : {};
-  return res.status(200).json({ success: true, profile: { parents: Array.isArray(data.parents) ? data.parents : [] } });
-}
-
-async function jasaSaveProfile(req, res, claims) {
-  const ref = getAdminDb().collection('jasa_profiles').doc(claims.uid);
-  const snapshot = await retryNetwork(() => ref.get());
-  const data = snapshot.exists ? snapshot.data() || {} : {};
-  const existingParents = Array.isArray(data.parents) ? data.parents : [];
-  const parents = jasaCleanParents(req.body?.parents, existingParents);
-  await retryNetwork(() => ref.set({ parents, updatedAt: Date.now() }));
-  return res.status(200).json({ success: true, profile: { parents }, message: 'Data penerima layanan berhasil disimpan.' });
-}
 
 async function jasaSendBuyerEmail(order, subject, text, html) {
   try {
@@ -2245,14 +2115,48 @@ async function jasaSendPaymentConfirmation(order) {
 async function jasaNotifyAdmin(order) {
   const to = String(process.env.ADMIN_NOTIFY_EMAIL || 'muhamadabelldeskiawan@gmail.com').trim();
   const adminUrl = `${String(process.env.SITE_URL || DEFAULT_SITE_URL).replace(/\/$/, '')}/admin/jasa-orders.html`;
-  const subject = `Pesanan Jasa Baru ${order.orderCode}`;
-  const text = `Pesanan ${order.orderCode}\nJasa: ${order.serviceName}\nPaket: ${order.package.name}\nPembeli: ${order.buyerName} (${order.buyerEmail})\nStatus: ${order.status}`;
-  const html = `<p>Pesanan jasa baru masuk.</p><p><b>${jasaHtml(order.orderCode)}</b> — ${jasaHtml(order.serviceName)}</p><p>Paket: ${jasaHtml(order.package.name)}<br>Pembeli: ${jasaHtml(order.buyerName)} (${jasaHtml(order.buyerEmail)})<br>Status: ${jasaHtml(order.status)}</p><p><a href="${jasaHtml(adminUrl)}">Buka panel pesanan jasa</a></p>`;
+  const free = order.isFreeClaim === true;
+  const subject = `${free ? 'Klaim Jasa Gratis' : 'Pesanan Jasa Baru'} ${order.orderCode}`;
+  const place = [order.address?.address, order.address?.village, order.address?.district, order.address?.city].filter(Boolean).join(', ');
+  const text = `${free ? 'Klaim gratis' : 'Pesanan'} ${order.orderCode}\nJasa: ${order.serviceName}\nPaket: ${order.package.name}\nPembeli: ${order.buyerName} (${order.buyerEmail}, ${order.buyerPhone})\nAlamat: ${place || '-'}\nStatus: ${order.status}`;
+  const html = `<p>${free ? 'Klaim layanan gratis' : 'Pesanan jasa baru'} masuk.</p><p><b>${jasaHtml(order.orderCode)}</b> — ${jasaHtml(order.serviceName)}</p><p>Paket: ${jasaHtml(order.package.name)}<br>Pembeli: ${jasaHtml(order.buyerName)} (${jasaHtml(order.buyerEmail)}, ${jasaHtml(order.buyerPhone)})<br>Alamat: ${jasaHtml(place || '-')}<br>Status: ${jasaHtml(order.status)}</p><p><a href="${jasaHtml(adminUrl)}">Buka panel pesanan jasa</a></p>`;
   try {
     await sendEmail({ to, subject, html, text });
   } catch (error) {
     console.error('[jasa] email pesanan admin gagal:', { orderCode: order.orderCode, code: error.code || 'unknown', message: error.message });
   }
+}
+
+function getJasaFreeMaxActive() {
+  loadLocalEnvFallback();
+  return getCodSetting('JASA_FREE_MAX_ACTIVE', 2);
+}
+
+// Alamat pemesan = alamat di profil akun (marketplace_users.shipping). Wajib wilayah Kalsel.
+function jasaAccountAddress(account) {
+  let shipping;
+  try { shipping = readShippingAddress(account); } catch (error) {
+    throw jasaFailure(409, 'profile-incomplete', 'Lengkapi alamat dan titik peta di Profil akun sebelum memesan.');
+  }
+  if (!KALSEL_CITIES.has(shipping.city) || !shipping.district || !shipping.village) {
+    throw jasaFailure(409, 'profile-incomplete', 'Lengkapi kota/kabupaten, kecamatan, dan kelurahan di Profil akun sebelum memesan.');
+  }
+  if (shipping.latitude < -4.3 || shipping.latitude > -1.2 || shipping.longitude < 114.3 || shipping.longitude > 116.8) {
+    throw jasaFailure(409, 'address-outside-area', 'Titik peta di Profil akun harus berada di wilayah Kalimantan Selatan.');
+  }
+  return {
+    address: shipping.address,
+    province: 'Kalimantan Selatan',
+    city: shipping.city,
+    district: shipping.district,
+    village: shipping.village,
+    postalCode: shipping.postalCode,
+    note: shipping.note,
+    latitude: shipping.latitude,
+    longitude: shipping.longitude,
+    mapsUrl: shipping.mapsUrl,
+    phone: shipping.phone
+  };
 }
 
 async function jasaCheckout(req, res, claims) {
@@ -2263,30 +2167,45 @@ async function jasaCheckout(req, res, claims) {
   const db = getAdminDb();
   const serviceRef = db.collection('jasa_services').doc(serviceId);
   const categoryRef = db.collection('jasa_categories').doc(requestedCategoryId);
-  const profileRef = db.collection('jasa_profiles').doc(claims.uid);
-  const [serviceSnapshot, categorySnapshot, profileSnapshot] = await retryNetwork(() =>
-    db.getAll(serviceRef, categoryRef, profileRef));
+  const accountRef = db.collection('marketplace_users').doc(claims.uid);
+  const [serviceSnapshot, categorySnapshot, accountSnapshot] = await retryNetwork(() =>
+    db.getAll(serviceRef, categoryRef, accountRef));
   if (!serviceSnapshot.exists || serviceSnapshot.data()?.active !== true) throw jasaFailure(404, 'service-unavailable', 'Layanan tidak ditemukan atau sedang tidak tersedia.');
   const service = serviceSnapshot.data() || {};
   if (String(service.categoryId || '') !== requestedCategoryId) throw jasaFailure(400, 'invalid-category', 'Kategori layanan tidak cocok.');
   const packages = Array.isArray(service.packages) ? service.packages : [];
   const selectedPackage = packages.find((item) => item.id === packageId && item.active !== false);
-  if (!selectedPackage || !['fixed', 'monthly', 'quote'].includes(selectedPackage.priceType)) throw jasaFailure(400, 'package-unavailable', 'Paket tidak tersedia.');
-  const paymentOptions = service.paymentOptions === undefined ? ['full'] : service.paymentOptions;
-  if (!Array.isArray(paymentOptions) || !paymentOptions.length ||
-      paymentOptions.some((option) => !['full', 'dp', 'cash'].includes(option)) ||
-      new Set(paymentOptions).size !== paymentOptions.length) {
-    throw jasaFailure(409, 'invalid-payment-options', 'Pilihan pembayaran layanan tidak valid. Hubungi admin.');
+  if (!selectedPackage || !['fixed', 'monthly', 'quote', 'free'].includes(selectedPackage.priceType)) throw jasaFailure(400, 'package-unavailable', 'Paket tidak tersedia.');
+
+  // ---- Layanan gratis: ditentukan SERVER, bukan klien ----
+  const isFreePackage = selectedPackage.priceType === 'free';
+  if (isFreePackage && service.isFree !== true) {
+    throw jasaFailure(409, 'invalid-free-service', 'Konfigurasi layanan gratis tidak valid. Hubungi admin.');
   }
-  const paymentPlan = body.paymentPlan === undefined ? 'full' : cleanText(body.paymentPlan, 10);
-  if (!['full', 'dp', 'cash'].includes(paymentPlan) || !paymentOptions.includes(paymentPlan)) {
-    throw jasaFailure(400, 'invalid-payment-plan', 'Pilih cara pembayaran yang tersedia untuk layanan ini.');
+  let paymentPlan;
+  if (isFreePackage) {
+    if (body.paymentPlan !== undefined && cleanText(body.paymentPlan, 10) !== 'free') {
+      throw jasaFailure(400, 'invalid-payment-plan', 'Layanan gratis tidak memerlukan pembayaran.');
+    }
+    paymentPlan = 'free';
+  } else {
+    const paymentOptions = service.paymentOptions === undefined ? ['full'] : service.paymentOptions;
+    if (!Array.isArray(paymentOptions) || !paymentOptions.length ||
+        paymentOptions.some((option) => !['full', 'dp', 'cash'].includes(option)) ||
+        new Set(paymentOptions).size !== paymentOptions.length) {
+      throw jasaFailure(409, 'invalid-payment-options', 'Pilihan pembayaran layanan tidak valid. Hubungi admin.');
+    }
+    paymentPlan = body.paymentPlan === undefined ? 'full' : cleanText(body.paymentPlan, 10);
+    if (!['full', 'dp', 'cash'].includes(paymentPlan) || !paymentOptions.includes(paymentPlan)) {
+      throw jasaFailure(400, 'invalid-payment-plan', 'Pilih cara pembayaran yang tersedia untuk layanan ini.');
+    }
+    if (selectedPackage.priceType === 'monthly' && paymentPlan !== 'full') {
+      throw jasaFailure(400, 'monthly-full-only', 'Paket bulanan hanya dapat dibayar penuh.');
+    }
   }
-  if (selectedPackage.priceType === 'monthly' && paymentPlan !== 'full') {
-    throw jasaFailure(400, 'monthly-full-only', 'Paket bulanan hanya dapat dibayar penuh.');
-  }
+  const zeroPriceType = ['quote', 'free'].includes(selectedPackage.priceType);
   const price = Number(selectedPackage.price);
-  if (!Number.isSafeInteger(price) || price < 0 || (selectedPackage.priceType !== 'quote' && price < 1) || (selectedPackage.priceType === 'quote' && price !== 0)) {
+  if (!Number.isSafeInteger(price) || price < 0 || (zeroPriceType ? price !== 0 : price < 1)) {
     throw jasaFailure(409, 'invalid-service-price', 'Harga paket tidak valid. Hubungi admin.');
   }
   if (!categorySnapshot.exists || categorySnapshot.data()?.active !== true) {
@@ -2294,72 +2213,43 @@ async function jasaCheckout(req, res, claims) {
     if (!activeCategories.empty) throw jasaFailure(404, 'service-unavailable', 'Kategori layanan sedang tidak tersedia.');
   }
 
-  const buyerName = cleanText(body.buyerName || claims.name, 120);
-  const buyerPhone = cleanText(body.buyerPhone, 40);
+  // ---- Pemesan = pemilik akun. Semua data dari profil akun di server ----
+  const account = accountSnapshot.exists ? accountSnapshot.data() || {} : {};
+  const addressInfo = jasaAccountAddress(account);
+  const buyerName = cleanText(account.name || claims.name, 120);
+  const buyerPhone = cleanText(account.phone || addressInfo.phone, 40);
   const buyerEmail = cleanText(claims.email, 180).toLowerCase();
-  if (!buyerName) throw jasaFailure(400, 'buyer-name-required', 'Nama pemesan wajib diisi.');
-  if (!/^\+?[0-9\s().-]{8,24}$/.test(buyerPhone)) throw jasaFailure(400, 'buyer-phone-invalid', 'Nomor telepon pemesan belum valid.');
+  if (!buyerName) throw jasaFailure(409, 'profile-incomplete', 'Lengkapi nama lengkap di Profil akun sebelum memesan.');
+  if (!/^\+?[0-9\s().-]{8,24}$/.test(buyerPhone)) throw jasaFailure(409, 'profile-incomplete', 'Lengkapi nomor HP yang valid di Profil akun sebelum memesan.');
   if (!buyerEmail) throw jasaFailure(400, 'buyer-email-required', 'Email akun tidak tersedia.');
+  const { phone: _ignoredPhone, ...address } = addressInfo;
 
-  if (body.selectedOptions !== undefined && !Array.isArray(body.selectedOptions)) throw jasaFailure(400, 'invalid-option', 'Pilihan kebutuhan tidak valid.');
-  const selectedOptions = Array.isArray(body.selectedOptions) ? [...new Set(body.selectedOptions.map((item) => jasaValidateId(item, 'Opsi')))] : [];
-  const availableOptions = Array.isArray(service.options) ? service.options : [];
-  if (selectedOptions.some((id) => !availableOptions.some((option) => option.id === id))) throw jasaFailure(400, 'invalid-option', 'Pilihan kebutuhan tidak valid.');
-  if (selectedOptions.length > 20) throw jasaFailure(400, 'too-many-options', 'Pilihan kebutuhan terlalu banyak.');
   const formData = jasaCleanFormData(service, body.formData);
-  let parent = null;
-  if (service.needsParentProfile === true) {
-    if (body.parentConsent !== true) throw jasaFailure(400, 'parent-consent-required', 'Setujui ketentuan layanan sebelum melanjutkan.');
-    const parentId = jasaValidateId(body.parentId, 'Profil penerima layanan');
-    const parentEntry = (profileSnapshot.data()?.parents || []).find((item) => item.id === parentId);
-    if (!parentEntry) throw jasaFailure(400, 'parent-profile-required', 'Pilih profil penerima layanan yang tersimpan sebelum memesan.');
-    const parentLatitude = parentEntry.latitude === null || parentEntry.latitude === undefined || parentEntry.latitude === '' ? null : Number(parentEntry.latitude);
-    const parentLongitude = parentEntry.longitude === null || parentEntry.longitude === undefined || parentEntry.longitude === '' ? null : Number(parentEntry.longitude);
-    parent = {
-      id: jasaValidateId(parentEntry.id, 'ID data penerima'),
-      name: cleanText(parentEntry.name, 120),
-      isSelf: parentEntry.isSelf === true,
-      address: cleanText(parentEntry.address, 500),
-      province: cleanText(parentEntry.province, 100),
-      city: cleanText(parentEntry.city, 120),
-      district: cleanText(parentEntry.district, 100),
-      village: cleanText(parentEntry.village, 100),
-      postalCode: cleanText(parentEntry.postalCode, 20),
-      latitude: Number.isFinite(parentLatitude) ? parentLatitude : null,
-      longitude: Number.isFinite(parentLongitude) ? parentLongitude : null,
-      mapsUrl: cleanText(parentEntry.mapsUrl, 500),
-      emergencyContactName: cleanText(parentEntry.emergencyContactName, 120),
-      emergencyContactPhone: cleanText(parentEntry.emergencyContactPhone, 30),
-      notes: cleanText(parentEntry.notes, 700)
-    };
-  } else if (body.parentConsent !== true) {
-    throw jasaFailure(400, 'parent-consent-required', 'Konfirmasi persetujuan layanan dan penggunaan data sebelum melanjutkan.');
-  }
-  const scheduleMode = ['none', 'date', 'datetime', 'recurring'].includes(service.scheduleMode) ? service.scheduleMode : 'recurring';
+  const scheduleMode = ['none', 'date', 'datetime', 'recurring'].includes(service.scheduleMode) ? service.scheduleMode : 'none';
   const schedule = jasaCleanSchedule(body.schedule, scheduleMode);
   const now = Date.now();
   const orderCode = jasaOrderCode();
+  const isQuote = selectedPackage.priceType === 'quote';
+  const initialStatus = isQuote
+    ? 'awaiting_quote'
+    : (paymentPlan === 'cash' || isFreePackage) ? 'awaiting_confirmation' : 'awaiting_payment';
   const order = {
     orderCode,
     userId: claims.uid,
     buyerName,
     buyerEmail,
     buyerPhone,
+    address: { name: buyerName, ...address },
     serviceId,
     serviceName: cleanText(service.name, 120),
     serviceImage: jasaImageUrl(service.image),
     categoryId: cleanText(service.categoryId, 120),
     scheduleMode,
-    scheduleLabel: cleanText(service.scheduleLabel, 80) || 'Preferensi jadwal',
-    recipientLabel: cleanText(service.recipientLabel, 60) || 'Penerima layanan',
-    consentText: cleanText(service.consentText, 300) || 'Saya memahami batas layanan dan menyetujui ketentuan pemesanan.',
+    scheduleLabel: cleanText(service.scheduleLabel, 80) || 'Jadwal',
+    consentAt: now,
     disclaimer: cleanText(service.disclaimer, 1500),
     pricingNote: cleanText(service.pricingNote, 300),
-    formFieldLabels: Array.isArray(service.formFields) && service.formFields.length
-      ? Object.fromEntries(service.formFields.map((field) => [cleanText(field.key, 60), cleanText(field.label, 120)]))
-      : { alamat: 'Alamat', catatan: 'Catatan', mapsUrl: 'Link peta' },
-    ...(parent ? { parent } : {}),
-    consentAt: now,
+    formFieldLabels: { catatan: 'Catatan' },
     package: {
       id: selectedPackage.id,
       name: cleanText(selectedPackage.name, 120),
@@ -2369,23 +2259,24 @@ async function jasaCheckout(req, res, claims) {
       price,
       dpPercent: Number.isSafeInteger(selectedPackage.dpPercent) ? selectedPackage.dpPercent : 30
     },
-    selectedOptions,
+    selectedOptions: [],
     formData,
     schedule,
-    totalAmount: selectedPackage.priceType === 'quote' ? 0 : price,
+    totalAmount: zeroPriceType ? 0 : price,
     paymentPlan,
     payments: [],
     paidAmount: 0,
-    remainingAmount: selectedPackage.priceType === 'quote' ? 0 : price,
-    paymentMethod: paymentPlan === 'cash' ? 'CASH' : 'DOKU',
-    paymentStatus: 'UNPAID',
-    status: selectedPackage.priceType === 'quote' ? 'awaiting_quote' : paymentPlan === 'cash' ? 'awaiting_confirmation' : 'awaiting_payment',
-    statusHistory: [{ status: selectedPackage.priceType === 'quote' ? 'awaiting_quote' : paymentPlan === 'cash' ? 'awaiting_confirmation' : 'awaiting_payment', at: now, by: claims.uid }],
+    remainingAmount: zeroPriceType ? 0 : price,
+    paymentMethod: isFreePackage ? 'FREE' : paymentPlan === 'cash' ? 'CASH' : 'DOKU',
+    paymentStatus: isFreePackage ? 'FREE' : 'UNPAID',
+    ...(isFreePackage ? { isFreeClaim: true } : {}),
+    status: initialStatus,
+    statusHistory: [{ status: initialStatus, at: now, by: claims.uid }],
     visits: [],
     paymentUrl: '',
     createdAt: now,
     updatedAt: now,
-    ...(selectedPackage.priceType === 'quote' ? {} : paymentPlan === 'cash'
+    ...(isQuote ? {} : (paymentPlan === 'cash' || isFreePackage)
       ? { confirmationExpiresAt: now + 24 * 60 * 60 * 1000 }
       : { paymentExpiresAt: now + PAYMENT_WINDOW_MS })
   };
@@ -2393,7 +2284,7 @@ async function jasaCheckout(req, res, claims) {
     order.subscription = { status: 'active', startedAt: now, cycle: 1 };
     order.orderType = 'subscription_start';
   }
-  if (selectedPackage.priceType !== 'quote' && paymentPlan !== 'cash') {
+  if (!isQuote && !isFreePackage && paymentPlan !== 'cash') {
     const firstAmount = paymentPlan === 'dp' ? jasaDpAmount(price, order.package.dpPercent) : price;
     const paymentEntry = {
       id: orderCode,
@@ -2421,7 +2312,25 @@ async function jasaCheckout(req, res, claims) {
   }
   const orderRef = db.collection('jasa_orders').doc(orderCode);
   try {
-    if (paymentPlan === 'cash' && selectedPackage.priceType !== 'quote') {
+    if (isFreePackage) {
+      // Klaim gratis: SATU KALI per layanan per akun (hanya klaim 'expired' yang tidak dihitung).
+      await retryNetwork(() => db.runTransaction(async (transaction) => {
+        const ownOrders = await transaction.get(db.collection('jasa_orders').where('userId', '==', claims.uid));
+        const mine = ownOrders.docs.map((item) => item.data() || {});
+        const alreadyClaimed = mine.some((current) =>
+          current.isFreeClaim === true && current.serviceId === serviceId && current.status !== 'expired');
+        if (alreadyClaimed) {
+          throw jasaFailure(409, 'free-already-claimed', 'Anda sudah pernah mengklaim layanan gratis ini. Satu akun hanya bisa klaim satu kali.');
+        }
+        const activeFree = mine.filter((current) =>
+          current.isFreeClaim === true &&
+          ['awaiting_confirmation', 'scheduled', 'in_progress'].includes(current.status)).length;
+        if (activeFree >= getJasaFreeMaxActive()) {
+          throw jasaFailure(409, 'free-too-many-active', `Anda memiliki ${getJasaFreeMaxActive()} klaim layanan gratis aktif. Selesaikan atau batalkan dulu.`);
+        }
+        transaction.create(orderRef, order);
+      }));
+    } else if (paymentPlan === 'cash' && !isQuote) {
       await retryNetwork(() => db.runTransaction(async (transaction) => {
         const activeQuery = db.collection('jasa_orders').where('userId', '==', claims.uid);
         const activeOrders = await transaction.get(activeQuery);
@@ -2442,7 +2351,17 @@ async function jasaCheckout(req, res, claims) {
     if (!existing.exists || existingOrder.userId !== claims.uid || existingOrder.createdAt !== now || existingOrder.serviceId !== serviceId) throw error;
   }
   await jasaNotifyAdmin(order);
-  return res.status(200).json({ success: true, orderId: orderCode, orderCode, status: order.status, paymentUrl: order.paymentUrl || '' });
+  return res.status(200).json({ success: true, orderId: orderCode, orderCode, status: order.status, paymentUrl: order.paymentUrl || '', isFreeClaim: isFreePackage });
+}
+
+// Daftar id layanan gratis yang sudah diklaim akun ini (dipakai untuk menonaktifkan tombol klaim).
+async function jasaClaimedFree(req, res, claims) {
+  const snapshot = await retryNetwork(() => getAdminDb().collection('jasa_orders').where('userId', '==', claims.uid).get());
+  const serviceIds = [...new Set(snapshot.docs
+    .map((item) => item.data() || {})
+    .filter((order) => order.isFreeClaim === true && order.status !== 'expired')
+    .map((order) => String(order.serviceId)))];
+  return res.status(200).json({ success: true, serviceIds });
 }
 
 async function jasaMyOrders(req, res, claims) {
@@ -2728,8 +2647,7 @@ async function jasaCheckPayment(req, res, claims) {
 async function handleJasaBuyerAction(action, req, res, claims) {
   if (action === 'jasa-notify-chat') return jasaNotifyChat(req, res, claims);
   if (action === 'jasa-checkout') return jasaCheckout(req, res, claims);
-  if (action === 'jasa-get-profile') return jasaGetProfile(req, res, claims);
-  if (action === 'jasa-save-profile') return jasaSaveProfile(req, res, claims);
+  if (action === 'jasa-claimed-free') return jasaClaimedFree(req, res, claims);
   if (action === 'jasa-my-orders') return jasaMyOrders(req, res, claims);
   if (action === 'jasa-cancel-order') return jasaCancelOrder(req, res, claims);
   if (action === 'jasa-pay-again') return jasaPayAgain(req, res, claims);

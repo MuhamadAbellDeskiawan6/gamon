@@ -14,560 +14,143 @@
     <script src="/admin/partials/sidebar.js"></script>
     <main class="px-4 py-8 lg:px-8">
       <div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div><h1 class="text-2xl font-bold text-slate-900">Gamon Jasa (Beta)</h1><p class="mt-1 text-sm text-slate-500">Kelola kategori dan layanan panggilan.</p></div>
+        <div><h1 class="text-2xl font-bold text-slate-900">Gamon Jasa (Beta)</h1><p class="mt-1 text-sm text-slate-500">Kelola kategori dan layanan. Data pemesan diambil dari profil akun pembeli.</p></div>
         <div class="flex flex-col gap-1">
           <button id="seedButton" type="button" class="rounded-xl bg-pink-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-pink-500">Isi contoh data</button>
           <p class="text-xs text-slate-500">Membuat contoh kategori dan layanan untuk dicoba.</p>
         </div>
       </div>
       <p id="pageStatus" class="mb-4 text-sm text-rose-700" role="status" aria-live="polite"></p>
+
       <div class="grid gap-6 xl:grid-cols-2">
+        <!-- KATEGORI -->
         <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <h2 class="text-lg font-bold">Kategori</h2>
           <form id="categoryForm" class="mt-4 grid gap-3 sm:grid-cols-2">
             <label class="grid gap-1 text-sm font-medium text-slate-700">Nama kategori
               <input name="name" required maxlength="100" placeholder="Contoh: Kebersihan" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
             </label>
-            <input name="slug" type="hidden" />
-            <input name="icon" type="hidden" value="handyman" />
-            <input name="tagline" type="hidden" />
-            <input name="description" type="hidden" />
-            <input name="order" type="hidden" value="0" />
-            <label class="flex items-center gap-2 text-sm"><input name="active" type="checkbox" checked /> Aktif</label>
+            <label class="flex items-center gap-2 self-end pb-2 text-sm"><input name="active" type="checkbox" checked /> Aktif</label>
             <div class="flex gap-2 sm:col-span-2"><button class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white" type="submit">Simpan kategori</button><button class="rounded-xl border px-4 py-2 text-sm" type="reset">Bersihkan</button></div>
           </form>
           <div id="categoriesList" class="mt-5 space-y-2" aria-live="polite">Memuat kategori…</div>
         </section>
+
+        <!-- LAYANAN -->
         <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <h2 class="text-lg font-bold">Layanan jasa</h2>
-          <form id="serviceForm" class="mt-4 grid gap-3">
-            <div class="grid gap-3">
-              <label class="grid gap-1 text-sm font-medium text-slate-700">Kategori
-                <select name="simpleCategoryId" required class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm"><option value="">Pilih kategori</option></select>
-                <span class="text-xs font-normal text-slate-500">Pilih kategori layanan.</span>
-              </label>
-              <label class="grid gap-1 text-sm font-medium text-slate-700">Nama layanan *
-                <input name="simpleName" required maxlength="120" placeholder="Contoh: Cuci AC" class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm" />
-              </label>
-              <label class="grid gap-1 text-sm font-medium text-slate-700">Deskripsi singkat *
-                <textarea name="simpleDescription" required maxlength="500" placeholder="Jelaskan layanan dalam satu atau dua kalimat." class="min-h-24 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm"></textarea>
-              </label>
-              <label class="grid gap-1 text-sm font-medium text-slate-700">Foto (opsional)
-                <input name="simpleImage" type="text" maxlength="800" placeholder="URL HTTPS atau unggah foto" class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm" />
-                <div class="flex flex-wrap gap-2">
-                  <input data-service-image-file type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" class="hidden" />
-                  <button data-service-image-upload type="button" class="rounded-lg border px-3 py-1.5 text-xs">Unggah foto</button>
-                  <button data-service-image-remove type="button" class="rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs text-rose-700">Hapus foto</button>
-                </div>
-                <img data-service-image-preview alt="Pratinjau foto layanan" hidden class="mt-2 max-h-48 w-full rounded-xl object-cover" />
-              </label>
-              <fieldset class="grid gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
-                <legend class="px-1 text-sm font-semibold text-slate-700">Harga</legend>
-                <label class="flex items-center gap-2 text-sm"><input name="simplePriceType" type="radio" value="fixed" checked /> Harga tetap</label>
-                <label class="flex items-center gap-2 text-sm"><input name="simplePriceType" type="radio" value="quote" /> Harga disepakati (admin kirim penawaran)</label>
-                <div data-simple-fixed-price class="grid gap-2">
-                  <label class="grid gap-1 text-sm font-medium text-slate-700">Harga
-                    <span class="relative"><span class="absolute left-3 top-2 text-sm text-slate-500">Rp</span><input name="simplePrice" inputmode="numeric" autocomplete="off" placeholder="75.000" class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 pl-10 text-sm" /></span>
-                  </label>
-                  <label class="grid gap-1 text-sm font-medium text-slate-700">Satuan
-                    <input name="simpleUnit" maxlength="40" placeholder="per unit / per jam / per kunjungan" class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" />
-                  </label>
-                </div>
-              </fieldset>
-              <fieldset class="grid gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
-                <legend class="px-1 text-sm font-semibold text-slate-700">Metode bayar</legend>
-                <label class="flex items-center gap-2 text-sm"><input name="simplePaymentOptions" type="checkbox" value="full" checked /> Bayar online (DOKU)</label>
-                <label class="flex items-center gap-2 text-sm"><input name="simplePaymentOptions" type="checkbox" value="cash" /> Bayar tunai di tempat</label>
-              </fieldset>
-              <label class="grid gap-1 text-sm font-medium text-slate-700">Catatan penting (opsional)
-                <input name="simpleDisclaimer" maxlength="1500" placeholder="Satu catatan singkat untuk pelanggan." class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm" />
-              </label>
-              <label class="flex items-center gap-2 text-sm"><input name="simpleActive" type="checkbox" checked /> Aktif</label>
-              <p data-legacy-service-warning hidden class="text-xs text-amber-700">Layanan ini punya pengaturan lanjutan lama; menyimpan akan menyederhanakannya.</p>
-              <div class="flex flex-wrap gap-2"><button class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white" type="submit">Simpan layanan</button><button class="rounded-xl border px-4 py-2 text-sm" type="reset">Layanan baru</button></div>
-            </div>
-            <div id="legacyServiceFields" hidden>
-            <h3 class="border-t border-slate-200 pt-3 font-semibold text-slate-800">Langkah 1: Info layanan</h3>
+          <form id="serviceForm" class="mt-4 grid gap-4">
             <label class="grid gap-1 text-sm font-medium text-slate-700">Kategori
-              <select name="categoryId" required class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:border-pink-500 focus:outline-none focus:ring-2 focus:ring-pink-200"><option value="">Pilih kategori</option></select>
+              <select name="categoryId" required class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm"><option value="">Pilih kategori</option></select>
             </label>
-            <label class="grid gap-1 text-sm font-medium text-slate-700">Nama layanan
-              <input name="name" required maxlength="120" placeholder="Contoh: Cuci AC" class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:border-pink-500 focus:outline-none focus:ring-2 focus:ring-pink-200" />
-              <span class="text-xs font-normal text-slate-500">Misalnya Paket Foto Wedding atau Perbaikan Atap Bocor.</span>
-              <span class="text-xs font-normal text-slate-500">Nama jasa yang tampil di kartu layanan.</span>
+            <label class="grid gap-1 text-sm font-medium text-slate-700">Nama layanan *
+              <input name="name" required maxlength="120" placeholder="Contoh: Pembuatan Website Gratis" class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm" />
             </label>
-            <label class="grid gap-1 text-sm font-medium text-slate-700">Ringkasan
-              <input name="summary" required maxlength="300" placeholder="Contoh: Pembersihan AC agar udara di rumah terasa segar." class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:border-pink-500 focus:outline-none focus:ring-2 focus:ring-pink-200" />
-              <span class="text-xs font-normal text-slate-500">Satu kalimat singkat di kartu layanan.</span>
+            <label class="grid gap-1 text-sm font-medium text-slate-700">Deskripsi singkat *
+              <textarea name="description" required maxlength="500" placeholder="Jelaskan layanan dalam satu atau dua kalimat." class="min-h-24 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm"></textarea>
             </label>
-            <label class="grid gap-1 text-sm font-medium text-slate-700">Deskripsi layanan
-              <textarea name="description" maxlength="3000" placeholder="Contoh: Petugas membersihkan unit AC sesuai paket yang dipilih." class="min-h-24 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:border-pink-500 focus:outline-none focus:ring-2 focus:ring-pink-200"></textarea>
-              <span class="text-xs font-normal text-slate-500">Penjelasan lengkap di halaman detail.</span>
-            </label>
-            <label class="grid gap-1 text-sm font-medium text-slate-700">Gambar layanan
-              <input name="image" type="text" maxlength="800" placeholder="URL HTTPS atau alamat gambar di situs" class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:border-pink-500 focus:outline-none focus:ring-2 focus:ring-pink-200" />
-              <span class="text-xs font-normal text-slate-500">Boleh dikosongkan jika belum ada gambar, atau unggah JPG, PNG, atau WebP maksimal 3 MB.</span>
+
+            <div class="grid gap-2 text-sm font-medium text-slate-700">Foto (opsional)
+              <input name="image" type="text" maxlength="800" placeholder="URL HTTPS atau unggah foto" class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm" />
               <div class="flex flex-wrap gap-2">
-                <input data-service-image-file type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" class="hidden" />
-                <button data-service-image-upload type="button" class="rounded-lg border px-3 py-1.5 text-xs">Unggah gambar</button>
-                <button data-service-image-remove type="button" class="rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs text-rose-700">Hapus gambar</button>
+                <input id="imageFile" type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" class="hidden" />
+                <button id="imageUpload" type="button" class="rounded-lg border px-3 py-1.5 text-xs">Unggah foto</button>
+                <button id="imageRemove" type="button" class="rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs text-rose-700">Hapus foto</button>
               </div>
-              <img data-service-image-preview alt="Pratinjau gambar layanan" hidden class="mt-2 max-h-48 w-full rounded-xl object-cover" />
-            </label>
-            <label class="grid gap-1 text-sm font-medium text-slate-700">Batasan layanan
-              <textarea name="disclaimer" maxlength="1500" placeholder="Contoh: Biaya suku cadang tidak termasuk harga paket." class="min-h-20 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:border-pink-500 focus:outline-none focus:ring-2 focus:ring-pink-200"></textarea>
-              <span class="text-xs font-normal text-slate-500">Hal yang tidak ditanggung layanan; tampil sebagai peringatan ke pembeli.</span>
-            </label>
-            <label class="grid gap-1 text-sm font-medium text-slate-700">Catatan harga
-              <input name="pricingNote" maxlength="300" placeholder="Contoh: Harga belum termasuk suku cadang." class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:border-pink-500 focus:outline-none focus:ring-2 focus:ring-pink-200" />
-            </label>
-            <label class="flex items-center gap-2 text-sm"><input name="active" type="checkbox" checked /> Layanan aktif</label>
-            <label class="grid gap-1 text-sm font-medium text-slate-700">Pengaturan jadwal
-              <select name="scheduleMode" class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:border-pink-500 focus:outline-none focus:ring-2 focus:ring-pink-200">
-                <option value="none">Tanpa jadwal</option>
-                <option value="date">Hanya tanggal</option>
-                <option value="datetime">Tanggal dan jam</option>
-                <option value="recurring" selected>Tanggal, jam, dan jadwal rutin</option>
-              </select>
-            </label>
-            <label class="grid gap-1 text-sm font-medium text-slate-700">Judul bagian jadwal
-              <input name="scheduleLabel" maxlength="80" value="Preferensi jadwal" placeholder="Contoh: Tanggal acara" class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:border-pink-500 focus:outline-none focus:ring-2 focus:ring-pink-200" />
-            </label>
-            <label class="flex items-center gap-2 text-sm"><input name="needsParentProfile" type="checkbox" /> Layanan ini perlu data penerima/lokasi tersimpan</label>
-            <label class="grid gap-1 text-sm font-medium text-slate-700">Sebutan penerima
-              <input name="recipientLabel" maxlength="60" value="Penerima layanan" placeholder="Contoh: Lokasi pengerjaan" class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:border-pink-500 focus:outline-none focus:ring-2 focus:ring-pink-200" />
-            </label>
-            <label class="grid gap-1 text-sm font-medium text-slate-700">Teks persetujuan pembeli
-              <textarea name="consentText" maxlength="300" placeholder="Kosongkan untuk teks standar." class="min-h-20 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:border-pink-500 focus:outline-none focus:ring-2 focus:ring-pink-200"></textarea>
-              <span class="text-xs font-normal text-slate-500">Kosongkan untuk teks standar.</span>
-            </label>
-            <h3 class="border-t border-slate-200 pt-3 font-semibold text-slate-800">Langkah 2: Paket, opsi, dan pertanyaan</h3>
-            <fieldset class="grid gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
-              <legend class="px-1 text-sm font-semibold text-slate-700">Cara bayar yang ditawarkan</legend>
-              <p class="text-xs text-slate-500">Full = bayar penuh di awal. DP = bayar sebagian di awal, sisanya menyusul. Tunai = bayar langsung ke petugas.</p>
-              <label class="flex items-center gap-2 text-sm"><input name="paymentOptions" type="checkbox" value="full" checked /> Full</label>
-              <label class="flex items-center gap-2 text-sm"><input name="paymentOptions" type="checkbox" value="dp" /> DP</label>
-              <label class="flex items-center gap-2 text-sm"><input name="paymentOptions" type="checkbox" value="cash" /> Tunai</label>
-              <p data-monthly-payment-note hidden class="text-xs text-slate-500">Paket bulanan hanya menawarkan pembayaran Full.</p>
-            </fieldset>
-            <section class="grid gap-3">
-              <div><h3 class="font-semibold">Paket</h3><p class="text-xs text-slate-500">Tambahkan pilihan paket yang dapat dipesan pembeli.</p></div>
-              <div id="packagesList" class="grid gap-3"></div>
-              <button id="addPackageButton" type="button" class="w-fit rounded-xl border border-pink-200 bg-pink-50 px-4 py-2 text-sm font-semibold text-pink-700 hover:bg-pink-100">+ Tambah paket</button>
-            </section>
-            <section class="grid gap-3">
-              <div><h3 class="font-semibold">Opsi kebutuhan</h3><p class="text-xs text-slate-500">Centang tambahan yang boleh dipilih pembeli, misal antar-jemput barang. Boleh kosong.</p></div>
-              <div id="optionsList" class="grid gap-2"></div>
-              <button id="addOptionButton" type="button" class="w-fit rounded-xl border border-pink-200 bg-pink-50 px-4 py-2 text-sm font-semibold text-pink-700 hover:bg-pink-100">+ Tambah opsi</button>
-            </section>
-            <section class="grid gap-3">
-              <div><h3 class="font-semibold">Pertanyaan tambahan untuk pembeli</h3><p class="text-xs text-slate-500">Data yang perlu diisi pembeli saat memesan, misal 'Apakah ada pantangan makanan?'. Boleh kosong.</p></div>
-              <p class="text-xs text-slate-500">Contoh pertanyaan: Lokasi pengerjaan, Tanggal acara, Jumlah tamu, atau Jenis kerusakan.</p>
-              <div id="questionsList" class="grid gap-3"></div>
-              <button id="addQuestionButton" type="button" class="w-fit rounded-xl border border-pink-200 bg-pink-50 px-4 py-2 text-sm font-semibold text-pink-700 hover:bg-pink-100">+ Tambah pertanyaan</button>
-            </section>
-            <div class="flex flex-wrap gap-2"><button class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white" type="submit">Simpan layanan</button><button class="rounded-xl border px-4 py-2 text-sm" type="reset">Layanan baru</button></div>
+              <img id="imagePreview" alt="Pratinjau foto layanan" hidden class="max-h-48 w-full rounded-xl object-cover" />
             </div>
+
+            <fieldset class="grid gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
+              <legend class="px-1 text-sm font-semibold text-slate-700">Harga</legend>
+              <label class="flex items-center gap-2 text-sm"><input name="priceType" type="radio" value="fixed" checked /> Harga tetap</label>
+              <label class="flex items-center gap-2 text-sm"><input name="priceType" type="radio" value="quote" /> Harga disepakati (admin kirim penawaran)</label>
+              <label class="flex items-center gap-2 text-sm"><input name="priceType" type="radio" value="free" /> Layanan gratis (tanpa pembayaran)</label>
+              <p id="freeHint" hidden class="text-xs text-slate-500">Pembeli klaim dengan satu klik memakai data profil akunnya. Satu akun hanya bisa klaim sekali per layanan. Admin mengonfirmasi dalam 24 jam.</p>
+              <div id="fixedWrap" class="grid gap-2">
+                <label class="grid gap-1 text-sm font-medium text-slate-700">Harga
+                  <span class="relative"><span class="absolute left-3 top-2 text-sm text-slate-500">Rp</span><input name="price" inputmode="numeric" autocomplete="off" placeholder="75.000" class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 pl-10 text-sm" /></span>
+                </label>
+                <label class="grid gap-1 text-sm font-medium text-slate-700">Satuan
+                  <input name="unit" maxlength="40" placeholder="per unit / per jam / per kunjungan" class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" />
+                </label>
+              </div>
+            </fieldset>
+
+            <fieldset id="paymentSet" class="grid gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
+              <legend class="px-1 text-sm font-semibold text-slate-700">Metode bayar</legend>
+              <label class="flex items-center gap-2 text-sm"><input name="paymentOptions" type="checkbox" value="full" checked /> Bayar online (DOKU)</label>
+              <label class="flex items-center gap-2 text-sm"><input name="paymentOptions" type="checkbox" value="cash" /> Bayar tunai di tempat</label>
+            </fieldset>
+
+            <fieldset class="grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+              <legend class="px-1 text-sm font-semibold text-slate-700">Data tambahan dari pembeli</legend>
+              <p class="text-xs text-slate-500">Nama, HP, dan alamat otomatis dari profil akun. Atur di sini hanya jika layanan butuh data lain.</p>
+              <label class="grid gap-1 text-sm font-medium text-slate-700">Jadwal
+                <select name="scheduleMode" class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm">
+                  <option value="none">Tidak perlu (satu klik langsung pesan/klaim)</option>
+                  <option value="date">Pembeli memilih tanggal</option>
+                  <option value="datetime">Pembeli memilih tanggal dan jam</option>
+                </select>
+              </label>
+              <label class="flex items-center gap-2 text-sm"><input name="askNote" type="checkbox" /> Tampilkan kolom catatan untuk admin</label>
+            </fieldset>
+
+            <label class="grid gap-1 text-sm font-medium text-slate-700">Catatan penting (opsional)
+              <input name="disclaimer" maxlength="1500" placeholder="Satu catatan singkat untuk pelanggan." class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm" />
+            </label>
+            <label class="flex items-center gap-2 text-sm"><input name="active" type="checkbox" checked /> Aktif</label>
+            <p id="legacyWarning" hidden class="text-xs text-amber-700">Layanan ini punya pengaturan lama (banyak paket/opsi/pertanyaan). Menyimpan akan menyederhanakannya.</p>
+            <div class="flex flex-wrap gap-2"><button class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white" type="submit">Simpan layanan</button><button class="rounded-xl border px-4 py-2 text-sm" type="reset">Layanan baru</button></div>
           </form>
           <div id="servicesList" class="mt-5 space-y-3" aria-live="polite">Memuat layanan…</div>
         </section>
       </div>
     </main>
   </div>
+
   <script type="module">
     import { escapeHtml, formatRupiah, requireAdmin } from '/admin/admin-firebase.js';
 
-    const status = document.getElementById('pageStatus');
-    const categoriesList = document.getElementById('categoriesList');
-    const servicesList = document.getElementById('servicesList');
-    const categoryForm = document.getElementById('categoryForm');
-    const serviceForm = document.getElementById('serviceForm');
-    const packagesList = document.getElementById('packagesList');
-    const optionsList = document.getElementById('optionsList');
-    const questionsList = document.getElementById('questionsList');
-    const serviceImageInput = serviceForm.querySelector('[name="simpleImage"]');
-    const serviceImageFile = serviceForm.querySelector('[data-service-image-file]');
-    const serviceImagePreview = serviceForm.querySelector('[data-service-image-preview]');
-    const legacyServiceFields = document.getElementById('legacyServiceFields');
-    const simplePriceInput = serviceForm.elements.simplePrice;
-    const simpleFixedPrice = serviceForm.querySelector('[data-simple-fixed-price]');
-    const legacyWarning = serviceForm.querySelector('[data-legacy-service-warning]');
-    let serviceImageData = '';
+    const $ = (id) => document.getElementById(id);
+    const status = $('pageStatus');
+    const categoriesList = $('categoriesList');
+    const servicesList = $('servicesList');
+    const categoryForm = $('categoryForm');
+    const serviceForm = $('serviceForm');
+    const imageInput = serviceForm.elements.image;
+    const imageFile = $('imageFile');
+    const imagePreview = $('imagePreview');
+    const priceInput = serviceForm.elements.price;
+    const fixedWrap = $('fixedWrap');
+    const paymentSet = $('paymentSet');
+    const freeHint = $('freeHint');
+    const legacyWarning = $('legacyWarning');
+    let imageData = '';
     let categories = [];
     let services = [];
-    const dpOption = serviceForm.querySelector('[name="paymentOptions"][value="dp"]');
-    const cashOption = serviceForm.querySelector('[name="paymentOptions"][value="cash"]');
-    const monthlyPaymentNote = serviceForm.querySelector('[data-monthly-payment-note]');
-    const inputClass = 'w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:border-pink-500 focus:outline-none focus:ring-2 focus:ring-pink-200';
-    const selectClass = `${inputClass} pr-8`;
-    const helpClass = 'text-xs font-normal text-slate-500';
 
-    legacyServiceFields.querySelectorAll('input, select, textarea, button').forEach((input) => { input.disabled = true; });
-
-    function formatPrice(value) {
+    const formatPrice = (value) => {
       const digits = String(value ?? '').replace(/\D/g, '');
       return digits ? Number(digits).toLocaleString('id-ID') : '';
-    }
-
-    function parsePrice(value) {
+    };
+    const parsePrice = (value) => {
       const digits = String(value ?? '').replace(/\D/g, '');
       return digits ? Number(digits) : 0;
-    }
-
-    function makePackageCard(item = {}) {
-      const card = document.createElement('article');
-      card.className = 'grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4';
-      if (item.id) card.dataset.savedId = item.id;
-      const priceType = ['fixed', 'monthly', 'quote'].includes(item.priceType) ? item.priceType : 'fixed';
-      card.innerHTML = `
-        <div class="flex items-center justify-between gap-2">
-          <h4 class="font-semibold text-slate-800">Paket (pilihan harga)</h4>
-          <button type="button" data-remove-package aria-label="Hapus paket" class="rounded-lg border border-rose-200 bg-white px-3 py-1.5 text-sm font-semibold text-rose-700 hover:bg-rose-50">Hapus paket</button>
-        </div>
-        <label class="grid gap-1 text-sm font-medium text-slate-700">Nama paket
-          <input data-package-name maxlength="120" value="${escapeHtml(item.name || '')}" placeholder="Contoh: Cuci 1 unit" class="${inputClass}">
-        </label>
-        <label class="grid gap-1 text-sm font-medium text-slate-700">Deskripsi singkat
-          <input data-package-description maxlength="500" value="${escapeHtml(item.description || '')}" placeholder="Contoh: Pembersihan satu unit AC" class="${inputClass}">
-          <span class="${helpClass}">Boleh dikosongkan.</span>
-        </label>
-        <label class="grid gap-1 text-sm font-medium text-slate-700">Durasi
-          <input data-package-duration maxlength="80" value="${escapeHtml(item.duration || '')}" placeholder="Contoh: 1 jam" class="${inputClass}">
-        </label>
-        <label class="grid gap-1 text-sm font-medium text-slate-700">Jenis harga
-          <select data-package-type class="${selectClass}">
-            <option value="fixed" ${priceType === 'fixed' ? 'selected' : ''}>Harga tetap</option>
-            <option value="monthly" ${priceType === 'monthly' ? 'selected' : ''}>Langganan bulanan</option>
-            <option value="quote" ${priceType === 'quote' ? 'selected' : ''}>Penawaran (harga ditentukan admin)</option>
-          </select>
-          <span class="${helpClass}"></span>
-        </label>
-        <label data-price-wrap class="grid gap-1 text-sm font-medium text-slate-700">Harga
-          <span class="relative"><span class="absolute left-3 top-2 text-sm text-slate-500">Rp</span><input data-package-price inputmode="numeric" autocomplete="off" value="${priceType === 'quote' ? '' : formatPrice(item.price || 0)}" placeholder="75.000" class="${inputClass} pl-10"></span>
-          <span class="${helpClass}">Masukkan nominal dalam rupiah.</span>
-        </label>
-        <div data-dp-wrap class="grid gap-1">
-          <label class="grid max-w-xs gap-1 text-sm font-medium text-slate-700">Persen DP
-            <input data-package-dp type="number" min="10" max="90" step="1" value="${Number.isSafeInteger(item.dpPercent) ? item.dpPercent : 30}" class="${inputClass}">
-          </label>
-          <p data-dp-summary class="${helpClass}" aria-live="polite"></p>
-        </div>
-        <label class="flex items-center gap-2 text-sm"><input data-package-active type="checkbox" ${item.active === false ? '' : 'checked'}> Paket tampil/aktif</label>`;
-      const typeSelect = card.querySelector('[data-package-type]');
-      const priceInput = card.querySelector('[data-package-price]');
-      const priceWrap = card.querySelector('[data-price-wrap]');
-      const dpWrap = card.querySelector('[data-dp-wrap]');
-      const dpInput = card.querySelector('[data-package-dp]');
-      const dpSummary = card.querySelector('[data-dp-summary]');
-      const priceTypeHelp = typeSelect.nextElementSibling;
-      const updateCard = () => {
-        const monthly = typeSelect.value === 'monthly';
-        priceTypeHelp.textContent = typeSelect.value === 'monthly'
-          ? 'Ditagih tiap bulan untuk langganan.'
-          : typeSelect.value === 'quote'
-            ? 'Harga diisi admin setelah pembeli mengirim permintaan.'
-            : 'Harga sama untuk semua pembeli.';
-        priceWrap.hidden = typeSelect.value === 'quote';
-        dpWrap.hidden = !dpOption.checked || monthly;
-        if (typeSelect.value === 'quote') priceInput.value = '';
-        const total = parsePrice(priceInput.value);
-        const percent = Number(dpInput.value);
-        if (Number.isSafeInteger(total) && total > 0 && Number.isInteger(percent) && percent >= 10 && percent <= 90) {
-          const deposit = Math.round(total * percent / 100);
-          dpSummary.textContent = typeSelect.value === 'quote'
-            ? 'Persentase ini digunakan setelah harga penawaran ditentukan.'
-            : `Bayar di awal ${formatRupiah(deposit)}, sisa ${formatRupiah(total - deposit)}.`;
-        } else {
-          dpSummary.textContent = typeSelect.value === 'quote' ? 'Persentase ini digunakan setelah harga penawaran ditentukan.' : 'Masukkan harga dan persen DP antara 10 sampai 90.';
-        }
-        syncPaymentOptions();
-      };
-      typeSelect.addEventListener('change', updateCard);
-      priceInput.addEventListener('input', () => {
-        const start = priceInput.selectionStart;
-        const previous = priceInput.value;
-        priceInput.value = formatPrice(previous);
-        const delta = priceInput.value.length - previous.length;
-        const position = Math.max(0, Number(start || 0) + delta);
-        priceInput.setSelectionRange(position, position);
-        updateCard();
-      });
-      dpInput.addEventListener('input', updateCard);
-      card.querySelector('[data-remove-package]').addEventListener('click', () => {
-        if (packagesList.children.length <= 1) return;
-        card.remove();
-        updatePackageControls();
-        syncPaymentOptions();
-      });
-      packagesList.append(card);
-      updateCard();
-      updatePackageControls();
-      return card;
-    }
-
-    function updatePackageControls() {
-      packagesList.querySelectorAll('[data-remove-package]').forEach((button) => {
-        button.disabled = packagesList.children.length <= 1;
-        button.classList.toggle('opacity-50', button.disabled);
-        button.title = button.disabled ? 'Layanan harus memiliki minimal satu paket.' : '';
-      });
-    }
-
-    function syncPaymentOptions() {
-      const hasMonthlyPackage = [...packagesList.querySelectorAll('[data-package-type]')].some((select) => select.value === 'monthly');
-      monthlyPaymentNote.hidden = !hasMonthlyPackage;
-      for (const input of [dpOption, cashOption]) {
-        input.disabled = hasMonthlyPackage;
-        if (hasMonthlyPackage) input.checked = false;
-      }
-      const fullOption = serviceForm.querySelector('[name="paymentOptions"][value="full"]');
-      if (hasMonthlyPackage) fullOption.checked = true;
-      packagesList.querySelectorAll('[data-package-type]').forEach((select) => {
-        const card = select.closest('article');
-        card.querySelector('[data-dp-wrap]').hidden = !dpOption.checked || select.value === 'monthly';
-      });
-    }
-
-    function makeOptionRow(item = {}) {
-      const row = document.createElement('div');
-      row.className = 'flex items-center gap-2';
-      if (item.id) row.dataset.savedId = item.id;
-      row.innerHTML = `<label class="min-w-0 flex-1"><span class="sr-only">Opsi kebutuhan</span><input data-option-label maxlength="150" value="${escapeHtml(item.label || '')}" placeholder="Contoh: Mengantar ke tempat tujuan" class="${inputClass}"></label><button type="button" data-remove-row aria-label="Hapus opsi" class="shrink-0 rounded-lg border border-slate-200 bg-white px-3 py-2 text-lg text-slate-600 hover:bg-rose-50 hover:text-rose-700">×</button>`;
-      row.querySelector('[data-remove-row]').addEventListener('click', () => row.remove());
-      optionsList.append(row);
-      return row;
-    }
-
-    function makeQuestionRow(item = {}) {
-      const row = document.createElement('article');
-      row.className = 'grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4';
-      if (item.key) row.dataset.savedKey = item.key;
-      const type = ['text', 'textarea', 'number', 'address', 'date', 'time', 'select'].includes(item.type) ? item.type : 'text';
-      const typeLabels = { text: 'Jawaban singkat', textarea: 'Jawaban panjang', number: 'Angka', address: 'Alamat/lokasi', date: 'Tanggal', time: 'Jam', select: 'Pilihan' };
-      row.innerHTML = `
-        <div class="flex items-center justify-between gap-2"><h4 class="font-semibold text-slate-800">Pertanyaan</h4><button type="button" data-remove-row aria-label="Hapus pertanyaan" class="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-lg text-slate-600 hover:bg-rose-50 hover:text-rose-700">×</button></div>
-        <label class="grid gap-1 text-sm font-medium text-slate-700">Pertanyaan
-          <input data-question-label maxlength="120" value="${escapeHtml(item.label || '')}" placeholder="Contoh: Lokasi pengerjaan" class="${inputClass}">
-        </label>
-        <label class="grid gap-1 text-sm font-medium text-slate-700">Jenis jawaban
-          <select data-question-type class="${selectClass}">${Object.entries(typeLabels).map(([value, label]) => `<option value="${value}" ${type === value ? 'selected' : ''}>${label}</option>`).join('')}</select>
-        </label>
-        <label data-question-options-wrap class="grid gap-1 text-sm font-medium text-slate-700">Pilihan jawaban
-          <input data-question-options maxlength="1000" value="${escapeHtml(Array.isArray(item.options) ? item.options.join(', ') : '')}" placeholder="Contoh: Lantai 1, Lantai 2, Lebih dari 2" class="${inputClass}">
-          <span class="${helpClass}">Pisahkan setiap pilihan dengan koma.</span>
-        </label>
-        <label class="flex items-center gap-2 text-sm"><input data-question-required type="checkbox" ${item.required === true ? 'checked' : ''}> Wajib diisi</label>`;
-      const typeSelect = row.querySelector('[data-question-type]');
-      const optionsWrap = row.querySelector('[data-question-options-wrap]');
-      const updateType = () => { optionsWrap.hidden = typeSelect.value !== 'select'; };
-      typeSelect.addEventListener('change', updateType);
-      updateType();
-      row.querySelector('[data-remove-row]').addEventListener('click', () => row.remove());
-      questionsList.append(row);
-      return row;
-    }
-
-    function resetServiceEditor() {
-      packagesList.innerHTML = '';
-      optionsList.innerHTML = '';
-      questionsList.innerHTML = '';
-      serviceImageData = '';
-      serviceImageFile.value = '';
-      updateServiceImagePreview();
-      makePackageCard({ name: 'Paket dasar', priceType: 'fixed', price: 75000, dpPercent: 30, active: true });
-      serviceForm.querySelectorAll('[name="paymentOptions"]').forEach((input) => {
-        input.checked = input.value === 'full';
-        input.disabled = false;
-      });
-      monthlyPaymentNote.hidden = true;
-      syncPaymentOptions();
-    }
-
-    function updateServiceImagePreview(source = serviceImageData || serviceImageInput.value.trim()) {
-      serviceImagePreview.onerror = () => { serviceImagePreview.hidden = true; };
-      if (!source) {
-        serviceImagePreview.removeAttribute('src');
-        serviceImagePreview.hidden = true;
-        return;
-      }
-      serviceImagePreview.src = source;
-      serviceImagePreview.hidden = false;
-    }
-
-    async function compressServiceImage(file) {
-      const allowedTypes = new Set(['image/jpeg', 'image/png', 'image/webp']);
-      if (!allowedTypes.has(file.type)) throw new Error('Pilih gambar JPG, PNG, atau WebP.');
-      if (file.size > 3 * 1024 * 1024) throw new Error('Ukuran gambar maksimal 3 MB.');
-
-      const objectUrl = URL.createObjectURL(file);
-      let image;
-      try {
-        image = await new Promise((resolve, reject) => {
-          const element = new Image();
-          element.onload = () => resolve(element);
-          element.onerror = () => reject(new Error('Gambar tidak dapat dibaca.'));
-          element.src = objectUrl;
-        });
-      } finally {
-        URL.revokeObjectURL(objectUrl);
-      }
-
-      const scale = Math.min(1, 1000 / Math.max(image.naturalWidth, image.naturalHeight));
-      const canvas = document.createElement('canvas');
-      canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
-      canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
-      const context = canvas.getContext('2d');
-      if (!context) throw new Error('Gambar tidak dapat dikompres di browser ini.');
-      context.drawImage(image, 0, 0, canvas.width, canvas.height);
-
-      let dataUrl = '';
-      for (const quality of [0.75, 0.65, 0.55, 0.45, 0.35, 0.28, 0.22, 0.18]) {
-        dataUrl = canvas.toDataURL('image/jpeg', quality);
-        if (Math.ceil((dataUrl.split(',')[1] || '').length * 0.75) <= 180 * 1024) return dataUrl;
-      }
-      throw new Error('Gambar masih terlalu besar setelah dikompres. Coba pilih gambar lain.');
-    }
-
-    serviceForm.querySelector('[data-service-image-upload]').addEventListener('click', () => serviceImageFile.click());
-    serviceImageFile.addEventListener('change', async () => {
-      const file = serviceImageFile.files?.[0];
-      if (!file) return;
-      status.textContent = '';
-      try {
-        serviceImageData = await compressServiceImage(file);
-        serviceImageInput.value = '';
-        updateServiceImagePreview();
-      } catch (error) {
-        serviceImageFile.value = '';
-        status.textContent = error.message || 'Gambar gagal diproses.';
-      }
-    });
-    serviceImageInput.addEventListener('input', () => {
-      serviceImageData = '';
-      serviceImageFile.value = '';
-      updateServiceImagePreview();
-    });
-    serviceForm.querySelector('[data-service-image-remove]').addEventListener('click', () => {
-      serviceImageData = '';
-      serviceImageFile.value = '';
-      serviceImageInput.value = '';
-      updateServiceImagePreview();
-    });
-
-    function makeSlug(value, fallback) {
+    };
+    const makeSlug = (value, fallback) => {
       const slug = String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
         .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
       return slug || fallback;
+    };
+    const selectedPriceType = () => serviceForm.querySelector('[name="priceType"]:checked').value;
+    const setPriceType = (type) => { serviceForm.querySelector(`[name="priceType"][value="${type}"]`).checked = true; applyPriceTypeUi(type); };
+    const paymentBoxes = () => [...serviceForm.querySelectorAll('[name="paymentOptions"]')];
+
+    function applyPriceTypeUi(type) {
+      fixedWrap.hidden = type !== 'fixed';
+      paymentSet.hidden = type === 'free';
+      freeHint.hidden = type !== 'free';
     }
-
-    function uniqueSlug(value, fallback, used) {
-      const base = makeSlug(value, fallback);
-      let candidate = base;
-      let suffix = 2;
-      while (used.has(candidate)) candidate = `${base}-${suffix++}`;
-      used.add(candidate);
-      return candidate;
-    }
-
-    function makeQuestionKey(value, used) {
-      const words = String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-        .replace(/[^A-Za-z0-9]+/g, ' ').trim().split(/\s+/).filter(Boolean);
-      let base = words.map((word, index) => index === 0
-        ? word.toLowerCase()
-        : `${word.charAt(0).toUpperCase()}${word.slice(1).toLowerCase()}`).join('');
-      if (!base) base = 'pertanyaan';
-      if (!/^[A-Za-z]/.test(base)) base = `pertanyaan${base}`;
-      const original = base;
-      let suffix = 2;
-      while (used.has(base)) base = `${original}${suffix++}`;
-      used.add(base);
-      return base;
-    }
-
-    function packagesPayload() {
-      const rows = [...packagesList.children];
-      const used = new Set(rows.map((row) => row.dataset.savedId).filter(Boolean));
-      return rows.map((row) => {
-        const name = row.querySelector('[data-package-name]').value.trim();
-        const type = row.querySelector('[data-package-type]').value;
-        const price = type === 'quote' ? 0 : parsePrice(row.querySelector('[data-package-price]').value);
-        return {
-          id: row.dataset.savedId || uniqueSlug(name, 'paket', used),
-          name,
-          description: row.querySelector('[data-package-description]').value.trim(),
-          duration: row.querySelector('[data-package-duration]').value.trim(),
-          priceType: type,
-          price,
-          dpPercent: Number(row.querySelector('[data-package-dp]').value || 30),
-          active: row.querySelector('[data-package-active]').checked
-        };
-      });
-    }
-
-    function optionsPayload() {
-      const rows = [...optionsList.children];
-      const used = new Set(rows.map((row) => row.dataset.savedId).filter(Boolean));
-      return rows.map((row) => ({
-        id: row.dataset.savedId || uniqueSlug(row.querySelector('[data-option-label]').value.trim(), 'opsi', used),
-        label: row.querySelector('[data-option-label]').value.trim()
-      }));
-    }
-
-    const reservedQuestionKeys = new Set([
-      'packageId', 'paymentPlan', 'selectedOptions', 'scheduleDate', 'scheduleTime',
-      'scheduleRecurring', 'scheduleDays', 'buyerName', 'buyerPhone', 'parentId', 'parentConsent'
-    ]);
-
-    function questionsPayload() {
-      const rows = [...questionsList.children];
-      const used = new Set([...reservedQuestionKeys, ...rows.map((row) => row.dataset.savedKey).filter(Boolean)]);
-      return rows.map((row) => {
-        const type = row.querySelector('[data-question-type]').value;
-        return {
-          key: row.dataset.savedKey || makeQuestionKey(row.querySelector('[data-question-label]').value.trim(), used),
-          label: row.querySelector('[data-question-label]').value.trim(),
-          type,
-          required: row.querySelector('[data-question-required]').checked,
-          ...(type === 'select' ? {
-            options: row.querySelector('[data-question-options]').value.split(',').map((choice) => choice.trim()).filter(Boolean)
-          } : {})
-        };
-      });
-    }
-
-    function validateService(name, packages, options, questions, paymentOptions) {
-      if (!name.trim()) return 'Nama layanan wajib diisi.';
-      if (!packages.some((item) => item.active)) return 'Aktifkan minimal satu paket.';
-      if (packages.some((item) => !item.name)) return 'Nama setiap paket wajib diisi.';
-      if (packages.some((item) => item.priceType !== 'quote' && (!Number.isSafeInteger(item.price) || item.price <= 0))) {
-        return 'Harga paket tetap dan bulanan harus lebih dari Rp 0.';
-      }
-      if (packages.some((item) => item.priceType !== 'quote' && item.price > 1000000000)) {
-        return 'Harga paket tidak boleh lebih dari Rp 1.000.000.000.';
-      }
-      if (packages.some((item) => item.dpPercent < 10 || item.dpPercent > 90 || !Number.isInteger(item.dpPercent))) {
-        return 'Persen DP harus berupa bilangan bulat dari 10 sampai 90.';
-      }
-      if (options.some((item) => !item.label)) return 'Label opsi kebutuhan tidak boleh kosong.';
-      if (questions.some((item) => !item.label)) return 'Teks pertanyaan tidak boleh kosong.';
-      if (questions.some((item) => item.type === 'select' && !item.options.length)) return 'Tambahkan minimal satu pilihan jawaban untuk setiap pertanyaan jenis Pilihan.';
-      if (!paymentOptions.length) return 'Pilih minimal satu cara bayar.';
-      return '';
-    }
-
-    serviceForm.querySelectorAll('[name="paymentOptions"]').forEach((input) => input.addEventListener('change', () => {
-      const selected = [...serviceForm.querySelectorAll('[name="paymentOptions"]:checked')];
-      if (!selected.length) input.checked = true;
-      packagesList.querySelectorAll('[data-package-type]').forEach((select) => {
-        const card = select.closest('article');
-        card.querySelector('[data-dp-wrap]').hidden = !dpOption.checked || select.value === 'monthly';
-      });
-    }));
-
-    document.getElementById('addPackageButton').addEventListener('click', () => makePackageCard({ priceType: 'fixed', dpPercent: 30, active: true }));
-    document.getElementById('addOptionButton').addEventListener('click', () => makeOptionRow());
-    document.getElementById('addQuestionButton').addEventListener('click', () => makeQuestionRow());
-    resetServiceEditor();
 
     async function request(action, method = 'POST', payload = {}) {
       const response = await fetch(`/api/admin/${action}`, {
@@ -580,26 +163,160 @@
       if (!response.ok || !result.success) throw new Error(result.message || 'Permintaan admin gagal.');
       return result;
     }
-
     function showError(error) {
       console.error('[jasa admin]', error);
       status.textContent = error.message || 'Terjadi kesalahan. Coba lagi.';
     }
 
-    function render() {
-      const categorySelect = serviceForm.elements.categoryId;
-      const selectedCategory = categorySelect.value;
-      const simpleCategorySelect = serviceForm.elements.simpleCategoryId;
-      const selectedSimpleCategory = simpleCategorySelect.value;
-      categorySelect.innerHTML = '<option value="">Pilih kategori</option>' + categories.map((item) =>
-        `<option value="${escapeHtml(item.id)}">${escapeHtml(item.name)}${item.active === false ? ' (nonaktif)' : ''}</option>`
-      ).join('');
-      simpleCategorySelect.innerHTML = categorySelect.innerHTML;
-      if (categories.some((item) => item.id === selectedCategory)) categorySelect.value = selectedCategory;
-      if (categories.some((item) => item.id === selectedSimpleCategory)) simpleCategorySelect.value = selectedSimpleCategory;
-      if (!simpleCategorySelect.value) {
-        simpleCategorySelect.value = (categories.find((item) => item.active !== false) || categories[0] || {}).id || '';
+    /* ---------- Foto ---------- */
+    function updateImagePreview() {
+      const source = imageData || imageInput.value.trim();
+      imagePreview.onerror = () => { imagePreview.hidden = true; };
+      if (!source) { imagePreview.removeAttribute('src'); imagePreview.hidden = true; return; }
+      imagePreview.src = source;
+      imagePreview.hidden = false;
+    }
+    async function compressImage(file) {
+      if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) throw new Error('Pilih gambar JPG, PNG, atau WebP.');
+      if (file.size > 3 * 1024 * 1024) throw new Error('Ukuran gambar maksimal 3 MB.');
+      const objectUrl = URL.createObjectURL(file);
+      let image;
+      try {
+        image = await new Promise((resolve, reject) => {
+          const element = new Image();
+          element.onload = () => resolve(element);
+          element.onerror = () => reject(new Error('Gambar tidak dapat dibaca.'));
+          element.src = objectUrl;
+        });
+      } finally { URL.revokeObjectURL(objectUrl); }
+      const scale = Math.min(1, 1000 / Math.max(image.naturalWidth, image.naturalHeight));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+      canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+      const context = canvas.getContext('2d');
+      if (!context) throw new Error('Gambar tidak dapat dikompres di browser ini.');
+      context.drawImage(image, 0, 0, canvas.width, canvas.height);
+      for (const quality of [0.75, 0.65, 0.55, 0.45, 0.35, 0.28, 0.22, 0.18]) {
+        const dataUrl = canvas.toDataURL('image/jpeg', quality);
+        if (Math.ceil((dataUrl.split(',')[1] || '').length * 0.75) <= 180 * 1024) return dataUrl;
       }
+      throw new Error('Gambar masih terlalu besar setelah dikompres. Coba pilih gambar lain.');
+    }
+    $('imageUpload').addEventListener('click', () => imageFile.click());
+    imageFile.addEventListener('change', async () => {
+      const file = imageFile.files?.[0];
+      if (!file) return;
+      status.textContent = '';
+      try { imageData = await compressImage(file); imageInput.value = ''; updateImagePreview(); }
+      catch (error) { imageFile.value = ''; status.textContent = error.message || 'Gambar gagal diproses.'; }
+    });
+    imageInput.addEventListener('input', () => { imageData = ''; imageFile.value = ''; updateImagePreview(); });
+    $('imageRemove').addEventListener('click', () => { imageData = ''; imageFile.value = ''; imageInput.value = ''; updateImagePreview(); });
+
+    /* ---------- Form layanan ---------- */
+    priceInput.addEventListener('input', () => { priceInput.value = formatPrice(priceInput.value); });
+    serviceForm.querySelectorAll('[name="priceType"]').forEach((input) => input.addEventListener('change', () => applyPriceTypeUi(selectedPriceType())));
+    paymentBoxes().forEach((input) => input.addEventListener('change', () => {
+      if (!paymentBoxes().some((box) => box.checked)) input.checked = true;
+    }));
+
+    const activePackage = (item) => (item.packages || []).find((entry) => entry.active !== false) || (item.packages || [])[0] || {};
+
+    function fillServiceForm(item, copy = false) {
+      const pkg = activePackage(item);
+      const type = item.isFree === true || pkg.priceType === 'free' ? 'free' : pkg.priceType === 'quote' ? 'quote' : 'fixed';
+      if (copy) delete serviceForm.dataset.id; else serviceForm.dataset.id = item.id;
+      serviceForm.elements.categoryId.value = item.categoryId || '';
+      serviceForm.elements.name.value = copy ? `${item.name || 'Layanan'} (salinan)`.slice(0, 120) : (item.name || '');
+      serviceForm.elements.description.value = (item.description || item.summary || '').slice(0, 500);
+      imageInput.value = item.image || '';
+      imageData = '';
+      imageFile.value = '';
+      updateImagePreview();
+      serviceForm.elements.disclaimer.value = item.disclaimer || '';
+      serviceForm.elements.active.checked = item.active !== false;
+      setPriceType(type);
+      priceInput.value = type === 'fixed' ? formatPrice(pkg.price || 0) : '';
+      serviceForm.elements.unit.value = (item.unit || '').slice(0, 40);
+      const options = (Array.isArray(item.paymentOptions) ? item.paymentOptions : ['full']).filter((option) => ['full', 'cash'].includes(option));
+      paymentBoxes().forEach((box) => { box.checked = options.includes(box.value); });
+      if (!paymentBoxes().some((box) => box.checked)) paymentBoxes()[0].checked = true;
+      const mode = item.scheduleMode === 'date' ? 'date' : ['datetime', 'recurring'].includes(item.scheduleMode) ? 'datetime' : 'none';
+      serviceForm.elements.scheduleMode.value = mode;
+      serviceForm.elements.askNote.checked = item.askNote === true;
+      legacyWarning.hidden = !(!copy && ((item.packages || []).length > 1 || (item.options || []).length > 0 || (item.formFields || []).length > 0));
+      serviceForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    serviceForm.addEventListener('reset', () => {
+      delete serviceForm.dataset.id;
+      legacyWarning.hidden = true;
+      imageData = '';
+      imageFile.value = '';
+      setTimeout(() => {
+        applyPriceTypeUi('fixed');
+        updateImagePreview();
+        serviceForm.elements.categoryId.value = (categories.find((item) => item.active !== false) || categories[0] || {}).id || '';
+      });
+    });
+
+    serviceForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      status.textContent = '';
+      try {
+        const form = event.currentTarget;
+        const name = form.elements.name.value.trim();
+        const description = form.elements.description.value.trim();
+        const priceType = selectedPriceType();
+        const isFree = priceType === 'free';
+        const price = priceType === 'fixed' ? parsePrice(priceInput.value) : 0;
+        const paymentOptions = isFree ? ['full'] : paymentBoxes().filter((box) => box.checked).map((box) => box.value);
+        const scheduleMode = form.elements.scheduleMode.value;
+        if (!form.elements.categoryId.value) throw new Error('Pilih kategori.');
+        if (!name) throw new Error('Nama layanan wajib diisi.');
+        if (!description) throw new Error('Deskripsi singkat wajib diisi.');
+        if (priceType === 'fixed' && (!Number.isSafeInteger(price) || price < 1 || price > 1000000000)) {
+          throw new Error('Harga harus lebih dari Rp 0 dan maksimal Rp 1.000.000.000.');
+        }
+        if (!paymentOptions.length) throw new Error('Pilih minimal satu metode bayar.');
+        const payload = {
+          id: form.dataset.id || '',
+          categoryId: form.elements.categoryId.value,
+          name,
+          summary: description.slice(0, 300),
+          description,
+          image: imageInput.value.trim(),
+          disclaimer: form.elements.disclaimer.value.trim(),
+          active: form.elements.active.checked,
+          isFree,
+          unit: priceType === 'fixed' ? form.elements.unit.value.trim() : '',
+          scheduleMode,
+          scheduleLabel: scheduleMode === 'none' ? 'Jadwal' : 'Waktu pengerjaan',
+          askNote: form.elements.askNote.checked,
+          recipientLabel: 'Lokasi layanan',
+          consentText: '',
+          pricingNote: '',
+          paymentOptions,
+          packages: [{ id: 'default', name, description: '', duration: '', priceType, price, dpPercent: 30, active: true }],
+          options: [],
+          formFields: []
+        };
+        if (imageData) payload.imageData = imageData;
+        await request('jasa-save-service', 'POST', payload);
+        form.reset();
+        await load();
+        status.textContent = 'Layanan berhasil disimpan.';
+      } catch (error) { showError(error); }
+    });
+
+    /* ---------- Render ---------- */
+    function render() {
+      const select = serviceForm.elements.categoryId;
+      const previous = select.value;
+      select.innerHTML = '<option value="">Pilih kategori</option>' + categories.map((item) =>
+        `<option value="${escapeHtml(item.id)}">${escapeHtml(item.name)}${item.active === false ? ' (nonaktif)' : ''}</option>`).join('');
+      if (categories.some((item) => item.id === previous)) select.value = previous;
+      else select.value = (categories.find((item) => item.active !== false) || categories[0] || {}).id || '';
 
       categoriesList.innerHTML = categories.length ? categories.map((item) => `
         <article class="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 p-3">
@@ -607,109 +324,46 @@
           <div class="flex gap-2"><button type="button" data-edit-category="${escapeHtml(item.id)}" class="rounded-lg border px-3 py-1.5 text-xs">Edit</button><button type="button" data-toggle-category="${escapeHtml(item.id)}" data-next="${item.active === false}" class="rounded-lg border px-3 py-1.5 text-xs">${item.active === false ? 'Aktifkan' : 'Nonaktifkan'}</button></div>
         </article>`).join('') : '<p class="text-sm text-slate-500">Belum ada kategori. Gunakan Isi contoh data untuk memulai.</p>';
 
-      servicesList.innerHTML = services.length ? services.map((item) => `
-        <article class="rounded-xl border border-slate-200 p-3">
+      const modeLabel = { none: 'Tanpa jadwal', date: 'Pilih tanggal', datetime: 'Pilih tanggal & jam', recurring: 'Pilih tanggal & jam' };
+      servicesList.innerHTML = services.length ? services.map((item) => {
+        const pkg = activePackage(item);
+        const free = item.isFree === true || pkg.priceType === 'free';
+        const priceText = free
+          ? '<span class="rounded-full bg-emerald-100 px-2 py-0.5 font-semibold text-emerald-700">GRATIS</span>'
+          : pkg.priceType === 'quote' ? 'Harga disepakati'
+          : pkg.priceType ? `${escapeHtml(formatRupiah(pkg.price))}${item.unit ? ` / ${escapeHtml(item.unit)}` : ''}` : 'Harga belum diatur';
+        return `<article class="rounded-xl border border-slate-200 p-3">
           ${item.image ? `<img src="${escapeHtml(item.image)}" alt="" onerror="this.hidden=true" class="mb-3 max-h-40 w-full rounded-lg object-cover" />` : ''}
-          <div class="flex flex-wrap items-start justify-between gap-2"><div><strong>${escapeHtml(item.name)}</strong><p class="text-xs text-slate-500">${escapeHtml(categories.find((category) => category.id === item.categoryId)?.name || 'Kategori tidak tersedia')} · ${item.active === false ? 'Nonaktif' : 'Aktif'}</p></div>
-            <div class="flex gap-2"><button type="button" data-edit-service="${escapeHtml(item.id)}" class="rounded-lg border px-3 py-1.5 text-xs">Edit</button><button type="button" data-duplicate-service="${escapeHtml(item.id)}" class="rounded-lg border px-3 py-1.5 text-xs">Duplikat</button><button type="button" data-toggle-service="${escapeHtml(item.id)}" data-next="${item.active === false}" class="rounded-lg border px-3 py-1.5 text-xs">${item.active === false ? 'Aktifkan' : 'Nonaktifkan'}</button><button type="button" data-delete-service="${escapeHtml(item.id)}" class="rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs text-rose-700">Hapus</button></div></div>
+          <div class="flex flex-wrap items-start justify-between gap-2">
+            <div><strong>${escapeHtml(item.name)}</strong><p class="text-xs text-slate-500">${escapeHtml(categories.find((category) => category.id === item.categoryId)?.name || 'Kategori tidak tersedia')} · ${item.active === false ? 'Nonaktif' : 'Aktif'}</p></div>
+            <div class="flex flex-wrap gap-2">
+              <button type="button" data-edit-service="${escapeHtml(item.id)}" class="rounded-lg border px-3 py-1.5 text-xs">Edit</button>
+              <button type="button" data-duplicate-service="${escapeHtml(item.id)}" class="rounded-lg border px-3 py-1.5 text-xs">Duplikat</button>
+              <button type="button" data-toggle-service="${escapeHtml(item.id)}" data-next="${item.active === false}" class="rounded-lg border px-3 py-1.5 text-xs">${item.active === false ? 'Aktifkan' : 'Nonaktifkan'}</button>
+              <button type="button" data-delete-service="${escapeHtml(item.id)}" class="rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs text-rose-700">Hapus</button>
+            </div>
+          </div>
           <p class="mt-2 text-sm">${escapeHtml(item.description || item.summary || '')}</p>
-          <p class="mt-2 text-xs text-slate-500">${(() => { const pkg = (item.packages || []).find((entry) => entry.active !== false) || (item.packages || [])[0]; return pkg ? (pkg.priceType === 'quote' ? 'Harga disepakati' : `${formatRupiah(pkg.price)}${item.unit ? ` / ${escapeHtml(item.unit)}` : ''}`) : 'Harga belum diatur'; })()}</p>
-        </article>`).join('') : '<p class="text-sm text-slate-500">Belum ada layanan. Tambahkan melalui form di atas.</p>';
+          <p class="mt-2 text-xs text-slate-500">${priceText} · ${escapeHtml(modeLabel[item.scheduleMode] || 'Tanpa jadwal')}${item.askNote ? ' · Ada kolom catatan' : ''}</p>
+        </article>`;
+      }).join('') : '<p class="text-sm text-slate-500">Belum ada layanan. Tambahkan melalui form di atas.</p>';
 
       categoriesList.querySelectorAll('[data-edit-category]').forEach((button) => button.addEventListener('click', () => {
         const item = categories.find((category) => category.id === button.dataset.editCategory);
         if (!item) return;
         categoryForm.dataset.id = item.id;
-        ['name', 'slug', 'icon', 'tagline', 'description', 'order'].forEach((key) => { categoryForm.elements[key].value = item[key] ?? ''; });
+        categoryForm.elements.name.value = item.name || '';
         categoryForm.elements.active.checked = item.active !== false;
         categoryForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }));
       categoriesList.querySelectorAll('[data-toggle-category]').forEach((button) => button.addEventListener('click', () => toggleActive('category', button.dataset.toggleCategory, button.dataset.next === 'true')));
       servicesList.querySelectorAll('[data-edit-service]').forEach((button) => button.addEventListener('click', () => {
         const item = services.find((service) => service.id === button.dataset.editService);
-        if (!item) return;
-        serviceForm.dataset.id = item.id;
-        serviceForm.elements.simpleCategoryId.value = item.categoryId || '';
-        serviceForm.elements.simpleName.value = item.name || '';
-        serviceForm.elements.simpleDescription.value = (item.description || item.summary || '').slice(0, 500);
-        serviceImageInput.value = item.image || '';
-        serviceForm.elements.simpleDisclaimer.value = item.disclaimer || '';
-        serviceForm.elements.simpleActive.checked = item.active !== false;
-        const pkg = (Array.isArray(item.packages) ? item.packages : []).find((entry) => entry.active !== false) || (item.packages || [])[0] || {};
-        const priceType = pkg.priceType === 'quote' ? 'quote' : 'fixed';
-        serviceForm.querySelector(`[name="simplePriceType"][value="${priceType}"]`).checked = true;
-        simplePriceInput.value = priceType === 'quote' ? '' : formatPrice(pkg.price || 0);
-        serviceForm.elements.simpleUnit.value = (item.unit || '').slice(0, 40);
-        simpleFixedPrice.hidden = priceType === 'quote';
-        const simplePaymentOptions = Array.isArray(item.paymentOptions) ? item.paymentOptions.filter((option) => ['full', 'cash'].includes(option)) : ['full'];
-        serviceForm.querySelectorAll('[name="simplePaymentOptions"]').forEach((input) => { input.checked = simplePaymentOptions.includes(input.value); });
-        if (!simplePaymentOptions.length) serviceForm.querySelector('[name="simplePaymentOptions"][value="full"]').checked = true;
-        legacyWarning.hidden = !((item.packages || []).length > 1 || (item.options || []).length > 0 || (item.formFields || []).length > 0);
-        ['categoryId', 'name', 'summary', 'description', 'image', 'disclaimer', 'pricingNote'].forEach((key) => { if (serviceForm.elements[key]) serviceForm.elements[key].value = item[key] ?? ''; });
-        serviceImageData = '';
-        serviceImageFile.value = '';
-        updateServiceImagePreview();
-        serviceForm.elements.scheduleMode.value = ['none', 'date', 'datetime', 'recurring'].includes(item.scheduleMode) ? item.scheduleMode : 'recurring';
-        serviceForm.elements.scheduleLabel.value = item.scheduleLabel || 'Preferensi jadwal';
-        serviceForm.elements.recipientLabel.value = item.recipientLabel || 'Penerima layanan';
-        serviceForm.elements.consentText.value = item.consentText || '';
-        serviceForm.elements.active.checked = item.active !== false;
-        serviceForm.elements.needsParentProfile.checked = item.needsParentProfile === true;
-        const paymentOptions = Array.isArray(item.paymentOptions) ? item.paymentOptions : ['full'];
-        serviceForm.querySelectorAll('[name="paymentOptions"]').forEach((input) => { input.checked = paymentOptions.includes(input.value); });
-        packagesList.innerHTML = '';
-        optionsList.innerHTML = '';
-        questionsList.innerHTML = '';
-        (Array.isArray(item.packages) && item.packages.length ? item.packages : [{ name: '', priceType: 'fixed', price: 75000, dpPercent: 30, active: true }])
-          .forEach((pkg) => makePackageCard({ dpPercent: 30, ...pkg }));
-        (Array.isArray(item.options) ? item.options : []).forEach(makeOptionRow);
-        (Array.isArray(item.formFields) ? item.formFields : []).forEach(makeQuestionRow);
-        syncPaymentOptions();
-        serviceForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        if (item) fillServiceForm(item, false);
       }));
       servicesList.querySelectorAll('[data-duplicate-service]').forEach((button) => button.addEventListener('click', () => {
         const item = services.find((service) => service.id === button.dataset.duplicateService);
-        if (!item) return;
-        delete serviceForm.dataset.id;
-        serviceForm.elements.simpleCategoryId.value = item.categoryId || '';
-        serviceForm.elements.simpleName.value = `${item.name || 'Layanan'} (salinan)`.slice(0, 120);
-        serviceForm.elements.simpleDescription.value = (item.description || item.summary || '').slice(0, 500);
-        serviceImageInput.value = item.image || '';
-        serviceForm.elements.simpleDisclaimer.value = item.disclaimer || '';
-        serviceForm.elements.simpleActive.checked = item.active !== false;
-        const pkg = (Array.isArray(item.packages) ? item.packages : []).find((entry) => entry.active !== false) || (item.packages || [])[0] || {};
-        const priceType = pkg.priceType === 'quote' ? 'quote' : 'fixed';
-        serviceForm.querySelector(`[name="simplePriceType"][value="${priceType}"]`).checked = true;
-        simplePriceInput.value = priceType === 'quote' ? '' : formatPrice(pkg.price || 0);
-        serviceForm.elements.simpleUnit.value = (item.unit || '').slice(0, 40);
-        simpleFixedPrice.hidden = priceType === 'quote';
-        const simplePaymentOptions = Array.isArray(item.paymentOptions) ? item.paymentOptions.filter((option) => ['full', 'cash'].includes(option)) : ['full'];
-        serviceForm.querySelectorAll('[name="simplePaymentOptions"]').forEach((input) => { input.checked = simplePaymentOptions.includes(input.value); });
-        if (!simplePaymentOptions.length) serviceForm.querySelector('[name="simplePaymentOptions"][value="full"]').checked = true;
-        legacyWarning.hidden = true;
-        ['categoryId', 'name', 'summary', 'description', 'image', 'disclaimer', 'pricingNote'].forEach((key) => { serviceForm.elements[key].value = item[key] ?? ''; });
-        serviceImageData = '';
-        serviceImageFile.value = '';
-        updateServiceImagePreview();
-        serviceForm.elements.name.value = `${item.name || 'Layanan'} (salinan)`.slice(0, 120);
-        serviceForm.elements.scheduleMode.value = ['none', 'date', 'datetime', 'recurring'].includes(item.scheduleMode) ? item.scheduleMode : 'recurring';
-        serviceForm.elements.scheduleLabel.value = item.scheduleLabel || 'Preferensi jadwal';
-        serviceForm.elements.recipientLabel.value = item.recipientLabel || 'Penerima layanan';
-        serviceForm.elements.consentText.value = item.consentText || '';
-        serviceForm.elements.active.checked = item.active !== false;
-        serviceForm.elements.needsParentProfile.checked = item.needsParentProfile === true;
-        const paymentOptions = Array.isArray(item.paymentOptions) ? item.paymentOptions : ['full'];
-        serviceForm.querySelectorAll('[name="paymentOptions"]').forEach((input) => { input.checked = paymentOptions.includes(input.value); });
-        packagesList.innerHTML = '';
-        optionsList.innerHTML = '';
-        questionsList.innerHTML = '';
-        const duplicateToken = Date.now().toString(36);
-        (Array.isArray(item.packages) && item.packages.length ? item.packages : [{ name: '', priceType: 'fixed', price: 75000, dpPercent: 30, active: true }])
-          .forEach((pkg, index) => makePackageCard({ dpPercent: 30, ...pkg, id: `salinan-${duplicateToken}-${index + 1}` }));
-        (Array.isArray(item.options) ? item.options : []).forEach((option, index) => makeOptionRow({ ...option, id: `salinan-${duplicateToken}-${index + 1}` }));
-        (Array.isArray(item.formFields) ? item.formFields : []).forEach((field, index) => makeQuestionRow({ ...field, key: `salinan${duplicateToken}${index + 1}` }));
-        syncPaymentOptions();
-        serviceForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        if (item) fillServiceForm(item, true);
       }));
       servicesList.querySelectorAll('[data-toggle-service]').forEach((button) => button.addEventListener('click', () => toggleActive('service', button.dataset.toggleService, button.dataset.next === 'true')));
       servicesList.querySelectorAll('[data-delete-service]').forEach((button) => button.addEventListener('click', async () => {
@@ -725,9 +379,7 @@
       categories = result.categories || [];
       services = result.services || [];
       if (!categories.length) {
-        await request('jasa-save-category', 'POST', {
-          name: 'Umum', slug: 'umum', icon: 'handyman', tagline: '', description: '', order: 0, active: true
-        });
+        await request('jasa-save-category', 'POST', { name: 'Umum', slug: 'umum', icon: 'handyman', tagline: '', description: '', order: 0, active: true });
         result = await request('jasa-get-catalog', 'GET');
         categories = result.categories || [];
         services = result.services || [];
@@ -744,106 +396,29 @@
     categoryForm.addEventListener('submit', async (event) => {
       event.preventDefault();
       const form = event.currentTarget;
-      const payload = Object.fromEntries(new FormData(form));
-      payload.id = form.dataset.id || '';
-      payload.slug = makeSlug(form.elements.name.value, 'umum');
-      payload.icon = 'handyman';
-      payload.tagline = '';
-      payload.description = '';
-      payload.active = form.elements.active.checked;
-      payload.order = 0;
       try {
-        await request('jasa-save-category', 'POST', payload);
+        await request('jasa-save-category', 'POST', {
+          id: form.dataset.id || '',
+          name: form.elements.name.value.trim(),
+          slug: makeSlug(form.elements.name.value, 'umum'),
+          icon: 'handyman', tagline: '', description: '', order: 0,
+          active: form.elements.active.checked
+        });
         form.reset();
         await load();
         status.textContent = 'Kategori berhasil disimpan.';
       } catch (error) { showError(error); }
     });
 
-    serviceForm.addEventListener('reset', () => {
-      delete serviceForm.dataset.id;
-      legacyWarning.hidden = true;
-      simpleFixedPrice.hidden = false;
-      setTimeout(() => {
-        resetServiceEditor();
-        serviceForm.elements.simpleCategoryId.value =
-          (categories.find((item) => item.active !== false) || categories[0] || {}).id || '';
-      });
-    });
-    serviceForm.querySelectorAll('[name="simplePriceType"]').forEach((input) => input.addEventListener('change', () => {
-      simpleFixedPrice.hidden = serviceForm.querySelector('[name="simplePriceType"]:checked').value === 'quote';
-    }));
-    simplePriceInput.addEventListener('input', () => {
-      const start = simplePriceInput.selectionStart;
-      const previous = simplePriceInput.value;
-      simplePriceInput.value = formatPrice(previous);
-      const position = Math.max(0, Number(start || 0) + simplePriceInput.value.length - previous.length);
-      simplePriceInput.setSelectionRange(position, position);
-    });
-    serviceForm.querySelectorAll('[name="simplePaymentOptions"]').forEach((input) => input.addEventListener('change', () => {
-      const choices = [...serviceForm.querySelectorAll('[name="simplePaymentOptions"]:checked')];
-      if (!choices.length) input.checked = true;
-    }));
-    serviceForm.addEventListener('submit', async (event) => {
-      event.preventDefault();
-      const form = event.currentTarget;
-      status.textContent = '';
-      try {
-        const name = form.elements.simpleName.value.trim();
-        const description = form.elements.simpleDescription.value.trim();
-        const priceType = form.querySelector('[name="simplePriceType"]:checked').value;
-        const price = priceType === 'quote' ? 0 : parsePrice(simplePriceInput.value);
-        const paymentOptions = [...form.querySelectorAll('[name="simplePaymentOptions"]:checked')].map((input) => input.value);
-        if (!name) throw new Error('Nama layanan wajib diisi.');
-        if (!description) throw new Error('Deskripsi singkat wajib diisi.');
-        if (priceType === 'fixed' && (!Number.isSafeInteger(price) || price < 1 || price > 1000000000)) {
-          throw new Error('Harga harus lebih dari Rp 0 dan maksimal Rp 1.000.000.000.');
-        }
-        if (!paymentOptions.length) throw new Error('Pilih minimal satu metode bayar.');
-        const payload = {
-          categoryId: form.elements.simpleCategoryId.value,
-          name,
-          summary: description.slice(0, 300),
-          description,
-          image: serviceImageInput.value.trim(),
-          disclaimer: form.elements.simpleDisclaimer.value.trim(),
-          active: form.elements.simpleActive.checked,
-          unit: priceType === 'fixed' ? form.elements.simpleUnit.value.trim() : '',
-          needsParentProfile: false,
-          scheduleMode: 'datetime',
-          scheduleLabel: 'Waktu pengerjaan',
-          recipientLabel: 'Lokasi layanan',
-          consentText: '',
-          pricingNote: '',
-          paymentOptions,
-          packages: [{
-            id: 'default', name, description: '', duration: '',
-            priceType, price, dpPercent: 30, active: true
-          }],
-          options: [],
-          formFields: []
-        };
-        payload.id = form.dataset.id || '';
-        if (serviceImageData) payload.imageData = serviceImageData;
-        await request('jasa-save-service', 'POST', payload);
-        serviceImageData = '';
-        form.reset();
-        await load();
-        status.textContent = 'Layanan berhasil disimpan.';
-      } catch (error) { showError(error); }
-    });
-
-    document.getElementById('seedButton').addEventListener('click', async (event) => {
+    $('seedButton').addEventListener('click', async (event) => {
       const button = event.currentTarget;
       button.disabled = true;
-      try {
-        const result = await request('jasa-seed');
-        await load();
-        status.textContent = result.message;
-      } catch (error) { showError(error); }
+      try { const result = await request('jasa-seed'); await load(); status.textContent = result.message; }
+      catch (error) { showError(error); }
       finally { button.disabled = false; }
     });
 
+    applyPriceTypeUi('fixed');
     try { await requireAdmin(); await load(); }
     catch (error) { showError(new Error('Data jasa gagal dimuat. Silakan coba lagi.')); }
   </script>

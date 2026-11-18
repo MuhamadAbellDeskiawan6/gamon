@@ -1,0 +1,74 @@
+/* Gamon Jasa: komponen bersama (dimuat setelah neo.css) */
+[data-jasa-content] { display: flex; flex-direction: column; gap: 24px; }
+.jx-stack { display: grid; gap: 24px; }
+.jx-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 8px; }
+
+/* Harga */
+.jx-price.is-free {
+  display: inline-block; padding: 2px 14px;
+  border: 2px solid var(--ink, #0b2342); border-radius: 999px;
+  background: #c8f0d2; color: #176035;
+}
+
+/* Kartu ringkasan profil di form pesan */
+.jx-profile-card {
+  display: grid; gap: 6px; padding: 16px 18px;
+  border: 2px solid var(--ink, #0b2342); border-radius: 14px;
+  background: var(--sky, #d4e9f5);
+}
+.jx-profile-card .jx-row { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 16px; }
+.jx-profile-card p { margin: 0; line-height: 1.55; overflow-wrap: anywhere; }
+.jx-profile-card a { font-weight: 700; }
+.jx-hint { margin: 0; font-size: .9rem; line-height: 1.6; color: var(--mute, #47607c); }
+
+/* Kartu status kelengkapan profil */
+.jx-status-card { display: grid; gap: 8px; padding: 18px 20px; border: 2px solid var(--ink, #0b2342); border-radius: 14px; background: #fff; }
+.jx-status-card h2, .jx-status-card h3 { margin: 0; }
+.jx-status-card p { margin: 0; line-height: 1.6; }
+.jx-status-card.is-ready { background: #c8f0d2; }
+.jx-status-card.is-missing { background: #fff1c9; }
+
+/* Foto profil */
+.jx-photo { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.jx-photo img { width: 88px; height: 88px; border-radius: 50%; object-fit: cover; border: 2px solid var(--ink, #0b2342); }
+.jx-map { overflow: hidden; border: 2px solid var(--ink, #0b2342); border-radius: 14px; min-height: 120px; }
+.jx-map iframe { display: block; width: 100%; height: 260px; border: 0; }
+.jx-account-link { display: inline-flex; align-items: center; gap: 8px; }
+.jx-avatar {
+  position: relative; display: inline-flex; width: 28px; height: 28px;
+  align-items: center; justify-content: center; overflow: hidden;
+  border-radius: 50%; background: #fce7f3; font-weight: 700;
+}
+.jx-avatar img { position: absolute; inset: 0; width: 28px; height: 28px; object-fit: cover; }
+
+/* Halaman pesanan */
+.jx-orders { display: grid; grid-template-columns: minmax(0, 340px) minmax(0, 1fr); gap: 24px; align-items: start; }
+@media (max-width: 900px) { .jx-orders { grid-template-columns: 1fr; } }
+.jx-order-list { display: grid; gap: 12px; margin-top: 12px; }
+.jx-order-link {
+  display: grid; gap: 4px; padding: 14px 16px; text-decoration: none; color: inherit;
+  border: 2px solid var(--ink, #0b2342); border-radius: 12px; background: #fff;
+}
+.jx-order-link.active { background: var(--sun, #ffe066); }
+.jx-order-link span { font-size: .85rem; color: var(--mute, #47607c); overflow-wrap: anywhere; }
+.jx-detail { display: grid; gap: 18px; }
+.jx-detail-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; align-items: start; }
+.jx-detail-head h2 { margin: 4px 0 0; }
+.jx-pill {
+  display: inline-block; padding: 4px 12px; border: 2px solid var(--ink, #0b2342);
+  border-radius: 999px; font-size: .8rem; font-weight: 700; background: #fff;
+}
+.jx-pill.is-paid, .jx-pill.is-scheduled, .jx-pill.is-in_progress, .jx-pill.is-completed { background: #c8f0d2; }
+.jx-pill.is-awaiting_payment, .jx-pill.is-awaiting_confirmation, .jx-pill.is-awaiting_quote { background: #fff1c9; }
+.jx-pill.is-cancelled, .jx-pill.is-expired { background: #ffd9d9; }
+.jx-meta { display: grid; gap: 10px; margin: 0; }
+.jx-meta > div { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 12px; padding-bottom: 10px; border-bottom: 1px dashed rgba(11, 35, 66, .25); }
+.jx-meta dt { font-weight: 700; }
+.jx-meta dd { margin: 0; overflow-wrap: anywhere; }
+@media (max-width: 560px) { .jx-meta > div { grid-template-columns: 1fr; gap: 2px; } }
+.jx-block { display: grid; gap: 8px; }
+.jx-block h3 { margin: 0; }
+.jx-block ul { margin: 0; padding-left: 18px; display: grid; gap: 6px; }
+.jx-visit { padding: 12px 14px; border: 2px solid var(--ink, #0b2342); border-radius: 12px; background: var(--sky, #d4e9f5); }
+.jx-visit p { margin: 4px 0 0; white-space: pre-wrap; }
+.jx-note { margin: 0; padding: 12px 14px; border: 2px solid var(--ink, #0b2342); border-radius: 12px; background: #fff1c9; line-height: 1.55; }
