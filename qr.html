@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+<meta name="robots" content="noindex, nofollow"/>
+<meta name="referrer" content="no-referrer"/>
+<title>Baju QR | Gamon Space</title>
+<link rel="icon" type="image/svg+xml" href="image/logo/gamonspace.svg"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+:root{--ink:#0b2342;--coral:#ff5c7a;--sun:#ffd66b;--white:#fff;--mute:#47607c;--accent:#d4e9f5;--on-accent:#0b2342;--f-d:"Bricolage Grotesque","Inter",system-ui,sans-serif;--f-b:"Inter",system-ui,sans-serif}
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;min-height:100vh;min-height:100dvh;font-family:var(--f-b);color:var(--ink);background:var(--accent);line-height:1.6;padding:max(20px,env(safe-area-inset-top,0px)) 16px max(24px,env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;align-items:center}
+body.theme-ink{--on-accent:#fff}
+h1{font-family:var(--f-d);font-weight:800;letter-spacing:-.025em;line-height:1.08;margin:0}
+p{margin:0}
+:focus-visible{outline:3px solid var(--coral);outline-offset:3px}
+
+.shell{width:min(460px,100%);display:flex;flex-direction:column;gap:18px;margin:auto 0}
+.card{background:var(--white);border:2px solid var(--ink);border-radius:24px;box-shadow:6px 6px 0 var(--ink);overflow:hidden}
+.photo{display:block;width:100%;max-height:420px;object-fit:cover;border-bottom:2px solid var(--ink);background:#eef4f9}
+.body{padding:24px 22px 26px;display:grid;gap:14px}
+.title{font-size:clamp(1.7rem,7vw,2.3rem);overflow-wrap:anywhere}
+.text{white-space:pre-wrap;overflow-wrap:anywhere;color:#25405f;font-size:1.02rem}
+.links{display:grid;gap:12px;margin-top:6px}
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;min-height:50px;padding:12px 18px;border:2px solid var(--ink);border-radius:14px;background:var(--sun);color:var(--ink);font:700 1rem var(--f-b);text-decoration:none;text-align:center;box-shadow:4px 4px 0 var(--ink);overflow-wrap:anywhere;cursor:pointer;transition:transform .12s,box-shadow .12s}
+.btn:hover{transform:translate(2px,2px);box-shadow:2px 2px 0 var(--ink)}
+.btn.wa{background:#7be0a1}
+.btn.alt{background:var(--white)}
+
+.state{padding:30px 24px;display:grid;gap:12px;text-align:center}
+.state h1{font-size:1.7rem}
+.state p{color:var(--mute)}
+.host{display:inline-block;padding:4px 12px;border:2px solid var(--ink);border-radius:999px;background:#fff0bf;font-weight:700;overflow-wrap:anywhere}
+.spin{width:34px;height:34px;margin:0 auto;border:4px solid var(--ink);border-top-color:var(--coral);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.foot{display:grid;gap:8px;text-align:center;font-size:.86rem;color:var(--on-accent)}
+.foot a{color:inherit;font-weight:700;text-underline-offset:3px}
+.foot .promo{padding:12px 14px;border:2px solid var(--ink);border-radius:14px;background:var(--white);color:var(--ink)}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<main class="shell">
+  <div class="card" id="card"><div class="state" role="status"><div class="spin" aria-hidden="true"></div><p>Membuka halaman...</p></div></div>
+  <div class="foot">
+    <div class="promo">Baju ini punya QR yang bisa diatur sendiri. <a href="user/marketplace/index.html">Lihat di Marketplace Mantan</a></div>
+    <div>Baju QR dari <a href="index.html">Gamon Space</a> &middot; <a href="https://www.instagram.com/abldskwn/" target="_blank" rel="noopener noreferrer">Laporkan halaman ini</a></div>
+  </div>
+</main>
+
+<script>
+(function () {
+  var THEMES = { sky: '#d4e9f5', coral: '#ff5c7a', sun: '#ffd66b', mint: '#b8f0d0', ink: '#0b2342' };
+  var card = document.getElementById('card');
+  var code = (new URLSearchParams(location.search).get('c') || '').trim().toUpperCase();
+
+  function el(tag, cls, text) {
+    var n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text != null) n.textContent = text;
+    return n;
+  }
+  function safeUrl(u) {
+    try {
+      var x = new URL(String(u));
+      return (x.protocol === 'http:' || x.protocol === 'https:') ? x.toString() : null;
+    } catch (e) { return null; }
+  }
+  function setTheme(name) {
+    var key = THEMES[name] ? name : 'sky';
+    document.documentElement.style.setProperty('--accent', THEMES[key]);
+    document.body.classList.toggle('theme-ink', key === 'ink');
+  }
+  function showState(title, message) {
+    card.replaceChildren();
+    var box = el('div', 'state');
+    box.appendChild(el('h1', '', title));
+    if (message) box.appendChild(el('p', '', message));
+    card.appendChild(box);
+  }
+
+  function showCard(d) {
+    card.replaceChildren();
+    if (d.image) {
+      var img = el('img', 'photo');
+      img.src = d.image;
+      img.alt = d.title || 'Gambar';
+      card.appendChild(img);
+    }
+    var body = el('div', 'body');
+    if (d.title) body.appendChild(el('h1', 'title', d.title));
+    if (d.text) body.appendChild(el('p', 'text', d.text));
+
+    var links = el('div', 'links');
+    if (d.whatsapp) {
+      var wa = el('a', 'btn wa', 'Chat WhatsApp');
+      wa.href = 'https://wa.me/' + String(d.whatsapp).replace(/\D/g, '');
+      wa.target = '_blank'; wa.rel = 'noopener noreferrer';
+      links.appendChild(wa);
+    }
+    (d.links || []).forEach(function (item) {
+      var url = safeUrl(item.url);
+      if (!url) return;
+      var a = el('a', 'btn', item.label || url);
+      a.href = url; a.target = '_blank'; a.rel = 'noopener noreferrer';
+      links.appendChild(a);
+    });
+    if (links.children.length) body.appendChild(links);
+    card.appendChild(body);
+    if (d.title) document.title = d.title + ' | Baju QR';
+  }
+
+  function showRedirect(d) {
+    var url = safeUrl(d.redirectUrl);
+    if (!url) { showState('Link tidak valid', 'Pemilik QR ini belum mengatur tujuan dengan benar.'); return; }
+    var host = new URL(url).hostname;
+    card.replaceChildren();
+    var box = el('div', 'state');
+    box.appendChild(el('h1', '', d.title || 'Kamu akan diarahkan ke'));
+    box.appendChild(el('span', 'host', host));
+    var counter = el('p', '', 'Dibuka otomatis dalam 3 detik...');
+    box.appendChild(counter);
+    var go = el('a', 'btn', 'Buka sekarang');
+    go.href = url; go.rel = 'noopener noreferrer';
+    box.appendChild(go);
+    card.appendChild(box);
+    var left = 3;
+    var timer = setInterval(function () {
+      left -= 1;
+      if (left <= 0) { clearInterval(timer); location.replace(url); return; }
+      counter.textContent = 'Dibuka otomatis dalam ' + left + ' detik...';
+    }, 1000);
+  }
+
+  async function boot() {
+    if (!/^[A-Z0-9]{6,12}$/.test(code)) {
+      showState('QR tidak dikenali', 'Kode di link ini tidak valid. Coba scan ulang QR di baju.');
+      return;
+    }
+    try {
+      var res = await fetch('/api/admin/qrbaju-view?c=' + encodeURIComponent(code), { cache: 'no-store' });
+      var data = await res.json().catch(function () { return {}; });
+      if (res.status === 404) { showState('QR tidak ditemukan', 'Kode ini tidak terdaftar di Gamon Space.'); return; }
+      if (res.status === 410) { showState('QR dinonaktifkan', 'Halaman ini sedang tidak aktif.'); return; }
+      if (!res.ok || !data.success) { showState('Gagal memuat', data.message || 'Coba scan ulang beberapa saat lagi.'); return; }
+
+      if (!data.configured) {
+        showState('QR ini belum diatur', 'Pemilik baju bisa mengaturnya dengan scan QR tersembunyi yang ada di dalam baju.');
+        return;
+      }
+      setTheme(data.theme);
+      if (data.mode === 'redirect') showRedirect(data); else showCard(data);
+    } catch (e) {
+      showState('Tidak ada koneksi', 'Periksa internetmu lalu muat ulang halaman ini.');
+    }
+  }
+  boot();
+})();
+</script>
+</body>
+</html>

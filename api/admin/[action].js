@@ -2254,6 +2254,304 @@ async function jasaAdminAction(req, res, action) {
     }
 }
 
+/* =====================================================================
+ * BAJU QR
+ * Admin : qrbaju-list, qrbaju-generate, qrbaju-update, qrbaju-delete
+ * Publik: qrbaju-view (scan QR depan), qrbaju-manage-get / qrbaju-manage-save (QR tersembunyi)
+ * ===================================================================== */
+const QRBAJU_TAGS = 'qrbaju_tags';
+const QRBAJU_IMAGES = 'qrbaju_images';
+const QRBAJU_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+const QRBAJU_THEMES = ['sky', 'coral', 'sun', 'mint', 'ink'];
+
+function qrbajuError(statusCode, code, message) {
+    return Object.assign(new Error(message), { statusCode, code });
+}
+
+function qrbajuRandom(length) {
+    return Array.from({ length }, () => QRBAJU_ALPHABET[crypto.randomInt(QRBAJU_ALPHABET.length)]).join('');
+}
+
+function qrbajuLine(value, maxLength, label, required = false) {
+    const text = String(value ?? '').replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, maxLength);
+    if (required && !text) throw qrbajuError(400, 'invalid-input', `${label} wajib diisi.`);
+    return text;
+}
+
+function qrbajuText(value, maxLength) {
+    return String(value ?? '').replace(/\r\n?/g, '\n').replace(/[\u0000-\u0009\u000b-\u001f\u007f]/g, ' ').trim().slice(0, maxLength);
+}
+
+function qrbajuCode(value) {
+    const code = String(value || '').trim().toUpperCase();
+    if (!/^[A-Z0-9]{6,12}$/.test(code)) throw qrbajuError(400, 'invalid-code', 'Kode QR tidak valid.');
+    return code;
+}
+
+function qrbajuSecret(value) {
+    const secret = String(value || '').trim().toUpperCase();
+    if (!/^[A-Z0-9]{16,40}$/.test(secret)) throw qrbajuError(400, 'invalid-secret', 'Kode rahasia tidak valid.');
+    return secret;
+}
+
+function qrbajuUrl(value, label) {
+    const raw = qrbajuLine(value, 500, label);
+    if (!raw) return '';
+    const candidate = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+    let parsed;
+    try {
+        parsed = new URL(candidate);
+    } catch (error) {
+        throw qrbajuError(400, 'invalid-url', `${label} bukan alamat yang valid.`);
+    }
+    if (!['http:', 'https:'].includes(parsed.protocol) || !parsed.hostname.includes('.')) {
+        throw qrbajuError(400, 'invalid-url', `${label} harus berupa alamat situs (http atau https).`);
+    }
+    return parsed.toString();
+}
+
+function qrbajuImage(value) {
+    if (typeof value !== 'string' || value.length > 300000) {
+        throw qrbajuError(400, 'invalid-image', 'Gambar terlalu besar. Pilih gambar yang lebih kecil.');
+    }
+    if (!/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/]+={0,2}$/.test(value)) {
+        throw qrbajuError(400, 'invalid-image', 'Format gambar tidak valid.');
+    }
+    return value;
+}
+
+function qrbajuContent(body) {
+    const mode = body.mode === 'redirect' ? 'redirect' : 'card';
+    const theme = QRBAJU_THEMES.includes(body.theme) ? body.theme : 'sky';
+    const title = qrbajuLine(body.title, 60, 'Judul', mode === 'card');
+    const text = qrbajuText(body.text, 600);
+    const redirectUrl = mode === 'redirect' ? qrbajuUrl(body.redirectUrl, 'Link tujuan') : '';
+    if (mode === 'redirect' && !redirectUrl) throw qrbajuError(400, 'invalid-url', 'Link tujuan wajib diisi.');
+
+    const linksInput = Array.isArray(body.links) ? body.links : [];
+    if (linksInput.length > 5) throw qrbajuError(400, 'too-many-links', 'Maksimal 5 tombol link.');
+    const links = linksInput
+        .filter((item) => item && (String(item.label || '').trim() || String(item.url || '').trim()))
+        .map((item, index) => {
+            const label = qrbajuLine(item.label, 30, `Nama tombol ${index + 1}`, true);
+            const url = qrbajuUrl(item.url, `Link tombol ${index + 1}`);
+            if (!url) throw qrbajuError(400, 'invalid-url', `Link tombol ${index + 1} wajib diisi.`);
+            return { label, url };
+        });
+
+    let whatsapp = '';
+    if (String(body.whatsapp || '').trim()) {
+        whatsapp = normalizeWhatsapp(body.whatsapp);
+        if (!/^\d{9,15}$/.test(whatsapp)) throw qrbajuError(400, 'invalid-whatsapp', 'Nomor WhatsApp tidak valid.');
+    }
+
+    return { mode, theme, title, text, links, whatsapp, redirectUrl };
+}
+
+function qrbajuPublicData(tag, image) {
+    return {
+        code: tag.code,
+        configured: tag.configured === true,
+        mode: tag.mode || 'card',
+        theme: tag.theme || 'sky',
+        title: tag.title || '',
+        text: tag.text || '',
+        links: Array.isArray(tag.links) ? tag.links : [],
+        whatsapp: tag.whatsapp || '',
+        redirectUrl: tag.redirectUrl || '',
+        scans: Number(tag.scans || 0),
+        image: image || ''
+    };
+}
+
+async function qrbajuReadImage(db, tag) {
+    if (!tag.hasImage) return '';
+    const snap = await db.collection(QRBAJU_IMAGES).doc(tag.code).get();
+    return snap.exists ? String(snap.data()?.data || '') : '';
+}
+
+async function qrbajuAction(req, res, action) {
+    const publicMethods = { 'qrbaju-view': 'GET', 'qrbaju-manage-get': 'GET', 'qrbaju-manage-save': 'POST' };
+    const adminMethods = { 'qrbaju-list': 'GET', 'qrbaju-generate': 'POST', 'qrbaju-update': 'POST', 'qrbaju-delete': 'POST' };
+    const method = publicMethods[action] || adminMethods[action];
+    if (req.method !== method) return res.status(405).json({ success: false, message: 'Method Not Allowed' });
+
+    let authResult = null;
+    if (adminMethods[action]) {
+        authResult = await requireAdmin(req, res);
+        if (!authResult) return;
+    }
+
+    res.setHeader('Cache-Control', 'no-store');
+    const db = getAdminDb();
+    const body = req.body || {};
+    const adminEmail = authResult?.claims?.email || OWNER_EMAIL;
+
+    try {
+        /* ---------- PUBLIK: scan QR depan ---------- */
+        if (action === 'qrbaju-view') {
+            const code = qrbajuCode(req.query?.c);
+            const ref = db.collection(QRBAJU_TAGS).doc(code);
+            const snap = await ref.get();
+            if (!snap.exists) throw qrbajuError(404, 'not-found', 'Kode QR tidak ditemukan.');
+            const tag = snap.data() || {};
+            if (tag.active === false) throw qrbajuError(410, 'inactive', 'QR ini sedang dinonaktifkan.');
+            try {
+                await ref.update({ scans: FieldValue.increment(1), lastScanAt: Date.now() });
+            } catch (error) {
+                console.warn('[qrbaju] hitung scan gagal:', error.message);
+            }
+            if (!tag.configured) return res.status(200).json({ success: true, configured: false });
+            const image = await qrbajuReadImage(db, tag);
+            return res.status(200).json({ success: true, ...qrbajuPublicData(tag, image) });
+        }
+
+        /* ---------- PUBLIK: QR tersembunyi (baca + simpan) ---------- */
+        if (action === 'qrbaju-manage-get' || action === 'qrbaju-manage-save') {
+            const secret = qrbajuSecret(action === 'qrbaju-manage-get' ? req.query?.k : body.k);
+            const found = await db.collection(QRBAJU_TAGS).where('secret', '==', secret).limit(1).get();
+            if (found.empty) throw qrbajuError(404, 'not-found', 'QR tidak ditemukan.');
+            const ref = found.docs[0].ref;
+            const tag = found.docs[0].data() || {};
+
+            if (action === 'qrbaju-manage-get') {
+                const image = await qrbajuReadImage(db, tag);
+                return res.status(200).json({ success: true, data: qrbajuPublicData(tag, image) });
+            }
+
+            if (tag.active === false) throw qrbajuError(403, 'inactive', 'QR ini sedang dinonaktifkan oleh admin.');
+            const content = qrbajuContent(body);
+            const now = Date.now();
+            const imageRef = db.collection(QRBAJU_IMAGES).doc(tag.code);
+            let hasImage = tag.hasImage === true;
+            let imageVersion = Number(tag.imageVersion || 0);
+            let image = '';
+
+            if (body.imageData) {
+                image = qrbajuImage(body.imageData);
+                await imageRef.set({ data: image, updatedAt: now });
+                hasImage = true;
+                imageVersion = now;
+            } else if (body.removeImage === true) {
+                await imageRef.delete();
+                hasImage = false;
+                imageVersion = now;
+            } else {
+                image = await qrbajuReadImage(db, tag);
+            }
+
+            const next = {
+                ...content,
+                configured: true,
+                hasImage,
+                imageVersion,
+                configuredAt: tag.configuredAt || now,
+                updatedAt: now
+            };
+            await ref.set(next, { merge: true });
+            return res.status(200).json({
+                success: true,
+                message: 'Tersimpan.',
+                data: qrbajuPublicData({ ...tag, ...next }, hasImage ? image : '')
+            });
+        }
+
+        /* ---------- ADMIN ---------- */
+        if (action === 'qrbaju-list') {
+            const snapshot = await db.collection(QRBAJU_TAGS).get();
+            const tags = snapshot.docs
+                .map((item) => ({ id: item.id, ...item.data() }))
+                .sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0))
+                .slice(0, 1000);
+            return res.status(200).json({ success: true, data: tags });
+        }
+
+        if (action === 'qrbaju-generate') {
+            const count = Number.parseInt(body.count, 10);
+            if (!Number.isInteger(count) || count < 1 || count > 50) {
+                throw qrbajuError(400, 'invalid-count', 'Jumlah harus 1 sampai 50.');
+            }
+            const prefix = qrbajuLine(body.label, 60, 'Label');
+            const now = Date.now();
+            const created = await Promise.all(Array.from({ length: count }, async (_, index) => {
+                for (let attempt = 0; attempt < 6; attempt += 1) {
+                    const code = qrbajuRandom(8);
+                    const data = {
+                        code,
+                        secret: qrbajuRandom(20),
+                        label: count > 1 && prefix ? `${prefix} ${index + 1}` : prefix,
+                        active: true,
+                        configured: false,
+                        mode: 'card',
+                        theme: 'sky',
+                        title: '',
+                        text: '',
+                        links: [],
+                        whatsapp: '',
+                        redirectUrl: '',
+                        hasImage: false,
+                        imageVersion: 0,
+                        scans: 0,
+                        lastScanAt: 0,
+                        createdAt: now,
+                        updatedAt: now,
+                        createdBy: adminEmail
+                    };
+                    try {
+                        await db.collection(QRBAJU_TAGS).doc(code).create(data);
+                        return data;
+                    } catch (error) {
+                        if (error.code === 6 || /already exists/i.test(String(error.message))) continue;
+                        throw error;
+                    }
+                }
+                throw qrbajuError(500, 'code-collision', 'Gagal membuat kode unik. Coba lagi.');
+            }));
+            return res.status(200).json({ success: true, data: created, message: `${created.length} pasangan QR berhasil dibuat.` });
+        }
+
+        if (action === 'qrbaju-update') {
+            const code = qrbajuCode(body.code);
+            const ref = db.collection(QRBAJU_TAGS).doc(code);
+            const snap = await ref.get();
+            if (!snap.exists) throw qrbajuError(404, 'not-found', 'QR tidak ditemukan.');
+            const patch = { updatedAt: Date.now() };
+
+            if (body.active !== undefined) {
+                if (typeof body.active !== 'boolean') throw qrbajuError(400, 'invalid-active', 'Status aktif harus boolean.');
+                patch.active = body.active;
+            }
+            if (body.label !== undefined) patch.label = qrbajuLine(body.label, 60, 'Label');
+            if (body.regenerateSecret === true) patch.secret = qrbajuRandom(20);
+            if (body.resetContent === true) {
+                Object.assign(patch, {
+                    configured: false, mode: 'card', theme: 'sky', title: '', text: '',
+                    links: [], whatsapp: '', redirectUrl: '', hasImage: false, imageVersion: Date.now()
+                });
+                await db.collection(QRBAJU_IMAGES).doc(code).delete();
+            }
+            await ref.set(patch, { merge: true });
+            return res.status(200).json({ success: true, message: 'QR berhasil diperbarui.' });
+        }
+
+        if (action === 'qrbaju-delete') {
+            const code = qrbajuCode(body.code);
+            await db.collection(QRBAJU_TAGS).doc(code).delete();
+            await db.collection(QRBAJU_IMAGES).doc(code).delete();
+            return res.status(200).json({ success: true, message: 'QR berhasil dihapus.' });
+        }
+
+        return res.status(404).json({ success: false, code: 'unknown-action', message: 'Aksi Baju QR tidak dikenal.' });
+    } catch (error) {
+        if (!error.statusCode) console.error('[qrbaju] aksi gagal:', { action, code: error.code || 'unknown', message: error.message });
+        return res.status(error.statusCode || 500).json({
+            success: false,
+            code: error.code || 'qrbaju-failed',
+            message: error.statusCode ? error.message : 'Terjadi kesalahan server. Coba lagi.'
+        });
+    }
+}
+
 export default async function handler(req, res) {
     const action = String(req?.query?.action || '').toLowerCase();
 
@@ -2328,6 +2626,14 @@ export default async function handler(req, res) {
             return handleNotifyMarketplaceChatReply(req, res);
         case 'notify-jasa-chat-reply':
             return handleNotifyJasaChatReply(req, res);
+        case 'qrbaju-view':
+        case 'qrbaju-manage-get':
+        case 'qrbaju-manage-save':
+        case 'qrbaju-list':
+        case 'qrbaju-generate':
+        case 'qrbaju-update':
+        case 'qrbaju-delete':
+            return qrbajuAction(req, res, action);
         case 'jasa-get-catalog':
                     case 'jasa-save-category':
                     case 'jasa-save-service':

@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kelola Baju QR - Admin Gamon Space</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+    <style>
+      .material-symbols-outlined { font-family: 'Material Symbols Outlined'; font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24; }
+      .qr-box svg { width: 100%; height: auto; display: block; }
+    </style>
+</head>
+<body class="bg-slate-100 min-h-screen text-slate-800">
+    <div class="min-h-screen lg:grid lg:grid-cols-[260px_minmax(0,1fr)]">
+        <div data-admin-sidebar></div>
+        <script src="/admin/partials/sidebar.js"></script>
+
+        <main class="px-4 py-8 lg:px-8">
+            <div class="mb-6">
+                <h2 class="text-2xl font-bold text-slate-900">Kelola Baju QR</h2>
+                <p class="mt-1 text-sm text-slate-500">Buat pasangan QR: satu QR depan (dicetak di punggung baju) dan satu QR tersembunyi (di label atau tag dalam baju) untuk mengatur isinya.</p>
+            </div>
+
+            <div class="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><p class="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Total pasangan QR</p><p id="statTotal" class="mt-2 text-3xl font-bold text-slate-900">0</p></div>
+                <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><p class="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Belum diatur</p><p id="statEmpty" class="mt-2 text-3xl font-bold text-amber-600">0</p></div>
+                <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><p class="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Sudah diatur pemilik</p><p id="statDone" class="mt-2 text-3xl font-bold text-emerald-600">0</p></div>
+                <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><p class="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Total scan</p><p id="statScans" class="mt-2 text-3xl font-bold text-violet-600">0</p></div>
+            </div>
+
+            <div class="mb-6 grid gap-4 lg:grid-cols-2">
+                <form id="generateForm" class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                    <h3 class="font-bold text-slate-900">Buat pasangan QR baru</h3>
+                    <div class="mt-4 grid gap-3 sm:grid-cols-[1fr_110px]">
+                        <label class="text-xs font-semibold text-slate-600">Label (catatan untuk admin)
+                            <input id="genLabel" type="text" maxlength="60" placeholder="Contoh: Kaos hitam batch 1" class="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-normal focus:outline-none focus:ring-2 focus:ring-pink-200" />
+                        </label>
+                        <label class="text-xs font-semibold text-slate-600">Jumlah
+                            <input id="genCount" type="number" min="1" max="50" value="1" class="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-normal focus:outline-none focus:ring-2 focus:ring-pink-200" />
+                        </label>
+                    </div>
+                    <button id="genBtn" type="submit" class="mt-4 inline-flex items-center justify-center rounded-xl bg-pink-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-pink-500 disabled:opacity-60">Buat QR</button>
+                    <p class="mt-2 text-xs text-slate-500">Maksimal 50 pasangan sekali buat. Label diberi nomor urut otomatis bila jumlah lebih dari satu.</p>
+                </form>
+
+                <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                    <h3 class="font-bold text-slate-900">Domain di dalam QR</h3>
+                    <label class="mt-4 block text-xs font-semibold text-slate-600">Alamat situs
+                        <input id="siteUrl" type="url" class="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-normal focus:outline-none focus:ring-2 focus:ring-pink-200" />
+                    </label>
+                    <p class="mt-2 text-xs text-slate-500">Domain ini dipakai saat membentuk QR. Pastikan sudah benar sebelum QR dicetak, karena QR yang sudah tercetak tidak bisa diubah. Jika nanti pindah domain, QR lama tetap harus bisa dibuka di domain lama.</p>
+                </div>
+            </div>
+
+            <p id="pageStatus" class="mb-4 text-sm text-rose-700" role="status" aria-live="polite"></p>
+
+            <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                <div class="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                    <div class="flex flex-col gap-2 sm:flex-row">
+                        <input id="searchInput" type="search" placeholder="Cari kode atau label..." class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-pink-200 sm:w-64" />
+                        <select id="statusFilter" class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-pink-200">
+                            <option value="all">Semua status</option>
+                            <option value="empty">Belum diatur</option>
+                            <option value="done">Sudah diatur</option>
+                            <option value="off">Nonaktif</option>
+                        </select>
+                    </div>
+                    <button id="printBtn" type="button" class="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50">Cetak lembar QR (sesuai filter)</button>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full min-w-[820px] text-left text-sm text-slate-700">
+                        <thead>
+                            <tr class="border-b border-slate-200 bg-slate-50 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                                <th class="px-3 py-3">Kode</th>
+                                <th class="px-3 py-3">Label</th>
+                                <th class="px-3 py-3">Status</th>
+                                <th class="px-3 py-3">Scan</th>
+                                <th class="px-3 py-3">Aktif</th>
+                                <th class="px-3 py-3">Dibuat</th>
+                                <th class="px-3 py-3 text-right">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tagsBody"><tr><td colspan="7" class="py-8 text-center text-slate-400">Memuat data...</td></tr></tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- MODAL DETAIL -->
+    <div id="modal" class="fixed inset-0 z-50 hidden items-start justify-center overflow-y-auto bg-slate-900/60 p-4" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+        <div class="my-8 w-full max-w-3xl rounded-2xl bg-white p-6 shadow-xl">
+            <div class="flex items-start justify-between gap-3">
+                <div>
+                    <h3 id="modalTitle" class="text-lg font-bold text-slate-900">Detail QR</h3>
+                    <p id="modalSub" class="text-xs text-slate-500"></p>
+                </div>
+                <button id="modalClose" type="button" class="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-semibold text-slate-600 hover:bg-slate-50">Tutup</button>
+            </div>
+
+            <div class="mt-5 grid gap-5 md:grid-cols-2">
+                <div class="rounded-2xl border border-slate-200 p-4">
+                    <p class="text-sm font-bold text-slate-900">QR depan (cetak di punggung baju)</p>
+                    <p class="text-xs text-slate-500">Menampilkan halaman yang diatur pemilik.</p>
+                    <div id="qrFront" class="qr-box mx-auto mt-3 w-48 rounded-lg border border-slate-200 bg-white p-1"></div>
+                    <code id="frontLink" class="mt-3 block break-all rounded-lg bg-slate-50 p-2 text-[11px] text-slate-600"></code>
+                    <div class="mt-3 flex flex-wrap gap-2">
+                        <button type="button" data-dl="front-png" class="rounded-lg bg-pink-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-pink-500">Unduh PNG</button>
+                        <button type="button" data-dl="front-svg" class="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">Unduh SVG</button>
+                        <button type="button" data-copy="front" class="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">Salin link</button>
+                        <a id="frontOpen" target="_blank" rel="noopener noreferrer" class="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">Buka</a>
+                    </div>
+                </div>
+
+                <div class="rounded-2xl border border-amber-300 bg-amber-50 p-4">
+                    <p class="text-sm font-bold text-slate-900">QR tersembunyi (label atau tag dalam baju)</p>
+                    <p class="text-xs text-slate-600">Membuka halaman pengaturan. Jangan dicetak di sisi luar baju.</p>
+                    <div id="qrHidden" class="qr-box mx-auto mt-3 w-48 rounded-lg border border-amber-200 bg-white p-1"></div>
+                    <code id="hiddenLink" class="mt-3 block break-all rounded-lg bg-white p-2 text-[11px] text-slate-600"></code>
+                    <div class="mt-3 flex flex-wrap gap-2">
+                        <button type="button" data-dl="hidden-png" class="rounded-lg bg-pink-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-pink-500">Unduh PNG</button>
+                        <button type="button" data-dl="hidden-svg" class="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">Unduh SVG</button>
+                        <button type="button" data-copy="hidden" class="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">Salin link</button>
+                        <a id="hiddenOpen" target="_blank" rel="noopener noreferrer" class="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">Buka</a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-5 flex flex-wrap gap-2 border-t border-slate-200 pt-4">
+                <button type="button" id="actLabel" class="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">Ubah label</button>
+                <button type="button" id="actResetContent" class="rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-800 hover:bg-amber-100">Kosongkan isi halaman</button>
+                <button type="button" id="actResetSecret" class="rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-800 hover:bg-amber-100">Ganti QR tersembunyi</button>
+                <button type="button" id="actDelete" class="rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-100">Hapus</button>
+            </div>
+            <p class="mt-2 text-xs text-slate-500">Ganti QR tersembunyi dipakai bila QR rahasia bocor. QR tersembunyi yang lama langsung tidak berlaku, jadi label dalam baju harus dicetak ulang.</p>
+        </div>
+    </div>
+
+    <script>
+        const API = '/api/admin/';
+        const DEFAULT_SITE = 'https://gamon-space.vercel.app';
+        const state = { tags: [], current: null };
+
+        const $ = (id) => document.getElementById(id);
+        const siteInput = $('siteUrl');
+        try { siteInput.value = localStorage.getItem('qrbaju_site') || DEFAULT_SITE; } catch (e) { siteInput.value = DEFAULT_SITE; }
+
+        function siteUrl() { return (siteInput.value.trim() || DEFAULT_SITE).replace(/\/+$/, ''); }
+        const frontLink = (t) => `${siteUrl()}/qr.html?c=${t.code}`;
+        const hiddenLink = (t) => `${siteUrl()}/qr-atur.html?k=${t.secret}`;
+
+        siteInput.addEventListener('change', () => {
+            try { localStorage.setItem('qrbaju_site', siteInput.value.trim()); } catch (e) {}
+            if (state.current) openModal(state.current.code);
+        });
+
+        function escapeHtml(value) {
+            return String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[c]));
+        }
+        function formatDate(value) {
+            const d = new Date(Number(value));
+            return Number.isNaN(d.getTime()) || !value ? '-' : d.toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' });
+        }
+
+        async function api(action, { method = 'GET', body } = {}) {
+            const response = await fetch(API + action, {
+                method,
+                credentials: 'same-origin',
+                headers: body ? { 'Content-Type': 'application/json' } : undefined,
+                body: body ? JSON.stringify(body) : undefined
+            });
+            if (response.status === 401 || response.status === 403) {
+                window.location.href = '/admin/login.html';
+                throw new Error('Sesi berakhir.');
+            }
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok || !data.success) throw new Error(data.message || 'Permintaan gagal.');
+            return data;
+        }
+
+        /* ---------- QR ---------- */
+        function makeQr(text) {
+            // Level Q (toleransi rusak 25%) supaya tetap terbaca di kain yang melar atau kusut.
+            const qr = qrcode(0, 'Q');
+            qr.addData(text);
+            qr.make();
+            return qr;
+        }
+        function qrSvg(text) {
+            const qr = makeQr(text);
+            const n = qr.getModuleCount();
+            const margin = 4;
+            const size = n + margin * 2;
+            let d = '';
+            for (let r = 0; r < n; r += 1) {
+                for (let c = 0; c < n; c += 1) {
+                    if (qr.isDark(r, c)) d += `M${c + margin} ${r + margin}h1v1h-1z`;
+                }
+            }
+            return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" shape-rendering="crispEdges"><rect width="${size}" height="${size}" fill="#fff"/><path d="${d}" fill="#000"/></svg>`;
+        }
+        function qrCanvas(text, target = 1200) {
+            const qr = makeQr(text);
+            const n = qr.getModuleCount();
+            const margin = 4;
+            const cell = Math.max(1, Math.floor(target / (n + margin * 2)));
+            const px = cell * (n + margin * 2);
+            const canvas = document.createElement('canvas');
+            canvas.width = px; canvas.height = px;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(0, 0, px, px);
+            ctx.fillStyle = '#000';
+            for (let r = 0; r < n; r += 1) {
+                for (let c = 0; c < n; c += 1) {
+                    if (qr.isDark(r, c)) ctx.fillRect((c + margin) * cell, (r + margin) * cell, cell, cell);
+                }
+            }
+            return canvas;
+        }
+        function saveBlob(blob, name) {
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = name;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            setTimeout(() => URL.revokeObjectURL(a.href), 1500);
+        }
+        function downloadPng(text, name) { qrCanvas(text).toBlob((blob) => saveBlob(blob, `${name}.png`), 'image/png'); }
+        function downloadSvg(text, name) { saveBlob(new Blob([qrSvg(text)], { type: 'image/svg+xml' }), `${name}.svg`); }
+
+        /* ---------- daftar ---------- */
+        function statusOf(tag) {
+            if (tag.active === false) return 'off';
+            return tag.configured ? 'done' : 'empty';
+        }
+        function filteredTags() {
+            const q = $('searchInput').value.trim().toLowerCase();
+            const f = $('statusFilter').value;
+            return state.tags.filter((tag) => {
+                const okSearch = !q || tag.code.toLowerCase().includes(q) || String(tag.label || '').toLowerCase().includes(q);
+                return okSearch && (f === 'all' || statusOf(tag) === f);
+            });
+        }
+        function renderStats() {
+            const tags = state.tags;
+            $('statTotal').textContent = tags.length;
+            $('statEmpty').textContent = tags.filter((t) => !t.configured).length;
+            $('statDone').textContent = tags.filter((t) => t.configured).length;
+            $('statScans').textContent = tags.reduce((sum, t) => sum + Number(t.scans || 0), 0);
+        }
+        function renderTable() {
+            renderStats();
+            const rows = filteredTags();
+            const body = $('tagsBody');
+            if (!rows.length) {
+                body.innerHTML = `<tr><td colspan="7" class="py-8 text-center text-slate-400">${state.tags.length ? 'Tidak ada data yang sesuai filter.' : 'Belum ada QR. Buat pasangan QR pertama di atas.'}</td></tr>`;
+                return;
+            }
+            body.innerHTML = rows.map((tag) => {
+                const active = tag.active !== false;
+                const badge = tag.configured
+                    ? '<span class="inline-flex rounded-full bg-emerald-100 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">Sudah diatur</span>'
+                    : '<span class="inline-flex rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-semibold text-amber-700">Belum diatur</span>';
+                return `<tr class="border-b border-slate-100 align-middle ${active ? '' : 'bg-slate-50 opacity-70'}">
+                    <td class="px-3 py-3 font-mono font-semibold text-slate-900">${escapeHtml(tag.code)}</td>
+                    <td class="px-3 py-3">${escapeHtml(tag.label || '-')}</td>
+                    <td class="px-3 py-3">${badge}</td>
+                    <td class="px-3 py-3">${Number(tag.scans || 0)}</td>
+                    <td class="px-3 py-3">
+                        <button type="button" role="switch" aria-checked="${active}" aria-label="${active ? 'Nonaktifkan' : 'Aktifkan'} ${escapeHtml(tag.code)}" data-toggle="${escapeHtml(tag.code)}"
+                            class="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-pink-300 ${active ? 'bg-emerald-500' : 'bg-slate-300'}">
+                            <span class="inline-block h-5 w-5 rounded-full bg-white shadow transition-transform ${active ? 'translate-x-5' : 'translate-x-0.5'}"></span>
+                        </button>
+                    </td>
+                    <td class="px-3 py-3 text-xs text-slate-500">${formatDate(tag.createdAt)}</td>
+                    <td class="px-3 py-3 text-right"><button type="button" data-detail="${escapeHtml(tag.code)}" class="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50">QR &amp; detail</button></td>
+                </tr>`;
+            }).join('');
+        }
+
+        async function loadTags() {
+            try {
+                const result = await api('qrbaju-list');
+                state.tags = Array.isArray(result.data) ? result.data : [];
+                $('pageStatus').textContent = '';
+                renderTable();
+            } catch (error) {
+                $('pageStatus').textContent = error.message;
+                $('tagsBody').innerHTML = '<tr><td colspan="7" class="py-8 text-center text-rose-600">Gagal memuat data.</td></tr>';
+            }
+        }
+
+        $('tagsBody').addEventListener('click', async (event) => {
+            const detail = event.target.closest('[data-detail]');
+            if (detail) { openModal(detail.dataset.detail); return; }
+            const toggle = event.target.closest('[data-toggle]');
+            if (toggle) {
+                const tag = state.tags.find((t) => t.code === toggle.dataset.toggle);
+                if (!tag) return;
+                const next = tag.active === false;
+                if (!next && !confirm(`Nonaktifkan ${tag.code}? Halaman QR akan menampilkan "dinonaktifkan" saat di-scan.`)) return;
+                toggle.disabled = true;
+                try {
+                    await api('qrbaju-update', { method: 'POST', body: { code: tag.code, active: next } });
+                    await loadTags();
+                } catch (error) { $('pageStatus').textContent = error.message; toggle.disabled = false; }
+            }
+        });
+        $('searchInput').addEventListener('input', renderTable);
+        $('statusFilter').addEventListener('change', renderTable);
+
+        /* ---------- buat baru ---------- */
+        $('generateForm').addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const btn = $('genBtn');
+            const count = Number.parseInt($('genCount').value, 10);
+            if (!Number.isInteger(count) || count < 1 || count > 50) { $('pageStatus').textContent = 'Jumlah harus 1 sampai 50.'; return; }
+            btn.disabled = true; btn.textContent = 'Membuat...';
+            try {
+                await api('qrbaju-generate', { method: 'POST', body: { count, label: $('genLabel').value } });
+                $('genLabel').value = '';
+                $('pageStatus').textContent = '';
+                await loadTags();
+            } catch (error) {
+                $('pageStatus').textContent = error.message;
+            } finally {
+                btn.disabled = false; btn.textContent = 'Buat QR';
+            }
+        });
+
+        /* ---------- modal ---------- */
+        function openModal(code) {
+            const tag = state.tags.find((t) => t.code === code);
+            if (!tag) return;
+            state.current = tag;
+            $('modalTitle').textContent = `QR ${tag.code}`;
+            $('modalSub').textContent = tag.label || 'Tanpa label';
+            $('qrFront').innerHTML = qrSvg(frontLink(tag));
+            $('qrHidden').innerHTML = qrSvg(hiddenLink(tag));
+            $('frontLink').textContent = frontLink(tag);
+            $('hiddenLink').textContent = hiddenLink(tag);
+            $('frontOpen').href = frontLink(tag);
+            $('hiddenOpen').href = hiddenLink(tag);
+            $('modal').classList.remove('hidden');
+            $('modal').classList.add('flex');
+        }
+        function closeModal() {
+            state.current = null;
+            $('modal').classList.add('hidden');
+            $('modal').classList.remove('flex');
+        }
+        $('modalClose').addEventListener('click', closeModal);
+        $('modal').addEventListener('click', (event) => { if (event.target === $('modal')) closeModal(); });
+        document.addEventListener('keydown', (event) => { if (event.key === 'Escape') closeModal(); });
+
+        $('modal').addEventListener('click', async (event) => {
+            const tag = state.current;
+            if (!tag) return;
+            const dl = event.target.closest('[data-dl]');
+            if (dl) {
+                const [which, type] = dl.dataset.dl.split('-');
+                const text = which === 'front' ? frontLink(tag) : hiddenLink(tag);
+                const name = `bajuqr-${tag.code}-${which === 'front' ? 'depan' : 'tersembunyi'}`;
+                if (type === 'png') downloadPng(text, name); else downloadSvg(text, name);
+                return;
+            }
+            const copy = event.target.closest('[data-copy]');
+            if (copy) {
+                const text = copy.dataset.copy === 'front' ? frontLink(tag) : hiddenLink(tag);
+                const original = copy.textContent;
+                try { await navigator.clipboard.writeText(text); copy.textContent = 'Tersalin'; } catch (e) { copy.textContent = 'Gagal menyalin'; }
+                setTimeout(() => { copy.textContent = original; }, 1800);
+            }
+        });
+
+        async function runAction(body, successMessage) {
+            try {
+                await api('qrbaju-update', { method: 'POST', body });
+                await loadTags();
+                $('pageStatus').textContent = '';
+                if (state.current && state.tags.some((t) => t.code === state.current.code)) openModal(state.current.code);
+                if (successMessage) alert(successMessage);
+            } catch (error) { alert(error.message); }
+        }
+        $('actLabel').addEventListener('click', () => {
+            const tag = state.current;
+            if (!tag) return;
+            const next = prompt('Label baru:', tag.label || '');
+            if (next === null) return;
+            runAction({ code: tag.code, label: next });
+        });
+        $('actResetContent').addEventListener('click', () => {
+            const tag = state.current;
+            if (!tag) return;
+            if (!confirm(`Kosongkan isi halaman ${tag.code}? Teks, gambar, dan link buatan pemilik akan dihapus.`)) return;
+            runAction({ code: tag.code, resetContent: true });
+        });
+        $('actResetSecret').addEventListener('click', () => {
+            const tag = state.current;
+            if (!tag) return;
+            if (!confirm(`Ganti QR tersembunyi ${tag.code}? QR tersembunyi yang lama langsung tidak berlaku.`)) return;
+            runAction({ code: tag.code, regenerateSecret: true }, 'QR tersembunyi diganti. Unduh QR yang baru dari jendela detail.');
+        });
+        $('actDelete').addEventListener('click', async () => {
+            const tag = state.current;
+            if (!tag) return;
+            if (!confirm(`Hapus ${tag.code} secara permanen? QR yang sudah tercetak akan menampilkan "tidak ditemukan".`)) return;
+            try {
+                await api('qrbaju-delete', { method: 'POST', body: { code: tag.code } });
+                closeModal();
+                await loadTags();
+            } catch (error) { alert(error.message); }
+        });
+
+        /* ---------- cetak lembar ---------- */
+        $('printBtn').addEventListener('click', () => {
+            const rows = filteredTags();
+            if (!rows.length) { alert('Tidak ada QR untuk dicetak.'); return; }
+            const win = window.open('', '_blank');
+            if (!win) { alert('Pop-up diblokir browser. Izinkan pop-up lalu coba lagi.'); return; }
+            const cells = rows.map((tag) => `
+                <section class="pair">
+                    <div class="qr"><div class="cap">DEPAN &middot; ${escapeHtml(tag.code)}</div>${qrSvg(frontLink(tag))}<div class="sub">${escapeHtml(tag.label || '')}</div></div>
+                    <div class="qr hid"><div class="cap">TERSEMBUNYI &middot; ${escapeHtml(tag.code)}</div>${qrSvg(hiddenLink(tag))}<div class="sub">Jangan cetak di luar baju</div></div>
+                </section>`).join('');
+            win.document.write(`<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8"><title>Lembar QR Baju</title>
+                <style>
+                    body{font-family:Arial,sans-serif;margin:16px;color:#111}
+                    .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+                    .pair{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:10px;border:1px dashed #888;break-inside:avoid}
+                    .qr svg{width:100%;height:auto;display:block}
+                    .cap{font-size:11px;font-weight:700;margin-bottom:4px}
+                    .sub{font-size:10px;color:#555;margin-top:3px;min-height:12px}
+                    .hid{border-left:2px dashed #c80;padding-left:10px}
+                    @media print{body{margin:6mm}}
+                </style></head><body><div class="grid">${cells}</div>
+                <script>window.onload=function(){window.print()}<\/script></body></html>`);
+            win.document.close();
+        });
+
+        /* ---------- sesi admin ---------- */
+        async function verifyAdminPageSession() {
+            try {
+                const response = await fetch('/api/admin/session');
+                const result = await response.json();
+                if (!response.ok || !result.success) { window.location.href = '/admin/login.html'; return false; }
+                const emailEl = document.getElementById('adminEmail');
+                if (emailEl) emailEl.textContent = result.email ? `Login sebagai ${result.email}` : 'Admin terverifikasi';
+                return true;
+            } catch (error) {
+                window.location.href = '/admin/login.html';
+                return false;
+            }
+        }
+        async function handleLogout() {
+            try { await fetch('/api/admin/logout', { method: 'POST' }); }
+            finally { window.location.href = '/admin/login.html'; }
+        }
+        window.handleLogout = handleLogout;
+
+        window.addEventListener('DOMContentLoaded', async () => {
+            if (await verifyAdminPageSession()) loadTags();
+        });
+    </script>
+</body>
+</html>

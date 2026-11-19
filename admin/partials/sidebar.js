@@ -26,6 +26,8 @@
         { href: '/admin/jasa.html', label: 'Layanan Jasa', icon: 'handyman' },
         { href: '/admin/jasa-orders.html', label: 'Pesanan Jasa', icon: 'receipt_long' },
         { href: '/admin/jasa-chat.html', label: 'Chat Jasa', icon: 'chat', jasaChat: true },
+        { section: 'Baju QR' },
+        { href: '/admin/qr-baju.html', label: 'Kelola Baju QR', icon: 'qr_code_2' },
         { section: 'Topup & PPOB' },
 { href: '/admin/topup.html', label: 'Topup Digiflazz', icon: 'bolt' }
     );
