@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+<meta name="robots" content="noindex, nofollow"/>
+<meta name="referrer" content="no-referrer"/>
+<title>Laporkan Halaman | Gamon Space</title>
+<link rel="icon" type="image/svg+xml" href="image/logo/gamonspace.svg"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+:root{--ink:#0b2342;--coral:#ff5c7a;--sun:#ffd66b;--white:#fff;--mute:#47607c;--accent:#d4e9f5;--f-d:"Bricolage Grotesque","Inter",system-ui,sans-serif;--f-b:"Inter",system-ui,sans-serif}
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;min-height:100vh;min-height:100dvh;font-family:var(--f-b);color:var(--ink);background:var(--accent);line-height:1.5;
+  padding:max(16px,env(safe-area-inset-top,0px)) max(14px,env(safe-area-inset-right,0px)) max(20px,env(safe-area-inset-bottom,0px)) max(14px,env(safe-area-inset-left,0px));
+  display:flex;justify-content:center;align-items:flex-start}
+h1{font-family:var(--f-d);font-weight:800;letter-spacing:-.025em;line-height:1.1;margin:0;font-size:clamp(1.4rem,6vw,1.9rem)}
+p{margin:0}
+:focus-visible{outline:3px solid var(--coral);outline-offset:3px}
+
+.shell{width:min(460px,100%);margin:auto 0}
+.card{background:var(--white);border:2px solid var(--ink);border-radius:22px;box-shadow:5px 5px 0 var(--ink);padding:20px 18px 22px;display:grid;gap:14px}
+.lead{color:var(--mute);font-size:.92rem}
+.code{display:inline-block;justify-self:start;padding:3px 12px;border:2px solid var(--ink);border-radius:999px;background:#fff0bf;font-weight:700;font-size:.85rem;font-family:ui-monospace,Menlo,Consolas,monospace}
+
+label{display:grid;gap:6px;font-weight:700;font-size:.9rem}
+label small{font-weight:500;color:var(--mute)}
+select,textarea,input[type=text]{width:100%;font:500 1rem var(--f-b);color:var(--ink);background:#fff;border:2px solid var(--ink);border-radius:12px;padding:11px 12px}
+textarea{resize:vertical;min-height:96px;max-height:220px}
+.count{justify-self:end;font-weight:500;font-size:.75rem;color:var(--mute)}
+
+.btn{display:flex;align-items:center;justify-content:center;min-height:50px;padding:12px 18px;border:2px solid var(--ink);border-radius:14px;background:var(--coral);color:#fff;font:800 1rem var(--f-b);text-decoration:none;text-align:center;cursor:pointer;box-shadow:4px 4px 0 var(--ink);transition:transform .12s,box-shadow .12s;width:100%}
+.btn:hover:not(:disabled),.btn:active:not(:disabled){transform:translate(2px,2px);box-shadow:2px 2px 0 var(--ink)}
+.btn:disabled{opacity:.6;cursor:not-allowed}
+.btn.alt{background:var(--sun);color:var(--ink)}
+.back{justify-self:center;color:var(--ink);font-weight:700;font-size:.9rem;text-underline-offset:3px}
+.err{display:none;padding:10px 12px;border:2px solid var(--ink);border-radius:12px;background:#ffe1e7;font-weight:600;font-size:.88rem}
+.err.show{display:block}
+.hp{position:absolute!important;left:-9999px;width:1px;height:1px;overflow:hidden}
+.state{text-align:center;display:grid;gap:12px;padding:10px 4px}
+.tick{width:56px;height:56px;margin:0 auto;border:2px solid var(--ink);border-radius:50%;background:#7be0a1;display:grid;place-items:center;font-size:1.8rem;font-weight:800}
+.note{font-size:.78rem;color:var(--mute)}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<main class="shell">
+  <div class="card" id="card">
+    <h1>Laporkan halaman ini</h1>
+    <p class="lead">Ceritakan masalahnya. Admin Gamon Space akan memeriksa halaman QR ini.</p>
+    <span class="code" id="codeBadge" hidden></span>
+
+    <form id="form" novalidate>
+      <div style="display:grid;gap:14px">
+        <label>Alasan laporan
+          <select id="reason" required>
+            <option value="">Pilih alasan...</option>
+            <option value="penipuan">Penipuan atau phishing</option>
+            <option value="berbahaya">Link berbahaya atau berisi virus</option>
+            <option value="tidak-pantas">Konten tidak pantas (dewasa, kekerasan, SARA)</option>
+            <option value="identitas">Memakai identitas atau foto orang lain</option>
+            <option value="spam">Spam atau iklan mengganggu</option>
+            <option value="lainnya">Lainnya</option>
+          </select>
+        </label>
+
+        <label>Penjelasan <small>(opsional, wajib bila memilih "Lainnya")</small>
+          <textarea id="detail" maxlength="500" placeholder="Apa yang kamu lihat di halaman ini?"></textarea>
+          <span class="count" id="count">0/500</span>
+        </label>
+
+        <label>Kontak kamu <small>(opsional, WhatsApp atau email, supaya admin bisa menghubungi)</small>
+          <input id="contact" type="text" maxlength="100" autocomplete="off" placeholder="08xx atau nama@email.com"/>
+        </label>
+
+        <div class="hp" aria-hidden="true"><label>Website<input id="website" type="text" tabindex="-1" autocomplete="off"/></label></div>
+
+        <div class="err" id="err" role="alert"></div>
+        <button class="btn" id="send" type="submit">Kirim laporan</button>
+        <a class="back" id="back" href="qr.html">Kembali</a>
+        <p class="note">Laporan dicatat bersama alamat jaringanmu (disamarkan) untuk mencegah penyalahgunaan.</p>
+      </div>
+    </form>
+  </div>
+</main>
+
+<script>
+(function () {
+  var card = document.getElementById('card');
+  var form = document.getElementById('form');
+  var errBox = document.getElementById('err');
+  var send = document.getElementById('send');
+  var detail = document.getElementById('detail');
+  var code = (new URLSearchParams(location.search).get('c') || '').trim().toUpperCase();
+  var valid = /^[A-Z0-9]{6,12}$/.test(code);
+
+  function el(tag, cls, text) {
+    var n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text != null) n.textContent = text;
+    return n;
+  }
+  function showError(msg) { errBox.textContent = msg; errBox.classList.add('show'); }
+  function clearError() { errBox.textContent = ''; errBox.classList.remove('show'); }
+
+  function showState(title, message, backHref) {
+    card.replaceChildren();
+    var box = el('div', 'state');
+    box.appendChild(el('h1', '', title));
+    if (message) box.appendChild(el('p', 'lead', message));
+    var a = el('a', 'btn alt', 'Kembali');
+    a.href = backHref || 'index.html';
+    box.appendChild(a);
+    card.appendChild(box);
+  }
+
+  if (!valid) {
+    showState('Kode tidak valid', 'Buka halaman ini lewat tombol "Laporkan halaman ini" di halaman QR.', 'index.html');
+    return;
+  }
+
+  document.getElementById('codeBadge').textContent = 'Kode ' + code;
+  document.getElementById('codeBadge').hidden = false;
+  document.getElementById('back').href = 'qr.html?c=' + encodeURIComponent(code);
+
+  detail.addEventListener('input', function () {
+    document.getElementById('count').textContent = detail.value.length + '/500';
+  });
+
+  form.addEventListener('submit', async function (e) {
+    e.preventDefault();
+    clearError();
+    var reason = document.getElementById('reason').value;
+    var text = detail.value.trim();
+    if (!reason) { showError('Pilih alasan laporan dulu.'); return; }
+    if (reason === 'lainnya' && text.length < 10) { showError('Untuk alasan "Lainnya", tulis penjelasan minimal 10 huruf.'); return; }
+
+    send.disabled = true;
+    send.textContent = 'Mengirim...';
+    try {
+      var res = await fetch('/api/admin/qrbaju-report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        cache: 'no-store',
+        body: JSON.stringify({
+          c: code,
+          reason: reason,
+          detail: text,
+          contact: document.getElementById('contact').value.trim(),
+          website: document.getElementById('website').value
+        })
+      });
+      var data = await res.json().catch(function () { return {}; });
+      if (!res.ok || !data.success) {
+        showError(data.message || 'Laporan gagal dikirim. Coba lagi.');
+        send.disabled = false; send.textContent = 'Kirim laporan';
+        return;
+      }
+      card.replaceChildren();
+      var box = el('div', 'state');
+      box.appendChild(el('div', 'tick', '\u2713'));
+      box.appendChild(el('h1', '', 'Laporan terkirim'));
+      box.appendChild(el('p', 'lead', 'Terima kasih. Admin akan memeriksa halaman ini secepatnya.'));
+      var a = el('a', 'btn alt', 'Kembali');
+      a.href = 'qr.html?c=' + encodeURIComponent(code);
+      box.appendChild(a);
+      card.appendChild(box);
+    } catch (err) {
+      showError('Tidak ada koneksi. Periksa internetmu lalu coba lagi.');
+      send.disabled = false; send.textContent = 'Kirim laporan';
+    }
+  });
+})();
+</script>
+</body>
+</html>

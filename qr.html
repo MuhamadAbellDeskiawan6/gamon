@@ -11,47 +11,129 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
 <style>
-:root{--ink:#0b2342;--coral:#ff5c7a;--sun:#ffd66b;--white:#fff;--mute:#47607c;--accent:#d4e9f5;--on-accent:#0b2342;--f-d:"Bricolage Grotesque","Inter",system-ui,sans-serif;--f-b:"Inter",system-ui,sans-serif}
+:root{
+  --ink:#0b2342;--coral:#ff5c7a;--sun:#ffd66b;--white:#fff;--mute:#47607c;
+  --accent:#d4e9f5;--on-accent:#0b2342;
+  --f-d:"Bricolage Grotesque","Inter",system-ui,sans-serif;
+  --f-b:"Inter",system-ui,sans-serif;
+  /* skala responsif: mengikuti lebar & tinggi layar */
+  --gap:clamp(8px,1.6dvh,16px);
+  --pad:clamp(12px,2.4dvh,22px);
+  --shadow:clamp(3px,.8dvh,6px);
+}
 *,*::before,*::after{box-sizing:border-box}
+html,body{height:100%}
 html{-webkit-text-size-adjust:100%}
-body{margin:0;min-height:100vh;min-height:100dvh;font-family:var(--f-b);color:var(--ink);background:var(--accent);line-height:1.6;padding:max(20px,env(safe-area-inset-top,0px)) 16px max(24px,env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;align-items:center}
+body{
+  margin:0;height:100vh;height:100dvh;overflow:hidden;
+  font-family:var(--f-b);color:var(--ink);background:var(--accent);line-height:1.45;
+  padding:max(12px,env(safe-area-inset-top,0px)) max(12px,env(safe-area-inset-right,0px)) max(10px,env(safe-area-inset-bottom,0px)) max(12px,env(safe-area-inset-left,0px));
+  display:flex;justify-content:center;
+}
 body.theme-ink{--on-accent:#fff}
 h1{font-family:var(--f-d);font-weight:800;letter-spacing:-.025em;line-height:1.08;margin:0}
 p{margin:0}
 :focus-visible{outline:3px solid var(--coral);outline-offset:3px}
 
-.shell{width:min(460px,100%);display:flex;flex-direction:column;gap:18px;margin:auto 0}
-.card{background:var(--white);border:2px solid var(--ink);border-radius:24px;box-shadow:6px 6px 0 var(--ink);overflow:hidden}
-.photo{display:block;width:100%;max-height:420px;object-fit:cover;border-bottom:2px solid var(--ink);background:#eef4f9}
-.body{padding:24px 22px 26px;display:grid;gap:14px}
-.title{font-size:clamp(1.7rem,7vw,2.3rem);overflow-wrap:anywhere}
-.text{white-space:pre-wrap;overflow-wrap:anywhere;color:#25405f;font-size:1.02rem}
-.links{display:grid;gap:12px;margin-top:6px}
-.btn{display:flex;align-items:center;justify-content:center;gap:8px;min-height:50px;padding:12px 18px;border:2px solid var(--ink);border-radius:14px;background:var(--sun);color:var(--ink);font:700 1rem var(--f-b);text-decoration:none;text-align:center;box-shadow:4px 4px 0 var(--ink);overflow-wrap:anywhere;cursor:pointer;transition:transform .12s,box-shadow .12s}
-.btn:hover{transform:translate(2px,2px);box-shadow:2px 2px 0 var(--ink)}
+/* ===== layout satu layar ===== */
+.shell{width:min(460px,100%);height:100%;display:flex;flex-direction:column;gap:var(--gap);min-height:0}
+.card{
+  flex:1 1 0;min-height:0;display:flex;flex-direction:column;justify-content:center;
+  background:var(--white);border:2px solid var(--ink);border-radius:clamp(16px,3dvh,24px);
+  box-shadow:var(--shadow) var(--shadow) 0 var(--ink);overflow:hidden;
+}
+.photo{
+  display:block;width:100%;flex:1 1 140px;min-height:70px;
+  object-fit:cover;border-bottom:2px solid var(--ink);background:#eef4f9;
+}
+.body{flex:0 1 auto;min-height:0;display:flex;flex-direction:column;gap:clamp(6px,1.4dvh,12px);padding:var(--pad)}
+.title{font-size:clamp(1.25rem,min(6.2vw,3.6dvh),2.1rem);overflow-wrap:anywhere}
+.text{
+  flex:0 1 auto;min-height:0;overflow-y:auto;white-space:pre-wrap;overflow-wrap:anywhere;
+  color:#25405f;font-size:clamp(.86rem,min(3.8vw,2.1dvh),1rem);line-height:1.45;
+}
+.links{display:grid;gap:clamp(6px,1.2dvh,10px);grid-template-columns:1fr;margin-top:2px}
+.links.many{grid-template-columns:1fr 1fr}
+.btn{
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  min-height:clamp(40px,6dvh,50px);padding:8px 14px;
+  border:2px solid var(--ink);border-radius:12px;background:var(--sun);color:var(--ink);
+  font:700 clamp(.88rem,2.2dvh,1rem) var(--f-b);text-decoration:none;text-align:center;
+  box-shadow:3px 3px 0 var(--ink);overflow-wrap:anywhere;cursor:pointer;
+  transition:transform .12s,box-shadow .12s;
+}
+.btn:hover,.btn:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--ink)}
 .btn.wa{background:#7be0a1}
 .btn.alt{background:var(--white)}
 
-.state{padding:30px 24px;display:grid;gap:12px;text-align:center}
-.state h1{font-size:1.7rem}
-.state p{color:var(--mute)}
-.host{display:inline-block;padding:4px 12px;border:2px solid var(--ink);border-radius:999px;background:#fff0bf;font-weight:700;overflow-wrap:anywhere}
-.spin{width:34px;height:34px;margin:0 auto;border:4px solid var(--ink);border-top-color:var(--coral);border-radius:50%;animation:spin .8s linear infinite}
+.state{padding:clamp(18px,4dvh,30px) 20px;display:grid;gap:10px;text-align:center}
+.state h1{font-size:clamp(1.3rem,3.6dvh,1.7rem)}
+.state p{color:var(--mute);font-size:clamp(.88rem,2.1dvh,1rem)}
+.host{display:inline-block;justify-self:center;padding:4px 12px;border:2px solid var(--ink);border-radius:999px;background:#fff0bf;font-weight:700;overflow-wrap:anywhere}
+.spin{width:32px;height:32px;margin:0 auto;border:4px solid var(--ink);border-top-color:var(--coral);border-radius:50%;animation:spin .8s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 
-.foot{display:grid;gap:8px;text-align:center;font-size:.86rem;color:var(--on-accent)}
+/* ===== PROMO: elemen paling menonjol ===== */
+.promo{
+  flex:0 0 auto;position:relative;display:grid;gap:2px;text-align:center;text-decoration:none;
+  padding:clamp(10px,2dvh,16px) 14px;
+  background:var(--coral);color:#fff;
+  border:2px solid var(--ink);border-radius:clamp(14px,2.6dvh,20px);
+  box-shadow:var(--shadow) var(--shadow) 0 var(--ink);
+  animation:pulse 1.8s ease-in-out infinite;
+}
+.promo:active{transform:translate(2px,2px);box-shadow:2px 2px 0 var(--ink)}
+.promo .line{display:flex;align-items:baseline;justify-content:center;gap:.45em;white-space:nowrap}
+.promo .ask{font-weight:700;font-size:clamp(.78rem,min(3.7vw,2.1dvh),1rem)}
+.promo .free{
+  font-family:var(--f-d);font-weight:800;letter-spacing:-.02em;line-height:1;
+  font-size:clamp(1.1rem,min(6.4vw,3.8dvh),1.9rem);color:var(--sun);
+  text-shadow:2px 2px 0 var(--ink);
+}
+.promo .cta{
+  justify-self:center;margin-top:clamp(4px,1dvh,8px);
+  padding:clamp(6px,1.2dvh,9px) 16px;background:var(--sun);color:var(--ink);
+  border:2px solid var(--ink);border-radius:999px;
+  font-weight:800;font-size:clamp(.82rem,2dvh,.98rem);
+}
+.promo .stamp{
+  position:absolute;top:-12px;right:10px;transform:rotate(6deg);
+  padding:3px 10px;background:var(--sun);color:var(--ink);border:2px solid var(--ink);border-radius:8px;
+  font-weight:800;font-size:.72rem;
+}
+@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.025)}}
+
+.foot{flex:0 0 auto;text-align:center;font-size:clamp(.68rem,1.6dvh,.8rem);color:var(--on-accent);line-height:1.3}
 .foot a{color:inherit;font-weight:700;text-underline-offset:3px}
-.foot .promo{padding:12px 14px;border:2px solid var(--ink);border-radius:14px;background:var(--white);color:var(--ink)}
+
+/* layar pendek (HP kecil / landscape) */
+@media (max-height:640px){
+  .stamp{display:none}
+  .links.many{grid-template-columns:1fr 1fr}
+}
+@media (max-height:520px){
+  .promo{padding:8px 12px}
+  .promo .cta{margin-top:2px}
+}
+/* layar sangat sempit */
+@media (max-width:340px){
+  .links.many{grid-template-columns:1fr}
+  .btn{padding:6px 10px}
+}
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
 <body>
 <main class="shell">
   <div class="card" id="card"><div class="state" role="status"><div class="spin" aria-hidden="true"></div><p>Membuka halaman...</p></div></div>
-  <div class="foot">
-    <div class="promo">Baju ini punya QR yang bisa diatur sendiri. <a href="user/marketplace/index.html">Lihat di Marketplace Mantan</a></div>
-    <div>Baju QR dari <a href="index.html">Gamon Space</a> &middot; <a href="https://www.instagram.com/abldskwn/" target="_blank" rel="noopener noreferrer">Laporkan halaman ini</a></div>
-  </div>
+
+  <a class="promo" href="user/marketplace/index.html" aria-label="Mau baju ini? Gratis, checkout di Marketplace Mantan">
+    <span class="stamp">GRATIS!</span>
+    <span class="line"><span class="ask">Mau baju ini juga?</span><span class="free">GRATISSS!</span></span>
+    <span class="cta">Checkout di Marketplace Mantan &rarr;</span>
+  </a>
+
+  <div class="foot">Baju QR dari <a href="index.html">Gamon Space</a> &middot; <a id="reportLink" href="qr-lapor.html">Laporkan halaman ini</a></div>
 </main>
 
 <script>
@@ -59,6 +141,8 @@ p{margin:0}
   var THEMES = { sky: '#d4e9f5', coral: '#ff5c7a', sun: '#ffd66b', mint: '#b8f0d0', ink: '#0b2342' };
   var card = document.getElementById('card');
   var code = (new URLSearchParams(location.search).get('c') || '').trim().toUpperCase();
+  var reportLink = document.getElementById('reportLink');
+if (reportLink && code) reportLink.href = 'qr-lapor.html?c=' + encodeURIComponent(code);
 
   function el(tag, cls, text) {
     var n = document.createElement(tag);
@@ -91,6 +175,7 @@ p{margin:0}
       var img = el('img', 'photo');
       img.src = d.image;
       img.alt = d.title || 'Gambar';
+      img.decoding = 'async';
       card.appendChild(img);
     }
     var body = el('div', 'body');
@@ -111,6 +196,7 @@ p{margin:0}
       a.href = url; a.target = '_blank'; a.rel = 'noopener noreferrer';
       links.appendChild(a);
     });
+    if (links.children.length > 2) links.classList.add('many');
     if (links.children.length) body.appendChild(links);
     card.appendChild(body);
     if (d.title) document.title = d.title + ' | Baju QR';
@@ -128,8 +214,11 @@ p{margin:0}
     box.appendChild(counter);
     var go = el('a', 'btn', 'Buka sekarang');
     go.href = url; go.rel = 'noopener noreferrer';
-    box.appendChild(go);
-    card.appendChild(box);
+  box.appendChild(go);
+var rep = el('a', 'btn alt', 'Laporkan link ini');
+rep.href = 'qr-lapor.html?c=' + encodeURIComponent(code);
+box.appendChild(rep);
+card.appendChild(box);
     var left = 3;
     var timer = setInterval(function () {
       left -= 1;

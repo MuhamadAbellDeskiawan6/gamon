@@ -2263,6 +2263,8 @@ const QRBAJU_TAGS = 'qrbaju_tags';
 const QRBAJU_IMAGES = 'qrbaju_images';
 const QRBAJU_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 const QRBAJU_THEMES = ['sky', 'coral', 'sun', 'mint', 'ink'];
+const QRBAJU_REPORTS = 'qrbaju_reports';
+const QRBAJU_REPORT_REASONS = ['penipuan', 'berbahaya', 'tidak-pantas', 'identitas', 'spam', 'lainnya'];
 
 function qrbajuError(statusCode, code, message) {
     return Object.assign(new Error(message), { statusCode, code });
@@ -2370,9 +2372,35 @@ async function qrbajuReadImage(db, tag) {
     return snap.exists ? String(snap.data()?.data || '') : '';
 }
 
+async function sendQrReportEmail(report) {
+    loadLocalEnvIfNeeded();
+    const pass = String(process.env.GMAIL_APP_PASSWORD || '').replace(/\s+/g, '');
+    if (!pass) return;
+    const transporter = nodemailer.createTransport({ service: 'gmail', auth: { user: OWNER_EMAIL, pass } });
+    await transporter.sendMail({
+        from: '"Notifier Gamon Space" <' + OWNER_EMAIL + '>',
+        to: ADMIN_EMAIL,
+        subject: `🚩 Laporan Baju QR - ${report.code} (${report.reason})`,
+        html: `
+            <div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;padding:24px;border:1px solid #eee;border-radius:16px">
+                <h2 style="margin-top:0;color:#111827">Ada laporan halaman Baju QR 🚩</h2>
+                <table style="width:100%;font-size:14px;border-collapse:collapse;margin:12px 0">
+                    <tr><td style="padding:6px 0"><b>Kode QR</b></td><td>${escapeMailHtml(report.code)}</td></tr>
+                    <tr><td style="padding:6px 0"><b>Alasan</b></td><td>${escapeMailHtml(report.reason)}</td></tr>
+                    <tr><td style="padding:6px 0"><b>Judul halaman</b></td><td>${escapeMailHtml(report.tagTitle || '-')}</td></tr>
+                    <tr><td style="padding:6px 0"><b>Link tujuan</b></td><td>${escapeMailHtml(report.tagRedirectUrl || '-')}</td></tr>
+                    <tr><td style="padding:6px 0"><b>Kontak pelapor</b></td><td>${escapeMailHtml(report.contact || '-')}</td></tr>
+                </table>
+                <p style="margin:0 0 6px"><b>Penjelasan:</b></p>
+                <div style="background:#f8fafc;padding:12px;border-radius:12px;font-size:13px;white-space:pre-wrap">${escapeMailHtml(report.detail || '-')}</div>
+                <p style="font-size:12px;color:#64748b;margin-top:14px">Tinjau di Admin &gt; Kelola Baju QR &gt; Laporan halaman.</p>
+            </div>`
+    });
+}
+
 async function qrbajuAction(req, res, action) {
-    const publicMethods = { 'qrbaju-view': 'GET', 'qrbaju-manage-get': 'GET', 'qrbaju-manage-save': 'POST' };
-    const adminMethods = { 'qrbaju-list': 'GET', 'qrbaju-generate': 'POST', 'qrbaju-update': 'POST', 'qrbaju-delete': 'POST' };
+    const publicMethods = { 'qrbaju-view': 'GET', 'qrbaju-manage-get': 'GET', 'qrbaju-manage-save': 'POST', 'qrbaju-report': 'POST' };
+const adminMethods = { 'qrbaju-list': 'GET', 'qrbaju-generate': 'POST', 'qrbaju-update': 'POST', 'qrbaju-delete': 'POST', 'qrbaju-reports-list': 'GET', 'qrbaju-report-update': 'POST' };
     const method = publicMethods[action] || adminMethods[action];
     if (req.method !== method) return res.status(405).json({ success: false, message: 'Method Not Allowed' });
 
@@ -2540,6 +2568,88 @@ async function qrbajuAction(req, res, action) {
             await db.collection(QRBAJU_IMAGES).doc(code).delete();
             return res.status(200).json({ success: true, message: 'QR berhasil dihapus.' });
         }
+        /* ---------- PUBLIK: kirim laporan ---------- */
+        if (action === 'qrbaju-report') {
+            // Honeypot: bot mengisi kolom tersembunyi, pura-pura sukses agar tidak mencoba lagi.
+            if (String(body.website || '').trim()) return res.status(200).json({ success: true, message: 'Laporan diterima.' });
+
+            const code = qrbajuCode(body.c);
+            const reason = String(body.reason || '');
+            if (!QRBAJU_REPORT_REASONS.includes(reason)) throw qrbajuError(400, 'invalid-reason', 'Pilih alasan laporan.');
+            const detail = qrbajuText(body.detail, 500);
+            if (reason === 'lainnya' && detail.length < 10) throw qrbajuError(400, 'detail-required', 'Untuk alasan "Lainnya", tulis penjelasan minimal 10 huruf.');
+            const contact = qrbajuLine(body.contact, 100, 'Kontak');
+
+            const tagRef = db.collection(QRBAJU_TAGS).doc(code);
+            const tagSnap = await tagRef.get();
+            if (!tagSnap.exists) throw qrbajuError(404, 'not-found', 'Kode QR tidak ditemukan.');
+            const tag = tagSnap.data() || {};
+
+            // Batasi 3 laporan per jam per pengirim. IP disimpan sebagai hash, bukan IP asli.
+            const forwarded = String(req.headers?.['x-forwarded-for'] || '').split(',')[0].trim() || req.socket?.remoteAddress || 'unknown';
+            const ipHash = crypto.createHash('sha256').update(`${forwarded}:${process.env.QRBAJU_SALT || 'qrbaju'}`).digest('hex').slice(0, 32);
+            const now = Date.now();
+            const recent = await db.collection(QRBAJU_REPORTS).where('ipHash', '==', ipHash).limit(20).get();
+            if (recent.docs.filter((d) => Number(d.data()?.createdAt || 0) > now - 60 * 60 * 1000).length >= 3) {
+                throw qrbajuError(429, 'too-many-reports', 'Terlalu banyak laporan dari jaringanmu. Coba lagi satu jam lagi.');
+            }
+
+            const report = {
+                code,
+                reason,
+                detail,
+                contact,
+                status: 'new',
+                ipHash,
+                tagTitle: String(tag.title || '').slice(0, 60),
+                tagMode: tag.mode || 'card',
+                tagRedirectUrl: String(tag.redirectUrl || '').slice(0, 500),
+                createdAt: now
+            };
+            await db.collection(QRBAJU_REPORTS).doc().set(report);
+            try {
+                await tagRef.update({ reportCount: FieldValue.increment(1), lastReportAt: now });
+            } catch (error) {
+                console.warn('[qrbaju] hitung laporan gagal:', error.message);
+            }
+            try {
+                await sendQrReportEmail(report);
+            } catch (error) {
+                console.warn('[qrbaju] email laporan gagal:', error.message);
+            }
+            return res.status(200).json({ success: true, message: 'Laporan diterima.' });
+        }
+
+        /* ---------- ADMIN: daftar & tindak lanjut laporan ---------- */
+        if (action === 'qrbaju-reports-list') {
+            const snapshot = await db.collection(QRBAJU_REPORTS).get();
+            const reports = snapshot.docs
+                .map((item) => {
+                    const { ipHash, ...rest } = item.data() || {};
+                    return { id: item.id, ...rest };
+                })
+                .sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0))
+                .slice(0, 300);
+            return res.status(200).json({ success: true, data: reports });
+        }
+
+        if (action === 'qrbaju-report-update') {
+            const id = String(body.id || '').trim();
+            if (!/^[A-Za-z0-9]{10,40}$/.test(id)) throw qrbajuError(400, 'invalid-id', 'ID laporan tidak valid.');
+            const status = String(body.status || '');
+            if (!['new', 'reviewed', 'dismissed'].includes(status)) throw qrbajuError(400, 'invalid-status', 'Status tidak valid.');
+            const ref = db.collection(QRBAJU_REPORTS).doc(id);
+            const snap = await ref.get();
+            if (!snap.exists) throw qrbajuError(404, 'not-found', 'Laporan tidak ditemukan.');
+            const now = Date.now();
+            await ref.set({ status, reviewedAt: now, reviewedBy: adminEmail }, { merge: true });
+            if (body.deactivateTag === true) {
+                const tagRef = db.collection(QRBAJU_TAGS).doc(String(snap.data()?.code || ''));
+                const tagSnap = await tagRef.get();
+                if (tagSnap.exists) await tagRef.update({ active: false, updatedAt: now });
+            }
+            return res.status(200).json({ success: true, message: 'Laporan diperbarui.' });
+        }
 
         return res.status(404).json({ success: false, code: 'unknown-action', message: 'Aksi Baju QR tidak dikenal.' });
     } catch (error) {
@@ -2633,6 +2743,9 @@ export default async function handler(req, res) {
         case 'qrbaju-generate':
         case 'qrbaju-update':
         case 'qrbaju-delete':
+        case 'qrbaju-report':
+        case 'qrbaju-reports-list':
+        case 'qrbaju-report-update':
             return qrbajuAction(req, res, action);
         case 'jasa-get-catalog':
                     case 'jasa-save-category':

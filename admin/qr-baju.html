@@ -98,6 +98,32 @@
     </div>
 </div>
 
+<div class="mb-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+    <div class="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <h3 class="font-bold text-slate-900">Laporan halaman <span id="reportBadge" class="ml-1 hidden rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-semibold text-rose-700"></span></h3>
+        <select id="reportFilter" class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-pink-200">
+            <option value="new">Baru</option>
+            <option value="reviewed">Sudah ditinjau</option>
+            <option value="dismissed">Diabaikan</option>
+            <option value="all">Semua</option>
+        </select>
+    </div>
+    <div class="overflow-x-auto">
+        <table class="w-full min-w-[760px] text-left text-sm text-slate-700">
+            <thead>
+                <tr class="border-b border-slate-200 bg-slate-50 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                    <th class="px-3 py-3">Kode</th>
+                    <th class="px-3 py-3">Alasan</th>
+                    <th class="px-3 py-3">Detail</th>
+                    <th class="px-3 py-3">Waktu</th>
+                    <th class="px-3 py-3 text-right">Aksi</th>
+                </tr>
+            </thead>
+            <tbody id="reportsBody"><tr><td colspan="5" class="py-6 text-center text-slate-400">Memuat laporan...</td></tr></tbody>
+        </table>
+    </div>
+</div>
+
             <p id="pageStatus" class="mb-4 text-sm text-rose-700" role="status" aria-live="polite"></p>
 
             <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -770,6 +796,81 @@ const sizeHidden = Number($('expSizeHidden').value);
     }
 });
 
+/* ---------- laporan halaman ---------- */
+let reports = [];
+const REASON_LABEL = {
+    penipuan: 'Penipuan / phishing',
+    berbahaya: 'Link berbahaya',
+    'tidak-pantas': 'Konten tidak pantas',
+    identitas: 'Memakai identitas orang lain',
+    spam: 'Spam',
+    lainnya: 'Lainnya'
+};
+
+function renderReports() {
+    const f = $('reportFilter').value;
+    const newCount = reports.filter((r) => r.status === 'new').length;
+    const badge = $('reportBadge');
+    badge.textContent = `${newCount} baru`;
+    badge.classList.toggle('hidden', newCount === 0);
+
+    const rows = reports.filter((r) => f === 'all' || r.status === f);
+    const body = $('reportsBody');
+    if (!rows.length) {
+        body.innerHTML = '<tr><td colspan="5" class="py-6 text-center text-slate-400">Tidak ada laporan.</td></tr>';
+        return;
+    }
+    body.innerHTML = rows.map((r) => {
+        const target = r.tagMode === 'redirect' && r.tagRedirectUrl
+            ? `<div class="mt-1 break-all text-[11px] text-slate-500">Tujuan: ${escapeHtml(r.tagRedirectUrl)}</div>` : '';
+        const title = r.tagTitle ? `<div class="text-[11px] text-slate-500">Judul: ${escapeHtml(r.tagTitle)}</div>` : '';
+        const contact = r.contact ? `<div class="mt-1 text-[11px] text-slate-500">Kontak: ${escapeHtml(r.contact)}</div>` : '';
+        const actions = r.status === 'new'
+            ? `<button type="button" data-rep="${escapeHtml(r.id)}" data-act="deactivate" class="rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-100">Nonaktifkan QR</button>
+               <button type="button" data-rep="${escapeHtml(r.id)}" data-act="reviewed" class="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">Tandai selesai</button>
+               <button type="button" data-rep="${escapeHtml(r.id)}" data-act="dismissed" class="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-500 hover:bg-slate-50">Abaikan</button>`
+            : `<span class="text-xs text-slate-400">${r.status === 'reviewed' ? 'Sudah ditinjau' : 'Diabaikan'}</span>`;
+        return `<tr class="border-b border-slate-100 align-top">
+            <td class="px-3 py-3 font-mono font-semibold text-slate-900">${escapeHtml(r.code)}</td>
+            <td class="px-3 py-3"><span class="inline-flex rounded-full bg-rose-100 px-2.5 py-1 text-[11px] font-semibold text-rose-700">${escapeHtml(REASON_LABEL[r.reason] || r.reason)}</span></td>
+            <td class="px-3 py-3 max-w-xs"><div class="whitespace-pre-wrap break-words text-xs">${escapeHtml(r.detail || '-')}</div>${title}${target}${contact}</td>
+            <td class="px-3 py-3 text-xs text-slate-500">${formatDate(r.createdAt)}</td>
+            <td class="px-3 py-3 text-right"><div class="flex flex-wrap justify-end gap-1.5">${actions}</div></td>
+        </tr>`;
+    }).join('');
+}
+
+async function loadReports() {
+    try {
+        const result = await api('qrbaju-reports-list');
+        reports = Array.isArray(result.data) ? result.data : [];
+        renderReports();
+    } catch (error) {
+        $('reportsBody').innerHTML = '<tr><td colspan="5" class="py-6 text-center text-rose-600">Gagal memuat laporan.</td></tr>';
+    }
+}
+
+$('reportFilter').addEventListener('change', renderReports);
+$('reportsBody').addEventListener('click', async (event) => {
+    const btn = event.target.closest('[data-rep]');
+    if (!btn) return;
+    const report = reports.find((r) => r.id === btn.dataset.rep);
+    if (!report) return;
+    const act = btn.dataset.act;
+    if (act === 'deactivate' && !confirm(`Nonaktifkan QR ${report.code}? Halaman QR akan menampilkan "dinonaktifkan" saat di-scan.`)) return;
+    btn.disabled = true;
+    try {
+        await api('qrbaju-report-update', {
+            method: 'POST',
+            body: { id: report.id, status: act === 'dismissed' ? 'dismissed' : 'reviewed', deactivateTag: act === 'deactivate' }
+        });
+        await Promise.all([loadReports(), loadTags()]);
+    } catch (error) {
+        alert(error.message);
+        btn.disabled = false;
+    }
+});
+
         /* ---------- sesi admin ---------- */
         async function verifyAdminPageSession() {
             try {
@@ -791,7 +892,7 @@ const sizeHidden = Number($('expSizeHidden').value);
         window.handleLogout = handleLogout;
 
         window.addEventListener('DOMContentLoaded', async () => {
-            if (await verifyAdminPageSession()) loadTags();
+            if (await verifyAdminPageSession()) { loadTags(); loadReports(); }
         });
     </script>
 </body>
