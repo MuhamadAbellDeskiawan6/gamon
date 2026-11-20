@@ -7034,10 +7034,10 @@ function startProductTour(page) {
       <h3 id="tourTitle"></h3>
       <p></p>
       <div class="tour-actions">
-        <button class="btn btn-secondary" type="button" data-tour-skip>Lewati</button>
+        <button class="tour-btn" type="button" data-tour-skip>Lewati</button>
         <span>
-          <button class="btn btn-secondary" type="button" data-tour-prev>Kembali</button>
-          <button class="btn btn-primary" type="button" data-tour-next>Lanjut</button>
+          <button class="tour-btn" type="button" data-tour-prev>Kembali</button>
+          <button class="tour-btn primary" type="button" data-tour-next>Lanjut</button>
         </span>
       </div>
     </div>`;
