@@ -2417,6 +2417,8 @@ async function getUserAvatarMarkupByName(userName, userId, fallbackText = 'P', p
 
 /* ---------- 1. ---------- */
 function getProductsPerSlide() {
+  // Halaman katalog (beli.html) punya sidebar, jadi areanya lebih sempit: 6 kartu (3 kolom x 2 baris).
+  if (document.body.dataset.page === 'beli.html') return 6;
   if (window.matchMedia('(max-width: 520px)').matches) return 6;
   if (window.matchMedia('(max-width: 900px)').matches) return 6;
   return 5;
@@ -5982,7 +5984,7 @@ async function init() {
   }
  
   if (page === 'beli.html') {
-    await renderProductsForBuyer();
+    await renderHomeProducts();
     return;
   }
  
@@ -6927,7 +6929,243 @@ async function initJasaPage(page) {
 }
 // === JASA END ===
  
+/* =========================================================================
+ * PRODUCT TOUR
+ * Tiap halaman punya daftar langkah sendiri (kunci = document.body.dataset.page).
+ *  s = selector target (kosong = kartu di tengah layar)
+ *  m = selector pengganti di layar <= 980px (mis. menu hamburger)
+ * Naikkan TOUR_VERSION jika ingin tour tampil lagi ke semua pengguna.
+ * ========================================================================= */
+const TOUR_VERSION = 'v1';
+const TOUR_STEPS = {
+  home: [
+    { t: 'Selamat datang di Marketplace Mantan 👋', d: 'Kenalan singkat dulu, hanya sekitar 30 detik. Kamu bisa melewatinya kapan saja.' },
+    { s: '.filter-bar', t: 'Cari & urutkan barang', d: 'Pilih kategori (termasuk 🎁 Gratis), lalu urutkan dari yang terbaru atau berdasarkan harga.' },
+    { s: '[data-product-list]', t: 'Katalog barang', d: 'Tekan "Detail" untuk melihat foto dan kondisi barang, atau "+ Keranjang" untuk langsung memasukkannya.' },
+    { s: '#payment .mm-area', t: 'Bayar online atau COD', d: 'Pilih QRIS/DOKU atau bayar di tempat (COD) saat checkout di Keranjang.' },
+    { s: '#sell .mm-sell-intro', t: 'Punya barang untuk dijual?', d: 'Ajukan lewat form, tunggu persetujuan admin, lalu datang ke lokasi COD untuk dicek dan dibayar tunai.' },
+    { s: '[data-header-actions]', m: '.header-menu-toggle', t: 'Masuk atau daftar', d: 'Untuk berbelanja kamu perlu akun. Daftar dengan Google paling cepat, tanpa email verifikasi.' }
+  ],
+  'dashboard.html': [
+    { t: 'Ini dashboard akunmu', d: 'Dari sini kamu bisa memantau pesanan, chat, dan poin.' },
+    { s: '.sidebar', m: '.mobile-menu-toggle', t: 'Menu utama', d: 'Katalog, Keranjang, Pesanan Saya, Jual Barang, Chat Admin, dan Profil ada di menu ini.' },
+    { s: '.cards-3', t: 'Ringkasan aktivitas', d: 'Lihat pesanan yang menunggu bayar, pesanan aktif, pesanan selesai, dan chat yang belum dibaca.' },
+    { s: '[data-points-checkin]', t: 'Poin harian', d: 'Check-in tiap hari untuk menambah poin. Poin bisa ditukar jadi potongan harga di Keranjang (maksimal 50% subtotal).' },
+    { s: '.top-panel a[href="beli.html"]', t: 'Mulai belanja', d: 'Buka katalog untuk melihat semua barang yang tersedia.' }
+  ],
+  'beli.html': [
+    { s: '.filter-bar', t: 'Filter & urutan', d: 'Pilih kategori (termasuk 🎁 Gratis), lalu urutkan dari yang terbaru atau berdasarkan harga.' },
+    { s: '[data-product-list]', t: 'Daftar barang', d: 'Tekan "Detail" untuk melihat foto dan kondisi, atau "+ Keranjang" untuk menambah. Gunakan panah untuk halaman berikutnya.' },
+    { s: '[data-cart-link]', t: 'Keranjang', d: 'Jumlah barang di keranjang tampil di sini. Tekan untuk lanjut checkout.' }
+  ],
+  'product.html': [
+    { s: '[data-detail-gallery]', t: 'Foto barang', d: 'Geser atau tekan panah untuk melihat semua foto.' },
+    { s: '.stock-row', t: 'Stok & jumlah', d: 'Cek sisa stok dan atur jumlah yang ingin dibeli. Barang bekas umumnya hanya 1 unit.' },
+    { s: '[data-add-to-cart]', t: 'Masukkan ke keranjang', d: 'Setelah itu buka Keranjang untuk memilih metode pembayaran.' },
+    { s: '[data-detail-map]', t: 'Lokasi toko', d: 'Titik lokasi toko ditampilkan di peta ini.' }
+  ],
+  'keranjang.html': [
+    { s: '[data-cart-content]', t: 'Barang pilihanmu', d: 'Ubah jumlah atau hapus barang di sini. Stok dicek otomatis.' },
+    { s: '[data-cart-shipping]', t: 'Alamat pengiriman', d: 'Alamat harus lengkap (termasuk titik peta di Kalimantan Selatan). Kalau belum, lengkapi lewat "Ubah alamat".' },
+    { s: '.commerce-payment-options', t: 'Metode pembayaran', d: 'QRIS/DOKU untuk bayar online, atau COD jika tersedia. Alasannya tampil jika COD belum bisa dipakai.' },
+    { s: '.commerce-panel-points', t: 'Tukar poin', d: 'Pakai poinmu untuk potongan harga. Minimal 1.000 poin.' },
+    { s: '[data-checkout]', t: 'Checkout', d: 'Tekan tombol ini untuk membuat pesanan. Jangan tutup halaman saat diproses.' }
+  ],
+  'profil.html': [
+    { s: '[data-profile-photo-preview]', t: 'Foto profil', d: 'Unggah foto JPG, PNG, atau WebP maksimal 2 MB.' },
+    { s: '[data-shipping-completeness]', t: 'Status alamat', d: 'Harus berstatus "Alamat lengkap" agar kamu bisa checkout.' },
+    { s: '#shippingCity', t: 'Pilih wilayah', d: 'Urutannya: kota/kabupaten, kecamatan, lalu kelurahan/desa. Jika desa tidak ada di daftar, pilih "Lainnya".' },
+    { s: '#shippingMapsUrl', t: 'Titik peta', d: 'Tempel link Google Maps lalu tekan "Ambil koordinat", atau pakai "Gunakan lokasi saya".' },
+    { s: '[data-profile-form] button[type="submit"]', t: 'Simpan', d: 'Jangan lupa simpan perubahan.' }
+  ],
+  'jual.html': [
+    { s: '.sell-steps', t: 'Alur jual barang', d: 'Isi pengajuan, admin meninjau, kamu datang ke lokasi, lalu barang dicek dan dibayar tunai.' },
+    { s: '[data-cod-location]', t: 'Lokasi COD', d: 'Di sinilah kamu membawa barang setelah pengajuan disetujui.' },
+    { s: '[data-sell-photo-picker]', t: 'Foto barang', d: 'Tambahkan 1 sampai 3 foto. Foto dikompres otomatis di perangkatmu.' },
+    { s: '[data-sell-submit]', t: 'Kirim pengajuan', d: 'Pantau statusnya di bagian "Pengajuan saya" di bawah.' }
+  ],
+  'chat.html': [
+    { s: '[data-chat-new-general]', t: 'Pertanyaan umum', d: 'Tekan untuk memulai percakapan baru dengan admin.' },
+    { s: '[data-chat-list]', t: 'Daftar percakapan', d: 'Chat per produk atau per pesanan tersimpan di sini. Angka merah berarti ada pesan baru.' }
+  ]
+};
+
+function tourSeenKey(page) { return `gamon_marketplace_tour_${TOUR_VERSION}_${page}`; }
+function tourIsSeen(page) { try { return localStorage.getItem(tourSeenKey(page)) === '1'; } catch (e) { return true; } }
+function tourMarkSeen(page) { try { localStorage.setItem(tourSeenKey(page), '1'); } catch (e) { /* abaikan */ } }
+
+function startProductTour(page) {
+  const all = TOUR_STEPS[page];
+  if (!all || document.querySelector('.tour-root')) return;
+
+  const isVisible = (el) => {
+    const r = el.getBoundingClientRect();
+    return r.width > 0 && r.height > 0 && r.right > 0 && r.left < window.innerWidth;
+  };
+  const resolve = (step) => {
+    if (!step.s) return null;
+    const list = window.innerWidth <= 980 && step.m ? [step.m, step.s] : [step.s];
+    for (const sel of list) {
+      const el = document.querySelector(sel);
+      if (el && isVisible(el)) return el;
+    }
+    return null;
+  };
+  const isPinned = (el) => {
+    for (let n = el; n && n !== document.body; n = n.parentElement) {
+      const p = getComputedStyle(n).position;
+      if (p === 'fixed' || p === 'sticky') return true;
+    }
+    return false;
+  };
+
+  // Langkah yang targetnya tidak ada/tersembunyi dilewati otomatis.
+  const steps = all.filter((step) => !step.s || resolve(step));
+  if (!steps.length) return;
+
+  const previousFocus = document.activeElement;
+  const root = document.createElement('div');
+  root.className = 'tour-root';
+  root.innerHTML = `
+    <div class="tour-shield"></div>
+    <div class="tour-spot"></div>
+    <div class="tour-tip" role="dialog" aria-modal="true" aria-labelledby="tourTitle">
+      <span class="tour-count"></span>
+      <h3 id="tourTitle"></h3>
+      <p></p>
+      <div class="tour-actions">
+        <button class="btn btn-secondary" type="button" data-tour-skip>Lewati</button>
+        <span>
+          <button class="btn btn-secondary" type="button" data-tour-prev>Kembali</button>
+          <button class="btn btn-primary" type="button" data-tour-next>Lanjut</button>
+        </span>
+      </div>
+    </div>`;
+  document.body.appendChild(root);
+
+  const spot = root.querySelector('.tour-spot');
+  const tip = root.querySelector('.tour-tip');
+  const countEl = root.querySelector('.tour-count');
+  const titleEl = root.querySelector('h3');
+  const textEl = root.querySelector('p');
+  const prevBtn = root.querySelector('[data-tour-prev]');
+  const nextBtn = root.querySelector('[data-tour-next]');
+  let idx = 0;
+  let target = null;
+  let raf = 0;
+
+  const place = () => {
+    if (!target) {
+      tip.classList.add('is-mid');
+      tip.classList.remove('is-dock');
+      tip.style.left = '';
+      tip.style.top = '';
+      return;
+    }
+    tip.classList.remove('is-mid');
+    const r = target.getBoundingClientRect();
+    const pad = 8;
+    spot.style.top = `${r.top - pad}px`;
+    spot.style.left = `${r.left - pad}px`;
+    spot.style.width = `${r.width + pad * 2}px`;
+    spot.style.height = `${r.height + pad * 2}px`;
+
+    const dock = window.innerWidth <= 600 || r.height > window.innerHeight - 340;
+    tip.classList.toggle('is-dock', dock);
+    if (dock) {
+      tip.style.left = '';
+      tip.style.top = '';
+      return;
+    }
+    const tipH = tip.offsetHeight;
+    const tipW = tip.offsetWidth;
+    let top = r.bottom + pad + 14;
+    if (top + tipH > window.innerHeight - 12) top = r.top - pad - 14 - tipH;
+    if (top < 12) top = Math.max(12, window.innerHeight - tipH - 12);
+    const left = Math.min(Math.max(12, r.left), window.innerWidth - tipW - 12);
+    tip.style.top = `${top}px`;
+    tip.style.left = `${left}px`;
+  };
+
+  const settle = () => {
+    cancelAnimationFrame(raf);
+    const end = performance.now() + 700; // ikuti animasi scroll halus
+    const tick = () => {
+      place();
+      if (performance.now() < end) raf = requestAnimationFrame(tick);
+    };
+    tick();
+  };
+
+  const show = (i) => {
+    idx = i;
+    const step = steps[i];
+    target = step.s ? resolve(step) : null;
+    countEl.textContent = `Langkah ${i + 1} dari ${steps.length}`;
+    titleEl.textContent = step.t;
+    textEl.textContent = step.d;
+    prevBtn.hidden = i === 0;
+    nextBtn.textContent = i === steps.length - 1 ? 'Selesai' : 'Lanjut';
+    root.classList.toggle('is-center', !target);
+    if (target && !isPinned(target)) {
+      const r = target.getBoundingClientRect();
+      window.scrollTo({ top: Math.max(0, window.scrollY + r.top - 120), behavior: 'smooth' });
+    }
+    settle();
+    nextBtn.focus({ preventScroll: true });
+  };
+
+  const close = () => {
+    cancelAnimationFrame(raf);
+    window.removeEventListener('resize', settle);
+    window.removeEventListener('scroll', place);
+    document.removeEventListener('keydown', onKey);
+    root.remove();
+    tourMarkSeen(page);
+    if (previousFocus && previousFocus.focus) previousFocus.focus({ preventScroll: true });
+  };
+  const next = () => (idx >= steps.length - 1 ? close() : show(idx + 1));
+  const prev = () => { if (idx > 0) show(idx - 1); };
+  function onKey(event) {
+    if (event.key === 'Escape') close();
+    else if (event.key === 'ArrowRight') next();
+    else if (event.key === 'ArrowLeft') prev();
+  }
+
+  nextBtn.addEventListener('click', next);
+  prevBtn.addEventListener('click', prev);
+  root.querySelector('[data-tour-skip]').addEventListener('click', close);
+  window.addEventListener('resize', settle);
+  window.addEventListener('scroll', place, { passive: true });
+  document.addEventListener('keydown', onKey);
+  show(0);
+}
+
+function initProductTour() {
+  const page = String(document.body?.dataset.page || '');
+  if (!TOUR_STEPS[page]) return;
+  // Halaman setelah login: jangan tampil jika belum login (akan dialihkan ke halaman masuk).
+  if (page !== 'home' && page !== 'product.html' && !currentUser()) return;
+
+  if (!document.querySelector('[data-tour-help]')) {
+    const help = document.createElement('button');
+    help.type = 'button';
+    help.className = 'tour-help';
+    help.setAttribute('data-tour-help', '');
+    help.setAttribute('aria-label', 'Panduan penggunaan halaman ini');
+    help.title = 'Panduan';
+    help.innerHTML = '<span class="material-symbols-outlined" aria-hidden="true">help</span>';
+    help.addEventListener('click', () => startProductTour(page));
+    document.body.appendChild(help);
+  }
+
+  if (!tourIsSeen(page) && !document.querySelector('.modal-backdrop.show')) {
+    startProductTour(page);
+  }
+}
+
 document.addEventListener('DOMContentLoaded', init);
+document.addEventListener('DOMContentLoaded', () => setTimeout(initProductTour, 1200));
  
 window.addEventListener('beforeunload', () => {
   if (window.__marketplaceChatCleanup) window.__marketplaceChatCleanup();

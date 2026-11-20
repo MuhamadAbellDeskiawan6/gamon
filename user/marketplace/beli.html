@@ -51,7 +51,7 @@
         </aside>
 
         <div class="main-panel">
-          <section class="panel">
+          <section class="panel" id="katalog">
             <div class="top-panel" style="margin-bottom: 20px;">
               <div>
                 <span class="eyebrow">Belanja</span>
@@ -59,21 +59,25 @@
               </div>
             </div>
 
-            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-bottom:16px;">
-              <input type="search" data-product-search placeholder="Cari nama produk" aria-label="Cari nama produk" />
-              <select data-product-category aria-label="Filter kategori">
-                <option value="all">Semua kategori</option>
-                <option value="barang">Barang</option>
-                <option value="pakaian">Pakaian</option>
-                <option value="aksesori">Aksesori</option>
-              </select>
-              <select data-product-status aria-label="Filter status">
-                <option value="all">Semua status</option>
-                <option value="Tersedia">Tersedia</option>
-                <option value="Habis">Habis</option>
-              </select>
+            <div class="filter-bar">
+              <div class="filter-row" role="group" aria-label="Filter produk">
+                <button class="filter-pill active" type="button" data-filter="all">Semua</button>
+                <button class="filter-pill" type="button" data-filter="pakaian">Pakaian</button>
+                <button class="filter-pill" type="button" data-filter="aksesori">Aksesori</button>
+                <button class="filter-pill" type="button" data-filter="barang">Barang Lain</button>
+                <button class="filter-pill" type="button" data-filter="gratis">🎁 Gratis</button>
+              </div>
+              <label class="sort-box">
+                <span>Urutkan</span>
+                <select class="sort-select" data-sort-select aria-label="Urutkan produk">
+                  <option value="newest">Terbaru</option>
+                  <option value="price-asc">Harga: termurah ke termahal</option>
+                  <option value="price-desc">Harga: termahal ke termurah</option>
+                </select>
+              </label>
             </div>
-            <div class="grid-products" data-buyer-list></div>
+
+            <div class="grid-products" data-product-list></div>
           </section>
         </div>
       </div>
