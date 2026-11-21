@@ -8,6 +8,12 @@ const MAX_PER_USER_DAY = 2;
 const ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 const failHits = new Map();
 
+// Alamat situs untuk return/callback DOKU. Tidak pernah memakai localhost.
+const LC_SITE_URL = (() => {
+  const s = String(process.env.SITE_URL || '').trim().replace(/\/+$/, '');
+  return /^https:\/\/[A-Za-z0-9.-]+$/.test(s) && !/localhost|127\.0\.0\.1/.test(s) ? s : 'https://gamon-space.vercel.app';
+})();
+
 const fail = (status, code, message) => Object.assign(new Error(message), { statusCode: status, code });
 const rand = (n) => Array.from({ length: n }, () => ALPHABET[crypto.randomInt(ALPHABET.length)]).join('');
 const clean = (v, max = 200) => String(v ?? '').replace(/[\u0000-\u001f\u007f]/g, ' ').trim().slice(0, max);
@@ -79,7 +85,7 @@ async function saveProduct(db, b, adminEmail) {
 async function createPayment(order, config, deps, profile) {
   const requestId = crypto.randomUUID();
   const timestamp = new Date().toISOString().split('.')[0] + 'Z';
-  const returnUrl = `${config.returnBaseUrl}/user/marketplace/lapar-chicken.html?orderId=${encodeURIComponent(order.orderId)}`;
+  const returnUrl = `${LC_SITE_URL}/user/marketplace/lapar-chicken.html?orderId=${encodeURIComponent(order.orderId)}`;
   const raw = String(process.env.DOKU_PAYMENT_METHODS || 'QRIS').trim();
   const methods = raw.toUpperCase() === 'ALL' ? [] : raw.split(',').map((s) => s.trim()).filter(Boolean);
   const payment = { payment_due_date: 60, return_url: returnUrl };
@@ -98,7 +104,7 @@ async function createPayment(order, config, deps, profile) {
       phone: String(profile?.phone || '').replace(/[^0-9+]/g, '').slice(0, 20) || '0000000000',
       address: 'Voucher digital'
     },
-    additional_info: { override_notification_url: `${config.siteUrl}/api/doku-notify` }
+    additional_info: { override_notification_url: `${LC_SITE_URL}/api/doku-notify` }
   };
   const path = '/checkout/v1/payment';
   const bodyText = JSON.stringify(body);
@@ -170,35 +176,51 @@ export async function applyLcPayment({ orderId, amount, requestId }) {
   throw new Error('Gagal membuat kode voucher unik.');
 }
 
-export async function markLcFailed(orderId, dokuStatus) {
+export async function markLcFailed(orderId, dokuStatus, final = false) {
   const db = getAdminDb();
   const ref = db.collection('lc_orders').doc(orderId);
   await db.runTransaction(async (t) => {
     const s = await t.get(ref);
     if (!s.exists || s.data().status !== 'awaiting_payment') return;
-    t.update(ref, { status: dokuStatus === 'EXPIRED' ? 'expired' : 'payment_failed', updatedAt: Date.now() });
+    t.update(ref, {
+      status: dokuStatus === 'EXPIRED' ? 'expired' : 'payment_failed',
+      updatedAt: Date.now(),
+      ...(final ? { dokuFinal: true } : {})
+    });
   });
 }
 
 async function syncPending(req, order, deps) {
-  const config = deps.getDokuConfig(req);
-  const path = `/orders/v1/status/${encodeURIComponent(order.id)}`;
-  const timestamp = new Date().toISOString().split('.')[0] + 'Z';
-  const requestId = crypto.randomUUID();
-  const res = await fetch(`${config.baseUrl}${path}`, { method: 'GET', headers: deps.createDokuHeaders({ ...config, requestId, timestamp, path }) });
-  const payload = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    console.error('[lc] cek status DOKU gagal:', order.id, res.status, JSON.stringify(payload).slice(0, 500));
-    return;
+  const out = { dokuStatus: '', applied: false, error: '' };
+  try {
+    const config = deps.getDokuConfig(req);
+    const path = `/orders/v1/status/${encodeURIComponent(order.id)}`;
+    const timestamp = new Date().toISOString().split('.')[0] + 'Z';
+    const requestId = crypto.randomUUID();
+    const res = await fetch(`${config.baseUrl}${path}`, { method: 'GET', headers: deps.createDokuHeaders({ ...config, requestId, timestamp, path }) });
+    const payload = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      console.error('[lc] cek status DOKU gagal:', order.id, res.status, JSON.stringify(payload).slice(0, 500));
+      out.error = `DOKU menjawab HTTP ${res.status}`;
+      return out;
+    }
+    const status = String(payload.transaction?.status || payload.order?.status || payload.status || '').toUpperCase();
+    out.dokuStatus = status || 'TIDAK-DIKETAHUI';
+    console.log('[lc] status DOKU', order.id, out.dokuStatus, status ? '' : JSON.stringify(payload).slice(0, 500));
+    if (['SUCCESS', 'PAID'].includes(status)) {
+      const result = await applyLcPayment({ orderId: order.id, amount: payload.order?.amount ?? payload.amount, requestId: payload.transaction?.request_id || requestId });
+      console.log('[lc] hasil apply:', order.id, JSON.stringify(result));
+      out.applied = Boolean(result.paid || result.already);
+      if (result.amountMismatch) out.error = 'Nominal pembayaran tidak cocok dengan harga voucher. Hubungi admin.';
+      if (result.found === false) out.error = 'Order tidak ditemukan.';
+    } else if (['EXPIRED', 'FAILED', 'CANCELLED', 'DENIED'].includes(status)) {
+      await markLcFailed(order.id, status, true);
+    }
+  } catch (e) {
+    console.error('[lc] syncPending error:', order.id, e);
+    out.error = e.message || 'Gagal memeriksa pembayaran.';
   }
-  const status = String(payload.transaction?.status || payload.order?.status || payload.status || '').toUpperCase();
-  console.log('[lc] status DOKU', order.id, status);
-  if (['SUCCESS', 'PAID'].includes(status)) {
-    const result = await applyLcPayment({ orderId: order.id, amount: payload.order?.amount ?? payload.amount, requestId: payload.transaction?.request_id || requestId });
-    console.log('[lc] hasil apply:', order.id, JSON.stringify(result));
-  } else if (['EXPIRED', 'FAILED', 'CANCELLED', 'DENIED'].includes(status)) {
-    await markLcFailed(order.id, status);
-  }
+  return out;
 }
 
 /* ---------------- PEMBELI ---------------- */
@@ -258,16 +280,26 @@ async function myVouchers(req, res, claims, deps) {
   ]);
   let [os, vs] = await fetchAll();
   const now = Date.now();
-  const pending = os.docs.filter((d) => d.data().status === 'awaiting_payment').slice(0, 3);
-  if (pending.length) {
-    for (const d of pending) {
-      try {
-        if (Number(d.data().paymentExpiresAt || 0) <= now) await markLcFailed(d.id, 'EXPIRED');
-        else await syncPending(req, { id: d.id }, deps);
-      } catch (e) { console.warn('[lc] sync pending dilewati:', d.id, e.message); }
+
+  // Cek ke DOKU: order menunggu bayar + order yang baru kedaluwarsa/gagal (siapa tahu sebenarnya sudah dibayar).
+  const toCheck = os.docs.filter((d) => {
+    const o = d.data();
+    if (o.dokuFinal) return false;
+    if (o.status === 'awaiting_payment') return true;
+    return (o.status === 'expired' || o.status === 'payment_failed') && now - Number(o.createdAt || 0) < 24 * 3600000;
+  }).slice(0, 5);
+
+  const checks = [];
+  for (const d of toCheck) {
+    const r = await syncPending(req, { id: d.id }, deps);
+    checks.push({ orderId: d.id, ...r });
+    const o = d.data();
+    if (o.status === 'awaiting_payment' && Number(o.paymentExpiresAt || 0) <= now && !r.applied) {
+      try { await markLcFailed(d.id, 'EXPIRED'); } catch (e) { console.warn('[lc] tandai kedaluwarsa gagal:', d.id, e.message); }
     }
-    [os, vs] = await fetchAll();
   }
+  if (toCheck.length) [os, vs] = await fetchAll();
+
   const vouchers = vs.docs.map((d) => d.data())
     .sort((a, b) => b.createdAt - a.createdAt).slice(0, 50)
     .map((v) => ({
@@ -278,7 +310,7 @@ async function myVouchers(req, res, claims, deps) {
   const pendingOrders = os.docs.map((d) => ({ id: d.id, ...d.data() }))
     .filter((o) => o.status === 'awaiting_payment' && o.paymentExpiresAt > now && /^https:\/\//i.test(o.paymentUrl || ''))
     .map((o) => ({ orderId: o.id, productName: o.productName, sellPrice: o.sellPrice, paymentUrl: o.paymentUrl, paymentExpiresAt: o.paymentExpiresAt }));
-  return res.status(200).json({ success: true, vouchers, pending: pendingOrders });
+  return res.status(200).json({ success: true, vouchers, pending: pendingOrders, checks });
 }
 
 /* ---------------- KASIR ---------------- */

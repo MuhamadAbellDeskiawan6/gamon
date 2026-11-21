@@ -138,11 +138,14 @@
         }
       }
 
-            let attempts = 0;
+                  let attempts = 0;
       let pollTimer = null;
+      let manualCheck = false;
       async function loadVouchers() {
         clearTimeout(pollTimer);
         const box = $('[data-lc-vouchers]'), pend = $('[data-lc-pending]');
+        const wasManual = manualCheck;
+        manualCheck = false;
         try {
           const j = await api('lc-my-vouchers');
           pend.innerHTML = j.pending.map((o) => `
@@ -169,21 +172,39 @@
               if (window.QRCode) new QRCode(el, { text: el.dataset.qr, width: 180, height: 180, correctLevel: QRCode.CorrectLevel.M });
             });
           }
+
+          const checks = Array.isArray(j.checks) ? j.checks : [];
+          const problem = checks.find((c) => c.error);
           if (j.pending.length) {
+            if (wasManual) {
+              const st = (checks[0] && checks[0].dokuStatus) || '';
+              msg(problem
+                ? 'Gagal memeriksa pembayaran: ' + problem.error
+                : 'DOKU belum mencatat pembayaran' + (st ? ' (status: ' + st + ')' : '') + '. Tunggu 1-2 menit lalu periksa lagi.', !!problem);
+            }
             if (attempts < 20) { attempts += 1; pollTimer = setTimeout(loadVouchers, 4000); }
+          } else if (problem) {
+            msg('Ada kendala: ' + problem.error, true);
+          } else if (wasManual || checks.some((c) => c.applied)) {
+            msg('Pembayaran terkonfirmasi. Voucher kamu sudah aktif.');
           } else {
             msg('');
           }
         } catch (e) {
-          box.innerHTML = `<p class="lc-msg err">${esc(e.message)}</p>`;
+          msg(e.message || 'Voucher gagal dimuat.', true);
+          if (!box.querySelector('.lc-card')) box.innerHTML = '<p class="muted">Voucher gagal dimuat. Muat ulang halaman.</p>';
         }
       }
 
-      $('[data-lc-pending]').addEventListener('click', (ev) => {
-        if (!ev.target.closest('[data-check-pay]')) return;
+      $('[data-lc-pending]').addEventListener('click', async (ev) => {
+        const btn = ev.target.closest('[data-check-pay]');
+        if (!btn) return;
+        btn.disabled = true;
+        btn.textContent = 'Memeriksa...';
         attempts = 0;
-        msg('Memeriksa pembayaran...');
-        loadVouchers();
+        manualCheck = true;
+        msg('Memeriksa pembayaran ke DOKU...');
+        await loadVouchers();
       });
 
       $('[data-lc-products]').addEventListener('click', async (ev) => {
@@ -208,6 +229,7 @@
       onAuthStateChanged(auth, (user) => {
         if (!user) { window.location.href = 'login.html'; return; }
         loadProducts();
+        if (new URLSearchParams(location.search).get('orderId')) msg('Memeriksa pembayaran...');
         loadVouchers();
       });
     </script>
