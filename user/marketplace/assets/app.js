@@ -4527,7 +4527,7 @@ async function renderLcOrdersSection(container) {
           <a class="btn btn-soft" href="lapar-chicken.html">${v.status === 'ACTIVE' && !v.expired ? 'Lihat QR voucher' : 'Lihat detail'}</a></article>`;
       })
     ];
-    section.innerHTML = `<h3 style="margin:0 0 10px;">Voucher Lapar Chicken</h3>${rows.join('')}`;
+    section.innerHTML = `<h3 style="margin:0 0 10px;">Voucher Lapar Chicken (Beta)</h3>${rows.join('')}`;
   } catch (error) {
     console.warn('[marketplace] voucher Lapar Chicken tidak dimuat di pesanan:', error?.message || error);
   }
@@ -5758,7 +5758,7 @@ async function renderSellPage() {
 const USER_SIDEBAR_LINKS = [
   { href: 'dashboard.html', icon: 'dashboard', label: 'Dashboard' },
   { href: 'beli.html', icon: 'shopping_cart', label: 'Katalog' },
-    { href: 'lapar-chicken.html', icon: 'lunch_dining', label: 'Lapar Chicken' },
+    { href: 'lapar-chicken.html', icon: 'lunch_dining', label: 'Lapar Chicken (Beta)' },
   { href: 'keranjang.html', icon: 'shopping_bag', label: 'Keranjang', cartBadge: true },
   { href: 'pesanan.html', icon: 'receipt_long', label: 'Pesanan Saya' },
   { href: 'jual.html', icon: 'sell', label: 'Jual Barang' },
@@ -5798,7 +5798,7 @@ async function renderHomeReviews() {
   const emptyEl = document.querySelector('[data-review-empty]');
   const errorEl = document.querySelector('[data-review-error]');
   const summaryEl = document.querySelector('[data-review-summary]');
- 
+
   // Hanya SATU state yang tampil pada satu waktu.
   const show = (state) => {
     if (loader) loader.hidden = state !== 'loading';
@@ -5807,90 +5807,129 @@ async function renderHomeReviews() {
     if (emptyEl) emptyEl.hidden = state !== 'empty';
     if (errorEl) errorEl.hidden = state !== 'error';
   };
- 
+
   if (errorEl && errorEl.dataset.retryBound !== 'true') {
     errorEl.dataset.retryBound = 'true';
     errorEl.querySelector('[data-review-retry]')?.addEventListener('click', () => renderHomeReviews());
   }
- 
+
   show('loading');
- 
+
   try {
-    let rawReviews = null;
-
-    // Utama: lewat API server, foto pembeli selalu diambil dari profil TERBARU.
-    try {
-      const response = await withTimeout(
-        fetch('/api/marketplace?action=public-reviews', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}', cache: 'no-store' }),
-        10000,
-        'Memuat testimoni'
-      );
-      if (response.ok) {
-        const payload = await response.json();
-        if (payload?.success && Array.isArray(payload.reviews)) rawReviews = payload.reviews;
+    // Ulasan produk biasa (API server, cadangan Firestore langsung).
+    let mainFailed = false;
+    const fetchMain = async () => {
+      let raw = null;
+      try {
+        const response = await withTimeout(
+          fetch('/api/marketplace?action=public-reviews', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}', cache: 'no-store' }),
+          10000,
+          'Memuat testimoni'
+        );
+        if (response.ok) {
+          const payload = await response.json();
+          if (payload?.success && Array.isArray(payload.reviews)) raw = payload.reviews;
+        }
+      } catch (apiError) {
+        console.warn('[marketplace] API testimoni tidak tersedia, memakai data Firestore langsung:', apiError);
       }
-    } catch (apiError) {
-      console.warn('[marketplace] API testimoni tidak tersedia, memakai data Firestore langsung:', apiError);
+      if (!raw) {
+        try {
+          const snapshot = await getDocs(query(collection(db, 'marketplace_reviews'), orderBy('createdAt', 'desc'), limit(30)));
+          raw = snapshot.docs.map((reviewDoc) => ({ id: reviewDoc.id, ...reviewDoc.data() }));
+        } catch (fsError) {
+          console.error('[marketplace] testimoni produk gagal dimuat:', fsError);
+          mainFailed = true;
+          raw = [];
+        }
+      }
+      return raw;
+    };
+
+    // Ulasan voucher Lapar Chicken.
+    const fetchVoucher = async () => {
+      try {
+        const response = await withTimeout(
+          fetch('/api/marketplace?action=lc-public-reviews', { cache: 'no-store' }),
+          10000,
+          'Memuat ulasan voucher'
+        );
+        if (!response.ok) return [];
+        const payload = await response.json();
+        return payload?.success && Array.isArray(payload.reviews)
+          ? payload.reviews.map((item) => ({ ...item, kind: 'voucher' }))
+          : [];
+      } catch (voucherError) {
+        console.warn('[marketplace] ulasan voucher dilewati:', voucherError);
+        return [];
+      }
+    };
+
+    const [mainReviews, voucherReviews] = await Promise.all([fetchMain(), fetchVoucher()]);
+    if (mainFailed && !voucherReviews.length) {
+      show('error');
+      return;
     }
 
-    // Cadangan: baca langsung dari Firestore (foto bisa jadi salinan lama di ulasan).
-    if (!rawReviews) {
-      const snapshot = await getDocs(query(collection(db, 'marketplace_reviews'), orderBy('createdAt', 'desc'), limit(30)));
-      rawReviews = snapshot.docs.map((reviewDoc) => ({ id: reviewDoc.id, ...reviewDoc.data() }));
-    }
+    const reviews = [...mainReviews, ...voucherReviews]
+      .filter((review) => Number.isInteger(Number(review.rating)) && Number(review.rating) >= 1 && Number(review.rating) <= 5)
+      .sort((a, b) => getCreatedAtMs(b.createdAt) - getCreatedAtMs(a.createdAt));
 
-    const reviews = rawReviews
-      .filter((review) => Number.isInteger(Number(review.rating)) && Number(review.rating) >= 1 && Number(review.rating) <= 5);
- 
     // Pesan "belum ada testimoni" HANYA bila database memang kosong.
     if (!reviews.length) {
       show('empty');
       return;
     }
- 
+
     const average = reviews.reduce((sum, review) => sum + Number(review.rating), 0) / reviews.length;
     if (summaryEl) {
       const rounded = Math.round(average);
       summaryEl.innerHTML = `<strong>${average.toFixed(1)}</strong><span class="mm-review-stars" aria-hidden="true">${'★'.repeat(rounded)}${'☆'.repeat(5 - rounded)}</span><span>dari ${reviews.length} ulasan terbaru</span>`;
     }
- 
+
     const shown = reviews.slice(0, 15);
- 
+
     list.innerHTML = shown.map((review) => {
       const rating = Number(review.rating);
+      const isVoucher = review.kind === 'voucher';
       const productId = String(review.productId || '');
-      const productName = String(review.productName || 'Produk');
-      const image = safeMarketplaceImageUrl(review.productImage);
-      const thumb = image
-        ? `<img src="${escapeHtml(image)}" alt="${escapeHtml(productName)}" loading="lazy" />`
-        : `<span>${escapeHtml(productName.charAt(0).toUpperCase())}</span>`;
- 
+      const baseName = String(review.productName || (isVoucher ? 'Voucher' : 'Produk'));
+      const productName = isVoucher ? `Voucher (Beta): ${baseName}` : baseName;
+      const image = isVoucher ? '' : safeMarketplaceImageUrl(review.productImage);
+      const thumb = isVoucher
+        ? '<span class="material-symbols-outlined" aria-hidden="true" style="font-size:24px">lunch_dining</span>'
+        : image
+          ? `<img src="${escapeHtml(image)}" alt="${escapeHtml(productName)}" loading="lazy" />`
+          : `<span>${escapeHtml(productName.charAt(0).toUpperCase())}</span>`;
+      const href = isVoucher ? 'lapar-chicken.html' : getProductDetailUrl(productId);
+      const thumbKey = isVoucher ? '' : productId;
+
       const buyerName = String(review.buyerName || 'Pembeli');
       const buyerPhoto = safeMarketplaceImageUrl(review.buyerPhotoUrl);
       const avatar = buyerPhoto
         ? `<span class="mm-review-avatar"><img src="${escapeHtml(buyerPhoto)}" alt="${escapeHtml(buyerName)}" loading="lazy" referrerpolicy="no-referrer" /></span>`
         : `<span class="mm-review-avatar">${escapeHtml(buyerName.charAt(0).toUpperCase())}</span>`;
- 
+
       const ms = getCreatedAtMs(review.createdAt);
       const date = ms ? new Date(ms).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
- 
+
       return `<article class="mm-review">
         <div class="mm-review-product">
-          <span class="mm-review-thumb" data-review-thumb="${escapeHtml(productId)}">${thumb}</span>
-          <a href="${getProductDetailUrl(productId)}">${escapeHtml(productName)}</a>
+          <span class="mm-review-thumb" data-review-thumb="${escapeHtml(thumbKey)}">${thumb}</span>
+          <a href="${href}">${escapeHtml(productName)}</a>
         </div>
         <div class="mm-review-stars" role="img" aria-label="Rating ${rating} dari 5">${'★'.repeat(rating)}${'☆'.repeat(5 - rating)}</div>
         <p class="mm-review-text">${review.comment ? escapeHtml(review.comment) : '<em>Pembeli tidak menulis komentar.</em>'}</p>
         <div class="mm-review-foot"><span class="mm-review-buyer">${avatar}<strong style="overflow-wrap:anywhere;">${escapeHtml(buyerName)}</strong></span><span>${escapeHtml(date)}</span></div>
       </article>`;
     }).join('');
- 
+
     // Data sudah ada -> langsung tampilkan, jangan menunggu gambar produk.
     show('list');
- 
-    // Foto produk dilengkapi di belakang layar (ulasan sering tidak menyimpan gambar).
+
+    // Foto produk dilengkapi di belakang layar (hanya untuk ulasan produk biasa).
     const productIds = [...new Set(shown
-      .filter((review) => !safeMarketplaceImageUrl(review.productImage))
+      .filter((review) => review.kind !== 'voucher' && !safeMarketplaceImageUrl(review.productImage))
       .map((review) => String(review.productId || ''))
       .filter(Boolean))];
     productIds.forEach(async (productId) => {

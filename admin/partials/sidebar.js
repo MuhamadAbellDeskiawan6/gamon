@@ -20,8 +20,8 @@
         { href: '/admin/marketplace-orders.html', label: 'Pesanan Marketplace', icon: 'receipt_long', orders: true },
         { href: '/admin/marketplace-sell.html', label: 'Penjualan dari User', icon: 'sell', sell: true },
         { href: '/admin/marketplace-chat.html', label: 'Chat Pembeli', icon: 'chat', chat: true },
-        { section: 'Lapar Chicken' },
-        { href: '/admin/lapar-chicken.html', label: 'Voucher Lapar Chicken', icon: 'lunch_dining' }
+        { section: 'Lapar Chicken (Beta)' },
+        { href: '/admin/lapar-chicken.html', label: 'Voucher Lapar Chicken (Beta)', icon: 'lunch_dining' }
     ];
     menuItems.push(
         { section: 'Gamon Jasa (Beta)' },

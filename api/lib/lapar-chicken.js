@@ -300,13 +300,19 @@ async function myVouchers(req, res, claims, deps) {
   }
   if (toCheck.length) [os, vs] = await fetchAll();
 
+  const rs = await db.collection('lc_reviews').where('userId', '==', claims.uid).get();
+  const reviewByCode = new Map(rs.docs.map((d) => [d.id, d.data()]));
   const vouchers = vs.docs.map((d) => d.data())
     .sort((a, b) => b.createdAt - a.createdAt).slice(0, 50)
-    .map((v) => ({
-      code: v.code, productName: v.productName, normalPrice: v.normalPrice, sellPrice: v.sellPrice,
-      status: v.status, createdAt: v.createdAt, validUntil: v.validUntil, redeemedAt: v.redeemedAt || 0,
-      expired: v.status === 'ACTIVE' && v.validUntil < now
-    }));
+    .map((v) => {
+      const rv = reviewByCode.get(v.code);
+      return {
+        code: v.code, productName: v.productName, normalPrice: v.normalPrice, sellPrice: v.sellPrice,
+        status: v.status, createdAt: v.createdAt, validUntil: v.validUntil, redeemedAt: v.redeemedAt || 0,
+        expired: v.status === 'ACTIVE' && v.validUntil < now,
+        review: rv ? { rating: rv.rating, comment: rv.comment || '', createdAt: rv.createdAt } : null
+      };
+    });
   const pendingOrders = os.docs.map((d) => ({ id: d.id, ...d.data() }))
     .filter((o) => o.status === 'awaiting_payment' && o.paymentExpiresAt > now && /^https:\/\//i.test(o.paymentUrl || ''))
     .map((o) => ({ orderId: o.id, productName: o.productName, sellPrice: o.sellPrice, paymentUrl: o.paymentUrl, paymentExpiresAt: o.paymentExpiresAt }));
@@ -381,6 +387,59 @@ async function settle(db, note, adminEmail) {
   return { count: snap.size, total };
 }
 
+/* ---------------- ULASAN VOUCHER ---------------- */
+const safePhoto = (v) => {
+  const s = String(v || '').trim();
+  return /^https:\/\//i.test(s) || /^data:image\/(?:jpeg|png|webp);base64,/i.test(s) ? s : '';
+};
+
+async function submitReview(req, res, claims) {
+  const code = normCode(req.body?.code);
+  const rating = Number(req.body?.rating);
+  if (!Number.isInteger(rating) || rating < 1 || rating > 5) throw fail(400, 'invalid-rating', 'Pilih rating bintang 1-5.');
+  const comment = clean(req.body?.comment, 500);
+  const db = getAdminDb();
+  const vRef = db.collection('lc_vouchers').doc(code);
+  const rRef = db.collection('lc_reviews').doc(code); // id = kode voucher, jadi otomatis 1 ulasan per voucher
+  const profSnap = await db.collection('marketplace_users').doc(claims.uid).get();
+  const profile = profSnap.exists ? profSnap.data() : {};
+
+  await db.runTransaction(async (t) => {
+    const [vSnap, rSnap] = await Promise.all([t.get(vRef), t.get(rRef)]);
+    if (!vSnap.exists || vSnap.data().userId !== claims.uid) throw fail(404, 'not-found', 'Voucher tidak ditemukan.');
+    const v = vSnap.data();
+    if (v.status !== 'REDEEMED') throw fail(409, 'not-redeemed', 'Ulasan bisa diberikan setelah voucher dipakai di toko.');
+    if (rSnap.exists) throw fail(409, 'already-reviewed', 'Kamu sudah memberi ulasan untuk voucher ini.');
+    t.create(rRef, {
+      code, orderId: v.orderId || '', userId: claims.uid,
+      productId: v.productId || '', productName: clean(v.productName, 80),
+      rating, comment,
+      buyerName: clean(profile.name || claims.name || 'Pembeli', 120),
+      createdAt: Date.now()
+    });
+  });
+  return res.status(200).json({ success: true, message: 'Ulasan terkirim. Terima kasih!' });
+}
+
+async function publicReviews(db, res) {
+  const snap = await db.collection('lc_reviews').orderBy('createdAt', 'desc').limit(15).get();
+  const reviews = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  const uids = [...new Set(reviews.map((r) => r.userId).filter(Boolean))];
+  const photos = new Map();
+  if (uids.length) {
+    const docs = await db.getAll(...uids.map((u) => db.collection('marketplace_users').doc(u)));
+    docs.forEach((d) => { if (d.exists) photos.set(d.id, safePhoto(d.data().photoThumbUrl)); });
+  }  res.setHeader('Cache-Control', 'public, s-maxage=10, stale-while-revalidate=30');
+  return res.status(200).json({
+    success: true,
+    reviews: reviews.map((r) => ({
+      id: r.id, kind: 'voucher', productId: '', productName: r.productName || 'Voucher',
+      rating: r.rating, comment: r.comment || '', buyerName: r.buyerName || 'Pembeli',
+      buyerPhotoUrl: photos.get(r.userId) || '', createdAt: r.createdAt
+    }))
+  });
+}
+
 /* ---------------- DISPATCHER ---------------- */
 export async function handleLcAction(action, req, res, deps) {
   res.setHeader('Cache-Control', 'no-store');
@@ -393,6 +452,11 @@ export async function handleLcAction(action, req, res, deps) {
     if (action === 'lc-products') {
       need('GET');
       return res.status(200).json({ success: true, today: dayKey(), products: await listProducts(db, true) });
+    }
+
+        if (action === 'lc-public-reviews') {
+      need('GET');
+      return await publicReviews(db, res);
     }
 
     if (action.startsWith('lc-admin-')) {
@@ -430,6 +494,7 @@ export async function handleLcAction(action, req, res, deps) {
     if (!claims) return;
     if (action === 'lc-checkout') return await checkout(req, res, claims, deps);
     if (action === 'lc-my-vouchers') return await myVouchers(req, res, claims, deps);
+        if (action === 'lc-submit-review') return await submitReview(req, res, claims);
     throw fail(404, 'unknown-action', 'Aksi tidak dikenal.');
   } catch (e) {
     if (!e.statusCode) console.error('[lc] gagal:', action, e);
