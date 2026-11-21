@@ -374,6 +374,22 @@ const targetUrl = '/';
             }
         }
 
+                if (typeof orderId === 'string' && /^LC-\d{6}-[A-Z0-9]{6}$/i.test(orderId)) {
+            try {
+                const { applyLcPayment, markLcFailed } = await import('./lib/lapar-chicken.js');
+                if (['SUCCESS', 'PAID'].includes(status)) {
+                    const result = await applyLcPayment({ orderId, amount: data.order?.amount, requestId: signatureCheck.requestId });
+                    if (result.amountMismatch) console.error('[DOKU lapar-chicken] nominal tidak cocok:', orderId);
+                } else if (['EXPIRED', 'FAILED', 'CANCELLED', 'DENIED'].includes(status)) {
+                    await markLcFailed(orderId, status);
+                }
+                return res.status(200).send('OK');
+            } catch (error) {
+                console.error('[DOKU lapar-chicken] gagal:', { orderId, message: error.message });
+                return res.status(500).send('Lapar Chicken webhook failed');
+            }
+        }
+
         if (typeof orderId === 'string' && /^MM-\d{6}-[A-Z0-9]{6}$/i.test(orderId)) {
             try {
                 if (['SUCCESS', 'PAID'].includes(status)) {

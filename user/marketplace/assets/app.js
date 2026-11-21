@@ -4463,6 +4463,7 @@ async function renderOrdersForBuyer() {
     try {
       await callMarketplaceApi('release-expired-reservations');
       await loadOrders();
+      renderLcOrdersSection(container);
 
       // Pesanan "menunggu pembayaran" bisa saja sebenarnya sudah dibayar
       // (webhook terlambat). Cek ke DOKU lalu muat ulang bila statusnya berubah.
@@ -4495,6 +4496,41 @@ async function renderOrdersForBuyer() {
   await syncPaidCart();
   if (isDetailMode) await runDetailMode();
   else await runListMode();
+}
+
+// Blok "Voucher Lapar Chicken" di halaman Pesanan Saya.
+async function renderLcOrdersSection(container) {
+  try {
+    const result = await callMarketplaceApi('lc-my-vouchers');
+    const vouchers = Array.isArray(result.vouchers) ? result.vouchers : [];
+    const pending = Array.isArray(result.pending) ? result.pending : [];
+    let section = document.querySelector('[data-lc-orders]');
+    if (!vouchers.length && !pending.length) {
+      if (section) section.remove();
+      return;
+    }
+    if (!section) {
+      section = document.createElement('section');
+      section.setAttribute('data-lc-orders', '');
+      section.style.marginBottom = '20px';
+      container.insertAdjacentElement('beforebegin', section);
+    }
+    const fmt = (ms) => new Date(Number(ms)).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' });
+    const rows = [
+      ...pending.map((o) => `<article class="commerce-panel" style="margin-bottom:10px;"><strong>${escapeHtml(o.productName)}</strong>
+        <p class="muted">${formatCurrency(o.sellPrice)} · Menunggu pembayaran</p>
+        <a class="btn btn-primary" href="${escapeHtml(o.paymentUrl)}">Bayar sekarang</a></article>`),
+      ...vouchers.map((v) => {
+        const label = v.status === 'REDEEMED' ? `Sudah dipakai ${fmt(v.redeemedAt)}` : v.expired ? 'Kedaluwarsa' : `Aktif sampai ${fmt(v.validUntil)}`;
+        return `<article class="commerce-panel" style="margin-bottom:10px;"><strong>${escapeHtml(v.productName)}</strong>
+          <p class="muted">Kode ${escapeHtml(v.code)} · ${formatCurrency(v.sellPrice)} · ${escapeHtml(label)}</p>
+          <a class="btn btn-soft" href="lapar-chicken.html">${v.status === 'ACTIVE' && !v.expired ? 'Lihat QR voucher' : 'Lihat detail'}</a></article>`;
+      })
+    ];
+    section.innerHTML = `<h3 style="margin:0 0 10px;">Voucher Lapar Chicken</h3>${rows.join('')}`;
+  } catch (error) {
+    console.warn('[marketplace] voucher Lapar Chicken tidak dimuat di pesanan:', error?.message || error);
+  }
 }
 
 async function renderProductsForBuyer() {
@@ -5722,6 +5758,7 @@ async function renderSellPage() {
 const USER_SIDEBAR_LINKS = [
   { href: 'dashboard.html', icon: 'dashboard', label: 'Dashboard' },
   { href: 'beli.html', icon: 'shopping_cart', label: 'Katalog' },
+    { href: 'lapar-chicken.html', icon: 'lunch_dining', label: 'Lapar Chicken' },
   { href: 'keranjang.html', icon: 'shopping_bag', label: 'Keranjang', cartBadge: true },
   { href: 'pesanan.html', icon: 'receipt_long', label: 'Pesanan Saya' },
   { href: 'jual.html', icon: 'sell', label: 'Jual Barang' },
@@ -5934,7 +5971,7 @@ async function init() {
   bindPasswordToggles();
   hydrateUserProfileUI();
  
-    const PROTECTED_PAGES = ['dashboard.html', 'pesanan.html', 'keranjang.html', 'jual.html', 'profil.html', 'chat.html'];
+    const PROTECTED_PAGES = ['dashboard.html', 'pesanan.html', 'keranjang.html', 'jual.html', 'profil.html', 'chat.html','lapar-chicken.html'];
 
   onAuthStateChanged(auth, async (firebaseUser) => {
     if (window.__marketplaceAuthBusy) return;
@@ -6000,6 +6037,10 @@ async function init() {
  
   if (page === 'jual.html') {
     await renderSellPage();
+    return;
+  }
+  
+    if (page === 'lapar-chicken.html') {
     return;
   }
  

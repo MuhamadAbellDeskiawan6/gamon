@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <script src="assets/shop-hours.js"></script>
+    <title>Lapar Chicken — Marketplace Mantan</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;800&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="assets/style.css" />
+    <link rel="stylesheet" href="assets/commerce.css" />
+    <link rel="stylesheet" href="assets/neo.css" />
+    <link rel="stylesheet" href="assets/tour.css" />
+    <style>
+      .lc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:16px;margin-top:16px}
+      .lc-card{background:#fff;border:2px solid var(--ink,#0b2342);border-radius:16px;box-shadow:4px 4px 0 var(--ink,#0b2342);padding:16px;display:flex;flex-direction:column;gap:8px}
+      .lc-card h3{margin:0;font-size:1.1rem}
+      .lc-old{text-decoration:line-through;color:#47607c;font-size:.9rem}
+      .lc-price{font-weight:800;font-size:1.5rem}
+      .lc-chip{align-self:flex-start;padding:2px 10px;border:2px solid var(--ink,#0b2342);border-radius:999px;background:#ffd66b;font-size:.75rem;font-weight:700}
+      .lc-chip.out{background:#ffd3da}
+      .lc-voucher{text-align:center}
+      .lc-qr{display:grid;place-items:center;padding:10px;background:#fff;border:2px dashed var(--ink,#0b2342);border-radius:12px;margin:6px 0}
+      .lc-code{font:800 1.3rem monospace;letter-spacing:.12em}
+      .lc-voucher.is-used{opacity:.55}
+      .lc-msg{margin-top:10px;font-weight:600}
+      .lc-msg.err{color:#b91c1c}
+    </style>
+  </head>
+  <body data-page="lapar-chicken.html">
+    <header class="topbar">
+      <div class="container nav">
+        <a href="../../index.html" class="brand" aria-label="Home">
+          <span class="brand-mark"><img src="../../image/logo/gamonspace-transparan.png" alt="Gamon Space" width="40" height="40" /></span>
+          <span>Marketplace Mantan</span>
+        </a>
+        <div class="nav-actions">
+          <a class="btn btn-secondary" href="keranjang.html" data-cart-link aria-label="Keranjang"><span class="material-symbols-outlined" aria-hidden="true">shopping_cart</span> <span data-cart-count hidden>0</span></a>
+          <a class="btn btn-secondary" href="profil.html">Profil</a>
+          <a class="btn btn-primary" href="../../index.html" data-logout-button>Keluar</a>
+        </div>
+      </div>
+    </header>
+
+    <main class="container user-layout">
+      <div class="user-shell">
+        <aside class="sidebar">
+          <div class="profile-box">
+            <div class="avatar-lg" data-user-avatar></div>
+            <div>
+              <strong style="display:block; color: var(--primary-strong);" data-user-name>Pengguna</strong>
+              <small class="muted">Pembeli</small>
+            </div>
+          </div>
+          <nav aria-label="Sidebar navigasi">
+            <a href="dashboard.html">Dashboard</a>
+            <a href="beli.html">Katalog</a>
+            <a class="active" href="lapar-chicken.html">Lapar Chicken</a>
+            <a href="keranjang.html">Keranjang <span data-cart-count hidden>0</span></a>
+            <a href="pesanan.html">Pesanan Saya</a>
+            <a href="jual.html">Jual Barang</a>
+            <a href="chat.html">Chat Admin</a>
+            <a href="profil.html">Profil</a>
+          </nav>
+          <a class="logout-link" href="../../index.html" data-logout-button>↩ Keluar</a>
+        </aside>
+
+        <div class="main-panel">
+          <section class="panel">
+            <span class="eyebrow">Marketplace Mantan × Lapar Chicken</span>
+            <h2 style="margin-top:12px;font-size:2rem;">Voucher makan lebih hemat</h2>
+            <p class="muted" style="margin-top:8px;max-width:62ch;">
+              Beli voucher di sini dengan harga lebih murah, lalu tukarkan langsung di toko Lapar Chicken dengan menunjukkan QR Code. Kuota terbatas setiap hari.
+            </p>
+            <p class="lc-msg" data-lc-msg role="status" aria-live="polite"></p>
+            <div class="lc-grid" data-lc-products><p class="muted">Memuat voucher...</p></div>
+          </section>
+
+          <section class="panel">
+            <h2 style="font-size:1.5rem;">Voucher saya</h2>
+            <div class="lc-grid" data-lc-pending></div>
+            <div class="lc-grid" data-lc-vouchers><p class="muted">Memuat voucher...</p></div>
+          </section>
+        </div>
+      </div>
+    </main>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script type="module" src="assets/app.js"></script>
+    <script type="module">
+      import { initializeApp, getApps } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+      import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+
+      const cfg = {
+        apiKey: 'AIzaSyC247K8yyL67aWV95KNQy8CkMZsjgGCudQ', authDomain: 'gamon-tawing.firebaseapp.com',
+        projectId: 'gamon-tawing', storageBucket: 'gamon-tawing.firebasestorage.app',
+        messagingSenderId: '370162915989', appId: '1:370162915989:web:76779062da83aa0c5c999c', measurementId: 'G-DDRQKDZXV7'
+      };
+      const auth = getAuth(getApps()[0] || initializeApp(cfg));
+      const $ = (s) => document.querySelector(s);
+      const rp = (n) => 'Rp ' + Number(n || 0).toLocaleString('id-ID');
+      const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+      const fmt = (t) => new Date(t).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' });
+      const msg = (text, err) => { const el = $('[data-lc-msg]'); el.textContent = text || ''; el.classList.toggle('err', !!err); };
+
+      async function api(action, body) {
+        const token = await auth.currentUser.getIdToken();
+        const r = await fetch('/api/marketplace?action=' + action, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+          body: JSON.stringify(body || {})
+        });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok || j.success === false) throw new Error(j.message || 'Permintaan gagal.');
+        return j;
+      }
+
+      async function loadProducts() {
+        const box = $('[data-lc-products]');
+        try {
+          const r = await fetch('/api/marketplace?action=lc-products', { cache: 'no-store' });
+          const j = await r.json();
+          if (!j.success) throw new Error(j.message);
+          if (!j.products.length) { box.innerHTML = '<p class="muted">Belum ada voucher yang dijual.</p>'; return; }
+          box.innerHTML = j.products.map((p) => `
+            <article class="lc-card">
+              <h3>${esc(p.name)}</h3>
+              ${p.description ? `<p class="muted" style="margin:0;font-size:.9rem;">${esc(p.description)}</p>` : ''}
+              <span class="lc-old">Harga normal ${rp(p.normalPrice)}</span>
+              <span class="lc-price">${rp(p.sellPrice)}</span>
+              <span class="lc-chip ${p.remaining ? '' : 'out'}">${p.remaining ? `Sisa kuota hari ini: ${p.remaining}` : 'Kuota hari ini habis'}</span>
+              <button class="btn btn-primary" type="button" data-buy="${esc(p.id)}" ${p.remaining ? '' : 'disabled'}>${p.remaining ? 'Beli voucher' : 'Habis'}</button>
+            </article>`).join('');
+        } catch (e) {
+          box.innerHTML = '<p class="lc-msg err">Voucher gagal dimuat. Muat ulang halaman.</p>';
+        }
+      }
+
+            let attempts = 0;
+      let pollTimer = null;
+      async function loadVouchers() {
+        clearTimeout(pollTimer);
+        const box = $('[data-lc-vouchers]'), pend = $('[data-lc-pending]');
+        try {
+          const j = await api('lc-my-vouchers');
+          pend.innerHTML = j.pending.map((o) => `
+            <article class="lc-card">
+              <h3>${esc(o.productName)}</h3>
+              <span class="lc-chip">Menunggu pembayaran</span>
+              <span>${rp(o.sellPrice)}</span>
+              <a class="btn btn-primary" href="${esc(o.paymentUrl)}">Bayar sekarang</a>
+              <button class="btn btn-secondary" type="button" data-check-pay>Sudah bayar? Periksa status</button>
+            </article>`).join('');
+          if (!j.vouchers.length) box.innerHTML = '<p class="muted">Belum ada voucher. Beli voucher di atas, QR akan muncul di sini setelah pembayaran berhasil.</p>';
+          else {
+            box.innerHTML = j.vouchers.map((v) => {
+              const used = v.status === 'REDEEMED' || v.expired;
+              return `<article class="lc-card lc-voucher ${used ? 'is-used' : ''}">
+                <h3>${esc(v.productName)}</h3>
+                <div class="lc-qr" data-qr="${esc(v.code)}" ${used ? 'hidden' : ''}></div>
+                <div class="lc-code">${esc(v.code)}</div>
+                <span class="lc-chip ${used ? 'out' : ''}">${v.status === 'REDEEMED' ? 'Sudah dipakai ' + esc(fmt(v.redeemedAt)) : v.expired ? 'Kedaluwarsa' : 'Aktif, berlaku s/d ' + esc(fmt(v.validUntil))}</span>
+                ${used ? '' : '<small class="muted">Tunjukkan QR ini ke kasir Lapar Chicken.</small>'}
+              </article>`;
+            }).join('');
+            box.querySelectorAll('[data-qr]:not([hidden])').forEach((el) => {
+              if (window.QRCode) new QRCode(el, { text: el.dataset.qr, width: 180, height: 180, correctLevel: QRCode.CorrectLevel.M });
+            });
+          }
+          if (j.pending.length) {
+            if (attempts < 20) { attempts += 1; pollTimer = setTimeout(loadVouchers, 4000); }
+          } else {
+            msg('');
+          }
+        } catch (e) {
+          box.innerHTML = `<p class="lc-msg err">${esc(e.message)}</p>`;
+        }
+      }
+
+      $('[data-lc-pending]').addEventListener('click', (ev) => {
+        if (!ev.target.closest('[data-check-pay]')) return;
+        attempts = 0;
+        msg('Memeriksa pembayaran...');
+        loadVouchers();
+      });
+
+      $('[data-lc-products]').addEventListener('click', async (ev) => {
+        const btn = ev.target.closest('[data-buy]');
+        if (!btn) return;
+        btn.disabled = true;
+        const old = btn.textContent;
+        btn.textContent = 'Memproses...';
+        msg('');
+        try {
+          const j = await api('lc-checkout', { productId: btn.dataset.buy });
+          if (!/^https:\/\//i.test(j.paymentUrl || '')) throw new Error('Link pembayaran tidak valid.');
+          window.location.href = j.paymentUrl;
+        } catch (e) {
+          msg(e.message, true);
+          btn.disabled = false;
+          btn.textContent = old;
+          loadProducts();
+        }
+      });
+
+      onAuthStateChanged(auth, (user) => {
+        if (!user) { window.location.href = 'login.html'; return; }
+        loadProducts();
+        loadVouchers();
+      });
+    </script>
+  </body>
+</html>

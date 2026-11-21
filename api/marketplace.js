@@ -102,7 +102,7 @@ function loadLocalEnvFallback() {
   localEnvLoaded = true;
   if (process.env.VERCEL_ENV === 'production' || process.env.NODE_ENV === 'production') return;
 
-  const wanted = ['DOKU_CLIENT_ID', 'DOKU_SECRET_KEY', 'DOKU_BASE_URL', 'SITE_URL', 'DOKU_PAYMENT_METHODS', 'MARKETPLACE_SHIPPING_FEE', 'MARKETPLACE_COD_MAX_AMOUNT', 'MARKETPLACE_COD_MAX_ACTIVE', 'MARKETPLACE_COD_MAX_FAIL', 'MARKETPLACE_COD_FEE', 'MARKETPLACE_FREE_MAX_ACTIVE', 'GMAIL_APP_PASSWORD', 'ADMIN_NOTIFY_EMAIL', 'EMAIL_VERIFY_SECRET', 'FIREBASE_SERVICE_ACCOUNT', 'FIREBASE_PROJECT_ID', 'FIREBASE_CLIENT_EMAIL', 'FIREBASE_PRIVATE_KEY'];
+  const wanted = ['DOKU_CLIENT_ID', 'DOKU_SECRET_KEY', 'DOKU_BASE_URL', 'SITE_URL', 'DOKU_PAYMENT_METHODS', 'MARKETPLACE_SHIPPING_FEE', 'MARKETPLACE_COD_MAX_AMOUNT', 'MARKETPLACE_COD_MAX_ACTIVE', 'MARKETPLACE_COD_MAX_FAIL', 'MARKETPLACE_COD_FEE', 'MARKETPLACE_FREE_MAX_ACTIVE', 'GMAIL_APP_PASSWORD', 'ADMIN_NOTIFY_EMAIL', 'EMAIL_VERIFY_SECRET', 'FIREBASE_SERVICE_ACCOUNT', 'FIREBASE_PROJECT_ID', 'FIREBASE_CLIENT_EMAIL', 'FIREBASE_PRIVATE_KEY', 'LC_CASHIER_PIN'];
   const files = ['.env.local', '.env.development.local', '.env.development', '.env'];
   const found = [];
 
@@ -2667,6 +2667,12 @@ export default async function handler(req, res) {
   }
   if (req.method === 'GET' && action === 'reset-password') {
     return showResetPage(req, res);
+  }
+
+    // Lapar Chicken (voucher kolaborasi)
+  if (action.startsWith('lc-')) {
+    const lc = await import('./lib/lapar-chicken.js');
+    return lc.handleLcAction(action, req, res, { requireBuyer, getDokuConfig, createDokuHeaders });
   }
 
   if (action === 'jasa-image') {

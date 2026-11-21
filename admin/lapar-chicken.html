@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Voucher Lapar Chicken - Admin Gamon</title>
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+  <style>.material-symbols-outlined{font-family:'Material Symbols Outlined';font-variation-settings:'FILL' 0,'wght' 300,'GRAD' 0,'opsz' 24}</style>
+</head>
+<body class="bg-slate-100 min-h-screen text-slate-800">
+  <div class="min-h-screen lg:grid lg:grid-cols-[260px_minmax(0,1fr)]">
+    <div data-admin-sidebar></div>
+    <script src="/admin/partials/sidebar.js"></script>
+
+    <main class="px-4 py-8 lg:px-8">
+      <div class="mb-6">
+        <h2 class="text-2xl font-bold text-slate-900">Voucher Lapar Chicken</h2>
+        <p class="mt-1 text-sm text-slate-500">Kelola produk voucher, pantau kuota, dan rekap tagihan ke Lapar Chicken (berdasarkan harga normal).</p>
+        <p class="mt-1 text-xs text-slate-400">Halaman kasir: <a class="font-semibold text-pink-600 underline" href="/user/marketplace/kasir-lapar-chicken.html" target="_blank">/user/marketplace/kasir-lapar-chicken.html</a> (PIN dari env LC_CASHIER_PIN)</p>
+      </div>
+      <p id="status" class="mb-4 text-sm text-rose-700" role="status"></p>
+
+      <!-- REKAP -->
+      <div class="mb-6 grid gap-4 sm:grid-cols-3">
+        <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Voucher ditukar (belum dilunasi)</p>
+          <p id="sCount" class="mt-2 text-3xl font-bold text-slate-900">-</p>
+        </div>
+        <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Harus dibayar ke Lapar Chicken</p>
+          <p id="sTotal" class="mt-2 text-3xl font-bold text-emerald-700">-</p>
+        </div>
+        <div class="flex items-center rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <button id="settleBtn" class="w-full rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-500 disabled:opacity-50">Tandai sudah dibayar (reset periode)</button>
+        </div>
+      </div>
+
+      <div class="mb-6 grid gap-6 xl:grid-cols-2">
+        <section class="rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <h3 class="border-b border-slate-200 px-5 py-4 font-bold">Rincian periode berjalan</h3>
+          <div id="byProduct" class="divide-y divide-slate-100 text-sm"></div>
+        </section>
+        <section class="rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <h3 class="border-b border-slate-200 px-5 py-4 font-bold">Riwayat pelunasan</h3>
+          <div id="settlements" class="divide-y divide-slate-100 text-sm"></div>
+        </section>
+      </div>
+
+      <!-- FORM PRODUK -->
+      <form id="form" class="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <h3 id="formTitle" class="mb-4 font-bold">Tambah produk voucher</h3>
+        <input type="hidden" id="pid" />
+        <div class="grid gap-4 md:grid-cols-4">
+          <label class="block md:col-span-2"><span class="mb-1 block text-sm font-medium">Nama menu</span>
+            <input id="name" maxlength="80" required class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5" placeholder="Paket Ayam Crispy + Nasi" /></label>
+          <label class="block"><span class="mb-1 block text-sm font-medium">Harga normal (Rp)</span>
+            <input id="normal" type="number" min="1000" step="500" required class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5" /></label>
+          <label class="block"><span class="mb-1 block text-sm font-medium">Harga jual (Rp)</span>
+            <input id="sell" type="number" min="1000" step="500" required class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5" /></label>
+          <label class="block"><span class="mb-1 block text-sm font-medium">Kuota harian</span>
+            <input id="quota" type="number" min="0" max="1000" step="1" required value="5" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5" /></label>
+          <label class="block md:col-span-2"><span class="mb-1 block text-sm font-medium">Deskripsi (opsional)</span>
+            <input id="desc" maxlength="300" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5" /></label>
+          <label class="flex items-end gap-2 pb-2 text-sm font-semibold"><input id="active" type="checkbox" checked class="h-4 w-4" /> Aktif (dijual)</label>
+        </div>
+        <p id="formErr" class="mt-3 text-sm font-medium text-rose-700"></p>
+        <div class="mt-3 flex justify-end gap-2">
+          <button type="button" id="cancelEdit" class="hidden rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium">Batal edit</button>
+          <button id="saveBtn" class="rounded-xl bg-pink-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-pink-500 disabled:opacity-60">Simpan produk</button>
+        </div>
+      </form>
+
+      <!-- TABEL PRODUK -->
+      <section class="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <table class="w-full text-left text-sm">
+          <thead class="border-b border-slate-200 text-xs uppercase text-slate-400">
+            <tr><th class="px-4 py-3">Menu</th><th class="px-4 py-3">Normal</th><th class="px-4 py-3">Jual</th><th class="px-4 py-3">Kuota hari ini</th><th class="px-4 py-3">Status</th><th class="px-4 py-3"></th></tr>
+          </thead>
+          <tbody id="products" class="divide-y divide-slate-100"></tbody>
+        </table>
+      </section>
+    </main>
+  </div>
+
+  <script type="module">
+    import { escapeHtml as esc, requireAdmin } from '/admin/admin-firebase.js';
+
+    const $ = (s) => document.querySelector(s);
+    const rp = (n) => 'Rp ' + Number(n || 0).toLocaleString('id-ID');
+    const fmt = (t) => new Date(t).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' });
+    let products = [];
+
+    async function api(action, body) {
+      const r = await fetch('/api/marketplace?action=' + action, body === undefined
+        ? { method: 'GET', credentials: 'same-origin' }
+        : { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok || j.success === false) throw new Error(j.message || 'Permintaan gagal.');
+      return j;
+    }
+
+    async function loadSummary() {
+      const s = await api('lc-admin-summary');
+      $('#sCount').textContent = s.count;
+      $('#sTotal').textContent = rp(s.total);
+      $('#settleBtn').disabled = s.count === 0;
+      $('#byProduct').innerHTML = s.byProduct.map((p) => `<div class="flex justify-between px-5 py-3"><span>${esc(p.name)} <span class="text-slate-400">(${p.count}x)</span></span><b>${rp(p.total)}</b></div>`).join('') || '<p class="px-5 py-6 text-center text-slate-400">Belum ada voucher ditukar.</p>';
+      $('#settlements').innerHTML = s.settlements.map((x) => `<div class="flex justify-between px-5 py-3"><span>${esc(fmt(x.createdAt))}<br><span class="text-xs text-slate-400">${x.count} voucher${x.note ? ' · ' + esc(x.note) : ''}</span></span><b>${rp(x.total)}</b></div>`).join('') || '<p class="px-5 py-6 text-center text-slate-400">Belum ada pelunasan.</p>';
+    }
+
+    async function loadProducts() {
+      products = (await api('lc-admin-products')).products;
+      $('#products').innerHTML = products.map((p) => `<tr>
+        <td class="px-4 py-3 font-semibold">${esc(p.name)}</td>
+        <td class="px-4 py-3">${rp(p.normalPrice)}</td>
+        <td class="px-4 py-3">${rp(p.sellPrice)}</td>
+        <td class="px-4 py-3">${p.used} / ${p.dailyQuota}</td>
+        <td class="px-4 py-3"><span class="rounded-full px-2.5 py-1 text-[11px] font-semibold ${p.active ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}">${p.active ? 'Aktif' : 'Nonaktif'}</span></td>
+        <td class="px-4 py-3 text-right whitespace-nowrap">
+          <button data-edit="${esc(p.id)}" class="text-xs font-semibold text-pink-600 hover:underline">Edit</button>
+          <button data-toggle="${esc(p.id)}" class="ml-3 text-xs font-semibold text-slate-600 hover:underline">${p.active ? 'Nonaktifkan' : 'Aktifkan'}</button>
+        </td></tr>`).join('') || '<tr><td colspan="6" class="px-4 py-8 text-center text-slate-400">Belum ada produk.</td></tr>';
+    }
+
+    function resetForm() {
+      $('#form').reset(); $('#pid').value = ''; $('#quota').value = 5; $('#active').checked = true;
+      $('#formTitle').textContent = 'Tambah produk voucher'; $('#cancelEdit').classList.add('hidden'); $('#formErr').textContent = '';
+    }
+
+    const payload = (p) => ({ id: p.id, name: p.name, description: p.description, normalPrice: p.normalPrice, sellPrice: p.sellPrice, dailyQuota: p.dailyQuota, active: p.active });
+
+    $('#products').addEventListener('click', async (e) => {
+      const edit = e.target.closest('[data-edit]'), tog = e.target.closest('[data-toggle]');
+      if (edit) {
+        const p = products.find((x) => x.id === edit.dataset.edit);
+        $('#pid').value = p.id; $('#name').value = p.name; $('#normal').value = p.normalPrice; $('#sell').value = p.sellPrice;
+        $('#quota').value = p.dailyQuota; $('#desc').value = p.description; $('#active').checked = p.active;
+        $('#formTitle').textContent = 'Edit produk voucher'; $('#cancelEdit').classList.remove('hidden');
+        window.scrollTo({ top: $('#form').offsetTop - 20, behavior: 'smooth' });
+      }
+      if (tog) {
+        const p = products.find((x) => x.id === tog.dataset.toggle);
+        try { await api('lc-admin-save-product', { ...payload(p), active: !p.active }); await loadProducts(); }
+        catch (err) { $('#status').textContent = err.message; }
+      }
+    });
+
+    $('#cancelEdit').onclick = resetForm;
+    $('#form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      $('#formErr').textContent = ''; $('#saveBtn').disabled = true;
+      try {
+        await api('lc-admin-save-product', {
+          id: $('#pid').value || undefined, name: $('#name').value, description: $('#desc').value,
+          normalPrice: Number($('#normal').value), sellPrice: Number($('#sell').value),
+          dailyQuota: Number($('#quota').value), active: $('#active').checked
+        });
+        resetForm(); await loadProducts();
+      } catch (err) { $('#formErr').textContent = err.message; }
+      $('#saveBtn').disabled = false;
+    });
+
+    $('#settleBtn').onclick = async () => {
+      const total = $('#sTotal').textContent;
+      if (!confirm(`Tandai ${$('#sCount').textContent} voucher (${total}) sudah dibayar ke Lapar Chicken? Rekap periode akan direset.`)) return;
+      const note = prompt('Catatan (opsional, mis. transfer 21 Nov):') || '';
+      try { await api('lc-admin-settle', { note }); await loadSummary(); }
+      catch (err) { $('#status').textContent = err.message; }
+    };
+
+    (async () => {
+      await requireAdmin();
+      try { await Promise.all([loadSummary(), loadProducts()]); }
+      catch (err) { $('#status').textContent = err.message; }
+    })();
+  </script>
+</body>
+</html>

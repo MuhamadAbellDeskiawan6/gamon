@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="robots" content="noindex,nofollow" />
+<title>Kasir Lapar Chicken</title>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@800&family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root{--ink:#0b2342;--sky:#d4e9f5;--coral:#ff5c7a;--sun:#ffd66b}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Inter,system-ui,sans-serif;background:var(--sky);color:var(--ink);padding:16px;max-width:520px;margin:0 auto}
+  h1{font:800 1.5rem "Bricolage Grotesque",Inter;margin:0 0 4px}
+  .card{background:#fff;border:2px solid var(--ink);border-radius:16px;box-shadow:4px 4px 0 var(--ink);padding:14px;margin-top:14px}
+  button{font:700 1rem Inter;padding:12px 16px;border:2px solid var(--ink);border-radius:12px;background:var(--coral);color:var(--ink);box-shadow:3px 3px 0 var(--ink);cursor:pointer}
+  button.alt{background:#fff} button:disabled{opacity:.5}
+  input{width:100%;padding:12px;border:2px solid var(--ink);border-radius:12px;font:600 1.1rem monospace;text-transform:uppercase}
+  input[type=password]{text-transform:none;font-family:Inter}
+  .row{display:flex;gap:8px;margin-top:8px}
+  .stats{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .stat b{display:block;font:800 1.5rem "Bricolage Grotesque",Inter}
+  .stat small{color:#47607c}
+  #reader{width:100%;border-radius:12px;overflow:hidden}
+  .res{border-width:3px}.ok{background:#c8f0d2}.bad{background:#ffd3da}.warn{background:#fff0bf}
+  .res h2{margin:0 0 4px;font-size:1.2rem}
+  table{width:100%;border-collapse:collapse;font-size:.9rem}td{padding:6px 0;border-bottom:1px dashed #9db3c9}
+  .muted{color:#47607c;font-size:.85rem} [hidden]{display:none!important}
+</style>
+</head>
+<body>
+<h1>Kasir Lapar Chicken</h1>
+<p class="muted" style="margin:0">Marketplace Mantan × Lapar Chicken</p>
+
+<section id="loginBox" class="card">
+  <label for="pin"><b>PIN kasir</b></label>
+  <input id="pin" type="password" inputmode="numeric" autocomplete="off" placeholder="Masukkan PIN" style="margin-top:6px" />
+  <div class="row"><button id="loginBtn" style="width:100%">Masuk</button></div>
+  <p id="loginErr" class="muted" style="color:#b91c1c"></p>
+</section>
+
+<section id="app" hidden>
+  <div class="card stats">
+    <div class="stat"><b id="sCount">0</b><small>Voucher ditukar (belum dibayar)</small></div>
+    <div class="stat"><b id="sTotal">Rp 0</b><small>Tagihan ke pemilik (harga normal)</small></div>
+  </div>
+
+  <div class="card">
+    <b>Scan QR voucher</b>
+    <div id="reader" style="margin-top:8px"></div>
+    <div class="row">
+      <button id="scanBtn" style="flex:1">Mulai kamera</button>
+      <button id="logoutBtn" class="alt">Keluar</button>
+    </div>
+    <div class="row">
+      <input id="manual" placeholder="atau ketik kode, mis. LCAB12CD34" maxlength="14" />
+      <button id="manualBtn" class="alt">Cek</button>
+    </div>
+  </div>
+
+  <div id="result" class="card res" hidden></div>
+
+  <div class="card">
+    <b>Rincian tagihan per menu</b>
+    <table id="byProduct"></table>
+  </div>
+  <div class="card">
+    <b>Penukaran terakhir</b>
+    <table id="recent"></table>
+  </div>
+</section>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+<script>
+const $ = (s) => document.querySelector(s);
+const rp = (n) => 'Rp ' + Number(n || 0).toLocaleString('id-ID');
+const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const fmt = (t) => new Date(t).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short', timeZone: 'Asia/Makassar' });
+let pin = sessionStorage.getItem('lc_pin') || '';
+let scanner = null, locked = false;
+
+async function api(action, body) {
+  const r = await fetch('/api/marketplace?action=' + action, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', 'x-lc-pin': pin }, body: JSON.stringify(body || {})
+  });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok || j.success === false) throw Object.assign(new Error(j.message || 'Gagal.'), { code: j.code });
+  return j;
+}
+
+async function login() {
+  pin = $('#pin').value.trim();
+  $('#loginErr').textContent = '';
+  try { await api('lc-cashier-login'); sessionStorage.setItem('lc_pin', pin); showApp(); }
+  catch (e) { $('#loginErr').textContent = e.message; }
+}
+function showApp() { $('#loginBox').hidden = true; $('#app').hidden = false; loadSummary(); }
+
+async function loadSummary() {
+  try {
+    const s = await api('lc-cashier-summary');
+    $('#sCount').textContent = s.count;
+    $('#sTotal').textContent = rp(s.total);
+    $('#byProduct').innerHTML = s.byProduct.map((p) => `<tr><td>${esc(p.name)}</td><td>${p.count}x</td><td style="text-align:right">${rp(p.total)}</td></tr>`).join('') || '<tr><td class="muted">Belum ada.</td></tr>';
+    $('#recent').innerHTML = s.recent.map((r) => `<tr><td>${esc(r.productName)}<br><span class="muted">${esc(r.code)}</span></td><td style="text-align:right">${rp(r.normalPrice)}<br><span class="muted">${fmt(r.redeemedAt)}</span></td></tr>`).join('') || '<tr><td class="muted">Belum ada.</td></tr>';
+  } catch (e) { if (e.code === 'bad-pin') logout(); }
+}
+
+function show(cls, html) {
+  const el = $('#result');
+  el.className = 'card res ' + cls;
+  el.innerHTML = html + '<div class="row"><button class="alt" id="closeRes">Tutup / scan berikutnya</button></div>';
+  el.hidden = false;
+  $('#closeRes').onclick = () => { el.hidden = true; locked = false; $('#manual').value = ''; };
+}
+
+async function lookup(raw) {
+  locked = true;
+  const code = String(raw || '').trim().toUpperCase();
+  try {
+    const { voucher: v } = await api('lc-cashier-lookup', { code });
+    if (v.status === 'REDEEMED') return show('bad', `<h2>SUDAH DIPAKAI</h2>${esc(v.productName)}<br>Ditukar: ${fmt(v.redeemedAt)}`);
+    if (v.expired) return show('bad', `<h2>KEDALUWARSA</h2>${esc(v.productName)}`);
+    show('warn', `<h2>${esc(v.productName)}</h2>Kode: <b>${esc(v.code)}</b><br>Harga normal: ${rp(v.normalPrice)}<div class="row"><button id="redeemBtn" style="flex:1">Tukar sekarang</button></div>`);
+    $('#redeemBtn').onclick = () => redeem(v.code);
+  } catch (e) { show('bad', `<h2>Tidak valid</h2>${esc(e.message)}`); }
+}
+
+async function redeem(code) {
+  $('#redeemBtn').disabled = true;
+  try {
+    const { voucher: v } = await api('lc-cashier-redeem', { code });
+    show('ok', `<h2>BERHASIL DITUKAR ✔</h2>${esc(v.productName)}<br>Siapkan pesanan pelanggan.`);
+    loadSummary();
+  } catch (e) { show('bad', `<h2>Gagal</h2>${esc(e.message)}`); loadSummary(); }
+}
+
+async function toggleScan() {
+  if (scanner) { await scanner.stop().catch(() => {}); scanner = null; $('#scanBtn').textContent = 'Mulai kamera'; return; }
+  try {
+    scanner = new Html5Qrcode('reader');
+    await scanner.start({ facingMode: 'environment' }, { fps: 10, qrbox: { width: 230, height: 230 } },
+      (text) => { if (!locked) lookup(text); }, () => {});
+    $('#scanBtn').textContent = 'Matikan kamera';
+  } catch (e) { scanner = null; alert('Kamera tidak bisa dibuka. Izinkan akses kamera atau ketik kode manual.'); }
+}
+
+function logout() { sessionStorage.removeItem('lc_pin'); location.reload(); }
+
+$('#loginBtn').onclick = login;
+$('#pin').addEventListener('keydown', (e) => { if (e.key === 'Enter') login(); });
+$('#scanBtn').onclick = toggleScan;
+$('#manualBtn').onclick = () => { if ($('#manual').value.trim()) lookup($('#manual').value); };
+$('#logoutBtn').onclick = logout;
+if (pin) api('lc-cashier-login').then(showApp).catch(() => sessionStorage.removeItem('lc_pin'));
+</script>
+</body>
+</html>
