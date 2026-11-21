@@ -305,7 +305,90 @@
         }
         function downloadPng(text, name) { qrCanvas(text).toBlob((blob) => saveBlob(blob, `${name}.png`), 'image/png'); }
         function downloadSvg(text, name) { saveBlob(new Blob([qrSvg(text)], { type: 'image/svg+xml' }), `${name}.svg`); }
+/* ---------- QR bergaya (khusus QR punggung / panel "Scan Here") ---------- */
+// Ubah angka di sini untuk menyetel tampilan. Semua dalam satuan "modul" (1 = sisi satu kotak QR).
+const QR_STYLE = {
+    dot: 0.9,        // ukuran titik (0.8 - 1). Makin kecil makin renggang, makin sulit dibaca
+    dotRadius: 0.42, // kebulatan titik (0 = kotak, 0.5 = bulat penuh)
+    eyeOuterR: 2.4,  // kebulatan bingkai luar mata QR
+    eyeMidR: 1.6,    // kebulatan lingkar putih mata QR
+    eyeInnerR: 1.2,  // kebulatan inti mata QR
+    cardR: 0.06      // kebulatan sudut kotak putih (relatif terhadap sisi kotak)
+};
 
+// Menghasilkan daftar bentuk (kotak membulat) dalam satuan modul. Dipakai oleh PNG, PDF, dan SVG.
+function qrStyledShapes(qr) {
+    const n = qr.getModuleCount();
+    const margin = 4;
+    const size = n + margin * 2;
+    const S = QR_STYLE;
+    const shapes = [{ x: 0, y: 0, w: size, h: size, r: size * S.cardR, fill: '#fff' }];
+    const inEye = (r, c) => (r < 7 && c < 7) || (r < 7 && c >= n - 7) || (r >= n - 7 && c < 7);
+    const d = S.dot;
+    const off = (1 - d) / 2;
+    for (let r = 0; r < n; r += 1) {
+        for (let c = 0; c < n; c += 1) {
+            if (qr.isDark(r, c) && !inEye(r, c)) {
+                shapes.push({ x: c + margin + off, y: r + margin + off, w: d, h: d, r: d * S.dotRadius, fill: '#000' });
+            }
+        }
+    }
+    [[0, 0], [n - 7, 0], [0, n - 7]].forEach(([c, r]) => {
+        const x = c + margin;
+        const y = r + margin;
+        shapes.push({ x, y, w: 7, h: 7, r: S.eyeOuterR, fill: '#000' });
+        shapes.push({ x: x + 1, y: y + 1, w: 5, h: 5, r: S.eyeMidR, fill: '#fff' });
+        shapes.push({ x: x + 2, y: y + 2, w: 3, h: 3, r: S.eyeInnerR, fill: '#000' });
+    });
+    return { size, shapes };
+}
+
+// Versi kanvas (untuk PNG). Ukuran kanvas = target persis, sudut luar kotak transparan.
+function qrStyledCanvas(text, target = 1200) {
+    const { size, shapes } = qrStyledShapes(makeQr(text));
+    const px = Math.round(target);
+    const k = px / size;
+    const canvas = document.createElement('canvas');
+    canvas.width = px; canvas.height = px;
+    const ctx = canvas.getContext('2d');
+    shapes.forEach((s) => {
+        const x = s.x * k, y = s.y * k, w = s.w * k, h = s.h * k;
+        const r = Math.min(s.r * k, w / 2, h / 2);
+        ctx.fillStyle = s.fill;
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.arcTo(x + w, y, x + w, y + h, r);
+        ctx.arcTo(x + w, y + h, x, y + h, r);
+        ctx.arcTo(x, y + h, x, y, r);
+        ctx.arcTo(x, y, x + w, y, r);
+        ctx.closePath();
+        ctx.fill();
+    });
+    return canvas;
+}
+
+// Versi PDF (vector)
+function drawQrStyledPdf(doc, qr, x, y, sizeMm) {
+    const { size, shapes } = qrStyledShapes(qr);
+    const k = sizeMm / size;
+    shapes.forEach((s) => {
+        const w = s.w * k, h = s.h * k;
+        const r = Math.min(s.r * k, w / 2, h / 2);
+        if (s.fill === '#fff') doc.setFillColor(255, 255, 255); else doc.setFillColor(0, 0, 0);
+        doc.roundedRect(x + s.x * k, y + s.y * k, w, h, r, r, 'F');
+    });
+}
+
+// Versi SVG (vector)
+function qrSvgStyled(text) {
+    const { size, shapes } = qrStyledShapes(makeQr(text));
+    const f = (v) => Number(v.toFixed(3));
+    const body = shapes.map((s) => {
+        const r = f(Math.min(s.r, s.w / 2, s.h / 2));
+        return `<rect x="${f(s.x)}" y="${f(s.y)}" width="${f(s.w)}" height="${f(s.h)}" rx="${r}" ry="${r}" fill="${s.fill}"/>`;
+    }).join('');
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}">${body}</svg>`;
+}
         function qrSvgExport(text, caption, sizeMm) {
     const svg = qrSvg(text);
     const size = Number(svg.match(/viewBox="0 0 (\d+)/)[1]);
@@ -468,7 +551,7 @@
             state.current = tag;
             $('modalTitle').textContent = `QR ${tag.code}`;
             $('modalSub').textContent = tag.label || 'Tanpa label';
-            $('qrFront').innerHTML = qrSvg(frontLink(tag));
+            $('qrFront').innerHTML = qrSvgStyled(frontLink(tag));
             $('qrHidden').innerHTML = qrSvg(hiddenLink(tag));
             $('frontLink').textContent = frontLink(tag);
             $('hiddenLink').textContent = hiddenLink(tag);
@@ -727,8 +810,9 @@ async function frontPanelPngBlob(text, caption) {
     ctx.clearRect(0, 0, W, W);
     ctx.drawImage(scanTextCanvas(W), 0, 0);
     const qrPx = Math.round(W * SCAN.qr);
-    ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(qrCanvas(text, qrPx), Math.round((W - qrPx) / 2), Math.round(W * SCAN.qrY), qrPx, qrPx);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(qrStyledCanvas(text, qrPx), Math.round((W - qrPx) / 2), Math.round(W * SCAN.qrY), qrPx, qrPx);
     if (caption) {
         ctx.fillStyle = '#fff';
         ctx.textAlign = 'center';
@@ -747,9 +831,7 @@ function frontPanelPdfBuffer(text, caption, qrMm) {
     doc.addImage(scanTextCanvas(3000).toDataURL('image/png'), 'PNG', 0, 0, P, P * 0.2);
     const qx = (P - qrMm) / 2;
     const qy = P * SCAN.qrY;
-    doc.setFillColor(255, 255, 255);
-    doc.rect(qx, qy, qrMm, qrMm, 'F');
-    drawQrPdf(doc, makeQr(text), qx, qy, qrMm);
+    drawQrStyledPdf(doc, makeQr(text), qx, qy, qrMm);
     if (caption) {
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(Math.max(6, P * 0.035 * 2.83));
@@ -765,7 +847,7 @@ function frontPanelSvg(text, caption, qrMm) {
     const qrSize = SCAN.qr * 1000;
     const qrX = (1000 - qrSize) / 2;
     const qrY = SCAN.qrY * 1000;
-    const qrInner = qrSvg(text).replace('<svg ', `<svg x="${qrX}" y="${qrY}" width="${qrSize}" height="${qrSize}" `);
+    const qrInner = qrSvgStyled(text).replace('<svg ', `<svg x="${qrX}" y="${qrY}" width="${qrSize}" height="${qrSize}" `);
     const textImg = scanTextCanvas(3000).toDataURL('image/png');
     const cap = caption
         ? `<text x="500" y="${SCAN.capY * 1000}" font-family="Arial, sans-serif" font-weight="700" font-size="35" text-anchor="middle" dominant-baseline="middle" fill="#fff">${escapeHtml(caption)}</text>`
