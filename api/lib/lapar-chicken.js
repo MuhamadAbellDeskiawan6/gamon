@@ -7,6 +7,7 @@ const VALID_DAYS = 7;
 const MAX_PER_USER_DAY = 2;
 const ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 const failHits = new Map();
+const IMG_RE = /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/]+={0,2}$/;
 
 // Alamat situs untuk return/callback DOKU. Tidak pernah memakai localhost.
 const LC_SITE_URL = (() => {
@@ -54,7 +55,7 @@ async function listProducts(db, onlyActive) {
     .map((p) => {
       const u = used.get(p.id) || 0;
       return {
-        id: p.id, name: p.name, description: p.description || '', normalPrice: num(p.normalPrice),
+        id: p.id, name: p.name, description: p.description || '', image: p.image || '', normalPrice: num(p.normalPrice),
         sellPrice: num(p.sellPrice), dailyQuota: num(p.dailyQuota), active: p.active !== false,
         used: u, remaining: Math.max(0, num(p.dailyQuota) - u)
       };
@@ -70,14 +71,32 @@ async function saveProduct(db, b, adminEmail) {
   if (!Number.isInteger(dailyQuota) || dailyQuota < 0 || dailyQuota > 1000) throw fail(400, 'invalid-quota', 'Kuota harian harus 0 sampai 1000.');
   const now = Date.now();
   const data = { name, description: clean(b.description, 300), normalPrice, sellPrice, dailyQuota, active: b.active !== false, updatedAt: now, updatedBy: adminEmail };
+
+  let ref;
   if (b.id) {
     const id = clean(b.id, 120);
     if (!/^[A-Za-z0-9_-]{1,120}$/.test(id)) throw fail(400, 'invalid-id', 'ID tidak valid.');
-    await db.collection('lc_products').doc(id).set(data, { merge: true });
-    return id;
+    ref = db.collection('lc_products').doc(id);
+  } else {
+    ref = db.collection('lc_products').doc();
   }
-  const ref = db.collection('lc_products').doc();
-  await ref.set({ ...data, createdAt: now });
+
+  // Foto: hanya disentuh jika admin mengirim imageData / removeImage.
+  // Tombol Aktifkan/Nonaktifkan tidak mengirim keduanya, jadi foto lama tetap aman (merge).
+  const imageRef = db.collection('lc_product_images').doc(ref.id);
+  if (b.imageData !== undefined && b.imageData !== '') {
+    if (typeof b.imageData !== 'string' || b.imageData.length > 250000 || !IMG_RE.test(b.imageData)) {
+      throw fail(400, 'invalid-image', 'Format atau ukuran foto tidak valid.');
+    }
+    await imageRef.set({ data: b.imageData, updatedAt: now });
+    data.image = `/api/marketplace?action=lc-image&id=${ref.id}&v=${now}`;
+  } else if (b.removeImage === true) {
+    await imageRef.delete();
+    data.image = '';
+  }
+
+  if (b.id) await ref.set(data, { merge: true });
+  else await ref.set({ ...data, createdAt: now });
   return ref.id;
 }
 
@@ -300,6 +319,8 @@ async function myVouchers(req, res, claims, deps) {
   }
   if (toCheck.length) [os, vs] = await fetchAll();
 
+  const ps = await db.collection('lc_products').get();
+  const imageByProduct = new Map(ps.docs.map((d) => [d.id, d.data().image || '']));
   const rs = await db.collection('lc_reviews').where('userId', '==', claims.uid).get();
   const reviewByCode = new Map(rs.docs.map((d) => [d.id, d.data()]));
   const vouchers = vs.docs.map((d) => d.data())
@@ -307,7 +328,8 @@ async function myVouchers(req, res, claims, deps) {
     .map((v) => {
       const rv = reviewByCode.get(v.code);
       return {
-        code: v.code, productName: v.productName, normalPrice: v.normalPrice, sellPrice: v.sellPrice,
+        code: v.code, productName: v.productName, image: imageByProduct.get(v.productId) || '',
+        normalPrice: v.normalPrice, sellPrice: v.sellPrice,
         status: v.status, createdAt: v.createdAt, validUntil: v.validUntil, redeemedAt: v.redeemedAt || 0,
         expired: v.status === 'ACTIVE' && v.validUntil < now,
         review: rv ? { rating: rv.rating, comment: rv.comment || '', createdAt: rv.createdAt } : null
@@ -448,6 +470,19 @@ export async function handleLcAction(action, req, res, deps) {
   try {
     const db = getAdminDb();
     const body = req.body || {};
+
+    if (action === 'lc-image') {
+      need('GET');
+      const id = clean(req.query?.id, 120);
+      if (!/^[A-Za-z0-9_-]{1,120}$/.test(id)) throw fail(400, 'invalid-id', 'ID tidak valid.');
+      const snap = await db.collection('lc_product_images').doc(id).get();
+      const m = snap.exists ? String(snap.data()?.data || '').match(/^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/]+={0,2})$/) : null;
+      if (!m) throw fail(404, 'image-not-found', 'Foto tidak ditemukan.');
+      res.setHeader('Content-Type', m[1]);
+      // URL selalu membawa &v=timestamp, jadi foto baru otomatis punya URL baru.
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+      return res.status(200).end(Buffer.from(m[2], 'base64'));
+    }
 
     if (action === 'lc-products') {
       need('GET');

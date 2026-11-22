@@ -63,6 +63,17 @@
           <label class="block md:col-span-2"><span class="mb-1 block text-sm font-medium">Deskripsi (opsional)</span>
             <input id="desc" maxlength="300" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5" /></label>
           <label class="flex items-end gap-2 pb-2 text-sm font-semibold"><input id="active" type="checkbox" checked class="h-4 w-4" /> Aktif (dijual)</label>
+          <div class="md:col-span-4">
+            <span class="mb-1 block text-sm font-medium">Foto makanan (opsional)</span>
+            <div class="flex flex-wrap items-center gap-3">
+              <img id="imgPreview" alt="Preview foto" hidden class="h-24 w-24 rounded-xl border border-slate-200 object-cover" />
+              <div>
+                <input id="imgFile" type="file" accept="image/jpeg,image/png,image/webp" class="text-sm" />
+                <button type="button" id="imgRemove" hidden class="mt-2 block text-xs font-semibold text-rose-600 hover:underline">Hapus foto</button>
+                <p class="mt-1 text-xs text-slate-400">JPG/PNG/WebP, maks 5 MB. Otomatis dikompres.</p>
+              </div>
+            </div>
+          </div>
         </div>
         <p id="formErr" class="mt-3 text-sm font-medium text-rose-700"></p>
         <div class="mt-3 flex justify-end gap-2">
@@ -75,7 +86,7 @@
       <section class="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
         <table class="w-full text-left text-sm">
           <thead class="border-b border-slate-200 text-xs uppercase text-slate-400">
-            <tr><th class="px-4 py-3">Menu</th><th class="px-4 py-3">Normal</th><th class="px-4 py-3">Jual</th><th class="px-4 py-3">Kuota hari ini</th><th class="px-4 py-3">Status</th><th class="px-4 py-3"></th></tr>
+            <tr><th class="px-4 py-3">Foto</th><th class="px-4 py-3">Menu</th><th class="px-4 py-3">Normal</th><th class="px-4 py-3">Jual</th><th class="px-4 py-3">Kuota hari ini</th><th class="px-4 py-3">Status</th><th class="px-4 py-3"></th></tr>
           </thead>
           <tbody id="products" class="divide-y divide-slate-100"></tbody>
         </table>
@@ -90,6 +101,66 @@
     const rp = (n) => 'Rp ' + Number(n || 0).toLocaleString('id-ID');
     const fmt = (t) => new Date(t).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' });
     let products = [];
+    let imageData = '';      // base64 baru yang akan dikirim (kosong = tidak berubah)
+    let removeImage = false; // true = admin menghapus foto lama
+
+    // Kompres di browser: maks 640px, JPEG, turunkan kualitas sampai <= 180.000 karakter
+    function compressImage(file) {
+      return new Promise((resolve, reject) => {
+        if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) return reject(new Error('Foto harus JPG, PNG, atau WebP.'));
+        if (file.size > 5 * 1024 * 1024) return reject(new Error('Foto maksimal 5 MB.'));
+        const reader = new FileReader();
+        reader.onerror = () => reject(new Error('Gagal membaca foto.'));
+        reader.onload = () => {
+          const img = new Image();
+          img.onerror = () => reject(new Error('Foto tidak bisa diproses.'));
+          img.onload = () => {
+            for (const [max, q] of [[640, 0.78], [560, 0.68], [480, 0.58], [400, 0.5]]) {
+              const scale = Math.min(1, max / Math.max(img.width, img.height));
+              const c = document.createElement('canvas');
+              c.width = Math.round(img.width * scale);
+              c.height = Math.round(img.height * scale);
+              const ctx = c.getContext('2d');
+              ctx.fillStyle = '#fff';
+              ctx.fillRect(0, 0, c.width, c.height);
+              ctx.drawImage(img, 0, 0, c.width, c.height);
+              const out = c.toDataURL('image/jpeg', q);
+              if (out.length <= 180000) return resolve(out);
+            }
+            reject(new Error('Foto terlalu detail. Pilih foto lain.'));
+          };
+          img.src = String(reader.result);
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function showPreview(src) {
+      const el = $('#imgPreview');
+      if (src) { el.src = src; el.hidden = false; $('#imgRemove').hidden = false; }
+      else { el.removeAttribute('src'); el.hidden = true; $('#imgRemove').hidden = true; }
+    }
+
+    $('#imgFile').addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      $('#formErr').textContent = '';
+      try {
+        imageData = await compressImage(file);
+        removeImage = false;
+        showPreview(imageData);
+      } catch (err) {
+        e.target.value = '';
+        $('#formErr').textContent = err.message;
+      }
+    });
+
+    $('#imgRemove').onclick = () => {
+      imageData = '';
+      removeImage = true;
+      $('#imgFile').value = '';
+      showPreview('');
+    };
 
     async function api(action, body) {
       const r = await fetch('/api/marketplace?action=' + action, body === undefined
@@ -109,9 +180,10 @@
       $('#settlements').innerHTML = s.settlements.map((x) => `<div class="flex justify-between px-5 py-3"><span>${esc(fmt(x.createdAt))}<br><span class="text-xs text-slate-400">${x.count} voucher${x.note ? ' · ' + esc(x.note) : ''}</span></span><b>${rp(x.total)}</b></div>`).join('') || '<p class="px-5 py-6 text-center text-slate-400">Belum ada pelunasan.</p>';
     }
 
-    async function loadProducts() {
+        async function loadProducts() {
       products = (await api('lc-admin-products')).products;
       $('#products').innerHTML = products.map((p) => `<tr>
+        <td class="px-4 py-3">${p.image ? `<img src="${esc(p.image)}" alt="" class="h-12 w-12 rounded-lg border border-slate-200 object-cover" />` : '<span class="grid h-12 w-12 place-items-center rounded-lg bg-slate-100 text-xs text-slate-400">-</span>'}</td>
         <td class="px-4 py-3 font-semibold">${esc(p.name)}</td>
         <td class="px-4 py-3">${rp(p.normalPrice)}</td>
         <td class="px-4 py-3">${rp(p.sellPrice)}</td>
@@ -120,11 +192,12 @@
         <td class="px-4 py-3 text-right whitespace-nowrap">
           <button data-edit="${esc(p.id)}" class="text-xs font-semibold text-pink-600 hover:underline">Edit</button>
           <button data-toggle="${esc(p.id)}" class="ml-3 text-xs font-semibold text-slate-600 hover:underline">${p.active ? 'Nonaktifkan' : 'Aktifkan'}</button>
-        </td></tr>`).join('') || '<tr><td colspan="6" class="px-4 py-8 text-center text-slate-400">Belum ada produk.</td></tr>';
+        </td></tr>`).join('') || '<tr><td colspan="7" class="px-4 py-8 text-center text-slate-400">Belum ada produk.</td></tr>';
     }
 
     function resetForm() {
       $('#form').reset(); $('#pid').value = ''; $('#quota').value = 5; $('#active').checked = true;
+      imageData = ''; removeImage = false; showPreview('');
       $('#formTitle').textContent = 'Tambah produk voucher'; $('#cancelEdit').classList.add('hidden'); $('#formErr').textContent = '';
     }
 
@@ -136,6 +209,7 @@
         const p = products.find((x) => x.id === edit.dataset.edit);
         $('#pid').value = p.id; $('#name').value = p.name; $('#normal').value = p.normalPrice; $('#sell').value = p.sellPrice;
         $('#quota').value = p.dailyQuota; $('#desc').value = p.description; $('#active').checked = p.active;
+        imageData = ''; removeImage = false; $('#imgFile').value = ''; showPreview(p.image || '');
         $('#formTitle').textContent = 'Edit produk voucher'; $('#cancelEdit').classList.remove('hidden');
         window.scrollTo({ top: $('#form').offsetTop - 20, behavior: 'smooth' });
       }
@@ -154,7 +228,9 @@
         await api('lc-admin-save-product', {
           id: $('#pid').value || undefined, name: $('#name').value, description: $('#desc').value,
           normalPrice: Number($('#normal').value), sellPrice: Number($('#sell').value),
-          dailyQuota: Number($('#quota').value), active: $('#active').checked
+          dailyQuota: Number($('#quota').value), active: $('#active').checked,
+          ...(imageData ? { imageData } : {}),
+          ...(removeImage ? { removeImage: true } : {})
         });
         resetForm(); await loadProducts();
       } catch (err) { $('#formErr').textContent = err.message; }
