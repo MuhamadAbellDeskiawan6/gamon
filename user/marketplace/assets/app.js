@@ -4527,7 +4527,7 @@ async function renderLcOrdersSection(container) {
           <a class="btn btn-soft" href="lapar-chicken.html">${v.status === 'ACTIVE' && !v.expired ? 'Lihat QR voucher' : 'Lihat detail'}</a></article>`;
       })
     ];
-    section.innerHTML = `<h3 style="margin:0 0 10px;">Voucher Lapar Chicken (Beta)</h3>${rows.join('')}`;
+    section.innerHTML = `<h3 style="margin:0 0 10px;">Mantan x Lapar Chicken (Beta)</h3>${rows.join('')}`;
   } catch (error) {
     console.warn('[marketplace] voucher Lapar Chicken tidak dimuat di pesanan:', error?.message || error);
   }
@@ -5758,7 +5758,7 @@ async function renderSellPage() {
 const USER_SIDEBAR_LINKS = [
   { href: 'dashboard.html', icon: 'dashboard', label: 'Dashboard' },
   { href: 'beli.html', icon: 'shopping_cart', label: 'Katalog' },
-    { href: 'lapar-chicken.html', icon: 'lunch_dining', label: 'Lapar Chicken (Beta)' },
+    { href: 'lapar-chicken.html', icon: 'lunch_dining', label: 'Mantan x Lapar Chicken (Beta)' },
   { href: 'keranjang.html', icon: 'shopping_bag', label: 'Keranjang', cartBadge: true },
   { href: 'pesanan.html', icon: 'receipt_long', label: 'Pesanan Saya' },
   { href: 'jual.html', icon: 'sell', label: 'Jual Barang' },
@@ -5894,7 +5894,7 @@ async function renderHomeReviews() {
       const isVoucher = review.kind === 'voucher';
       const productId = String(review.productId || '');
       const baseName = String(review.productName || (isVoucher ? 'Voucher' : 'Produk'));
-      const productName = isVoucher ? `Voucher (Beta): ${baseName}` : baseName;
+      const productName = isVoucher ? `Mantan x Lapar Chicken: ${baseName}` : baseName;
       const image = isVoucher ? '' : safeMarketplaceImageUrl(review.productImage);
       const thumb = isVoucher
         ? '<span class="material-symbols-outlined" aria-hidden="true" style="font-size:24px">lunch_dining</span>'

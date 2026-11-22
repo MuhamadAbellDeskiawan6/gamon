@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <script src="assets/shop-hours.js"></script>
-    <title>Voucher Lapar Chicken (Beta) — Marketplace Mantan</title>
+    <title>Mantan x Lapar Chicken (Beta) — Marketplace Mantan</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;800&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
@@ -38,6 +38,36 @@
       .lc-notice strong{display:block;margin-bottom:2px}
       .lc-msg{margin-top:10px;font-weight:600}
       .lc-msg.err{color:#b91c1c}
+            /* ===== Loading (skeleton, overlay, polling) ===== */
+      .lc-skel-card{background:#fff;border:2px solid var(--ink,#0b2342);border-radius:16px;box-shadow:4px 4px 0 var(--ink,#0b2342);padding:16px;display:flex;flex-direction:column;gap:10px}
+      .lc-sk{display:block;border-radius:10px;background:linear-gradient(90deg,#e3eef6 25%,#f4f9fc 50%,#e3eef6 75%);background-size:200% 100%;animation:lcShimmer 1.2s linear infinite}
+      .lc-sk-img{width:100%;aspect-ratio:4/3}
+      .lc-sk-img.wide{aspect-ratio:16/9}
+      .lc-sk-line{height:16px;width:90%}
+      .lc-sk-line.s{width:55%}
+      .lc-sk-btn{height:40px;width:100%;margin-top:4px}
+      @keyframes lcShimmer{to{background-position:-200% 0}}
+
+      .lc-overlay{position:fixed;inset:0;z-index:9999;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(11,35,66,.55)}
+      .lc-overlay.show{display:flex}
+      .lc-overlay-card{width:min(400px,100%);background:#fff;border:2px solid var(--ink,#0b2342);border-radius:18px;padding:26px 22px;box-shadow:6px 6px 0 var(--ink,#0b2342);text-align:center}
+      .lc-spinner{width:60px;height:60px;margin:0 auto 14px;border-radius:50%;border:5px solid #d4e9f5;border-top-color:#ff5c7a;animation:lcSpin .9s linear infinite}
+      .lc-overlay-card h3{margin:0 0 4px;font-size:1.1rem}
+      .lc-overlay-card p{margin:0;font-size:.9rem;color:#47607c}
+      .lc-ov-bar{height:8px;border:2px solid var(--ink,#0b2342);border-radius:999px;background:#d4e9f5;overflow:hidden;margin:16px 0 12px}
+      .lc-ov-bar span{display:block;height:100%;width:6%;background:#ff5c7a;transition:width .6s ease}
+      .lc-ov-steps{list-style:none;margin:0;padding:0;display:grid;gap:9px;text-align:left}
+      .lc-ov-steps li{display:flex;align-items:center;gap:10px;font-size:.9rem;color:#47607c}
+      .lc-ov-steps .dot{width:22px;height:22px;flex:none;border-radius:50%;border:2px solid var(--ink,#0b2342);display:grid;place-items:center;font-size:12px;color:var(--ink,#0b2342)}
+      .lc-ov-steps li.active{color:var(--ink,#0b2342);font-weight:600}
+      .lc-ov-steps li.active .dot{border-top-color:transparent;animation:lcSpin .8s linear infinite}
+      .lc-ov-steps li.done{color:#176035}
+      .lc-ov-steps li.done .dot{background:#c8f0d2}
+      .lc-ov-note{margin-top:14px!important;font-size:.8rem!important}
+      .lc-poll{grid-column:1/-1;display:flex;align-items:center;gap:10px;padding:10px 14px;border:2px dashed var(--ink,#0b2342);border-radius:12px;background:#fff0bf;font-size:.9rem;font-weight:600}
+      .lc-spin-sm{width:16px;height:16px;flex:none;border-radius:50%;border:3px solid rgba(11,35,66,.25);border-top-color:var(--ink,#0b2342);animation:lcSpin .8s linear infinite}
+      @keyframes lcSpin{to{transform:rotate(360deg)}}
+      @media (prefers-reduced-motion:reduce){.lc-sk,.lc-spinner,.lc-spin-sm,.lc-ov-steps li.active .dot{animation-duration:3s}.lc-ov-bar span{transition:none}}
     </style>
   </head>
   <body data-page="lapar-chicken.html">
@@ -68,7 +98,7 @@
           <nav aria-label="Sidebar navigasi">
             <a href="dashboard.html">Dashboard</a>
             <a href="beli.html">Katalog</a>
-            <a class="active" href="lapar-chicken.html">Lapar Chicken</a>
+            <a class="active" href="lapar-chicken.html">Mantan x Lapar Chicken</a>
             <a href="keranjang.html">Keranjang <span data-cart-count hidden>0</span></a>
             <a href="pesanan.html">Pesanan Saya</a>
             <a href="jual.html">Jual Barang</a>
@@ -81,13 +111,13 @@
         <div class="main-panel">
           <section class="panel">
             <span class="eyebrow">Fitur uji coba</span>
-            <h2 style="margin-top:12px;font-size:2rem;">Voucher makan lebih hemat <span class="lc-beta">BETA</span></h2>
+            <h2 style="margin-top:12px;font-size:2rem;">Mantan x Lapar Chicken <span class="lc-beta">BETA</span></h2>
             <p class="muted" style="margin-top:8px;max-width:62ch;">
               Beli voucher di sini dengan harga lebih murah, lalu tukarkan di toko Lapar Chicken dengan menunjukkan QR Code. Kuota terbatas setiap hari.
             </p>
             <div class="lc-notice" role="note">
               <strong>Masih tahap Beta</strong>
-              Fitur ini masih uji coba dan belum merupakan kerja sama resmi dengan Lapar Chicken. Menu, harga, dan ketersediaan bisa berubah, dan penukaran di toko belum dijamin. Mohon jangan membeli dalam jumlah besar dulu.
+              Fitur ini masih uji coba dan belum merupakan kerja sama resmi dengan Lapar Chicken. Menu, harga, dan ketersediaan bisa berubah, dan penukaran di toko belum dijamin. Mohon jangan membeli dulu.
             </div>
             <p class="lc-msg" data-lc-msg role="status" aria-live="polite"></p>
             <div class="lc-grid" data-lc-products><p class="muted">Memuat voucher...</p></div>
@@ -101,7 +131,16 @@
         </div>
       </div>
     </main>
-
+    <div class="lc-overlay" data-lc-overlay role="alertdialog" aria-modal="true" aria-live="polite">
+      <div class="lc-overlay-card">
+        <div class="lc-spinner" aria-hidden="true"></div>
+        <h3 data-lc-ov-title>Memproses...</h3>
+        <p data-lc-ov-sub>Mohon tunggu sebentar.</p>
+        <div class="lc-ov-bar" aria-hidden="true"><span data-lc-ov-bar></span></div>
+        <ul class="lc-ov-steps" data-lc-ov-steps></ul>
+        <p class="lc-ov-note">Jangan tutup atau refresh halaman ini.</p>
+      </div>
+    </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script type="module" src="assets/app.js"></script>
     <script type="module">
@@ -119,7 +158,56 @@
       const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
       const fmt = (t) => new Date(t).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' });
       const msg = (text, err) => { const el = $('[data-lc-msg]'); el.textContent = text || ''; el.classList.toggle('err', !!err); };
+      /* ---- Loading helpers ---- */
+      const overlayEl = $('[data-lc-overlay]');
+      let overlayTimers = [];
+      let overlayStepCount = 0;
 
+      function setLoadingStep(index) {
+        const items = [...overlayEl.querySelectorAll('[data-lc-ov-steps] li')];
+        items.forEach((li, k) => {
+          li.classList.toggle('done', k < index);
+          li.classList.toggle('active', k === index);
+          li.querySelector('.dot').textContent = k < index ? '✓' : '';
+        });
+        const total = Math.max(1, overlayStepCount);
+        overlayEl.querySelector('[data-lc-ov-bar]').style.width = Math.round(((index + 0.5) / total) * 100) + '%';
+      }
+
+      function showLoading(title, sub, steps = []) {
+        overlayTimers.forEach(clearTimeout);
+        overlayTimers = [];
+        overlayStepCount = steps.length;
+        overlayEl.querySelector('[data-lc-ov-title]').textContent = title;
+        overlayEl.querySelector('[data-lc-ov-sub]').textContent = sub || 'Mohon tunggu sebentar.';
+        const list = overlayEl.querySelector('[data-lc-ov-steps]');
+        list.innerHTML = steps.map((s) => `<li><span class="dot"></span><span>${esc(s)}</span></li>`).join('');
+        list.hidden = !steps.length;
+        overlayEl.querySelector('.lc-ov-bar').hidden = !steps.length;
+        overlayEl.classList.add('show');
+        document.body.style.overflow = 'hidden';
+        if (steps.length) {
+          setLoadingStep(0);
+          // Maju otomatis sampai langkah sebelum terakhir; langkah terakhir diatur manual.
+          for (let k = 1; k < steps.length - 1; k += 1) {
+            overlayTimers.push(setTimeout(() => setLoadingStep(k), k * 1400));
+          }
+        }
+      }
+
+      function hideLoading() {
+        overlayTimers.forEach(clearTimeout);
+        overlayTimers = [];
+        overlayEl.classList.remove('show');
+        document.body.style.overflow = '';
+      }
+
+      const skeleton = (n = 3, wide = false) => Array.from({ length: n }, () =>
+        `<article class="lc-skel-card" aria-hidden="true"><span class="lc-sk lc-sk-img${wide ? ' wide' : ''}"></span><span class="lc-sk lc-sk-line"></span><span class="lc-sk lc-sk-line s"></span><span class="lc-sk lc-sk-btn"></span></article>`
+      ).join('');
+
+      // Tombol "Kembali" dari halaman DOKU (bfcache) tidak boleh meninggalkan overlay.
+      window.addEventListener('pageshow', (e) => { if (e.persisted) hideLoading(); });
       async function api(action, body) {
         const token = await auth.currentUser.getIdToken();
         const r = await fetch('/api/marketplace?action=' + action, {
@@ -132,8 +220,10 @@
         return j;
       }
 
-      async function loadProducts() {
+            async function loadProducts() {
         const box = $('[data-lc-products]');
+        box.setAttribute('aria-busy', 'true');
+        box.innerHTML = skeleton(3);
         try {
           const r = await fetch('/api/marketplace?action=lc-products', { cache: 'no-store' });
           const j = await r.json();
@@ -151,12 +241,15 @@
             </article>`).join('');
         } catch (e) {
           box.innerHTML = '<p class="lc-msg err">Voucher gagal dimuat. Muat ulang halaman.</p>';
+        } finally {
+          box.removeAttribute('aria-busy');
         }
       }
 
                        let attempts = 0;
       let pollTimer = null;
       let manualCheck = false;
+            let vouchersLoadedOnce = false;
       const reviewDrafts = new Map();
       const starsText = (n) => '★'.repeat(n) + '☆'.repeat(5 - n);
 
@@ -179,21 +272,27 @@
         </form>`;
       }
 
-      async function loadVouchers() {
+            async function loadVouchers() {
         clearTimeout(pollTimer);
         const box = $('[data-lc-vouchers]'), pend = $('[data-lc-pending]');
         const wasManual = manualCheck;
         manualCheck = false;
+        // Skeleton hanya pada pemuatan pertama agar polling tidak berkedip.
+        if (!vouchersLoadedOnce) box.innerHTML = skeleton(2, true);
         try {
           const j = await api('lc-my-vouchers');
+          vouchersLoadedOnce = true;
+          const pollStrip = (j.pending.length && attempts < 20)
+            ? '<div class="lc-poll" role="status"><span class="lc-spin-sm" aria-hidden="true"></span>Menunggu konfirmasi pembayaran dari DOKU...</div>'
+            : '';
           pend.innerHTML = j.pending.map((o) => `
             <article class="lc-card">
               <h3>${esc(o.productName)}</h3>
               <span class="lc-chip">Menunggu pembayaran</span>
               <span>${rp(o.sellPrice)}</span>
-              <a class="btn btn-primary" href="${esc(o.paymentUrl)}">Bayar sekarang</a>
+              <a class="btn btn-primary" data-pay-link href="${esc(o.paymentUrl)}">Bayar sekarang</a>
               <button class="btn btn-secondary" type="button" data-check-pay>Sudah bayar? Periksa status</button>
-            </article>`).join('');
+            </article>`).join('') + pollStrip;
           if (!j.vouchers.length) box.innerHTML = '<p class="muted">Belum ada voucher. Beli voucher di atas, QR akan muncul di sini setelah pembayaran berhasil.</p>';
           else {
             box.innerHTML = j.vouchers.map((v) => {
@@ -236,15 +335,28 @@
         }
       }
 
-      $('[data-lc-pending]').addEventListener('click', async (ev) => {
+            $('[data-lc-pending]').addEventListener('click', async (ev) => {
+        // Klik "Bayar sekarang" -> layar loading sampai halaman DOKU terbuka.
+        if (ev.target.closest('[data-pay-link]')) {
+          showLoading('Mengalihkan ke DOKU', 'Membuka halaman pembayaran...');
+          return;
+        }
         const btn = ev.target.closest('[data-check-pay]');
         if (!btn) return;
         btn.disabled = true;
-        btn.textContent = 'Memeriksa...';
         attempts = 0;
         manualCheck = true;
-        msg('Memeriksa pembayaran ke DOKU...');
-        await loadVouchers();
+        msg('');
+        showLoading('Memeriksa pembayaran', 'Menghubungi DOKU untuk memastikan pembayaranmu...', [
+          'Menghubungi DOKU',
+          'Memeriksa status transaksi',
+          'Memperbarui voucher kamu'
+        ]);
+        try {
+          await loadVouchers();
+        } finally {
+          hideLoading();
+        }
       });
 
       /* ---- Ulasan voucher ---- */
@@ -265,7 +377,7 @@
         const code = form.dataset.lcReview;
         reviewDrafts.set(code, { ...(reviewDrafts.get(code) || { rating: 0 }), comment: area.value });
       });
-      vbox.addEventListener('submit', async (ev) => {
+            vbox.addEventListener('submit', async (ev) => {
         const form = ev.target.closest('[data-lc-review]');
         if (!form) return;
         ev.preventDefault();
@@ -275,8 +387,9 @@
         const btn = form.querySelector('button[type="submit"]');
         if (d.rating < 1) { er.textContent = 'Pilih rating bintang 1-5 dulu.'; return; }
         btn.disabled = true;
-        btn.textContent = 'Mengirim...';
+        btn.innerHTML = '<span class="lc-spin-sm" style="display:inline-block;vertical-align:-3px;margin-right:8px"></span>Mengirim...';
         er.textContent = '';
+        showLoading('Mengirim ulasan', 'Menyimpan ulasanmu...');
         try {
           await api('lc-submit-review', { code, rating: d.rating, comment: (d.comment || '').trim() });
           reviewDrafts.delete(code);
@@ -286,10 +399,12 @@
           er.textContent = e.message || 'Ulasan gagal dikirim.';
           btn.disabled = false;
           btn.textContent = 'Kirim ulasan';
+        } finally {
+          hideLoading();
         }
       });
 
-      $('[data-lc-products]').addEventListener('click', async (ev) => {
+           $('[data-lc-products]').addEventListener('click', async (ev) => {
         const btn = ev.target.closest('[data-buy]');
         if (!btn) return;
         if (!confirm('Fitur voucher ini masih BETA dan belum kerja sama resmi dengan Lapar Chicken. Penukaran di toko belum dijamin. Lanjut membeli?')) return;
@@ -297,11 +412,20 @@
         const old = btn.textContent;
         btn.textContent = 'Memproses...';
         msg('');
+        showLoading('Menyiapkan pembayaran', 'Mohon tunggu, pesanan voucher sedang dibuat.', [
+          'Memeriksa kuota voucher',
+          'Membuat pesanan',
+          'Menghubungkan ke DOKU',
+          'Mengalihkan ke halaman pembayaran'
+        ]);
         try {
           const j = await api('lc-checkout', { productId: btn.dataset.buy });
           if (!/^https:\/\//i.test(j.paymentUrl || '')) throw new Error('Link pembayaran tidak valid.');
+          setLoadingStep(3);
           window.location.href = j.paymentUrl;
+          // Overlay sengaja dibiarkan tampil sampai browser pindah halaman.
         } catch (e) {
+          hideLoading();
           msg(e.message, true);
           btn.disabled = false;
           btn.textContent = old;
@@ -309,11 +433,24 @@
         }
       });
 
-      onAuthStateChanged(auth, (user) => {
+            onAuthStateChanged(auth, async (user) => {
         if (!user) { window.location.href = 'login.html'; return; }
         loadProducts();
-        if (new URLSearchParams(location.search).get('orderId')) msg('Memeriksa pembayaran...');
-        loadVouchers();
+        // Baru kembali dari DOKU: tampilkan layar loading selama status diperiksa.
+        const returning = new URLSearchParams(location.search).get('orderId');
+        if (returning) {
+          msg('Memeriksa pembayaran...');
+          showLoading('Memeriksa pembayaran', 'Selamat datang kembali! Kami sedang memastikan pembayaranmu.', [
+            'Menghubungi DOKU',
+            'Memeriksa status transaksi',
+            'Menyiapkan voucher kamu'
+          ]);
+        }
+        try {
+          await loadVouchers();
+        } finally {
+          if (returning) hideLoading();
+        }
       });
     </script>
   </body>

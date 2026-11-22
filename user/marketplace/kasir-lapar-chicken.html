@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <meta name="robots" content="noindex,nofollow" />
-<title>Kasir Lapar Chicken</title>
+<title>Kasir Mantan x Lapar Chicken</title>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@800&family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
 <style>
   :root{--ink:#0b2342;--sky:#d4e9f5;--coral:#ff5c7a;--sun:#ffd66b}
@@ -25,10 +25,20 @@
   .res h2{margin:0 0 4px;font-size:1.2rem}
   table{width:100%;border-collapse:collapse;font-size:.9rem}td{padding:6px 0;border-bottom:1px dashed #9db3c9}
   .muted{color:#47607c;font-size:.85rem} [hidden]{display:none!important}
+    .ov{position:fixed;inset:0;z-index:9999;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(11,35,66,.55)}
+  .ov.show{display:flex}
+  .ov-card{width:min(320px,100%);background:#fff;border:3px solid var(--ink);border-radius:18px;box-shadow:5px 5px 0 var(--ink);padding:24px;text-align:center}
+  .ov-spin{width:52px;height:52px;margin:0 auto 12px;border-radius:50%;border:5px solid var(--sky);border-top-color:var(--coral);animation:spin .9s linear infinite}
+  .ov-card b{display:block;font:800 1.1rem "Bricolage Grotesque",Inter}
+  .ov-card small{color:#47607c}
+  .sp{display:inline-block;width:14px;height:14px;margin-right:8px;vertical-align:-2px;border-radius:50%;border:2px solid rgba(11,35,66,.25);border-top-color:var(--ink);animation:spin .8s linear infinite}
+  .sk{display:inline-block;height:1em;width:70%;border-radius:6px;background:linear-gradient(90deg,#e3eef6 25%,#f4f9fc 50%,#e3eef6 75%);background-size:200% 100%;animation:shimmer 1.2s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  @keyframes shimmer{to{background-position:-200% 0}}
 </style>
 </head>
 <body>
-<h1>Kasir Lapar Chicken</h1>
+<h1>Kasir Mantan x Lapar Chicken</h1>
 <p class="muted" style="margin:0">Marketplace Mantan × Lapar Chicken</p>
 
 <section id="loginBox" class="card">
@@ -68,7 +78,13 @@
     <table id="recent"></table>
   </div>
 </section>
-
+<div class="ov" id="ov" role="alertdialog" aria-modal="true" aria-live="polite">
+  <div class="ov-card">
+    <div class="ov-spin" aria-hidden="true"></div>
+    <b id="ovTitle">Memproses...</b>
+    <small id="ovSub">Mohon tunggu sebentar.</small>
+  </div>
+</div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
 <script>
 const $ = (s) => document.querySelector(s);
@@ -77,6 +93,13 @@ const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '
 const fmt = (t) => new Date(t).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short', timeZone: 'Asia/Makassar' });
 let pin = sessionStorage.getItem('lc_pin') || '';
 let scanner = null, locked = false;
+
+function busy(title, sub) {
+  $('#ovTitle').textContent = title || 'Memproses...';
+  $('#ovSub').textContent = sub || 'Mohon tunggu sebentar.';
+  $('#ov').classList.add('show');
+}
+function idle() { $('#ov').classList.remove('show'); }
 
 async function api(action, body) {
   const r = await fetch('/api/marketplace?action=' + action, {
@@ -90,19 +113,35 @@ async function api(action, body) {
 async function login() {
   pin = $('#pin').value.trim();
   $('#loginErr').textContent = '';
+  if (!pin) { $('#loginErr').textContent = 'Masukkan PIN dulu.'; return; }
+  const btn = $('#loginBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="sp"></span>Memeriksa...';
+  busy('Memeriksa PIN', 'Memverifikasi akses kasir...');
   try { await api('lc-cashier-login'); sessionStorage.setItem('lc_pin', pin); showApp(); }
   catch (e) { $('#loginErr').textContent = e.message; }
+  finally { idle(); btn.disabled = false; btn.textContent = 'Masuk'; }
 }
 function showApp() { $('#loginBox').hidden = true; $('#app').hidden = false; loadSummary(); }
 
 async function loadSummary() {
+  const skel = '<tr><td><span class="sk"></span></td><td><span class="sk" style="width:40px"></span></td></tr>';
+  $('#sCount').innerHTML = '<span class="sk" style="width:40px"></span>';
+  $('#sTotal').innerHTML = '<span class="sk" style="width:90px"></span>';
+  $('#byProduct').innerHTML = skel + skel;
+  $('#recent').innerHTML = skel + skel + skel;
   try {
     const s = await api('lc-cashier-summary');
     $('#sCount').textContent = s.count;
     $('#sTotal').textContent = rp(s.total);
     $('#byProduct').innerHTML = s.byProduct.map((p) => `<tr><td>${esc(p.name)}</td><td>${p.count}x</td><td style="text-align:right">${rp(p.total)}</td></tr>`).join('') || '<tr><td class="muted">Belum ada.</td></tr>';
     $('#recent').innerHTML = s.recent.map((r) => `<tr><td>${esc(r.productName)}<br><span class="muted">${esc(r.code)}</span></td><td style="text-align:right">${rp(r.normalPrice)}<br><span class="muted">${fmt(r.redeemedAt)}</span></td></tr>`).join('') || '<tr><td class="muted">Belum ada.</td></tr>';
-  } catch (e) { if (e.code === 'bad-pin') logout(); }
+  } catch (e) {
+    $('#sCount').textContent = '-';
+    $('#sTotal').textContent = '-';
+    $('#byProduct').innerHTML = $('#recent').innerHTML = '<tr><td class="muted">Gagal memuat rekap.</td></tr>';
+    if (e.code === 'bad-pin') logout();
+  }
 }
 
 function show(cls, html) {
@@ -118,42 +157,51 @@ function show(cls, html) {
 async function lookup(raw, auto = false) {
   locked = true;
   const code = String(raw || '').trim().toUpperCase();
+  busy('Memeriksa voucher', 'Mengecek kode ' + code + '...');
   try {
     const { voucher: v } = await api('lc-cashier-lookup', { code });
     if (v.status === 'REDEEMED') return show('bad', `<h2>SUDAH DIPAKAI</h2>${esc(v.productName)}<br>Ditukar: ${fmt(v.redeemedAt)}`);
     if (v.expired) return show('bad', `<h2>KEDALUWARSA</h2>${esc(v.productName)}`);
 
     if (auto) {
-      // Scan kamera: langsung tukar otomatis
-      return redeem(v.code, true);
+      // Scan kamera: langsung tukar otomatis (await agar overlay tetap tampil sampai selesai)
+      return await redeem(v.code, true);
     }
 
-    // Input manual: tetap perlu klik tombol
     show('warn', `<h2>${esc(v.productName)}</h2>Kode: <b>${esc(v.code)}</b><br>Harga normal: ${rp(v.normalPrice)}<div class="row"><button id="redeemBtn" style="flex:1">Tukar sekarang</button></div>`);
     $('#redeemBtn').onclick = () => redeem(v.code);
   } catch (e) { show('bad', `<h2>Tidak valid</h2>${esc(e.message)}`); }
+  finally { idle(); }
 }
 
 async function redeem(code, auto = false) {
-  // Pada mode otomatis tombol #redeemBtn tidak ada, jadi dicek dulu
   const btn = $('#redeemBtn');
-  if (btn) btn.disabled = true;
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="sp"></span>Menukar...'; }
+  busy('Menukar voucher', 'Kode ' + code + ' sedang diproses...');
   try {
     const { voucher: v } = await api('lc-cashier-redeem', { code });
-    if (navigator.vibrate) navigator.vibrate(200); // getar singkat sebagai tanda berhasil
+    if (navigator.vibrate) navigator.vibrate(200);
     show('ok', `<h2>BERHASIL DITUKAR ✔</h2>${esc(v.productName)}<br>Kode: <b>${esc(v.code || code)}</b><br>Siapkan pesanan pelanggan.${auto ? '<br><span class="muted">Otomatis ditukar saat scan.</span>' : ''}`);
     loadSummary();
   } catch (e) { show('bad', `<h2>Gagal</h2>${esc(e.message)}`); loadSummary(); }
+  finally { idle(); }
 }
 
 async function toggleScan() {
-  if (scanner) { await scanner.stop().catch(() => {}); scanner = null; $('#scanBtn').textContent = 'Mulai kamera'; return; }
+  const btn = $('#scanBtn');
+  if (scanner) { await scanner.stop().catch(() => {}); scanner = null; btn.textContent = 'Mulai kamera'; return; }
+  btn.disabled = true;
+  btn.innerHTML = '<span class="sp"></span>Membuka kamera...';
   try {
     scanner = new Html5Qrcode('reader');
     await scanner.start({ facingMode: 'environment' }, { fps: 10, qrbox: { width: 230, height: 230 } },
       (text) => { if (!locked) lookup(text, true); }, () => {});
-    $('#scanBtn').textContent = 'Matikan kamera';
-  } catch (e) { scanner = null; alert('Kamera tidak bisa dibuka. Izinkan akses kamera atau ketik kode manual.'); }
+    btn.textContent = 'Matikan kamera';
+  } catch (e) {
+    scanner = null;
+    btn.textContent = 'Mulai kamera';
+    alert('Kamera tidak bisa dibuka. Izinkan akses kamera atau ketik kode manual.');
+  } finally { btn.disabled = false; }
 }
 
 function logout() { sessionStorage.removeItem('lc_pin'); location.reload(); }
@@ -163,7 +211,10 @@ $('#pin').addEventListener('keydown', (e) => { if (e.key === 'Enter') login(); }
 $('#scanBtn').onclick = toggleScan;
 $('#manualBtn').onclick = () => { if ($('#manual').value.trim()) lookup($('#manual').value); };
 $('#logoutBtn').onclick = logout;
-if (pin) api('lc-cashier-login').then(showApp).catch(() => sessionStorage.removeItem('lc_pin'));
+if (pin) {
+  busy('Membuka kasir', 'Memverifikasi sesi...');
+  api('lc-cashier-login').then(showApp).catch(() => sessionStorage.removeItem('lc_pin')).finally(idle);
+}
 </script>
 </body>
 </html>
