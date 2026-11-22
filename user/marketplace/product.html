@@ -132,9 +132,42 @@ a{color:inherit}
  .top-panel>div{width:100%}
 }
 @media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+/* ===== SKELETON LOADING ===== */
+@keyframes sk-shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+body.is-loading [data-sk],
+.views-tag.sk{
+  color:transparent!important;
+  background:linear-gradient(90deg,#e3edf5 25%,#f6fafd 50%,#e3edf5 75%)!important;
+  background-size:200% 100%!important;
+  animation:sk-shimmer 1.3s linear infinite;
+  border-color:transparent!important;
+  box-shadow:none!important;
+  border-radius:10px!important;
+  pointer-events:none;
+  user-select:none;
+}
+body.is-loading [data-sk] *,
+.views-tag.sk *{visibility:hidden}
+
+/* Ukuran tiap blok skeleton (karena isinya masih kosong) */
+body.is-loading .detail-gallery[data-sk]{border-radius:0!important}
+body.is-loading .price[data-sk]{width:150px;height:32px}
+body.is-loading .condition[data-sk],
+body.is-loading .meta-tag[data-sk],
+.views-tag.sk{min-width:92px;min-height:30px}
+body.is-loading [data-add-to-cart][data-sk]{min-height:44px}
+body.is-loading .listing-title[data-sk]{width:65%;height:24px}
+body.is-loading .listing-desc[data-sk]{width:100%;height:64px}
+body.is-loading .info-text[data-sk]{width:85%;height:44px}
+body.is-loading .map-preview[data-sk]{border-radius:12px!important}
+
+/* Tombol atas tidak bisa diklik selama loading */
+body.is-loading [data-chat-product],
+body.is-loading [data-buy-now]{pointer-events:none;opacity:.5}
+.btn:disabled{opacity:.55;cursor:not-allowed}
 </style>
 </head>
-<body data-page="product.html">
+<body data-page="product.html" class="is-loading" aria-busy="true">
 <header class="topbar">
   <div class="container nav">
     <a href="index.html" class="brand" aria-label="Home">
@@ -155,46 +188,41 @@ a{color:inherit}
       <button class="btn btn-secondary" type="button" data-back-button>← Kembali</button>
       <div style="display:flex; gap:10px; flex-wrap:wrap;">
         <a class="btn btn-secondary" href="login.html" data-chat-product>Chat Admin</a>
-        <button class="btn btn-primary" type="button" data-buy-now>Beli Sekarang</button>
+        <button class="btn btn-primary" type="button" data-buy-now disabled>Beli Sekarang</button>
       </div>
     </div>
 
     <div class="listing-layout">
       <div class="listing-card">
-        <div class="detail-gallery" data-detail-gallery>
-          <div class="detail-slide active">
-            <div class="detail-image-fallback">G</div>
-          </div>
-        </div>
+        <div class="detail-gallery" data-detail-gallery data-sk></div>
         <div class="listing-body">
           <div class="product-head">
-            <div class="price" data-detail-price>Rp 0</div>
-            <span class="condition" data-detail-condition>Layak pakai</span>
+            <div class="price" data-detail-price data-sk></div>
+            <span class="condition" data-detail-condition data-sk></span>
           </div>
           <div class="stock-row">
-            <span class="condition" data-detail-stock>Stok: 0</span>
-            <div class="commerce-quantity" aria-label="Jumlah barang">
+            <span class="condition" data-detail-stock data-sk></span>
+            <div class="commerce-quantity" aria-label="Jumlah barang" data-sk>
               <button type="button" data-product-quantity-step="-1" aria-label="Kurangi jumlah">−</button>
               <output data-product-quantity>1</output>
               <button type="button" data-product-quantity-step="1" aria-label="Tambah jumlah">+</button>
             </div>
           </div>
-          <button class="btn btn-secondary" type="button" data-add-to-cart>Tambah ke Keranjang</button>
+          <button class="btn btn-secondary" type="button" data-add-to-cart data-sk disabled>Tambah ke Keranjang</button>
           <div class="ship-note">
             <span><span class="material-symbols-outlined" aria-hidden="true">local_shipping</span> Gratis ongkir, diantar ke alamatmu</span>
             <span><span class="material-symbols-outlined" aria-hidden="true">lock</span> Bayar aman via DOKU</span>
           </div>
-          <h3 class="listing-title" data-detail-name>Nama barang</h3>
-          <p class="muted listing-desc" data-detail-description>Deskripsi</p>
+          <h3 class="listing-title" data-detail-name data-sk></h3>
+          <p class="muted listing-desc" data-detail-description data-sk></p>
           <div class="listing-meta">
-            <span class="meta-tag" data-detail-category>Pakaian</span>
-            <span class="meta-tag" data-detail-city>Jakarta</span>
-            <!-- Tag cerita dinonaktifkan. Elemen dipertahankan (tersembunyi) agar app.js tidak error jika masih mengisinya. -->
+            <span class="meta-tag" data-detail-category data-sk></span>
+            <span class="meta-tag" data-detail-city data-sk></span>
             <span class="meta-tag" data-detail-story hidden></span>
-            <span class="meta-tag" data-detail-status>Ready</span>
-            <span class="meta-tag views-tag" title="Berapa kali halaman produk ini dikunjungi">
+            <span class="meta-tag" data-detail-status data-sk></span>
+            <span class="meta-tag views-tag sk" title="Berapa kali halaman produk ini dikunjungi">
               <span class="material-symbols-outlined" aria-hidden="true">visibility</span>
-              <span data-detail-views-count aria-live="polite">Dilihat … kali</span>
+              <span data-detail-views-count aria-live="polite"></span>
             </span>
           </div>
         </div>
@@ -210,22 +238,17 @@ a{color:inherit}
           </div>
         </div>
 
-        <!-- Alamat: teks biasa (bukan input). Input tersembunyi tetap ada sebagai penampung data dari app.js, isinya otomatis disalin ke teks di bawah. -->
         <div class="info-block">
           <div class="info-label"><span class="material-symbols-outlined" aria-hidden="true">home_pin</span> Alamat lengkap</div>
-          <input type="hidden" value="Jakarta Selatan" data-detail-location />
-          <p class="info-text" data-location-text>Jakarta Selatan</p>
+          <input type="hidden" value="" data-detail-location />
+          <p class="info-text" data-location-text data-sk></p>
         </div>
 
         <div class="info-block">
           <div class="info-label"><span class="material-symbols-outlined" aria-hidden="true">location_on</span> Lokasi</div>
-          <div class="map-preview" data-detail-map>
-            <div class="map-placeholder">📍</div>
-          </div>
+          <div class="map-preview" data-detail-map data-sk></div>
         </div>
 
-        <!-- Deskripsi singkat dihapus dari tampilan (sebelumnya berisi catatan cerita).
-             Elemen dipertahankan tersembunyi agar app.js tidak error. -->
         <div hidden>
           <textarea readonly data-detail-summary></textarea>
         </div>
@@ -243,8 +266,8 @@ a{color:inherit}
   if(!src||!out)return;
   var last=null;
   function sync(){
-    var v=String(src.value!=null&&src.value!==''?src.value:(src.textContent||'')).trim();
-    if(v!==last){last=v;out.textContent=v||'-';}
+    var v=String(src.value||'').trim();
+    if(v!==last){last=v;out.textContent=v;}
   }
   sync();
   src.addEventListener('input',sync);

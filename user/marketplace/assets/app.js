@@ -5205,11 +5205,32 @@ function formatViewCount(value) {
   return `Dilihat ${Number(value || 0).toLocaleString('id-ID')} kali`;
 }
 
+function finishProductLoading() {
+  document.body.classList.remove('is-loading');
+  document.body.removeAttribute('aria-busy');
+}
+
+function renderProductLoadError() {
+  finishProductLoading();
+  document.querySelectorAll('[data-buy-now], [data-chat-product]').forEach((el) => { el.hidden = true; });
+  const layout = document.querySelector('.listing-layout');
+  if (!layout) return;
+  layout.innerHTML = `
+    <div class="panel" role="alert" style="grid-column:1/-1;position:static;">
+      <h3>Produk belum bisa dimuat</h3>
+      <p class="muted" style="margin-top:8px;">Koneksi internet lambat atau terputus. Periksa koneksi lalu coba lagi.</p>
+      <button class="btn btn-primary" type="button" data-product-retry style="margin-top:14px;">Coba lagi</button>
+    </div>`;
+  layout.querySelector('[data-product-retry]')?.addEventListener('click', () => window.location.reload());
+}
+
 async function renderProductDetail() {
   const page = document.body.dataset.page;
   if (page !== 'product.html' && page !== 'user-product.html') return;
 
   bindBackButton();
+  document.body.classList.add('is-loading');
+  document.body.setAttribute('aria-busy', 'true');
 
   const isUserPage = page === 'user-product.html';
   if (isUserPage) {
@@ -5226,17 +5247,29 @@ async function renderProductDetail() {
   }
 
   let product = null;
+  let loadError = null;
   try {
-    const snapshot = await getDoc(doc(db, 'marketplace_products', productId));
+    const snapshot = await withTimeout(
+      getDoc(doc(db, 'marketplace_products', productId)),
+      20000,
+      'Memuat produk'
+    );
     // id dokumen ikut disertakan supaya keranjang, chat, dan view memakai id yang benar.
     product = snapshot.exists() ? { id: snapshot.id, ...snapshot.data() } : null;
   } catch (error) {
-    product = null;
+    loadError = error;
+    console.error('[marketplace] gagal memuat detail produk:', error);
   }
 
-  if (!product) {
+  // Cache lokal hanya dipakai bila koneksi bermasalah (bukan bila produk memang sudah dihapus).
+  if (!product && loadError) {
     const localProducts = readStorage(STORAGE_KEYS.PRODUCTS, productSeed);
-    product = localProducts.find((item) => String(item.id) === String(productId)) || null;
+    product = (Array.isArray(localProducts) ? localProducts : []).find((item) => String(item.id) === String(productId)) || null;
+  }
+
+  if (!product && loadError) {
+    renderProductLoadError();
+    return;
   }
 
   if (!product) {
@@ -5245,7 +5278,7 @@ async function renderProductDetail() {
     return;
   }
 
-    const normalized = normalizeProduct(product);
+  const normalized = normalizeProduct(product);
   const isInactive = !normalized.active;
   // Produk nonaktif: halaman tetap bisa dibuka (link lama), tapi tidak bisa dibeli.
   if (isInactive) normalized.stock = 0;
@@ -5280,8 +5313,15 @@ async function renderProductDetail() {
   const detailCategory = document.querySelector('[data-detail-category]');
   if (detailCategory) detailCategory.textContent = normalized.label;
 
+  // Kota & alamat diambil dari data produk asli (tanpa bawaan "Jakarta").
+  const rawCity = String(product.city || '').trim();
+  const rawAddress = String(product.address || product.location || '').trim();
+
   const detailCity = document.querySelector('[data-detail-city]');
-  if (detailCity) detailCity.textContent = normalized.city;
+  if (detailCity) {
+    detailCity.textContent = rawCity;
+    detailCity.hidden = !rawCity;
+  }
 
   const detailSeller = document.querySelector('[data-detail-seller]');
   if (detailSeller) detailSeller.textContent = 'Marketplace Mantan';
@@ -5293,7 +5333,7 @@ async function renderProductDetail() {
   }
 
   const detailLocation = document.querySelector('[data-detail-location]');
-  if (detailLocation) detailLocation.value = normalized.address || normalized.city;
+  if (detailLocation) detailLocation.value = rawAddress || rawCity || '-';
 
   const detailMap = document.querySelector('[data-detail-map]');
   if (detailMap) {
@@ -5334,7 +5374,7 @@ async function renderProductDetail() {
   const decreaseQuantity = document.querySelector('[data-product-quantity-step="-1"]');
   const increaseQuantity = document.querySelector('[data-product-quantity-step="1"]');
   let quantity = 1;
-    const maxQty = normalized.isFree ? 1 : normalized.stock;
+  const maxQty = normalized.isFree ? 1 : normalized.stock;
   const syncQuantity = () => {
     quantity = Math.max(1, Math.min(maxQty || 1, quantity));
     if (quantityOutput) quantityOutput.textContent = String(quantity);
@@ -5362,7 +5402,7 @@ async function renderProductDetail() {
     });
   });
 
-    // Produk gratis yang sudah pernah diklaim: nonaktifkan tombol.
+  // Produk gratis yang sudah pernah diklaim: nonaktifkan tombol.
   if (normalized.isFree && normalized.stock > 0 && currentUser()) {
     waitForMarketplaceFirebaseUser().then(async (firebaseUser) => {
       if (!firebaseUser) return;
@@ -5377,10 +5417,23 @@ async function renderProductDetail() {
     }).catch((error) => console.warn('[marketplace] cek klaim gratis dilewati:', error));
   }
 
-  // Jumlah dilihat: dicatat untuk pengunjung login maupun tanpa login.
+  // Semua data inti sudah terisi: matikan skeleton.
+  finishProductLoading();
+
+  // Jumlah dilihat: skeleton sendiri sampai angkanya datang (login maupun tanpa login).
   const viewsEl = document.querySelector('[data-detail-views-count]');
+  const viewsTag = viewsEl ? viewsEl.closest('.views-tag') : null;
   trackProductView(productId).then((views) => {
     if (viewsEl && views !== null) viewsEl.textContent = formatViewCount(views);
+    if (viewsTag) {
+      viewsTag.classList.remove('sk');
+      if (views === null) viewsTag.hidden = true;
+    }
+  }).catch(() => {
+    if (viewsTag) {
+      viewsTag.classList.remove('sk');
+      viewsTag.hidden = true;
+    }
   });
 }
 
