@@ -113,23 +113,35 @@ function show(cls, html) {
   $('#closeRes').onclick = () => { el.hidden = true; locked = false; $('#manual').value = ''; };
 }
 
-async function lookup(raw) {
+// auto = true  -> dipakai saat scan kamera: voucher valid langsung ditukar tanpa klik tombol
+// auto = false -> dipakai saat ketik kode manual: tampil tombol "Tukar sekarang"
+async function lookup(raw, auto = false) {
   locked = true;
   const code = String(raw || '').trim().toUpperCase();
   try {
     const { voucher: v } = await api('lc-cashier-lookup', { code });
     if (v.status === 'REDEEMED') return show('bad', `<h2>SUDAH DIPAKAI</h2>${esc(v.productName)}<br>Ditukar: ${fmt(v.redeemedAt)}`);
     if (v.expired) return show('bad', `<h2>KEDALUWARSA</h2>${esc(v.productName)}`);
+
+    if (auto) {
+      // Scan kamera: langsung tukar otomatis
+      return redeem(v.code, true);
+    }
+
+    // Input manual: tetap perlu klik tombol
     show('warn', `<h2>${esc(v.productName)}</h2>Kode: <b>${esc(v.code)}</b><br>Harga normal: ${rp(v.normalPrice)}<div class="row"><button id="redeemBtn" style="flex:1">Tukar sekarang</button></div>`);
     $('#redeemBtn').onclick = () => redeem(v.code);
   } catch (e) { show('bad', `<h2>Tidak valid</h2>${esc(e.message)}`); }
 }
 
-async function redeem(code) {
-  $('#redeemBtn').disabled = true;
+async function redeem(code, auto = false) {
+  // Pada mode otomatis tombol #redeemBtn tidak ada, jadi dicek dulu
+  const btn = $('#redeemBtn');
+  if (btn) btn.disabled = true;
   try {
     const { voucher: v } = await api('lc-cashier-redeem', { code });
-    show('ok', `<h2>BERHASIL DITUKAR ✔</h2>${esc(v.productName)}<br>Siapkan pesanan pelanggan.`);
+    if (navigator.vibrate) navigator.vibrate(200); // getar singkat sebagai tanda berhasil
+    show('ok', `<h2>BERHASIL DITUKAR ✔</h2>${esc(v.productName)}<br>Kode: <b>${esc(v.code || code)}</b><br>Siapkan pesanan pelanggan.${auto ? '<br><span class="muted">Otomatis ditukar saat scan.</span>' : ''}`);
     loadSummary();
   } catch (e) { show('bad', `<h2>Gagal</h2>${esc(e.message)}`); loadSummary(); }
 }
@@ -139,7 +151,7 @@ async function toggleScan() {
   try {
     scanner = new Html5Qrcode('reader');
     await scanner.start({ facingMode: 'environment' }, { fps: 10, qrbox: { width: 230, height: 230 } },
-      (text) => { if (!locked) lookup(text); }, () => {});
+      (text) => { if (!locked) lookup(text, true); }, () => {});
     $('#scanBtn').textContent = 'Matikan kamera';
   } catch (e) { scanner = null; alert('Kamera tidak bisa dibuka. Izinkan akses kamera atau ketik kode manual.'); }
 }
