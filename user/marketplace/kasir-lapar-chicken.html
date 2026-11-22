@@ -33,6 +33,14 @@
   .ov-card small{color:#47607c}
   .sp{display:inline-block;width:14px;height:14px;margin-right:8px;vertical-align:-2px;border-radius:50%;border:2px solid rgba(11,35,66,.25);border-top-color:var(--ink);animation:spin .8s linear infinite}
   .sk{display:inline-block;height:1em;width:70%;border-radius:6px;background:linear-gradient(90deg,#e3eef6 25%,#f4f9fc 50%,#e3eef6 75%);background-size:200% 100%;animation:shimmer 1.2s linear infinite}
+   .dlg{position:fixed;inset:0;z-index:10000;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(11,35,66,.55)}
+  .dlg.show{display:flex}
+  .dlg-card{width:min(340px,100%);background:#fff;border:3px solid var(--ink);border-radius:18px;box-shadow:5px 5px 0 var(--ink);padding:22px;text-align:center}
+  .dlg-ico{width:52px;height:52px;margin:0 auto 10px;border-radius:50%;border:3px solid var(--ink);display:grid;place-items:center;font:800 1.6rem "Bricolage Grotesque",Inter;background:var(--sky)}
+  .dlg-card[data-tone="danger"] .dlg-ico{background:#ffd3da}
+  .dlg-card[data-tone="warning"] .dlg-ico{background:var(--sun)}
+  .dlg-card b{display:block;font:800 1.15rem "Bricolage Grotesque",Inter;margin-bottom:4px}
+  .dlg-card p{margin:0 0 16px;color:#47607c;font-size:.92rem;line-height:1.5}
   @keyframes spin{to{transform:rotate(360deg)}}
   @keyframes shimmer{to{background-position:-200% 0}}
 </style>
@@ -78,6 +86,14 @@
     <table id="recent"></table>
   </div>
 </section>
+<div class="dlg" id="dlg" role="alertdialog" aria-modal="true" aria-labelledby="dlgTitle" aria-describedby="dlgMsg">
+  <div class="dlg-card" id="dlgCard" data-tone="info">
+    <div class="dlg-ico" id="dlgIco">i</div>
+    <b id="dlgTitle">Info</b>
+    <p id="dlgMsg"></p>
+    <button id="dlgOk" style="width:100%">Oke</button>
+  </div>
+</div>
 <div class="ov" id="ov" role="alertdialog" aria-modal="true" aria-live="polite">
   <div class="ov-card">
     <div class="ov-spin" aria-hidden="true"></div>
@@ -100,6 +116,30 @@ function busy(title, sub) {
   $('#ov').classList.add('show');
 }
 function idle() { $('#ov').classList.remove('show'); }
+
+// Pengganti alert() bawaan browser.
+function lcAlert(title, message, tone = 'info') {
+  return new Promise((resolve) => {
+    const dlg = $('#dlg'), ok = $('#dlgOk');
+    $('#dlgCard').dataset.tone = tone;
+    $('#dlgIco').textContent = tone === 'danger' ? '!' : tone === 'warning' ? '!' : 'i';
+    $('#dlgTitle').textContent = title;
+    $('#dlgMsg').textContent = message;
+    const done = () => {
+      dlg.classList.remove('show');
+      ok.onclick = null;
+      dlg.onclick = null;
+      document.removeEventListener('keydown', onKey, true);
+      resolve();
+    };
+    const onKey = (e) => { if (e.key === 'Escape' || e.key === 'Enter') { e.preventDefault(); done(); } };
+    ok.onclick = done;
+    dlg.onclick = (e) => { if (e.target === dlg) done(); };
+    document.addEventListener('keydown', onKey, true);
+    dlg.classList.add('show');
+    ok.focus();
+  });
+}
 
 async function api(action, body) {
   const r = await fetch('/api/marketplace?action=' + action, {
@@ -200,7 +240,7 @@ async function toggleScan() {
   } catch (e) {
     scanner = null;
     btn.textContent = 'Mulai kamera';
-    alert('Kamera tidak bisa dibuka. Izinkan akses kamera atau ketik kode manual.');
+    lcAlert('Kamera tidak bisa dibuka', 'Izinkan akses kamera di browser, atau ketik kode voucher secara manual.', 'danger');
   } finally { btn.disabled = false; }
 }
 

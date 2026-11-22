@@ -305,7 +305,7 @@ async function myVouchers(req, res, claims, deps) {
     const o = d.data();
     if (o.dokuFinal) return false;
     if (o.status === 'awaiting_payment') return true;
-    return (o.status === 'expired' || o.status === 'payment_failed') && now - Number(o.createdAt || 0) < 24 * 3600000;
+    return (o.status === 'expired' || o.status === 'payment_failed') && now - Number(o.createdAt || 0) < 2 * 3600000;
   }).slice(0, 5);
 
   const checks = [];
@@ -355,6 +355,41 @@ async function voucherPoll(res, claims) {
     .map((v) => v.code);
   return res.status(200).json({ success: true, codes });
 }
+
+// Pembeli membatalkan checkout yang belum dibayar. TIDAK mengurangi jatah harian
+// (jatah hanya menghitung order berstatus 'paid').
+async function cancelOrder(req, res, claims, deps) {
+  const orderId = clean(req.body?.orderId, 40).toUpperCase();
+  if (!/^LC-\d{6}-[A-Z0-9]{6}$/.test(orderId)) throw fail(400, 'invalid-order', 'Kode pesanan tidak valid.');
+  const db = getAdminDb();
+  const ref = db.collection('lc_orders').doc(orderId);
+
+  const pre = await ref.get();
+  if (!pre.exists || pre.data().userId !== claims.uid) throw fail(404, 'not-found', 'Pesanan tidak ditemukan.');
+
+  // Cek ke DOKU dulu: jangan batalkan order yang ternyata sudah dibayar.
+  if (pre.data().status === 'awaiting_payment') {
+    const r = await syncPending(req, { id: orderId }, deps);
+    if (r.applied) {
+      return res.status(200).json({ success: true, paid: true, message: 'Pembayaran ternyata sudah masuk, voucher kamu sudah aktif.' });
+    }
+  }
+
+  const outcome = await db.runTransaction(async (t) => {
+    const s = await t.get(ref);
+    if (!s.exists || s.data().userId !== claims.uid) return 'not-found';
+    const status = s.data().status;
+    if (status === 'paid') return 'paid';
+    if (status !== 'awaiting_payment') return 'already'; // sudah expired / gagal / dibatalkan
+    t.update(ref, { status: 'cancelled', cancelledAt: Date.now(), updatedAt: Date.now() });
+    return 'cancelled';
+  });
+
+  if (outcome === 'not-found') throw fail(404, 'not-found', 'Pesanan tidak ditemukan.');
+  if (outcome === 'paid') return res.status(200).json({ success: true, paid: true, message: 'Pesanan ini sudah dibayar.' });
+  return res.status(200).json({ success: true, message: 'Pesanan dibatalkan. Jatah voucher harianmu tidak berkurang.' });
+}
+
 /* ---------------- KASIR ---------------- */
 function checkPin(req) {
   const pin = String(process.env.LC_CASHIER_PIN || '').trim();
@@ -543,7 +578,8 @@ export async function handleLcAction(action, req, res, deps) {
     if (!claims) return;
     if (action === 'lc-checkout') return await checkout(req, res, claims, deps);
     if (action === 'lc-my-vouchers') return await myVouchers(req, res, claims, deps);
-        if (action === 'lc-voucher-poll') return await voucherPoll(res, claims);
+    if (action === 'lc-voucher-poll') return await voucherPoll(res, claims);
+    if (action === 'lc-cancel-order') return await cancelOrder(req, res, claims, deps);
         if (action === 'lc-submit-review') return await submitReview(req, res, claims);
     throw fail(404, 'unknown-action', 'Aksi tidak dikenal.');
   } catch (e) {

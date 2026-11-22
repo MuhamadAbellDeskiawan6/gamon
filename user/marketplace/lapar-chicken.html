@@ -68,6 +68,24 @@
       .lc-spin-sm{width:16px;height:16px;flex:none;border-radius:50%;border:3px solid rgba(11,35,66,.25);border-top-color:var(--ink,#0b2342);animation:lcSpin .8s linear infinite}
       @keyframes lcSpin{to{transform:rotate(360deg)}}
       @media (prefers-reduced-motion:reduce){.lc-sk,.lc-spinner,.lc-spin-sm,.lc-ov-steps li.active .dot{animation-duration:3s}.lc-ov-bar span{transition:none}}
+          /* ===== Dialog kustom (pengganti alert/confirm bawaan) ===== */
+      .lc-dlg{position:fixed;inset:0;z-index:10000;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(11,35,66,.55)}
+      .lc-dlg.show{display:flex;animation:lcDlgFade .15s ease}
+      .lc-dlg-card{width:min(400px,100%);background:#fff;border:2px solid var(--ink,#0b2342);border-radius:18px;box-shadow:6px 6px 0 var(--ink,#0b2342);padding:24px 22px 20px;text-align:center;animation:lcDlgPop .18s ease}
+      .lc-dlg-icon{width:58px;height:58px;margin:0 auto 12px;border-radius:50%;border:2px solid var(--ink,#0b2342);display:grid;place-items:center;background:#d4e9f5;color:var(--ink,#0b2342)}
+      .lc-dlg-icon .material-symbols-outlined{font-size:30px}
+      .lc-dlg-card[data-tone="warning"] .lc-dlg-icon{background:#ffd66b}
+      .lc-dlg-card[data-tone="danger"] .lc-dlg-icon{background:#ffd3da}
+      .lc-dlg-card[data-tone="success"] .lc-dlg-icon{background:#c8f0d2}
+      .lc-dlg-card h3{margin:0 0 6px;font-size:1.2rem}
+      .lc-dlg-card p{margin:0;font-size:.95rem;color:#47607c;line-height:1.5;white-space:pre-line}
+      .lc-dlg-actions{display:flex;gap:10px;margin-top:20px}
+      .lc-dlg-actions .btn{flex:1;justify-content:center}
+      .lc-dlg-actions .btn[hidden]{display:none}
+      .lc-dlg-card[data-tone="danger"] [data-lc-dlg-ok]{background:#ff5c7a}
+      @keyframes lcDlgFade{from{opacity:0}to{opacity:1}}
+      @keyframes lcDlgPop{from{opacity:0;transform:translateY(8px) scale(.97)}to{opacity:1;transform:none}}
+      @media (prefers-reduced-motion:reduce){.lc-dlg.show,.lc-dlg-card{animation:none}}
     </style>
   </head>
   <body data-page="lapar-chicken.html">
@@ -131,6 +149,17 @@
         </div>
       </div>
     </main>
+        <div class="lc-dlg" data-lc-dlg aria-hidden="true">
+      <div class="lc-dlg-card" role="alertdialog" aria-modal="true" aria-labelledby="lcDlgTitle" aria-describedby="lcDlgMsg" data-tone="info">
+        <div class="lc-dlg-icon"><span class="material-symbols-outlined" aria-hidden="true" data-lc-dlg-icon>info</span></div>
+        <h3 id="lcDlgTitle" data-lc-dlg-title>Info</h3>
+        <p id="lcDlgMsg" data-lc-dlg-msg></p>
+        <div class="lc-dlg-actions">
+          <button class="btn btn-secondary" type="button" data-lc-dlg-cancel>Batal</button>
+          <button class="btn btn-primary" type="button" data-lc-dlg-ok>Oke</button>
+        </div>
+      </div>
+    </div>
     <div class="lc-overlay" data-lc-overlay role="alertdialog" aria-modal="true" aria-live="polite">
       <div class="lc-overlay-card">
         <div class="lc-spinner" aria-hidden="true"></div>
@@ -158,6 +187,62 @@
       const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
       const fmt = (t) => new Date(t).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' });
       const msg = (text, err) => { const el = $('[data-lc-msg]'); el.textContent = text || ''; el.classList.toggle('err', !!err); };
+            /* ---- Dialog kustom: pengganti alert() & confirm() ---- */
+      const dlgEl = $('[data-lc-dlg]');
+      const dlgIcons = { info: 'info', warning: 'warning', danger: 'error', success: 'check_circle' };
+      let dlgClose = null;
+
+      // Mengembalikan Promise<boolean>: true = tombol utama, false = batal / Esc / klik luar.
+      function lcDialog({ title = 'Info', message = '', confirmText = 'Oke', cancelText = 'Batal', tone = 'info', showCancel = false } = {}) {
+        return new Promise((resolve) => {
+          if (dlgClose) dlgClose(false); // tutup dialog sebelumnya bila masih terbuka
+          const card = dlgEl.querySelector('.lc-dlg-card');
+          const okBtn = dlgEl.querySelector('[data-lc-dlg-ok]');
+          const cancelBtn = dlgEl.querySelector('[data-lc-dlg-cancel]');
+          const previousFocus = document.activeElement;
+
+          card.dataset.tone = tone;
+          dlgEl.querySelector('[data-lc-dlg-icon]').textContent = dlgIcons[tone] || 'info';
+          dlgEl.querySelector('[data-lc-dlg-title]').textContent = title;
+          dlgEl.querySelector('[data-lc-dlg-msg]').textContent = message;
+          okBtn.textContent = confirmText;
+          cancelBtn.textContent = cancelText;
+          cancelBtn.hidden = !showCancel;
+
+          const finish = (result) => {
+            dlgClose = null;
+            dlgEl.classList.remove('show');
+            dlgEl.setAttribute('aria-hidden', 'true');
+            okBtn.onclick = cancelBtn.onclick = dlgEl.onclick = null;
+            document.removeEventListener('keydown', onKey, true);
+            if (!document.querySelector('.lc-overlay.show')) document.body.style.overflow = '';
+            if (previousFocus && previousFocus.focus) previousFocus.focus({ preventScroll: true });
+            resolve(result);
+          };
+          const onKey = (e) => {
+            if (e.key === 'Escape') { e.preventDefault(); finish(false); }
+            else if (e.key === 'Tab') { // fokus tetap di dalam dialog
+              const items = [okBtn, cancelBtn].filter((b) => !b.hidden);
+              const first = items[0], last = items[items.length - 1];
+              if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+              else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+            }
+          };
+
+          dlgClose = finish;
+          okBtn.onclick = () => finish(true);
+          cancelBtn.onclick = () => finish(false);
+          dlgEl.onclick = (e) => { if (e.target === dlgEl) finish(false); };
+          document.addEventListener('keydown', onKey, true);
+
+          dlgEl.classList.add('show');
+          dlgEl.setAttribute('aria-hidden', 'false');
+          document.body.style.overflow = 'hidden';
+          (showCancel && tone === 'danger' ? cancelBtn : okBtn).focus({ preventScroll: true });
+        });
+      }
+      const lcConfirm = (opts) => lcDialog({ ...opts, showCancel: true });
+      const lcAlert = (opts) => lcDialog({ ...opts, showCancel: false });
       /* ---- Loading helpers ---- */
       const overlayEl = $('[data-lc-overlay]');
       let overlayTimers = [];
@@ -246,10 +331,14 @@
         }
       }
 
-                       let attempts = 0;
+      const MAX_POLL = 8;          // 8 x 4 detik = sekitar 32 detik, lalu berhenti
+      let attempts = 0;
       let pollTimer = null;
+      let pollEnabled = false;     // polling hanya aktif setelah kembali dari DOKU
       let manualCheck = false;
-            let vouchersLoadedOnce = false;
+      let vouchersLoadedOnce = false;
+      let countdownTimer = null;
+      let lastLoadAt = 0;
                   /* ---- Auto-update voucher saat dipakai di kasir ---- */
       const LIVE_MS = 4000;
       let liveTimer = null;
@@ -300,6 +389,33 @@
         if (activeSig) livePoll(); // tab dibuka lagi: cek langsung
       });
       window.addEventListener('pageshow', (e) => { if (e.persisted && activeSig) livePoll(); });
+            function startCountdown() {
+        clearInterval(countdownTimer);
+        countdownTimer = null;
+        const els = document.querySelectorAll('[data-lc-countdown]');
+        if (!els.length) return;
+        const tick = () => {
+          let anyLeft = false;
+          els.forEach((el) => {
+            const left = Number(el.dataset.lcCountdown) - Date.now();
+            if (left > 0) {
+              anyLeft = true;
+              const m = Math.floor(left / 60000), s = Math.floor((left % 60000) / 1000);
+              el.textContent = 'Sisa waktu bayar ' + m + ':' + String(s).padStart(2, '0');
+            } else {
+              el.textContent = 'Waktu pembayaran habis...';
+            }
+          });
+          if (!anyLeft) {
+            clearInterval(countdownTimer);
+            countdownTimer = null;
+            // Muat ulang sekali agar server menandai order kedaluwarsa (dengan pengaman anti-loop).
+            if (Date.now() - lastLoadAt > 10000) loadVouchers();
+          }
+        };
+        tick();
+        countdownTimer = setInterval(tick, 1000);
+      }
       const reviewDrafts = new Map();
       const starsText = (n) => '★'.repeat(n) + '☆'.repeat(5 - n);
 
@@ -322,8 +438,9 @@
         </form>`;
       }
 
-            async function loadVouchers() {
+              async function loadVouchers() {
         clearTimeout(pollTimer);
+        lastLoadAt = Date.now();
         const box = $('[data-lc-vouchers]'), pend = $('[data-lc-pending]');
         const wasManual = manualCheck;
         manualCheck = false;
@@ -332,19 +449,28 @@
         try {
           const j = await api('lc-my-vouchers');
           vouchersLoadedOnce = true;
-                    activeSig = voucherSig(j.vouchers);
+          activeSig = voucherSig(j.vouchers);
           startLive();
-          const pollStrip = (j.pending.length && attempts < 20)
-            ? '<div class="lc-poll" role="status"><span class="lc-spin-sm" aria-hidden="true"></span>Menunggu konfirmasi pembayaran dari DOKU...</div>'
+
+          // Strip "menunggu DOKU" hanya tampil saat memang sedang polling (baru kembali dari DOKU).
+          const polling = pollEnabled && j.pending.length > 0 && attempts < MAX_POLL;
+          const pollStrip = polling
+            ? '<div class="lc-poll" role="status"><span class="lc-spin-sm" aria-hidden="true"></span>Memeriksa pembayaran ke DOKU...</div>'
             : '';
+
           pend.innerHTML = j.pending.map((o) => `
             <article class="lc-card">
               <h3>${esc(o.productName)}</h3>
               <span class="lc-chip">Menunggu pembayaran</span>
               <span>${rp(o.sellPrice)}</span>
+              <small class="muted" data-lc-countdown="${Number(o.paymentExpiresAt)}"></small>
               <a class="btn btn-primary" data-pay-link href="${esc(o.paymentUrl)}">Bayar sekarang</a>
               <button class="btn btn-secondary" type="button" data-check-pay>Sudah bayar? Periksa status</button>
+              <button class="btn btn-secondary" type="button" data-cancel-order="${esc(o.orderId)}">Batalkan pesanan</button>
+              <small class="muted">Jika tidak dibayar dalam 60 menit, pesanan batal otomatis. Jatah voucher harianmu tidak berkurang.</small>
             </article>`).join('') + pollStrip;
+          startCountdown();
+
           if (!j.vouchers.length) box.innerHTML = '<p class="muted">Belum ada voucher. Beli voucher di atas, QR akan muncul di sini setelah pembayaran berhasil.</p>';
           else {
             box.innerHTML = j.vouchers.map((v) => {
@@ -371,15 +497,19 @@
               const st = (checks[0] && checks[0].dokuStatus) || '';
               msg(problem
                 ? 'Gagal memeriksa pembayaran: ' + problem.error
-                : 'DOKU belum mencatat pembayaran' + (st ? ' (status: ' + st + ')' : '') + '. Tunggu 1-2 menit lalu periksa lagi.', !!problem);
+                : 'DOKU belum mencatat pembayaran' + (st ? ' (status: ' + st + ')' : '') + '. Tunggu 1-2 menit lalu periksa lagi, atau batalkan pesanan.', !!problem);
+            } else if (pollEnabled && attempts >= MAX_POLL) {
+              pollEnabled = false;
+              msg('Pembayaran belum terdeteksi. Jika sudah membayar, tekan "Sudah bayar? Periksa status". Jika belum, lanjutkan pembayaran atau batalkan pesanan.');
+            } else if (!polling) {
+              msg('');
             }
-            if (attempts < 20) { attempts += 1; pollTimer = setTimeout(loadVouchers, 4000); }
-          } else if (problem) {
-            msg('Ada kendala: ' + problem.error, true);
-          } else if (wasManual || checks.some((c) => c.applied)) {
-            msg('Pembayaran terkonfirmasi. Voucher kamu sudah aktif.');
+            if (polling) { attempts += 1; pollTimer = setTimeout(loadVouchers, 4000); }
           } else {
-            msg('');
+            pollEnabled = false;
+            if (problem) msg('Ada kendala: ' + problem.error, true);
+            else if (wasManual || checks.some((c) => c.applied)) msg('Pembayaran terkonfirmasi. Voucher kamu sudah aktif.');
+            else msg('');
           }
         } catch (e) {
           msg(e.message || 'Voucher gagal dimuat.', true);
@@ -387,16 +517,50 @@
         }
       }
 
-            $('[data-lc-pending]').addEventListener('click', async (ev) => {
+             $('[data-lc-pending]').addEventListener('click', async (ev) => {
         // Klik "Bayar sekarang" -> layar loading sampai halaman DOKU terbuka.
         if (ev.target.closest('[data-pay-link]')) {
           showLoading('Mengalihkan ke DOKU', 'Membuka halaman pembayaran...');
           return;
         }
+
+        // Batalkan pesanan yang belum dibayar (tidak mengurangi jatah harian).
+        const cancelBtn = ev.target.closest('[data-cancel-order]');
+        if (cancelBtn) {
+          const okCancel = await lcConfirm({
+            title: 'Batalkan pesanan?',
+            message: 'Pesanan voucher ini akan dibatalkan. Jatah voucher harianmu tidak berkurang.',
+            confirmText: 'Ya, batalkan',
+            cancelText: 'Kembali',
+            tone: 'danger'
+          });
+          if (!okCancel) return;
+          cancelBtn.disabled = true;
+          pollEnabled = false;
+          showLoading('Membatalkan pesanan', 'Memeriksa status pembayaran lalu membatalkan...');
+          let doneMsg = '';
+          try {
+            const j = await api('lc-cancel-order', { orderId: cancelBtn.dataset.cancelOrder });
+            doneMsg = j.message || 'Pesanan dibatalkan.';
+            await loadVouchers();
+            loadProducts(); // kuota/tampilan voucher diperbarui
+            msg(doneMsg);
+          } catch (e) {
+            msg(e.message || 'Pesanan gagal dibatalkan.', true);
+            cancelBtn.disabled = false;
+            hideLoading();
+            lcAlert({ title: 'Gagal membatalkan', message: e.message || 'Pesanan gagal dibatalkan. Coba lagi.', tone: 'danger' });
+          } finally {
+            hideLoading();
+          }
+          return;
+        }
+
         const btn = ev.target.closest('[data-check-pay]');
         if (!btn) return;
         btn.disabled = true;
         attempts = 0;
+        pollEnabled = false;   // cek manual = sekali periksa, tanpa polling terus-menerus
         manualCheck = true;
         msg('');
         showLoading('Memeriksa pembayaran', 'Menghubungi DOKU untuk memastikan pembayaranmu...', [
@@ -459,7 +623,14 @@
            $('[data-lc-products]').addEventListener('click', async (ev) => {
         const btn = ev.target.closest('[data-buy]');
         if (!btn) return;
-        if (!confirm('Fitur voucher ini masih BETA dan belum kerja sama resmi dengan Lapar Chicken. Penukaran di toko belum dijamin. Lanjut membeli?')) return;
+        const okBuy = await lcConfirm({
+          title: 'Fitur masih BETA',
+          message: 'Voucher ini belum merupakan kerja sama resmi dengan Lapar Chicken, dan penukaran di toko belum dijamin.\n\nTetap lanjut membeli?',
+          confirmText: 'Ya, lanjut beli',
+          cancelText: 'Batal',
+          tone: 'warning'
+        });
+        if (!okBuy) return;
         btn.disabled = true;
         const old = btn.textContent;
         btn.textContent = 'Memproses...';
@@ -482,15 +653,18 @@
           btn.disabled = false;
           btn.textContent = old;
           loadProducts();
+          lcAlert({ title: 'Checkout gagal', message: e.message || 'Pesanan voucher belum bisa dibuat. Coba lagi.', tone: 'danger' });
         }
       });
 
-            onAuthStateChanged(auth, async (user) => {
+             onAuthStateChanged(auth, async (user) => {
         if (!user) { window.location.href = 'login.html'; return; }
         loadProducts();
-        // Baru kembali dari DOKU: tampilkan layar loading selama status diperiksa.
+        // Baru kembali dari DOKU (ada ?orderId=): polling singkat saja (maks. sekitar 32 detik).
         const returning = new URLSearchParams(location.search).get('orderId');
         if (returning) {
+          pollEnabled = true;
+          attempts = 0;
           msg('Memeriksa pembayaran...');
           showLoading('Memeriksa pembayaran', 'Selamat datang kembali! Kami sedang memastikan pembayaranmu.', [
             'Menghubungi DOKU',
