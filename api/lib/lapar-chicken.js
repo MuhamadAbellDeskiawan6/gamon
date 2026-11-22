@@ -340,7 +340,21 @@ async function myVouchers(req, res, claims, deps) {
     .map((o) => ({ orderId: o.id, productName: o.productName, sellPrice: o.sellPrice, paymentUrl: o.paymentUrl, paymentExpiresAt: o.paymentExpiresAt }));
   return res.status(200).json({ success: true, vouchers, pending: pendingOrders, checks });
 }
-
+// Ringan: hanya daftar kode voucher yang masih AKTIF (belum dipakai, belum kedaluwarsa).
+// Dipakai halaman pembeli untuk mendeteksi voucher yang baru ditukar di kasir.
+async function voucherPoll(res, claims) {
+  const db = getAdminDb();
+  const snap = await db.collection('lc_vouchers')
+    .where('userId', '==', claims.uid)
+    .where('status', '==', 'ACTIVE')
+    .get();
+  const now = Date.now();
+  const codes = snap.docs
+    .map((d) => d.data())
+    .filter((v) => Number(v.validUntil) > now)
+    .map((v) => v.code);
+  return res.status(200).json({ success: true, codes });
+}
 /* ---------------- KASIR ---------------- */
 function checkPin(req) {
   const pin = String(process.env.LC_CASHIER_PIN || '').trim();
@@ -529,6 +543,7 @@ export async function handleLcAction(action, req, res, deps) {
     if (!claims) return;
     if (action === 'lc-checkout') return await checkout(req, res, claims, deps);
     if (action === 'lc-my-vouchers') return await myVouchers(req, res, claims, deps);
+        if (action === 'lc-voucher-poll') return await voucherPoll(res, claims);
         if (action === 'lc-submit-review') return await submitReview(req, res, claims);
     throw fail(404, 'unknown-action', 'Aksi tidak dikenal.');
   } catch (e) {

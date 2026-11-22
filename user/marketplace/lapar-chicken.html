@@ -250,6 +250,56 @@
       let pollTimer = null;
       let manualCheck = false;
             let vouchersLoadedOnce = false;
+                  /* ---- Auto-update voucher saat dipakai di kasir ---- */
+      const LIVE_MS = 4000;
+      let liveTimer = null;
+      let liveBusy = false;
+      let activeSig = '';   // daftar kode voucher aktif yang sedang tampil
+
+      const voucherSig = (list) => (list || [])
+        .filter((v) => v.status === 'ACTIVE' && !v.expired)
+        .map((v) => v.code)
+        .sort()
+        .join(',');
+
+      function stopLive() {
+        clearTimeout(liveTimer);
+        liveTimer = null;
+      }
+
+      function startLive() {
+        stopLive();
+        // Tidak ada voucher aktif yang perlu dipantau, atau tab sedang tersembunyi.
+        if (document.hidden || !activeSig) return;
+        liveTimer = setTimeout(livePoll, LIVE_MS);
+      }
+
+      async function livePoll() {
+        if (liveBusy) return;
+        liveBusy = true;
+        try {
+          const j = await api('lc-voucher-poll');
+          const sig = (j.codes || []).slice().sort().join(',');
+          if (sig !== activeSig) {
+            const before = activeSig ? activeSig.split(',') : [];
+            const after = sig ? sig.split(',') : [];
+            const someGone = before.some((c) => !after.includes(c));
+            await loadVouchers(); // render ulang + memperbarui activeSig
+            if (someGone) msg('Voucher kamu baru saja dipakai di kasir. Terima kasih! Silakan beri ulasan di bawah.');
+          }
+        } catch (e) {
+          // Gagal sesaat (koneksi): abaikan, coba lagi di putaran berikutnya.
+        } finally {
+          liveBusy = false;
+          startLive();
+        }
+      }
+
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden) { stopLive(); return; }
+        if (activeSig) livePoll(); // tab dibuka lagi: cek langsung
+      });
+      window.addEventListener('pageshow', (e) => { if (e.persisted && activeSig) livePoll(); });
       const reviewDrafts = new Map();
       const starsText = (n) => '★'.repeat(n) + '☆'.repeat(5 - n);
 
@@ -282,6 +332,8 @@
         try {
           const j = await api('lc-my-vouchers');
           vouchersLoadedOnce = true;
+                    activeSig = voucherSig(j.vouchers);
+          startLive();
           const pollStrip = (j.pending.length && attempts < 20)
             ? '<div class="lc-poll" role="status"><span class="lc-spin-sm" aria-hidden="true"></span>Menunggu konfirmasi pembayaran dari DOKU...</div>'
             : '';
