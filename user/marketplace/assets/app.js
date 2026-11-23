@@ -38,6 +38,11 @@ const demoUsers = [];
 const KALSEL_PROVINCE = 'Kalimantan Selatan';
 const VILLAGE_MANUAL_VALUE = '__manual__';
 
+// Saklar fitur "Mantan x Lapar Chicken".
+// false = disembunyikan dari semua tampilan user (kode, admin, dan API tetap ada).
+// Ubah ke true jika kerja sama dengan Lapar Chicken sudah resmi.
+const LC_FEATURE_ENABLED = false;
+
 const KALSEL_REGIONS = {
   'Kota Banjarmasin': {
     'Banjarmasin Selatan': ['Basirih Selatan', 'Kelayan Barat', 'Kelayan Dalam', 'Kelayan Selatan', 'Kelayan Tengah', 'Kelayan Timur', 'Mantuil', 'Murung Raya', 'Pekauman', 'Pemurus Baru', 'Pemurus Dalam', 'Pemurus Luar'],
@@ -4500,6 +4505,7 @@ async function renderOrdersForBuyer() {
 
 // Blok "Voucher Lapar Chicken" di halaman Pesanan Saya.
 async function renderLcOrdersSection(container) {
+  if (!LC_FEATURE_ENABLED) return;
   try {
     const result = await callMarketplaceApi('lc-my-vouchers');
     const vouchers = Array.isArray(result.vouchers) ? result.vouchers : [];
@@ -5811,7 +5817,7 @@ async function renderSellPage() {
 const USER_SIDEBAR_LINKS = [
   { href: 'dashboard.html', icon: 'dashboard', label: 'Dashboard' },
   { href: 'beli.html', icon: 'shopping_cart', label: 'Katalog' },
-    { href: 'lapar-chicken.html', icon: 'lunch_dining', label: 'Mantan x Lapar Chicken (Beta)' },
+  ...(LC_FEATURE_ENABLED ? [{ href: 'lapar-chicken.html', icon: 'lunch_dining', label: 'Mantan x Lapar Chicken (Beta)' }] : []),
   { href: 'keranjang.html', icon: 'shopping_bag', label: 'Keranjang', cartBadge: true },
   { href: 'pesanan.html', icon: 'receipt_long', label: 'Pesanan Saya' },
   { href: 'jual.html', icon: 'sell', label: 'Jual Barang' },
@@ -5901,6 +5907,7 @@ async function renderHomeReviews() {
 
     // Ulasan voucher Lapar Chicken.
     const fetchVoucher = async () => {
+      if (!LC_FEATURE_ENABLED) return [];
       try {
         const response = await withTimeout(
           fetch('/api/marketplace?action=lc-public-reviews', { cache: 'no-store' }),
@@ -6132,7 +6139,8 @@ async function init() {
     return;
   }
   
-    if (page === 'lapar-chicken.html') {
+  if (page === 'lapar-chicken.html') {
+    if (!LC_FEATURE_ENABLED) window.location.replace('dashboard.html');
     return;
   }
  
