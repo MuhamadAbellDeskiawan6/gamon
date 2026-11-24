@@ -293,6 +293,76 @@ async function initDashboard() {
   $('#who').textContent = '👤 ' + myName;
   $('#logout').onclick = async () => { await signOut(auth); location.href = 'index.html'; };
 
+  /* ---------- POIN GAMON (satu saldo dengan Marketplace Mantan) ---------- */
+  const pointsBar = $('#pointsBar');
+  let points = null, pointsBusy = false, pointsFailed = false;
+
+  function renderPoints() {
+    if (!pointsBar) return;
+    if (!points) {
+      pointsBar.innerHTML = `<section class="card points">
+        <div class="points-info"><span class="points-label">Poin Gamon</span>
+        <small class="muted">${pointsFailed ? 'Poin belum bisa dimuat.' : 'Memuat poin…'}</small></div>
+        ${pointsFailed ? '<button class="btn alt sm" type="button" data-pt="reload">Muat ulang</button>' : ''}
+      </section>`;
+      return;
+    }
+    const done = Boolean(points.checkedInToday);
+    pointsBar.innerHTML = `<section class="card points">
+      <div class="points-info">
+        <span class="points-label">Poin Gamon</span>
+        <strong class="points-value">${Number(points.balance || 0).toLocaleString('id-ID')}</strong>
+        <small class="muted">Streak ${Number(points.streak || 0)} hari · Poin dipakai di Marketplace Mantan</small>
+      </div>
+      <button class="btn sun sm" type="button" data-pt="checkin" ${done || pointsBusy ? 'disabled' : ''}>
+        ${pointsBusy ? 'Memproses…' : done ? 'Sudah check-in hari ini' : 'Check-in harian'}
+      </button>
+    </section>`;
+  }
+
+  async function loadPoints() {
+    try {
+      points = await api('points-info', {}, user);
+      pointsFailed = false;
+    } catch (error) {
+      console.warn('[splitbill] poin gagal dimuat:', error);
+      points = null;
+      pointsFailed = true;
+    }
+    renderPoints();
+  }
+
+  async function doCheckin() {
+    if (pointsBusy || !points || points.checkedInToday) return;
+    pointsBusy = true; renderPoints();
+    try {
+      const r = await api('points-checkin', { source: 'splitbill' }, user);
+      points = { ...points, balance: r.balance, streak: r.streak, checkedInToday: true };
+      toast(`+${r.amount} poin`);
+    } catch (error) {
+      if (error.code === 'already-checked-in') {
+        toast('Kamu sudah check-in hari ini.');
+        pointsBusy = false;
+        await loadPoints();
+        return;
+      }
+      toast('Check-in gagal. Coba lagi.');
+    } finally {
+      pointsBusy = false;
+      renderPoints();
+    }
+  }
+
+  pointsBar?.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-pt]');
+    if (!b) return;
+    if (b.dataset.pt === 'checkin') doCheckin();
+    else if (b.dataset.pt === 'reload') { pointsFailed = false; renderPoints(); loadPoints(); }
+  });
+  renderPoints();
+  loadPoints();
+  /* ---------- end poin ---------- */
+
   const root = $('#app'), gmsg = $('#gmsg');
   let couple = null, bills = [], settles = [], subFor = '', unsubBills = () => {}, unsubSet = () => {};
   let loaded = false;
