@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+<title>Masuk | Split Bill Couple</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="assets/sb.css"/>
+</head>
+<body data-page="sb-login">
+<div class="auth">
+  <div class="card">
+    <a class="brand" href="index.html" style="margin-bottom:16px"><img src="../../image/logo/gamonspace-transparan.png" alt="Gamon Space"/><span>Split Bill Couple</span></a>
+    <h1>Masuk</h1>
+    <p class="muted" style="margin-bottom:16px">Pakai akun Gamon Space yang sama dengan Marketplace Mantan.</p>
+
+    <p class="msg" id="msg" role="status" hidden></p>
+
+    <button type="button" class="btn alt block" id="google">Masuk dengan Google</button>
+    <div class="sep">atau pakai email</div>
+
+    <form id="f">
+      <div class="field"><label for="email">Email</label><input id="email" type="email" autocomplete="email" placeholder="nama@email.com" required/></div>
+      <div class="field"><label for="password">Password</label><input id="password" type="password" autocomplete="current-password" placeholder="Masukkan password" required/></div>
+      <div class="links"><a href="#" id="resend">Kirim ulang email verifikasi</a><a href="#" id="forgot">Lupa password?</a></div>
+      <button class="btn block" type="submit" id="submit">Masuk</button>
+    </form>
+    <p style="margin-top:16px;text-align:center">Belum punya akun? <a href="register.html"><b>Daftar</b></a></p>
+  </div>
+</div>
+<script type="module" src="assets/sb.js"></script>
+</body>
+</html>

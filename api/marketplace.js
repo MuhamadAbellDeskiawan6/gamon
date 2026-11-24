@@ -1407,15 +1407,21 @@ function signVerifyPayload(payloadB64, secret) {
 }
 
 function normalizeAuthApp(value) {
-  return value === 'jasa' ? 'jasa' : 'marketplace';
+  return value === 'jasa' || value === 'splitbill' ? value : 'marketplace';
 }
 
 function authBrand(app) {
-  return normalizeAuthApp(app) === 'jasa' ? 'Gamon Jasa' : 'Marketplace Mantan';
+  const a = normalizeAuthApp(app);
+  if (a === 'jasa') return 'Gamon Jasa';
+  if (a === 'splitbill') return 'Gamon Split Bill';
+  return 'Marketplace Mantan';
 }
 
 function authLoginPath(app) {
-  return normalizeAuthApp(app) === 'jasa' ? '/user/jasa/masuk.html' : '/user/marketplace/login.html';
+  const a = normalizeAuthApp(app);
+  if (a === 'jasa') return '/user/jasa/masuk.html';
+  if (a === 'splitbill') return '/user/splitbill/login.html';
+  return '/user/marketplace/login.html';
 }
 
 function createVerifyToken(uid, email, app = 'marketplace') {
@@ -1617,7 +1623,7 @@ async function sendPasswordReset(req, res) {
     const host = String(req.headers?.host || '');
     const isLocalHost = /^(localhost|127\.0\.0\.1)(:\d+)?$/i.test(host);
     const baseUrl = isLocalHost ? `http://${host}` : getSiteUrl();
-    const appQuery = app === 'jasa' ? '&app=jasa' : '';
+    const appQuery = app !== 'marketplace' ? `&app=${app}` : '';
     const link = `${baseUrl}/api/marketplace?action=reset-password&token=${encodeURIComponent(createResetToken(user.uid, email, user.passwordHash, app))}${appQuery}`;
 
     const name = cleanText(profileSnap.exists ? profileSnap.data()?.name : '', 80) || 'Pembeli';
@@ -1792,7 +1798,7 @@ async function sendVerification(req, res) {
     const host = String(req.headers?.host || '');
     const isLocalHost = /^(localhost|127\.0\.0\.1)(:\d+)?$/i.test(host);
     const baseUrl = isLocalHost ? `http://${host}` : getSiteUrl();
-    const appQuery = app === 'jasa' ? '&app=jasa' : '';
+    const appQuery = app !== 'marketplace' ? `&app=${app}` : '';
     const link = `${baseUrl}/api/marketplace?action=verify-email&token=${encodeURIComponent(createVerifyToken(claims.uid, email, app))}${appQuery}`;
 
              const name = cleanText(claims.name || profileSnap.data()?.name || '', 80) || 'Pembeli';

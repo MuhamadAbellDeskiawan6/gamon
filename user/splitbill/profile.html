@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+<title>Profil | Split Bill Couple</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="assets/sb.css"/>
+</head>
+<body data-page="sb-profile">
+<header class="topbar">
+  <div class="wrap nav">
+    <a class="brand" href="index.html"><img src="../../image/logo/gamonspace-transparan.png" alt="Gamon Space"/><span>Split Bill</span></a>
+    <nav class="nav-actions">
+      <a class="btn alt sm" href="dashboard.html">← Dashboard</a>
+      <button class="btn alt sm" id="logout" type="button">Keluar</button>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap page">
+  <section class="card" style="max-width:560px">
+    <h2>Profil</h2>
+    <p class="muted" style="margin:6px 0 16px">Nama dan nomor HP ini dibagikan <b>hanya ke pasanganmu</b> di Split Bill, agar dia bisa menghubungimu lewat WhatsApp. Data yang sama dipakai di Marketplace Mantan.</p>
+
+    <p class="msg" id="msg" role="status" hidden></p>
+
+    <form id="f">
+      <div class="field">
+        <label>Foto profil</label>
+        <div class="photo-row">
+          <div class="av big" id="pAvatar">?</div>
+          <div>
+            <input id="pPhoto" type="file" accept="image/jpeg,image/png,image/webp" style="padding:8px"/>
+            <small class="muted" style="display:block;margin-top:4px">JPG, PNG, atau WebP, maksimal 2 MB.</small>
+            <button class="btn alt sm" type="button" id="pPhotoRemove" style="margin-top:8px" hidden>Hapus foto</button>
+          </div>
+        </div>
+      </div>
+      <div class="field"><label for="pEmail">Email</label><input id="pEmail" type="email" readonly/></div>
+      <div class="field"><label for="pName">Nama</label><input id="pName" maxlength="60" required/></div>
+      <div class="field"><label for="pPhone">Nomor HP / WhatsApp</label><input id="pPhone" type="tel" placeholder="08xxxxxxxxxx"/><small class="muted">Format Indonesia, contoh 08123456789 atau 628123456789.</small></div>
+      <button class="btn" type="submit" id="submit">Simpan profil</button>
+    </form>
+  </section>
+</main>
+<script type="module" src="assets/sb.js"></script>
+</body>
+</html>

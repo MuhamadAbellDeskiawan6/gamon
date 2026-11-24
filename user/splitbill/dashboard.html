@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+<title>Dashboard | Split Bill Couple</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="assets/sb.css"/>
+</head>
+<body data-page="sb-dashboard">
+<header class="topbar">
+  <div class="wrap nav">
+    <a class="brand" href="index.html"><img src="../../image/logo/gamonspace-transparan.png" alt="Gamon Space"/><span>Split Bill</span></a>
+    <nav class="nav-actions">
+      <a class="btn sun sm" id="who" href="profile.html">Profil</a>
+      <button class="btn alt sm" id="logout" type="button">Keluar</button>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap page">
+  <p class="msg" id="gmsg" role="status" hidden></p>
+  <div id="app"><section class="card"><p>Memuat…</p></section></div>
+</main>
+
+<!-- Dialog tambah tagihan -->
+<dialog id="billDlg">
+  <h2>Tambah tagihan</h2>
+  <form id="billForm">
+    <div class="field"><label for="bTitle">Untuk apa?</label><input id="bTitle" maxlength="80" placeholder="Contoh: Makan malam di warung" required/></div>
+    <div class="row2">
+      <div class="field"><label for="bTotal">Total (Rp)</label><input id="bTotal" inputmode="numeric" placeholder="Rp 0" required/></div>
+      <div class="field"><label for="bPaidBy">Dibayar oleh</label><select id="bPaidBy"></select></div>
+    </div>
+    <div class="field">
+      <label>Pembagian</label>
+      <div class="radios" id="splitRadios"></div>
+    </div>
+    <div class="field" id="pctRow" hidden><label for="bPct">Porsimu (%)</label><input id="bPct" type="number" min="0" max="100" value="50"/></div>
+    <div class="field" id="customRow" hidden><label for="bCustom">Porsimu (Rp)</label><input id="bCustom" inputmode="numeric" placeholder="Rp 0"/></div>
+    <div class="row2">
+      <div class="field"><label for="bCat">Kategori</label>
+        <select id="bCat">
+          <option value="makan">🍜 Makan</option><option value="belanja">🛍️ Belanja</option>
+          <option value="transport">🛵 Transport</option><option value="hiburan">🎬 Hiburan</option>
+          <option value="tagihan">🧾 Tagihan</option><option value="lain">📦 Lainnya</option>
+        </select></div>
+      <div class="field"><label for="bDate">Tanggal</label><input id="bDate" type="date" required/></div>
+    </div>
+    <div class="field"><label for="bNote">Catatan (opsional)</label><input id="bNote" maxlength="200"/></div>
+    <p class="msg err" id="bMsg" hidden></p>
+    <div class="dlg-actions">
+      <button class="btn alt" type="button" data-close="billDlg">Batal</button>
+      <button class="btn" type="submit" id="bSubmit">Simpan</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Dialog pelunasan -->
+<dialog id="setDlg">
+  <h2>Catat pelunasan</h2>
+  <form id="setForm">
+    <p id="setInfo" class="muted" style="margin-bottom:14px"></p>
+    <div class="field"><label for="sAmount">Jumlah dibayar (Rp)</label><input id="sAmount" inputmode="numeric" required/></div>
+    <div class="field"><label for="sNote">Catatan (opsional)</label><input id="sNote" maxlength="200" placeholder="Contoh: transfer lewat QRIS"/></div>
+    <p class="msg err" id="sMsg" hidden></p>
+    <div class="dlg-actions">
+      <button class="btn alt" type="button" data-close="setDlg">Batal</button>
+      <button class="btn" type="submit" id="sSubmit">Catat</button>
+    </div>
+  </form>
+</dialog>
+
+<script type="module" src="assets/sb.js"></script>
+</body>
+</html>
