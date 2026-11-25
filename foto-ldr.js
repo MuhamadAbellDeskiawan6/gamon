@@ -191,7 +191,15 @@ function stopCameraStream(stream) {
 function logSync(message, payload) {
   console.log("[LDR sync]", message, payload || "");
 }
-
+async function readJsonSafe(response) {
+  const text = await response.text();
+  try {
+    return JSON.parse(text);
+  } catch (error) {
+    console.error("[LDR] Respons server bukan JSON:", response.status, text.slice(0, 300));
+    return { success: false, message: `Server error (${response.status}). Coba lagi sebentar.` };
+  }
+}
 function setCaptureBusy(isBusy) {
   if (!captureBtn) {
     return;
@@ -2257,7 +2265,7 @@ async function createSession() {
       body: JSON.stringify({ action: "create-session" }),
     });
 
-    const payload = await response.json();
+    const payload = await readJsonSafe(response);
 
     if (!response.ok || !payload.success) {
       throw new Error(payload.message || "Gagal membuat sesi.");
@@ -2308,7 +2316,7 @@ async function joinSession() {
       body: JSON.stringify({ action: "join-session", code }),
     });
 
-    const payload = await response.json();
+    const payload = await readJsonSafe(response);
 
     if (!response.ok || !payload.success) {
       throw new Error(payload.message || "Gagal bergabung ke sesi.");
@@ -2388,6 +2396,18 @@ function loadImage(src) {
   });
 }
 
+async function loadFrameSafe(src) {
+  const candidates = [src, "/image/assets/frame-ldr.png"].filter(Boolean);
+  for (const candidate of candidates) {
+    try {
+      return await loadImage(candidate);
+    } catch (error) {
+      console.warn("[LDR] Frame gagal dimuat:", String(candidate).slice(0, 60));
+    }
+  }
+  return null;
+}
+
 function getCoverDrawMetrics(sourceWidth, sourceHeight, targetWidth, targetHeight) {
   const scale = Math.max(targetWidth / sourceWidth, targetHeight / sourceHeight);
   const drawWidth = sourceWidth * scale;
@@ -2443,8 +2463,10 @@ async function renderResult(resultDataUrl) {
   await drawPhotoSlot(ctx, layout.topSlot.x, layout.topSlot.y, layout.topSlot.w, layout.topSlot.h, topPhoto);
   await drawPhotoSlot(ctx, layout.bottomSlot.x, layout.bottomSlot.y, layout.bottomSlot.w, layout.bottomSlot.h, bottomPhoto);
 
-  const frame = await loadImage(state.sessionData?.selectedFrameImage || "/image/assets/frame-ldr.png");
-  ctx.drawImage(frame, 0, 0, canvas.width, canvas.height);
+  const frame = await loadFrameSafe(state.sessionData?.selectedFrameImage);
+  if (frame) {
+    ctx.drawImage(frame, 0, 0, canvas.width, canvas.height);
+  }
 
   state.resultImage = resultDataUrl || canvas.toDataURL("image/jpeg", 0.88);
   resultMessage.textContent = "Foto LDR siap dikirim.";
@@ -2496,8 +2518,10 @@ async function composeResultWithFrame(frameImage) {
   await drawPhotoSlot(ctx, layout.topSlot.x, layout.topSlot.y, layout.topSlot.w, layout.topSlot.h, user1Photo);
   await drawPhotoSlot(ctx, layout.bottomSlot.x, layout.bottomSlot.y, layout.bottomSlot.w, layout.bottomSlot.h, user2Photo);
 
-  const frame = await loadImage(frameImage || "/image/assets/frame-ldr.png");
-  ctx.drawImage(frame, 0, 0, composite.width, composite.height);
+  const frame = await loadFrameSafe(frameImage);
+  if (frame) {
+    ctx.drawImage(frame, 0, 0, composite.width, composite.height);
+  }
 
   const imageDataUrl = composite.toDataURL("image/jpeg", 0.88);
   await updateSession({

@@ -1,7 +1,7 @@
-const admin = require("firebase-admin");
-const crypto = require("crypto");
-const fs = require("fs");
-const path = require("path");
+import admin from "firebase-admin";
+import crypto from "crypto";
+import fs from "fs";
+import path from "path";
 const SESSION_TIME_LIMIT_SECONDS = 60;
 const LDR_PAYMENT_AMOUNT = 2000;
 const DOKU_CLIENT_ID = String(process.env.DOKU_CLIENT_ID || '').trim();
@@ -20,6 +20,8 @@ function resolveSiteUrl(req) {
 }
 
 function getFirebaseAdmin() {
+
+
   if (!admin.apps.length) {
     const raw = process.env.FIREBASE_SERVICE_ACCOUNT;
     let serviceAccount = null;
@@ -27,6 +29,10 @@ function getFirebaseAdmin() {
     if (raw) {
       try {
         serviceAccount = JSON.parse(raw);
+        // Private key sering rusak karena "\n" berubah jadi teks saat paste di Vercel
+        if (serviceAccount.private_key) {
+          serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, "\n");
+        }
       } catch (error) {
         console.error("Invalid FIREBASE_SERVICE_ACCOUNT JSON:", error);
       }
@@ -40,7 +46,7 @@ function getFirebaseAdmin() {
     }
 
     if (!serviceAccount) {
-      throw new Error("FIREBASE_SERVICE_ACCOUNT belum diatur.");
+      throw new Error("FIREBASE_SERVICE_ACCOUNT belum diatur atau bukan JSON valid.");
     }
 
     admin.initializeApp({
@@ -638,7 +644,7 @@ async function updateSessionHandler(req, res, body = {}) {
   }
 }
 
-module.exports = async function handler(req, res) {
+async function mainHandler(req, res) {
   let body = req.body || {};
   if (typeof body === "string") {
     try {
@@ -688,4 +694,18 @@ module.exports = async function handler(req, res) {
     success: false,
     message: "Aksi foto LDR tidak valid. Gunakan action=create-session, join-session, atau update-session.",
   });
-};
+}
+
+export default async function handler(req, res) {
+  try {
+    return await mainHandler(req, res);
+  } catch (error) {
+    console.error("[foto-ldr] Unhandled error:", error);
+    if (!res.headersSent) {
+      return res.status(500).json({
+        success: false,
+        message: "Server error: " + (error && error.message ? error.message : String(error)),
+      });
+    }
+  }
+}
